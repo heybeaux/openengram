@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
+import { LLMModule } from './llm/llm.module';
 import { MemoryModule } from './memory/memory.module';
 
 @Module({
@@ -9,6 +10,7 @@ import { MemoryModule } from './memory/memory.module';
       isGlobal: true,
     }),
     PrismaModule,
+    LLMModule,
     MemoryModule,
   ],
 })
