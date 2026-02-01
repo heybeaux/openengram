@@ -161,6 +161,29 @@ Every memory is automatically analyzed to extract:
 - **Why** — Reasoning or motivation
 - **How** — Method or process
 
+### Auto-Mode (Conversation Observation)
+
+Engram can passively observe conversations and automatically extract memories based on importance signals:
+
+| Signal Type | Triggers | Example |
+|-------------|----------|---------|
+| **Explicit** | "remember this", "important", "never forget" | "Remember this: I'm allergic to shellfish" |
+| **Correction** | "actually", "no that's wrong", "I meant" | "Actually, my email is john@example.com" |
+| **Preference** | "I prefer", "I always", "I never", "I like", "I hate" | "I always use dark mode" |
+| **Repetition** | Same concept mentioned 2+ times | Mentioning "TypeScript" in multiple turns |
+
+```typescript
+// Observe a conversation and auto-extract memories
+const result = await engram.observe([
+  { role: 'user', content: 'I always use dark mode in my editors' },
+  { role: 'assistant', content: 'Got it! I\'ll remember that.' },
+  { role: 'user', content: 'Remember this: never deploy on Fridays' },
+], { minImportance: 0.5 });
+
+console.log(result.created);  // 2 memories created
+console.log(result.signals);  // Detected preference + explicit signals
+```
+
 ---
 
 ## Architecture
@@ -214,6 +237,23 @@ POST /v1/context
 {
   "maxTokens": 4000
 }
+
+# Observe conversation (auto-mode)
+POST /v1/observe
+{
+  "turns": [
+    { "role": "user", "content": "I prefer TypeScript over JavaScript" },
+    { "role": "assistant", "content": "Noted!" },
+    { "role": "user", "content": "Remember this: always use strict mode" }
+  ],
+  "minImportance": 0.4
+}
+
+# Analyze signals only (preview, no storage)
+POST /v1/observe/analyze
+{
+  "turns": [...]
+}
 ```
 
 ### TypeScript SDK
@@ -231,6 +271,10 @@ const context = await engram.loadContext(options);
 await engram.used(memoryId);
 await engram.helpful(memoryId);
 await engram.correct(memoryId, correction);
+
+// Auto-mode
+const result = await engram.observe(turns, options);
+const analysis = await engram.analyzeSignals(turns);
 ```
 
 ---
