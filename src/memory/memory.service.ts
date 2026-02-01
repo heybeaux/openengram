@@ -20,8 +20,12 @@ export interface MemoryWithExtraction extends Memory {
   chain?: MemoryWithExtraction[];
 }
 
+export interface MemoryWithScore extends MemoryWithExtraction {
+  score?: number; // Similarity score from vector search (0-1)
+}
+
 export interface QueryResult {
-  memories: MemoryWithExtraction[];
+  memories: MemoryWithScore[];
   queryTokens: number;
   latencyMs: number;
 }
@@ -124,7 +128,7 @@ export class MemoryService {
     // 1. Generate query embedding
     const queryEmbedding = await this.embedding.generate(dto.query);
 
-    // 2. Search Pinecone for similar memories
+    // 2. Search vector store for similar memories (returns scored, ordered results)
     const vectorResults = await this.embedding.search(
       userId,
       queryEmbedding,
@@ -132,8 +136,11 @@ export class MemoryService {
       dto.layers,
     );
 
-    // 3. Fetch full memory records from Postgres
+    // 3. Build score map for efficient lookup
+    const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
     const memoryIds = vectorResults.map((r) => r.id);
+
+    // 4. Fetch full memory records from Postgres
     const memories = await this.prisma.memory.findMany({
       where: {
         id: { in: memoryIds },
@@ -142,16 +149,27 @@ export class MemoryService {
       include: {
         extraction: true,
       },
-      orderBy: { importanceScore: 'desc' },
     });
 
-    // 4. Optionally include reasoning chains
-    let result: MemoryWithExtraction[] = memories;
+    // 5. Preserve vector search order and attach scores
+    const orderedMemories: MemoryWithScore[] = memoryIds
+      .map((id) => {
+        const memory = memories.find((m) => m.id === id);
+        if (!memory) return null;
+        return {
+          ...memory,
+          score: scoreMap.get(id),
+        } as MemoryWithScore;
+      })
+      .filter((m): m is MemoryWithScore => m !== null);
+
+    // 6. Optionally include reasoning chains
+    let result: MemoryWithScore[] = orderedMemories;
     if (dto.includeChains) {
-      result = await this.attachChains(memories);
+      result = await this.attachChains(orderedMemories) as MemoryWithScore[];
     }
 
-    // 5. Update retrieval counts
+    // 7. Update retrieval counts
     await this.prisma.memory.updateMany({
       where: { id: { in: memoryIds } },
       data: {
