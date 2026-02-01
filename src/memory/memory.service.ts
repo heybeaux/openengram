@@ -62,7 +62,10 @@ export class MemoryService {
       layer: dto.layer,
     });
 
-    // 2. Create memory record
+    // 2. Resolve sessionId - auto-create session if needed
+    const sessionId = await this.resolveSessionId(userId, dto.context?.sessionId);
+
+    // 3. Create memory record
     const memory = await this.prisma.memory.create({
       data: {
         userId,
@@ -72,11 +75,11 @@ export class MemoryService {
         importanceHint: dto.importanceHint,
         importanceScore,
         projectId: dto.context?.projectId,
-        sessionId: dto.context?.sessionId,
+        sessionId,
       },
     });
 
-    // 3. Extract structure asynchronously (don't block response)
+    // 4. Extract structure asynchronously (don't block response)
     this.extractAndEmbed(memory.id, dto.raw).catch((err) => {
       console.error(`Extraction failed for memory ${memory.id}:`, err);
     });
@@ -262,6 +265,43 @@ export class MemoryService {
   // =========================================================================
   // PRIVATE HELPERS
   // =========================================================================
+
+  /**
+   * Resolve sessionId - if provided as external ID, find or create the session
+   * This allows callers to pass any sessionId string without pre-creating sessions
+   */
+  private async resolveSessionId(
+    userId: string,
+    sessionId?: string,
+  ): Promise<string | undefined> {
+    if (!sessionId) return undefined;
+
+    // First, check if this is already a valid session ID in our DB
+    const existingById = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true },
+    });
+    if (existingById) return existingById.id;
+
+    // Check if this is an external ID for this user
+    const existingByExternalId = await this.prisma.session.findFirst({
+      where: {
+        userId,
+        externalId: sessionId,
+      },
+      select: { id: true },
+    });
+    if (existingByExternalId) return existingByExternalId.id;
+
+    // Session doesn't exist - create it with the provided sessionId as externalId
+    const newSession = await this.prisma.session.create({
+      data: {
+        userId,
+        externalId: sessionId,
+      },
+    });
+    return newSession.id;
+  }
 
   private async extractAndEmbed(memoryId: string, raw: string): Promise<void> {
     // 1. Extract 5W1H structure
