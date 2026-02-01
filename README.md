@@ -8,47 +8,22 @@ Engram solves the fundamental problem that AI agents wake up blank every session
 
 ---
 
-## Features
+## Why Engram?
 
-- **Simple API** — `engram.remember()` and `engram.recall()`
-- **Semantic search** — Find memories by meaning, not keywords
-- **Automatic extraction** — 5W1H (who, what, when, where, why, how)
-- **Memory layers** — Identity, Project, Session, Task
+AI agents are stateless by nature. Every conversation starts fresh. Engram gives your agent:
+
+- **Persistent memory** — Facts, preferences, and context survive across sessions
+- **Semantic recall** — Find relevant memories by meaning, not keywords
+- **Automatic structure** — 5W1H extraction (who, what, when, where, why, how)
 - **Importance scoring** — Critical memories surface first
-- **Reasoning chains** — Track how decisions led to conclusions
-- **Consolidation** — Memories strengthen over time
-- **Proactive surfacing** — Relevant context pushed via webhooks
+- **Memory layers** — Identity, Project, Session, Task lifespans
+- **Provider flexibility** — Bring your own LLM and vector store
 
 ---
 
 ## Quick Start
 
-```typescript
-import { Engram } from '@engram/sdk';
-
-const engram = new Engram({
-  apiKey: 'eg_sk_...',
-  userId: 'user_123',
-});
-
-// Remember
-await engram.remember("User prefers dark mode");
-await engram.remember("Never deploy on Fridays", { 
-  importance: 'critical',
-  layer: 'identity'
-});
-
-// Recall
-const memories = await engram.recall("user preferences");
-
-// Load context for a session
-const context = await engram.loadContext({ maxTokens: 4000 });
-// Returns formatted string ready for system prompt injection
-```
-
----
-
-## Installation
+### 1. Install the SDK
 
 ```bash
 npm install @engram/sdk
@@ -56,65 +31,135 @@ npm install @engram/sdk
 pnpm add @engram/sdk
 ```
 
+### 2. Initialize the client
+
+```typescript
+import { Engram } from '@engram/sdk';
+
+const engram = new Engram({
+  apiKey: 'eg_sk_...',      // Your API key
+  userId: 'user_123',        // The end-user you're storing memories for
+  baseUrl: 'http://localhost:3000',  // Self-hosted or cloud
+});
+```
+
+### 3. Store memories
+
+```typescript
+// Simple memory
+await engram.remember("User prefers dark mode");
+
+// With options
+await engram.remember("Never deploy on Fridays", { 
+  importance: 'critical',
+  layer: 'identity'
+});
+
+// Batch import (e.g., from conversation history)
+await engram.rememberAll([
+  { raw: "Working on the dashboard redesign" },
+  { raw: "Meeting with design team tomorrow at 2pm" },
+]);
+```
+
+### 4. Recall memories
+
+```typescript
+// Semantic search
+const memories = await engram.recall("user preferences");
+// Returns memories about dark mode, UI preferences, etc.
+
+// Load context for session start
+const context = await engram.loadContext({ maxTokens: 4000 });
+// Returns formatted string ready for system prompt injection
+```
+
+### 5. Provide feedback
+
+```typescript
+// Mark memory as used (implicit signal)
+await engram.used(memoryId);
+
+// Mark as helpful (explicit signal)
+await engram.helpful(memoryId);
+
+// Correct a memory
+await engram.correct(memoryId, "Actually prefers light mode");
+```
+
 ---
 
-## API Reference
+## Self-Hosting
 
-### Memory Operations
-
-| Method | Description |
-|--------|-------------|
-| `engram.remember(text, options?)` | Store a memory |
-| `engram.rememberAll(memories)` | Batch import |
-| `engram.recall(query, options?)` | Semantic search |
-| `engram.loadContext(options?)` | Get formatted context |
-
-### Feedback
-
-| Method | Description |
-|--------|-------------|
-| `engram.used(memoryId)` | Mark memory as used |
-| `engram.helpful(memoryId)` | Mark as helpful |
-| `engram.correct(memoryId, correction)` | Correct a memory |
-
-### Sessions
-
-| Method | Description |
-|--------|-------------|
-| `engram.startSession(options?)` | Start a session |
-| `session.end()` | End session, trigger consolidation |
-
----
-
-## REST API
+Engram is designed to run anywhere:
 
 ```bash
-# Create memory
-POST /v1/memories
-X-AM-API-Key: eg_sk_...
-X-AM-User-ID: user_123
+# Clone the repo
+git clone https://github.com/your-org/engram
+cd engram
 
-{
-  "raw": "User prefers dark mode",
-  "layer": "identity",
-  "importance_hint": "high"
-}
+# Install dependencies
+pnpm install
 
-# Query memories
-POST /v1/memories/query
+# Configure environment
+cp .env.example .env
+# Edit .env with your database URL and API keys
 
-{
-  "query": "user preferences",
-  "limit": 10
-}
+# Run database migrations
+pnpm prisma migrate dev
 
-# Load context
-POST /v1/context
-
-{
-  "maxTokens": 4000
-}
+# Start the server
+pnpm start:dev
 ```
+
+See [Self-Hosting Guide](./docs/SELF_HOSTING.md) for detailed setup instructions.
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [API Reference](./docs/API.md) | Full REST API documentation |
+| [Configuration](./docs/CONFIGURATION.md) | Environment variables and options |
+| [Providers](./docs/PROVIDERS.md) | LLM and vector provider options |
+| [Self-Hosting](./docs/SELF_HOSTING.md) | Deployment guide |
+| [SDK Guide](./docs/SDK.md) | TypeScript SDK usage |
+
+---
+
+## Core Concepts
+
+### Memory Layers
+
+Engram organizes memories into layers with different lifespans:
+
+| Layer | Purpose | Lifespan | Example |
+|-------|---------|----------|---------|
+| **Identity** | Core user facts | Permanent | "Prefers dark mode" |
+| **Project** | Workstream context | Weeks/months | "Working on v2 redesign" |
+| **Session** | Conversation context | Days | "Just discussed auth flow" |
+| **Task** | Immediate work | Hours | "Debugging login issue" |
+
+### Importance Scoring
+
+Memories have importance scores (0-1) that determine retrieval priority:
+
+- **Explicit hints** — API can flag memories as `low`, `medium`, `high`, or `critical`
+- **Usage signals** — Memories used more often gain importance
+- **Layer weight** — Identity > Project > Session > Task
+- **Time decay** — Unused memories fade (except Identity layer)
+
+### 5W1H Extraction
+
+Every memory is automatically analyzed to extract:
+
+- **Who** — People, organizations, entities
+- **What** — Core fact or action
+- **When** — Temporal context
+- **Where** — Location or setting
+- **Why** — Reasoning or motivation
+- **How** — Method or process
 
 ---
 
@@ -126,41 +171,66 @@ POST /v1/context
 │   (Agent)   │     │   Server    │     │  (metadata) │
 └─────────────┘     └──────┬──────┘     └─────────────┘
                            │
-                           │
-                    ┌──────▼──────┐
-                    │  Pinecone   │
-                    │ (embeddings)│
-                    └─────────────┘
+              ┌────────────┼────────────┐
+              │            │            │
+       ┌──────▼──────┐  ┌──▼───┐  ┌─────▼─────┐
+       │  pgvector   │  │ LLM  │  │ Pinecone  │
+       │   (local)   │  │ APIs │  │  (cloud)  │
+       └─────────────┘  └──────┘  └───────────┘
 ```
 
----
-
-## Memory Layers
-
-| Layer | Purpose | Lifespan |
-|-------|---------|----------|
-| **Identity** | Who is this user? Core facts. | Permanent |
-| **Project** | Active workstreams, goals, decisions | Weeks/months |
-| **Session** | Recent conversations, current context | Days |
-| **Task** | Immediate work | Hours |
+**Bring your own:**
+- **LLM**: OpenAI, Anthropic, Ollama, LM Studio
+- **Vector store**: pgvector (local) or Pinecone (cloud)
+- **Database**: PostgreSQL
 
 ---
 
-## Development
+## API at a Glance
+
+### REST Endpoints
 
 ```bash
-# Install dependencies
-pnpm install
+# Create memory
+POST /v1/memories
+X-AM-API-Key: eg_sk_...
+X-AM-User-ID: user_123
 
-# Set up database
-cp .env.example .env
-# Edit .env with your database URL
+{
+  "raw": "User prefers dark mode",
+  "layer": "IDENTITY",
+  "importanceHint": "HIGH"
+}
 
-# Run migrations
-pnpm prisma migrate dev
+# Query memories
+POST /v1/memories/query
+{
+  "query": "user preferences",
+  "limit": 10
+}
 
-# Start server
-pnpm start:dev
+# Load context
+POST /v1/context
+{
+  "maxTokens": 4000
+}
+```
+
+### TypeScript SDK
+
+```typescript
+// Remember
+await engram.remember(text, options);
+await engram.rememberAll(memories);
+
+// Recall
+const memories = await engram.recall(query, options);
+const context = await engram.loadContext(options);
+
+// Feedback
+await engram.used(memoryId);
+await engram.helpful(memoryId);
+await engram.correct(memoryId, correction);
 ```
 
 ---
@@ -170,7 +240,7 @@ pnpm start:dev
 - **NestJS** — API framework
 - **Prisma** — Database ORM
 - **PostgreSQL** — Metadata storage
-- **Pinecone** — Vector embeddings
+- **pgvector / Pinecone** — Vector embeddings
 - **TypeScript** — Type safety
 
 ---
