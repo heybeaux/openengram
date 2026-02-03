@@ -36,7 +36,10 @@ describe('ExtractionService', () => {
         why: 'better type safety',
         how: 'for all new projects',
         topics: ['preferences', 'programming'],
-        entities: ['TypeScript', 'JavaScript'],
+        entities: [
+          { name: 'TypeScript', type: 'product' },
+          { name: 'JavaScript', type: 'product' },
+        ],
       };
 
       mockLlmService.json.mockResolvedValue(llmResponse);
@@ -52,7 +55,11 @@ describe('ExtractionService', () => {
         { temperature: 0.2 },
       );
 
-      expect(result).toEqual(llmResponse);
+      expect(result.who).toBe('John');
+      expect(result.what).toBe('prefers TypeScript over JavaScript');
+      expect(result.topics).toEqual(['preferences', 'programming']);
+      expect(result.entities).toHaveLength(2);
+      expect(result.entities[0]).toEqual({ name: 'TypeScript', type: 'product' });
     });
 
     it('should handle null values in LLM response', async () => {
@@ -183,8 +190,9 @@ describe('ExtractionService', () => {
 
     it('should extract named entities', async () => {
       const result = await service.extract('Microsoft and Apple are tech companies');
-      expect(result.entities).toContain('Microsoft');
-      expect(result.entities).toContain('Apple');
+      const entityNames = result.entities.map(e => e.name);
+      expect(entityNames).toContain('Microsoft');
+      expect(entityNames).toContain('Apple');
     });
 
     it('should filter out common words from entities', async () => {

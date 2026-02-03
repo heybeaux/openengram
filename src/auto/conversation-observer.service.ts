@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { ImportanceDetectorService } from './importance-detector.service';
-import { AutoExtractorService } from './auto-extractor.service';
+import { AutoExtractorService, ExtractorContext } from './auto-extractor.service';
 import {
   ObserveDto,
   ObserveResult,
@@ -9,6 +10,10 @@ import {
   ImportanceSignal,
 } from './dto/observe.dto';
 import { MemoryLayer, MemorySource, ImportanceHint } from '@prisma/client';
+
+export interface ObserveContext {
+  userName?: string;
+}
 
 /**
  * ConversationObserver - Main service for auto-mode memory capture
@@ -19,6 +24,7 @@ import { MemoryLayer, MemorySource, ImportanceHint } from '@prisma/client';
 @Injectable()
 export class ConversationObserverService {
   constructor(
+    private prisma: PrismaService,
     private memoryService: MemoryService,
     private importanceDetector: ImportanceDetectorService,
     private autoExtractor: AutoExtractorService,
@@ -26,22 +32,42 @@ export class ConversationObserverService {
 
   /**
    * Observe conversation turns and extract/store memories
+   * @param userId - The user ID to store memories for
+   * @param dto - The conversation turns and options
+   * @param context - Optional context including user name
    */
-  async observe(userId: string, dto: ObserveDto): Promise<ObserveResult> {
+  async observe(
+    userId: string, 
+    dto: ObserveDto, 
+    context?: ObserveContext,
+  ): Promise<ObserveResult> {
     const startTime = Date.now();
     const minImportance = dto.minImportance ?? 0.4;
 
-    // 1. Detect importance signals
+    // 1. Get user info for extraction context if not provided
+    let userName = context?.userName;
+    if (!userName) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { externalId: true },
+      });
+      userName = user?.externalId;
+    }
+
+    // 2. Build extraction context
+    const extractorContext: ExtractorContext = { userName };
+
+    // 3. Detect importance signals
     const signals = this.importanceDetector.detect(dto.turns);
 
-    // 2. Extract memories from conversation
-    const extracted = await this.autoExtractor.extract(dto.turns, signals);
+    // 4. Extract memories from conversation with user context
+    const extracted = await this.autoExtractor.extract(dto.turns, signals, extractorContext);
 
-    // 3. Filter by importance threshold
+    // 5. Filter by importance threshold
     const toStore = extracted.filter(m => m.importance >= minImportance);
     const skipped = extracted.length - toStore.length;
 
-    // 4. Store memories
+    // 6. Store memories
     const created = await this.storeMemories(userId, toStore, dto);
 
     return {
@@ -55,6 +81,7 @@ export class ConversationObserverService {
 
   /**
    * Store extracted memories via MemoryService
+   * Includes source attribution (turn index, timestamp)
    */
   private async storeMemories(
     userId: string,
@@ -65,6 +92,12 @@ export class ConversationObserverService {
 
     for (const memory of memories) {
       try {
+        // Get timestamp from the source turn if available
+        const sourceTurn = dto.turns[memory.source.turnIndex];
+        const sourceTimestamp = sourceTurn?.timestamp 
+          ? new Date(sourceTurn.timestamp) 
+          : undefined;
+
         await this.memoryService.remember(userId, {
           raw: memory.content,
           layer: this.determineLayer(memory),
@@ -73,6 +106,9 @@ export class ConversationObserverService {
             projectId: dto.projectId,
             sessionId: dto.sessionId,
           },
+          // Source attribution
+          sourceTurnIndex: memory.source.turnIndex,
+          sourceTimestamp,
         });
         created++;
       } catch (error) {

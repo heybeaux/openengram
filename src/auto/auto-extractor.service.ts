@@ -2,10 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
 import { MessageTurnDto, MessageRole, ImportanceSignal, ExtractedMemory } from './dto/observe.dto';
 
-const EXTRACTION_PROMPT = `You are analyzing a conversation to extract memorable facts. Focus on information that would be valuable to remember for future conversations.
+/**
+ * Build extraction prompt with optional user context
+ */
+const buildExtractionPrompt = (userName?: string): string => {
+  const userRef = userName || 'User';
+  
+  return `You are analyzing a conversation to extract memorable facts. Focus on information that would be valuable to remember for future conversations.
+
+${userName ? `IMPORTANT: The user's name is "${userName}". Use their actual name in extracted facts, not generic terms like "User" or "the user".` : ''}
 
 Extract facts about:
-1. User preferences, habits, and patterns
+1. ${userRef}'s preferences, habits, and patterns
 2. Important decisions or statements
 3. Corrections or clarifications
 4. Names, relationships, and personal details
@@ -13,23 +21,28 @@ Extract facts about:
 6. Goals, projects, and ongoing work
 
 For each fact, provide:
-- content: A concise, standalone statement (as if remembering for later)
+- content: A concise, standalone statement (as if remembering for later). ${userName ? `Use "${userName}" not "User".` : ''}
 - turnIndex: Which turn (0-indexed) this came from
 
 Output JSON array of extracted facts. If nothing memorable, return empty array.
 Extract facts that make sense OUT OF CONTEXT - they should be useful in future sessions.
 
 Bad: "They want dark mode"
-Good: "User prefers dark mode for all applications"
+${userName ? `Good: "${userName} prefers dark mode for all applications"` : 'Good: "User prefers dark mode for all applications"'}
 
 Bad: "Will do it tomorrow"  
-Good: "User planned to deploy the API on [specific date]"`;
+${userName ? `Good: "${userName} planned to deploy the API on [specific date]"` : 'Good: "User planned to deploy the API on [specific date]"'}`;
+};
 
 interface ExtractionResponse {
   facts: Array<{
     content: string;
     turnIndex: number;
   }>;
+}
+
+export interface ExtractorContext {
+  userName?: string;
 }
 
 /**
@@ -41,19 +54,24 @@ export class AutoExtractorService {
 
   /**
    * Extract memories from conversation turns
+   * @param turns - The conversation turns to analyze
+   * @param signals - Pre-detected importance signals
+   * @param context - Optional context including user name for better extraction
    */
   async extract(
     turns: MessageTurnDto[],
     signals: ImportanceSignal[],
+    context?: ExtractorContext,
   ): Promise<ExtractedMemory[]> {
     try {
       // Format conversation for LLM
       const conversation = this.formatConversation(turns);
       const signalHints = this.formatSignalHints(signals);
+      const prompt = buildExtractionPrompt(context?.userName);
 
       const result = await this.llm.json<ExtractionResponse>(
         [
-          { role: 'system', content: EXTRACTION_PROMPT },
+          { role: 'system', content: prompt },
           {
             role: 'user',
             content: `Conversation:\n${conversation}\n\n${signalHints ? `High-importance signals detected:\n${signalHints}\n\n` : ''}Extract memorable facts:`,
@@ -64,10 +82,10 @@ export class AutoExtractorService {
       );
 
       // Convert to ExtractedMemory format
-      return this.processExtractions(result.facts || [], turns, signals);
+      return this.processExtractions(result.facts || [], turns, signals, context?.userName);
     } catch (error) {
       console.error('LLM extraction failed, falling back to signal-based extraction:', error);
-      return this.signalBasedExtraction(turns, signals);
+      return this.signalBasedExtraction(turns, signals, context?.userName);
     }
   }
 
@@ -98,6 +116,7 @@ export class AutoExtractorService {
     facts: Array<{ content: string; turnIndex: number }>,
     turns: MessageTurnDto[],
     signals: ImportanceSignal[],
+    userName?: string,
   ): ExtractedMemory[] {
     return facts.map(fact => {
       const turnIndex = Math.min(Math.max(fact.turnIndex, 0), turns.length - 1);
@@ -118,8 +137,18 @@ export class AutoExtractorService {
         importance += 0.1;
       }
 
+      // Ensure user name is used in content (safety net if LLM missed it)
+      let content = fact.content;
+      if (userName) {
+        content = content
+          .replace(/\bUser\b/g, userName)
+          .replace(/\buser\b/g, userName)
+          .replace(/\bThe user\b/g, userName)
+          .replace(/\bthe user\b/g, userName);
+      }
+
       return {
-        content: fact.content,
+        content,
         importance: Math.min(importance, 1.0),
         signals: relevantSignals,
         source: {
@@ -136,8 +165,10 @@ export class AutoExtractorService {
   private signalBasedExtraction(
     turns: MessageTurnDto[],
     signals: ImportanceSignal[],
+    userName?: string,
   ): ExtractedMemory[] {
     const memories: ExtractedMemory[] = [];
+    const userRef = userName || 'User';
 
     for (const signal of signals) {
       const turn = turns[signal.turnIndex];
@@ -145,6 +176,15 @@ export class AutoExtractorService {
 
       // Create memory from signal content
       let content = signal.content;
+
+      // Replace generic "User" with actual name if provided
+      if (userName) {
+        content = content
+          .replace(/\bUser\b/g, userName)
+          .replace(/\buser\b/g, userName)
+          .replace(/\bThe user\b/g, userName)
+          .replace(/\bthe user\b/g, userName);
+      }
 
       // Enhance content based on signal type
       switch (signal.type) {
@@ -158,7 +198,7 @@ export class AutoExtractorService {
           // Content after the explicit marker
           break;
         case 'repetition':
-          content = `User emphasized: ${signal.content}`;
+          content = `${userRef} emphasized: ${content}`;
           break;
       }
 

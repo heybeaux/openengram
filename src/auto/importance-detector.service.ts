@@ -69,6 +69,11 @@ export class ImportanceDetectorService {
   detect(turns: MessageTurnDto[]): ImportanceSignal[] {
     const signals: ImportanceSignal[] = [];
 
+    // Guard against undefined or null turns
+    if (!turns || !Array.isArray(turns)) {
+      return signals;
+    }
+
     // Check each turn for explicit, correction, and preference signals
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i];
@@ -200,6 +205,12 @@ export class ImportanceDetectorService {
    */
   private detectRepetition(turns: MessageTurnDto[]): ImportanceSignal[] {
     const signals: ImportanceSignal[] = [];
+    
+    // Guard against undefined turns
+    if (!turns || !Array.isArray(turns)) {
+      return signals;
+    }
+    
     const conceptCounts = new Map<string, { count: number; indices: number[] }>();
 
     // Extract key concepts from each turn

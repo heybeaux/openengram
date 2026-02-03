@@ -51,16 +51,43 @@ describe('MemoryService', () => {
       memoryExtraction: {
         create: jest.fn(),
       },
+      session: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'user-456', externalId: 'TestUser' }),
+      },
+      entity: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
+      memoryEntity: {
+        upsert: jest.fn(),
+      },
+      memoryChainLink: {
+        upsert: jest.fn(),
+      },
     };
 
     mockExtraction = {
-      extract: jest.fn(),
+      extract: jest.fn().mockResolvedValue({
+        who: null,
+        what: 'Test',
+        when: null,
+        where: null,
+        why: null,
+        how: null,
+        topics: [],
+        entities: [],
+      }),
     } as any;
 
     mockEmbedding = {
-      generate: jest.fn(),
-      store: jest.fn(),
-      search: jest.fn(),
+      generate: jest.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+      store: jest.fn().mockResolvedValue('embed-123'),
+      search: jest.fn().mockResolvedValue([]), // Default: no duplicates found
       delete: jest.fn(),
       deleteAllForUser: jest.fn(),
       getDimensions: jest.fn(),
@@ -142,6 +169,8 @@ describe('MemoryService', () => {
     it('should include project and session context when provided', async () => {
       mockImportance.calculate.mockReturnValue(0.5);
       mockPrisma.memory.create.mockResolvedValue(mockMemory);
+      // Mock session resolution - sessionId exists in DB
+      mockPrisma.session.findUnique.mockResolvedValue({ id: 'session-456' });
 
       await service.remember('user-456', {
         raw: 'Test',

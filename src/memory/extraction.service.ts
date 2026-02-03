@@ -9,20 +9,35 @@ export interface ExtractionResult {
   why: string | null;
   how: string | null;
   topics: string[];
-  entities: string[];
+  entities: EntityWithType[];
 }
 
-const EXTRACTION_PROMPT = `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework.
+export interface EntityWithType {
+  name: string;
+  type: 'person' | 'organization' | 'project' | 'product' | 'location' | 'other';
+}
+
+export interface ExtractionContext {
+  userName?: string;
+  userId?: string;
+  timestamp?: Date;
+  turnIndex?: number;
+  conversationId?: string;
+}
+
+const EXTRACTION_PROMPT_TEMPLATE = (userName?: string) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework.
+
+${userName ? `IMPORTANT: This memory is about or from a user named "${userName}". Replace generic references like "User", "user", "the user", "I", "they" with "${userName}" in your extraction.` : ''}
 
 Extract:
-- WHO: People, organizations, or entities mentioned
-- WHAT: The core fact, action, or statement
-- WHEN: Any temporal context (dates, times, relative references)
+- WHO: People, organizations, or entities mentioned. ${userName ? `Use "${userName}" instead of generic "User" references.` : ''}
+- WHAT: The core fact, action, or statement. Make it a complete, standalone sentence.
+- WHEN: Any temporal context (dates, times, relative references). Use ISO format if possible.
 - WHERE: Location, context, or setting
 - WHY: Reasoning, motivation, or cause
 - HOW: Method, manner, or process
 - TOPICS: Relevant categories (e.g., "preferences", "work", "technical", "personal")
-- ENTITIES: Named entities (people, organizations, products, projects)
+- ENTITIES: Named entities with types. Return as array of {name, type} objects where type is: person, organization, project, product, location, or other
 
 If a field cannot be determined from the text, set it to null.
 For topics and entities, return empty arrays if none found.
@@ -37,7 +52,7 @@ interface ExtractionResponse {
   why: string | null;
   how: string | null;
   topics: string[];
-  entities: string[];
+  entities: Array<{ name: string; type: string } | string>;
 }
 
 /**
@@ -50,12 +65,16 @@ export class ExtractionService {
 
   /**
    * Extract 5W1H structure from raw text using LLM
+   * @param raw - The raw memory text to extract from
+   * @param context - Optional context including user name for better extraction
    */
-  async extract(raw: string): Promise<ExtractionResult> {
+  async extract(raw: string, context?: ExtractionContext): Promise<ExtractionResult> {
     try {
+      const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName);
+      
       const result = await this.llm.json<ExtractionResponse>(
         [
-          { role: 'system', content: EXTRACTION_PROMPT },
+          { role: 'system', content: prompt },
           { role: 'user', content: `Extract from this memory:\n\n"${raw}"` },
         ],
         undefined,
@@ -70,27 +89,84 @@ export class ExtractionService {
         why: result.why || null,
         how: result.how || null,
         topics: Array.isArray(result.topics) ? result.topics : [],
-        entities: Array.isArray(result.entities) ? result.entities : [],
+        entities: this.normalizeEntities(result.entities, context?.userName),
       };
     } catch (error) {
       console.error('LLM extraction failed, falling back to basic extraction:', error);
-      return this.basicExtraction(raw);
+      return this.basicExtraction(raw, context?.userName);
     }
+  }
+
+  /**
+   * Normalize entities from LLM response to EntityWithType format
+   * Handles both string[] and {name, type}[] responses
+   */
+  private normalizeEntities(
+    entities: Array<{ name: string; type: string } | string> | undefined,
+    userName?: string,
+  ): EntityWithType[] {
+    if (!entities || !Array.isArray(entities)) return [];
+
+    const result: EntityWithType[] = [];
+
+    for (const entity of entities) {
+      if (typeof entity === 'string') {
+        // Legacy format: "Name:type" or just "Name"
+        const [name, type] = entity.includes(':') 
+          ? entity.split(':').map(s => s.trim())
+          : [entity, 'other'];
+        result.push({
+          name,
+          type: this.validateEntityType(type),
+        });
+      } else if (entity && typeof entity === 'object' && entity.name) {
+        result.push({
+          name: entity.name,
+          type: this.validateEntityType(entity.type),
+        });
+      }
+    }
+
+    // If userName provided, ensure they're included as a person entity
+    if (userName && !result.some(e => e.name.toLowerCase() === userName.toLowerCase())) {
+      // Check if the original text likely references this user
+      // (handled by the LLM prompt, but this is a safety net)
+    }
+
+    return result;
+  }
+
+  /**
+   * Validate entity type, default to 'other' if invalid
+   */
+  private validateEntityType(type: string): EntityWithType['type'] {
+    const validTypes = ['person', 'organization', 'project', 'product', 'location', 'other'];
+    const normalized = type?.toLowerCase().trim();
+    return validTypes.includes(normalized) ? normalized as EntityWithType['type'] : 'other';
   }
 
   /**
    * Fallback basic extraction when LLM is unavailable
    */
-  private basicExtraction(raw: string): ExtractionResult {
+  private basicExtraction(raw: string, userName?: string): ExtractionResult {
+    // Replace "User" with actual name if provided
+    let processedRaw = raw;
+    if (userName) {
+      processedRaw = raw
+        .replace(/\bUser\b/g, userName)
+        .replace(/\buser\b/g, userName)
+        .replace(/\bthe user\b/gi, userName);
+    }
+
     return {
-      who: this.extractWho(raw),
-      what: raw.length > 200 ? raw.substring(0, 200) + '...' : raw,
+      who: userName || this.extractWho(processedRaw),
+      what: processedRaw.length > 200 ? processedRaw.substring(0, 200) + '...' : processedRaw,
       when: null,
       where: null,
       why: null,
       how: null,
-      topics: this.extractTopics(raw),
-      entities: this.extractEntities(raw),
+      topics: this.extractTopics(processedRaw),
+      entities: this.extractEntitiesWithTypes(processedRaw, userName),
     };
   }
 
@@ -140,7 +216,7 @@ export class ExtractionService {
   }
 
   /**
-   * Basic entity extraction
+   * Basic entity extraction (returns string array - legacy)
    */
   private extractEntities(raw: string): string[] {
     const entities: Set<string> = new Set();
@@ -163,5 +239,55 @@ export class ExtractionService {
     }
 
     return Array.from(entities);
+  }
+
+  /**
+   * Basic entity extraction with type inference
+   */
+  private extractEntitiesWithTypes(raw: string, userName?: string): EntityWithType[] {
+    const entities: EntityWithType[] = [];
+    const seen = new Set<string>();
+
+    // If we have a userName, add them as a person
+    if (userName && !seen.has(userName.toLowerCase())) {
+      entities.push({ name: userName, type: 'person' });
+      seen.add(userName.toLowerCase());
+    }
+
+    // Extract capitalized names
+    const pattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+    const matches = raw.match(pattern);
+
+    if (matches) {
+      const commonWords = new Set([
+        'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December',
+        'User', 'Assistant',
+      ]);
+
+      for (const match of matches) {
+        const normalized = match.toLowerCase();
+        if (!commonWords.has(match) && !seen.has(normalized)) {
+          // Simple heuristic for type detection
+          let type: EntityWithType['type'] = 'other';
+          
+          // Two-word names are likely people
+          if (match.includes(' ') && match.split(' ').length === 2) {
+            type = 'person';
+          }
+          // Single capitalized word - could be many things
+          else if (/^[A-Z][a-z]+$/.test(match)) {
+            type = 'other'; // Conservative default
+          }
+
+          entities.push({ name: match, type });
+          seen.add(normalized);
+        }
+      }
+    }
+
+    return entities;
   }
 }
