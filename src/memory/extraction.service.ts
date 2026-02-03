@@ -29,20 +29,20 @@ const EXTRACTION_PROMPT_TEMPLATE = (userName?: string) => `You are a memory extr
 
 ${userName ? `IMPORTANT: This memory is about or from a user named "${userName}". Replace generic references like "User", "user", "the user", "I", "they" with "${userName}" in your extraction.` : ''}
 
-Extract:
-- WHO: People, organizations, or entities mentioned. ${userName ? `Use "${userName}" instead of generic "User" references.` : ''}
-- WHAT: The core fact, action, or statement. Make it a complete, standalone sentence.
-- WHEN: Any temporal context (dates, times, relative references). Use ISO format if possible.
-- WHERE: Location, context, or setting
-- WHY: Reasoning, motivation, or cause
-- HOW: Method, manner, or process
-- TOPICS: Relevant categories (e.g., "preferences", "work", "technical", "personal")
-- ENTITIES: Named entities with types. Return as array of {name, type} objects where type is: person, organization, project, product, location, or other
+Extract these fields (use these EXACT lowercase JSON keys):
+- "who": People, organizations, or entities mentioned. ${userName ? `Use "${userName}" instead of generic "User" references.` : ''}
+- "what": The core fact, action, or statement. Make it a complete, standalone sentence.
+- "when": Any temporal context (dates, times, relative references). Use ISO format if possible.
+- "where": Location, context, or setting
+- "why": Reasoning, motivation, or cause
+- "how": Method, manner, or process
+- "topics": Relevant categories (e.g., "preferences", "work", "technical", "personal")
+- "entities": Named entities with types. Return as array of {name, type} objects where type is: person, organization, project, product, location, or other
 
 If a field cannot be determined from the text, set it to null.
 For topics and entities, return empty arrays if none found.
 
-Respond with JSON only. No explanation.`;
+Respond with valid JSON only, using lowercase keys. No explanation.`;
 
 interface ExtractionResponse {
   who: string | null;
@@ -72,7 +72,7 @@ export class ExtractionService {
     try {
       const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName);
       
-      const result = await this.llm.json<ExtractionResponse>(
+      const rawResult = await this.llm.json<Record<string, unknown>>(
         [
           { role: 'system', content: prompt },
           { role: 'user', content: `Extract from this memory:\n\n"${raw}"` },
@@ -80,6 +80,9 @@ export class ExtractionService {
         undefined,
         { temperature: 0.2 }, // Low temperature for consistent extraction
       );
+
+      // Normalize keys to lowercase (LLM sometimes returns WHO instead of who)
+      const result = this.normalizeResponseKeys(rawResult);
 
       return {
         who: result.who || null,
@@ -92,9 +95,25 @@ export class ExtractionService {
         entities: this.normalizeEntities(result.entities, context?.userName),
       };
     } catch (error) {
-      console.error('LLM extraction failed, falling back to basic extraction:', error);
+      console.error('[ExtractionService] LLM extraction failed:', {
+        error: error instanceof Error ? error.message : String(error),
+        rawPreview: raw.substring(0, 100),
+        userName: context?.userName,
+      });
       return this.basicExtraction(raw, context?.userName);
     }
+  }
+
+  /**
+   * Normalize response keys to lowercase
+   * Handles LLM returning WHO/WHAT vs who/what
+   */
+  private normalizeResponseKeys(raw: Record<string, unknown>): ExtractionResponse {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      normalized[key.toLowerCase()] = value;
+    }
+    return normalized as unknown as ExtractionResponse;
   }
 
   /**
