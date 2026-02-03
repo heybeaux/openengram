@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-02-03T07:27:08.060Z",
+  "totalScenarios": 12,
+  "passed": 6,
+  "failed": 6,
+  "passRate": 0.5,
+  "totalScore": 6.479899238692342,
+  "maxScore": 12,
+  "overallScorePercent": 53.99916032243618,
+  "scenarios": [
+    {
+      "name": "Entity Query: Find memories about known entities",
+      "passed": true,
+      "score": 1,
+      "maxScore": 1,
+      "details": "Entity \"Engram\" (project) has 1 linked memories",
+      "duration": 43
+    },
+    {
+      "name": "Entity Query: Entity type distribution",
+      "passed": true,
+      "score": 1,
+      "maxScore": 1,
+      "details": "Types found: project(17), person(2), product(9), organization(12), other(2)",
+      "duration": 1
+    },
+    {
+      "name": "Temporal Query: Memories have extraction timestamps",
+      "passed": false,
+      "score": 0.025974025974025976,
+      "maxScore": 1,
+      "details": "6/231 extractions have \"when\" field (2.6%)",
+      "duration": 2
+    },
+    {
+      "name": "Temporal Query: Memory creation dates are valid",
+      "passed": true,
+      "score": 1,
+      "maxScore": 1,
+      "details": "Checked 10 recent memories, all have valid timestamps: true",
+      "duration": 1
+    },
+    {
+      "name": "Semantic Search: Memories have embeddings",
+      "passed": true,
+      "score": 0.9741379310344828,
+      "maxScore": 1,
+      "details": "226/232 memories have embeddings (97.4%)",
+      "duration": 1
+    },
+    {
+      "name": "Semantic Search: Embedding model recorded",
+      "passed": false,
+      "score": 0,
+      "maxScore": 1,
+      "details": "0/226 embedded memories have model recorded (0.0%)",
+      "duration": 1
+    },
+    {
+      "name": "Extraction Quality: What field populated",
+      "passed": false,
+      "score": 0.35064935064935066,
+      "maxScore": 1,
+      "details": "81/231 extractions have \"what\" field (35.1%)",
+      "duration": 1
+    },
+    {
+      "name": "Extraction Quality: Topics extracted",
+      "passed": true,
+      "score": 0.53,
+      "maxScore": 1,
+      "details": "53/100 extractions have topics (53.0%)",
+      "duration": 1
+    },
+    {
+      "name": "Deduplication: Superseded memories tracked",
+      "passed": false,
+      "score": 0.5,
+      "maxScore": 1,
+      "details": "0 memories have been superseded out of 232 total",
+      "duration": 1
+    },
+    {
+      "name": "Deduplication: UPDATES links exist",
+      "passed": false,
+      "score": 0.5,
+      "maxScore": 1,
+      "details": "0/81 links are UPDATES type",
+      "duration": 4
+    },
+    {
+      "name": "Link Quality: Memory chain links exist",
+      "passed": true,
+      "score": 0.34913793103448276,
+      "maxScore": 1,
+      "details": "81 links across 232 memories (0.35 per memory)",
+      "duration": 0
+    },
+    {
+      "name": "Link Quality: Link type diversity",
+      "passed": false,
+      "score": 0.25,
+      "maxScore": 1,
+      "details": "Found 1 link types: RELATED(81)",
+      "duration": 1
+    }
+  ]
+}

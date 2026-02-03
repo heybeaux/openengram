@@ -91,12 +91,11 @@ export class ExtractionService {
       );
 
       // Log raw LLM response keys to catch case sensitivity issues
+      const rawEntities = (rawResult as Record<string, unknown>).entities ?? (rawResult as Record<string, unknown>).ENTITIES;
       console.log('[Extraction] Raw LLM response:', {
         keys: Object.keys(rawResult),
         hasUppercaseKeys: Object.keys(rawResult).some(k => k !== k.toLowerCase()),
-        entityCount: Array.isArray(rawResult.entities ?? rawResult.ENTITIES) 
-          ? (rawResult.entities ?? rawResult.ENTITIES as unknown[]).length 
-          : 0,
+        entityCount: Array.isArray(rawEntities) ? rawEntities.length : 0,
       });
 
       // Normalize keys to lowercase (LLM sometimes returns WHO instead of who)

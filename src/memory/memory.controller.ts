@@ -7,11 +7,13 @@ import {
   Body,
   Param,
   Headers,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
 import { MemoryService, MemoryWithExtraction, QueryResult, ContextResult } from './memory.service';
+import { BackfillService, BackfillResult } from './backfill.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
@@ -20,7 +22,10 @@ import { UserId } from '../common/decorators/user-id.decorator';
 @Controller('v1')
 @UseGuards(ApiKeyGuard)
 export class MemoryController {
-  constructor(private readonly memoryService: MemoryService) {}
+  constructor(
+    private readonly memoryService: MemoryService,
+    private readonly backfillService: BackfillService,
+  ) {}
 
   // =========================================================================
   // MEMORY CRUD
@@ -139,5 +144,37 @@ export class MemoryController {
     @Body() dto: LoadContextDto,
   ): Promise<ContextResult> {
     return this.memoryService.loadContext(userId, dto);
+  }
+
+  // =========================================================================
+  // BACKFILL (Admin)
+  // =========================================================================
+
+  /**
+   * GET /v1/memories/backfill/status
+   * Check how many memories need backfill
+   */
+  @Get('memories/backfill/status')
+  async getBackfillStatus(): Promise<{ needsBackfill: number }> {
+    const memories = await this.backfillService.findMemoriesNeedingBackfill();
+    return { needsBackfill: memories.length };
+  }
+
+  /**
+   * POST /v1/memories/backfill
+   * Run backfill on memories with empty extraction data
+   * @param dryRun - If 'true', only report what would be done
+   * @param batchSize - Number of memories to process (default 50)
+   */
+  @Post('memories/backfill')
+  async runBackfill(
+    @Query('dryRun') dryRun?: string,
+    @Query('batchSize') batchSize?: string,
+  ): Promise<BackfillResult> {
+    return this.backfillService.backfillExtractions({
+      dryRun: dryRun === 'true',
+      batchSize: batchSize ? parseInt(batchSize, 10) : 50,
+      delayMs: 500, // 500ms delay between extractions to avoid rate limits
+    });
   }
 }
