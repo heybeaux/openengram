@@ -12,11 +12,11 @@ async function bootstrap() {
     forbidNonWhitelisted: false, // Allow legacy fields for backward compatibility
   }));
   
-  // Enable CORS for dashboard
+  // Enable CORS for dashboard and visualization
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3002'],
+    origin: true, // Allow all origins (including file://)
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'X-AM-API-Key', 'X-AM-User-ID'],
+    allowedHeaders: ['Content-Type', 'X-AM-API-Key', 'X-AM-User-ID', 'x-api-key'],
   });
   
   await app.listen(process.env.PORT ?? 3000);

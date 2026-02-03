@@ -68,6 +68,23 @@ export class MemoryController {
   }
 
   /**
+   * GET /v1/memories/graph
+   * Get memory graph data for visualization
+   * NOTE: Must be defined before /memories/:id to avoid route collision
+   */
+  @Get('memories/graph')
+  async getGraph(
+    @UserId() userId: string,
+    @Query('limit') limit?: string,
+  ): Promise<{
+    nodes: any[];
+    edges: any[];
+    entities: any[];
+  }> {
+    return this.memoryService.getGraphData(userId, limit ? parseInt(limit, 10) : 500);
+  }
+
+  /**
    * GET /v1/memories/:id
    * Get a single memory by ID
    */

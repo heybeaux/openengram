@@ -374,6 +374,109 @@ export class MemoryService {
     });
   }
 
+  /**
+   * Get graph data for visualization
+   */
+  async getGraphData(
+    userId: string,
+    limit: number = 500,
+  ): Promise<{
+    nodes: any[];
+    edges: any[];
+    entities: any[];
+  }> {
+    // Fetch memories with entities and extraction
+    const memories = await this.prisma.memory.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+      },
+      include: {
+        extraction: true,
+        entities: {
+          include: {
+            entity: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    // Fetch chain links between these memories
+    const memoryIds = memories.map(m => m.id);
+    const chainLinks = await this.prisma.memoryChainLink.findMany({
+      where: {
+        OR: [
+          { sourceId: { in: memoryIds } },
+          { targetId: { in: memoryIds } },
+        ],
+      },
+    });
+
+    // Collect unique entities
+    const entityMap = new Map<string, any>();
+    for (const memory of memories) {
+      for (const me of memory.entities) {
+        if (!entityMap.has(me.entity.id)) {
+          entityMap.set(me.entity.id, {
+            id: me.entity.id,
+            name: me.entity.name,
+            type: me.entity.type,
+            normalizedName: me.entity.normalizedName,
+          });
+        }
+      }
+    }
+
+    // Transform to graph nodes
+    const nodes = memories.map(m => ({
+      id: m.id,
+      raw: m.raw,
+      layer: m.layer,
+      source: m.source,
+      importanceScore: m.importanceScore,
+      confidence: m.confidence,
+      createdAt: m.createdAt.toISOString(),
+      extraction: m.extraction ? {
+        who: m.extraction.who,
+        what: m.extraction.what,
+        when: m.extraction.when?.toISOString(),
+        where: m.extraction.whereCtx,
+        why: m.extraction.why,
+        how: m.extraction.how,
+        topics: m.extraction.topics,
+      } : null,
+      entities: m.entities.map(me => ({
+        id: me.entity.id,
+        name: me.entity.name,
+        type: me.entity.type,
+      })),
+      // Determine primary entity type for coloring
+      primaryEntityType: m.entities.length > 0 
+        ? m.entities[0].entity.type.toLowerCase()
+        : 'other',
+    }));
+
+    // Transform to graph edges
+    const edges = chainLinks
+      .filter(link => memoryIds.includes(link.sourceId) && memoryIds.includes(link.targetId))
+      .map(link => ({
+        id: link.id,
+        source: link.sourceId,
+        target: link.targetId,
+        linkType: link.linkType,
+        confidence: link.confidence,
+        createdAt: link.createdAt.toISOString(),
+      }));
+
+    return {
+      nodes,
+      edges,
+      entities: Array.from(entityMap.values()),
+    };
+  }
+
   // =========================================================================
   // PRIVATE HELPERS
   // =========================================================================
