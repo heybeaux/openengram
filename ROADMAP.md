@@ -861,13 +861,440 @@ After Phase 1 completion, verify:
 
 ---
 
+## Phase 5: Memory Intelligence & Self-Awareness
+
+*Added: 2026-02-03 based on real-world usage observations*
+
+### P5-001: Memory Correction / Edit API
+**Priority:** P1 (High)  
+**Effort:** 4 hours  
+**Dependencies:** Phase 1
+
+**Problem:** Memories can contain errors (wrong dates, incorrect facts). No way to fix them.
+
+**Observations:**
+- Memory shows "February 2023" for a LinkedIn article that doesn't exist yet
+- Users need a non-intrusive way to correct memories
+
+**Solution Options:**
+
+**Option A: Direct Edit (PATCH endpoint)**
+```typescript
+// PATCH /v1/memories/:id
+@Patch(':id')
+async updateMemory(
+  @Param('id') id: string,
+  @Body() dto: UpdateMemoryDto,
+): Promise<Memory> {
+  return this.memoryService.update(id, dto);
+}
+
+interface UpdateMemoryDto {
+  raw?: string;           // Update raw content
+  layer?: MemoryLayer;    // Promote/demote layer
+  importance?: number;    // Adjust importance
+  extraction?: Partial<{  // Fix extracted fields
+    who: string;
+    what: string;
+    when: string;
+    where: string;
+    why: string;
+    how: string;
+  }>;
+}
+```
+
+**Option B: Contradiction/Supersede System**
+```typescript
+// POST /v1/memories/:id/correct
+@Post(':id/correct')
+async correctMemory(
+  @Param('id') id: string,
+  @Body() dto: CorrectionDto,
+): Promise<Memory> {
+  // 1. Mark old memory as superseded
+  await this.prisma.memory.update({
+    where: { id },
+    data: { 
+      supersededBy: newMemory.id,
+      supersededAt: new Date(),
+    },
+  });
+  
+  // 2. Create correction memory with link
+  const correction = await this.memoryService.remember({
+    raw: dto.correctedContent,
+    source: 'USER_CORRECTION',
+  });
+  
+  // 3. Create CONTRADICTS link
+  await this.createLink(correction.id, id, 'CONTRADICTS', 1.0);
+  
+  return correction;
+}
+```
+
+**Recommendation:** Implement both. Direct edits for typo fixes, contradiction system for factual corrections that should preserve history.
+
+---
+
+### P5-002: User Identity Backfill
+**Priority:** P2 (Medium)  
+**Effort:** 2 hours  
+**Dependencies:** P0-001 (complete)
+
+**Problem:** Old memories contain `user_beaux` or `User` instead of `Beaux`. The user identity resolution fix only applies to NEW memories.
+
+**Solution:** Backfill script to update old memories.
+
+```typescript
+// src/memory/backfill.service.ts
+async backfillUserIdentity(
+  userId: string, 
+  actualName: string,
+  options: { dryRun?: boolean } = {}
+): Promise<{ updated: number }> {
+  const patterns = [
+    /\buser_\w+\b/gi,           // user_beaux, user_123
+    /\bUser\b/g,                 // User (capitalized)
+    /\bthe user\b/gi,            // the user
+  ];
+
+  const memories = await this.prisma.memory.findMany({
+    where: { userId, deletedAt: null },
+    include: { extraction: true },
+  });
+
+  let updated = 0;
+  
+  for (const memory of memories) {
+    let rawUpdated = memory.raw;
+    let whoUpdated = memory.extraction?.who;
+    let whatUpdated = memory.extraction?.what;
+    
+    for (const pattern of patterns) {
+      rawUpdated = rawUpdated.replace(pattern, actualName);
+      if (whoUpdated) whoUpdated = whoUpdated.replace(pattern, actualName);
+      if (whatUpdated) whatUpdated = whatUpdated.replace(pattern, actualName);
+    }
+    
+    if (rawUpdated !== memory.raw || whoUpdated !== memory.extraction?.who) {
+      if (!options.dryRun) {
+        await this.prisma.memory.update({
+          where: { id: memory.id },
+          data: { raw: rawUpdated },
+        });
+        
+        if (memory.extraction) {
+          await this.prisma.memoryExtraction.update({
+            where: { memoryId: memory.id },
+            data: { who: whoUpdated, what: whatUpdated },
+          });
+        }
+      }
+      updated++;
+    }
+  }
+  
+  return { updated };
+}
+```
+
+**Endpoint:**
+```typescript
+@Post('backfill/user-identity')
+async backfillUserIdentity(
+  @Body() dto: { userId: string; actualName: string; dryRun?: boolean }
+): Promise<{ updated: number }> {
+  return this.backfillService.backfillUserIdentity(dto.userId, dto.actualName, { dryRun: dto.dryRun });
+}
+```
+
+---
+
+### P5-003: Intelligent Layer Classification
+**Priority:** P2 (Medium)  
+**Effort:** 6 hours  
+**Dependencies:** P0-001 (complete)
+
+**Problem:** Memories about identity facts are stored as SESSION instead of IDENTITY. Example: "Beaux prefers dark mode" should be IDENTITY, not SESSION.
+
+**Current Logic:** Layer is passed in by caller or defaults to SESSION.
+
+**Solution A: Smart Initial Classification**
+```typescript
+// extraction.service.ts
+private classifyLayer(extracted: ExtractionResult, raw: string): MemoryLayer {
+  // Identity signals
+  const identityPatterns = [
+    /\b(prefer|always|never|favorite|hate|love)\b/i,
+    /\b(born|birthday|age|live|from)\b/i,
+    /\b(name is|called|known as)\b/i,
+    /\b(wife|husband|daughter|son|family)\b/i,
+    /\b(work at|job|profession|career)\b/i,
+  ];
+  
+  // Project signals
+  const projectPatterns = [
+    /\b(project|building|developing|working on)\b/i,
+    /\b(repo|codebase|feature|milestone)\b/i,
+    /\b(deadline|sprint|release)\b/i,
+  ];
+  
+  // Check for identity patterns
+  for (const pattern of identityPatterns) {
+    if (pattern.test(raw)) return 'IDENTITY';
+  }
+  
+  // Check for project patterns
+  for (const pattern of projectPatterns) {
+    if (pattern.test(raw)) return 'PROJECT';
+  }
+  
+  // Check entities - people often indicate identity memories
+  const personEntities = extracted.entities.filter(e => e.type === 'person');
+  if (personEntities.some(e => e.name.toLowerCase() === extracted.who?.toLowerCase())) {
+    return 'IDENTITY';
+  }
+  
+  return 'SESSION'; // Default
+}
+```
+
+**Solution B: Layer Promotion Job (Consolidation)**
+```typescript
+// consolidation.service.ts
+async promoteRecurringPatterns(userId: string): Promise<{ promoted: number }> {
+  // Find SESSION memories that appear multiple times (similar content)
+  const sessionMemories = await this.prisma.memory.findMany({
+    where: { userId, layer: 'SESSION', deletedAt: null },
+  });
+  
+  // Group by semantic similarity
+  const clusters = await this.clusterBySimilarity(sessionMemories, 0.85);
+  
+  let promoted = 0;
+  
+  for (const cluster of clusters) {
+    if (cluster.length >= 3) { // Repeated 3+ times = promote
+      // Pick the most complete memory as the "canonical" one
+      const canonical = cluster.sort((a, b) => 
+        (b.extraction?.what?.length || 0) - (a.extraction?.what?.length || 0)
+      )[0];
+      
+      // Promote to IDENTITY
+      await this.prisma.memory.update({
+        where: { id: canonical.id },
+        data: { 
+          layer: 'IDENTITY',
+          importanceScore: Math.min(1.0, canonical.importanceScore + 0.2),
+        },
+      });
+      
+      // Mark others as consolidated
+      for (const other of cluster.filter(m => m.id !== canonical.id)) {
+        await this.prisma.memory.update({
+          where: { id: other.id },
+          data: { 
+            consolidatedInto: canonical.id,
+            deletedAt: new Date(), // Soft delete
+          },
+        });
+      }
+      
+      promoted++;
+    }
+  }
+  
+  return { promoted };
+}
+```
+
+**Recommendation:** Implement both. Smart classification catches obvious cases upfront; consolidation job handles patterns that emerge over time.
+
+---
+
+### P5-004: Agent Self-Memories 🔥
+**Priority:** P1 (High)  
+**Effort:** 8 hours  
+**Dependencies:** Phase 1
+
+**Problem:** Engram only stores memories ABOUT users. Agents need memories about THEMSELVES — identity, capabilities, lessons learned, mistakes made.
+
+**Why This Matters:**
+- Agent continuity: "I am Rook, named on 2026-01-26"
+- Self-improvement: "I tend to mark tasks COMPLETED without verifying"
+- Capability awareness: "I can generate images using the nano-banana-pro skill"
+- Relationship memory: "Beaux prefers direct communication"
+
+**Solution: Add Agent Self-Memory Support**
+
+**Schema Changes:**
+```prisma
+model Memory {
+  // ... existing fields
+  
+  // Who is this memory ABOUT? (not who created it)
+  subjectType    SubjectType  @default(USER) @map("subject_type")
+  subjectId      String       @map("subject_id")  // userId or agentId
+  
+  // For agent self-memories, track which agent
+  agentId        String?      @map("agent_id")
+}
+
+enum SubjectType {
+  USER    // Memory about a user
+  AGENT   // Memory about an agent (self)
+  ENTITY  // Memory about a thing/project
+}
+```
+
+**API Changes:**
+```typescript
+// POST /v1/memories (updated)
+interface CreateMemoryDto {
+  raw: string;
+  
+  // Existing
+  userId?: string;
+  
+  // New: who is this memory ABOUT?
+  subjectType?: 'USER' | 'AGENT' | 'ENTITY';
+  subjectId?: string;  // Required if subjectType specified
+  
+  // For agent self-memories
+  agentId?: string;
+}
+
+// Example: Agent creating a self-memory
+POST /v1/memories
+{
+  "raw": "I am Rook, an AI assistant. I was named on 2026-01-26 by Beaux.",
+  "agentId": "rook",
+  "subjectType": "AGENT",
+  "subjectId": "rook",
+  "layer": "IDENTITY",
+  "source": "AGENT_REFLECTION"
+}
+
+// Example: Agent remembering a lesson
+POST /v1/memories
+{
+  "raw": "I learned to always verify data exists before marking tasks COMPLETED",
+  "agentId": "rook",
+  "subjectType": "AGENT", 
+  "subjectId": "rook",
+  "layer": "IDENTITY",
+  "source": "LESSON_LEARNED"
+}
+```
+
+**Recall Changes:**
+```typescript
+// GET /v1/memories/recall (updated)
+interface RecallDto {
+  query: string;
+  
+  // New: what kind of memories to include?
+  includeUserMemories?: boolean;   // Default true
+  includeAgentMemories?: boolean;  // Default true
+  agentId?: string;                // Filter to specific agent
+}
+```
+
+**Agent Reflection Endpoint:**
+```typescript
+// POST /v1/agents/:agentId/reflect
+// Trigger agent self-reflection to create self-memories
+@Post('agents/:agentId/reflect')
+async agentReflect(
+  @Param('agentId') agentId: string,
+  @Body() dto: ReflectionDto,
+): Promise<Memory[]> {
+  // Use LLM to extract self-knowledge from recent interactions
+  const prompt = `Based on these recent interactions, what should the agent remember about ITSELF?
+  
+  Focus on:
+  - Identity (name, role, capabilities)
+  - Lessons learned (mistakes, corrections)
+  - User preferences discovered
+  - Working style insights
+  
+  Interactions:
+  ${dto.recentTurns.map(t => `${t.role}: ${t.content}`).join('\n')}
+  `;
+  
+  const reflections = await this.llm.json<{ memories: string[] }>(prompt);
+  
+  const created: Memory[] = [];
+  for (const memory of reflections.memories) {
+    const mem = await this.memoryService.remember({
+      raw: memory,
+      agentId,
+      subjectType: 'AGENT',
+      subjectId: agentId,
+      layer: 'IDENTITY',
+      source: 'AGENT_REFLECTION',
+    });
+    created.push(mem);
+  }
+  
+  return created;
+}
+```
+
+**OpenClaw Integration:**
+```typescript
+// In OpenClaw, periodically trigger self-reflection
+async function onSessionEnd(session: Session) {
+  if (session.turns.length > 10) {
+    await engramClient.post(`/agents/${AGENT_ID}/reflect`, {
+      recentTurns: session.turns.slice(-20),
+    });
+  }
+}
+```
+
+---
+
+## Updated Implementation Priority Matrix
+
+| ID | Task | Priority | Effort | Dependencies | Status |
+|----|------|----------|--------|--------------|--------|
+| P0-001 | Fix LLM case sensitivity | P0 | 30m | None | ✅ **Complete (2026-02-03)** |
+| P0-002 | Add error logging | P0 | 1h | None | ✅ **Complete (2026-02-03)** |
+| P0-003 | Verify entity storage | P0 | 2h | P0-001 | ✅ **Complete (2026-02-03)** |
+| P1-001 | Backfill extractions | P1 | 4h | P0-001, P0-003 | ✅ **Complete (2026-02-03)** |
+| P1-002 | Fix auto-extractor | P1 | 30m | P0-001 | ✅ **Complete (2026-02-03)** |
+| P1-003 | Improve fallback | P1 | 2h | None | 🔴 Not Started |
+| P2-001 | Verify deduplication | P2 | 2h | Phase 1 | 🔴 Not Started |
+| P2-002 | Fix memory linking | P2 | 4h | P0-001, P2-001 | ✅ **Complete (2026-02-03)** |
+| P2-003 | Implement decay | P2 | 6h | None | 🔴 Not Started |
+| P2-004 | Confidence scores | P2 | 3h | P0-001 | 🔴 Not Started |
+| P3-001 | OpenClaw hook docs | P3 | 4h | Phase 1-2 | 🔴 Not Started |
+| P3-002 | Webhooks | P3 | 8h | Phase 2 | 🔴 Not Started |
+| P3-003 | Context optimization | P3 | 2h | Phase 1 | 🔴 Not Started |
+| P4-001 | Memory browser | P3 | 16h | Phase 1 | 🟡 **Partial (Dashboard exists)** |
+| P4-002 | Analytics dashboard | P3 | 12h | P4-001 | 🔴 Not Started |
+| P4-003 | Health checks | P2 | 4h | Phase 1 | 🔴 Not Started |
+| **P5-001** | **Memory correction API** | **P1** | **4h** | Phase 1 | 🔴 Not Started |
+| **P5-002** | **User identity backfill** | **P2** | **2h** | P0-001 | 🔴 Not Started |
+| **P5-003** | **Intelligent layer classification** | **P2** | **6h** | P0-001 | 🔴 Not Started |
+| **P5-004** | **Agent self-memories** | **P1** | **8h** | Phase 1 | 🔴 Not Started |
+
+---
+
 ## Notes for Beaux
 
-1. **Immediate Action:** P0-001 is a 30-minute fix that unblocks everything else
-2. **Backfill Decision:** After fix, run backfill to re-extract 220+ memories?
-3. **Dedup Threshold:** Currently 0.90 - want to adjust?
-4. **Dashboard Priority:** Want to move P4-001 higher? It's useful for debugging
+1. **✅ Phase 1 Complete:** The critical extraction bugs are fixed. Memories now have proper 5W1H data.
+2. **Metrics (2026-02-03):** 235 memories, 87 links, 95 entities, 87.9% WHO extraction rate
+3. **Immediate Next Steps:**
+   - P5-001 (Memory correction) - Let users fix errors
+   - P5-004 (Agent self-memories) - Enable agent identity
+4. **Mobile UI:** Both visualization and dashboard are now mobile-friendly
 
 ---
 
 *This roadmap will be updated as work progresses. Each agent should update the Status column after completing tasks.*
+
+*Last Updated: 2026-02-03 06:45 PST*
