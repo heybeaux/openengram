@@ -1,6 +1,3 @@
-// Engram - Agent Memory Infrastructure
-// Schema designed: Saturday, January 31st, 2026
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,127 +7,293 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// CORE ENTITIES
-// ============================================================================
-
 /// Agent represents an API consumer (the AI agent application)
 model Agent {
-  id          String   @id @default(cuid())
-  name        String
-  apiKeyHash  String   @unique @map("api_key_hash")
-  apiKeyHint  String   @map("api_key_hint") // Last 4 chars for identification
-  
-  // Limits
-  memoriesLimit   Int?     @map("memories_limit")
-  requestsPerDay  Int?     @map("requests_per_day")
-  
-  // Metadata
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-  
-  // Relations
-  users       User[]
-  webhooks    Webhook[]
-  
+  id             String    @id @default(cuid())
+  name           String
+  apiKeyHash     String    @unique @map("api_key_hash")
+  apiKeyHint     String    @map("api_key_hint")
+  memoriesLimit  Int?      @map("memories_limit")
+  requestsPerDay Int?      @map("requests_per_day")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  users          User[]
+  webhooks       Webhook[]
+
   @@map("agents")
 }
 
 /// User represents an end-user whose memories are being stored
 model User {
-  id          String   @id @default(cuid())
-  externalId  String   @map("external_id") // Agent's identifier for this user
-  agentId     String   @map("agent_id")
-  
-  // Identity layer memories are stored per-user
-  // Metadata
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-  
-  // Relations
-  agent       Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  memories    Memory[]
-  projects    Project[]
-  sessions    Session[]
-  feedback    Feedback[]
-  
+  id         String     @id @default(cuid())
+  externalId String     @map("external_id")
+  agentId    String     @map("agent_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  deletedAt  DateTime?  @map("deleted_at")
+  feedback   Feedback[]
+  memories   Memory[]
+  projects   Project[]
+  sessions   Session[]
+  agent      Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
   @@unique([agentId, externalId])
   @@map("users")
 }
 
 /// Project represents a workstream or context bucket
 model Project {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  externalId  String?  @map("external_id") // Optional agent-provided ID
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  externalId  String?   @map("external_id")
   name        String
   description String?
-  
-  // Status
-  isActive    Boolean  @default(true) @map("is_active")
-  
-  // Metadata
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
-  
-  // Relations
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   memories    Memory[]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions    Session[]
-  
+
   @@unique([userId, externalId])
   @@map("projects")
 }
 
 /// Session represents a conversation or work session
 model Session {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  projectId   String?  @map("project_id")
-  externalId  String?  @map("external_id")
-  
-  // Timing
-  startedAt   DateTime @default(now()) @map("started_at")
-  endedAt     DateTime? @map("ended_at")
-  
-  // Consolidation
-  consolidated Boolean @default(false)
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  projectId      String?   @map("project_id")
+  externalId     String?   @map("external_id")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  consolidated   Boolean   @default(false)
   consolidatedAt DateTime? @map("consolidated_at")
-  
-  // Metadata
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  memories    Memory[]
-  
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  memories       Memory[]
+  project        Project?  @relation(fields: [projectId], references: [id])
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("sessions")
 }
 
-// ============================================================================
-// MEMORY CORE
-// ============================================================================
+/// Core memory entity
+model Memory {
+  id              String                 @id @default(cuid())
+  userId          String                 @map("user_id")
+  projectId       String?                @map("project_id")
+  sessionId       String?                @map("session_id")
+  raw             String
+  layer           MemoryLayer
+  source          MemorySource           @default(EXPLICIT_STATEMENT)
+  importanceHint  ImportanceHint?        @map("importance_hint")
+  importanceScore Float                  @default(0.5) @map("importance_score")
+  confidence      Float                  @default(1.0)
+  sessionPosition Int?                   @map("session_position")
+  embeddingId     String?                @unique @map("embedding_id")
+  embeddingModel  String?                @map("embedding_model")
+  retrievalCount  Int                    @default(0) @map("retrieval_count")
+  lastRetrievedAt DateTime?              @map("last_retrieved_at")
+  usedCount       Int                    @default(0) @map("used_count")
+  lastUsedAt      DateTime?              @map("last_used_at")
+  consolidated    Boolean                @default(false)
+  consolidatedAt  DateTime?              @map("consolidated_at")
+  supersededById  String?                @map("superseded_by_id")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+  deletedAt       DateTime?              @map("deleted_at")
+  embedding       Unsupported("vector")?
+  feedback        Feedback[]
+  project         Project?               @relation(fields: [projectId], references: [id])
+  session         Session?               @relation(fields: [sessionId], references: [id])
+  supersededBy    Memory?                @relation("MemorySupersedes", fields: [supersededById], references: [id])
+  supersedes      Memory[]               @relation("MemorySupersedes")
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chainSources    MemoryChainLink[]      @relation("ChainSource")
+  chainTargets    MemoryChainLink[]      @relation("ChainTarget")
+  entities        MemoryEntity[]
+  extraction      MemoryExtraction?
+
+  @@index([userId, layer])
+  @@index([userId, createdAt])
+  @@index([projectId])
+  @@index([sessionId])
+  @@index([deletedAt])
+  @@index([embedding])
+  @@map("memories")
+}
+
+/// Extracted structure from memory (5W1H)
+model MemoryExtraction {
+  id          String    @id @default(cuid())
+  memoryId    String    @unique @map("memory_id")
+  who         String?
+  what        String?
+  when        DateTime?
+  whereCtx    String?   @map("where_ctx")
+  why         String?
+  how         String?
+  topics      String[]
+  rawJson     Json?     @map("raw_json")
+  extractedAt DateTime  @default(now()) @map("extracted_at")
+  model       String?
+  memory      Memory    @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("memory_extractions")
+}
+
+/// Named entities extracted from memories
+model Entity {
+  id             String         @id @default(cuid())
+  userId         String         @map("user_id")
+  name           String
+  type           String
+  normalizedName String         @map("normalized_name")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  memories       MemoryEntity[]
+
+  @@unique([userId, normalizedName, type])
+  @@map("entities")
+}
+
+/// Junction table for Memory <-> Entity
+model MemoryEntity {
+  id       String @id @default(cuid())
+  memoryId String @map("memory_id")
+  entityId String @map("entity_id")
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  memory   Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@unique([memoryId, entityId])
+  @@map("memory_entities")
+}
+
+/// Links between memories forming reasoning chains
+model MemoryChainLink {
+  id         String        @id @default(cuid())
+  sourceId   String        @map("source_id")
+  targetId   String        @map("target_id")
+  linkType   ChainLinkType @map("link_type")
+  confidence Float         @default(1.0)
+  createdBy  String        @map("created_by")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  source     Memory        @relation("ChainSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target     Memory        @relation("ChainTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId, linkType])
+  @@map("memory_chain_links")
+}
+
+/// Feedback on memory retrieval/usage
+model Feedback {
+  id           String   @id @default(cuid())
+  memoryId     String   @map("memory_id")
+  userId       String   @map("user_id")
+  wasUsed      Boolean  @default(false) @map("was_used")
+  wasHelpful   Boolean? @map("was_helpful")
+  correction   String?
+  queryContext String?  @map("query_context")
+  createdAt    DateTime @default(now()) @map("created_at")
+  memory       Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+/// Track consolidation runs
+model ConsolidationJob {
+  id                String              @id @default(cuid())
+  userId            String              @map("user_id")
+  type              ConsolidationType
+  status            ConsolidationStatus @default(PENDING)
+  sessionId         String?             @map("session_id")
+  startDate         DateTime?           @map("start_date")
+  endDate           DateTime?           @map("end_date")
+  memoriesProcessed Int?                @map("memories_processed")
+  patternsDetected  Int?                @map("patterns_detected")
+  linksCreated      Int?                @map("links_created")
+  memoriesMerged    Int?                @map("memories_merged")
+  startedAt         DateTime?           @map("started_at")
+  completedAt       DateTime?           @map("completed_at")
+  error             String?
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  @@index([userId, type, status])
+  @@map("consolidation_jobs")
+}
+
+/// Webhook configuration
+model Webhook {
+  id           String         @id @default(cuid())
+  agentId      String         @map("agent_id")
+  url          String
+  events       WebhookEvent[]
+  secret       String
+  isActive     Boolean        @default(true) @map("is_active")
+  lastSuccess  DateTime?      @map("last_success")
+  lastFailure  DateTime?      @map("last_failure")
+  failureCount Int            @default(0) @map("failure_count")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  agent        Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("webhooks")
+}
+
+/// Webhook delivery log
+model WebhookDelivery {
+  id         String       @id @default(cuid())
+  webhookId  String       @map("webhook_id")
+  event      WebhookEvent
+  payload    Json
+  statusCode Int?         @map("status_code")
+  responseMs Int?         @map("response_ms")
+  error      String?
+  attempt    Int          @default(1)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+/// Audit log for compliance
+model AuditLog {
+  id         String   @id @default(cuid())
+  agentId    String   @map("agent_id")
+  userId     String?  @map("user_id")
+  action     String
+  resource   String
+  resourceId String?  @map("resource_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([agentId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
 
 /// Memory layer enum
 enum MemoryLayer {
-  IDENTITY  // Permanent user facts
-  PROJECT   // Workstream-specific
-  SESSION   // Conversation-specific  
-  TASK      // Immediate, short-lived
+  IDENTITY
+  PROJECT
+  SESSION
+  TASK
 }
 
 /// Source of the memory
 enum MemorySource {
-  EXPLICIT_STATEMENT    // User directly stated
-  AGENT_OBSERVATION     // Agent inferred/observed
-  CORRECTION            // Correction to prior memory
-  PATTERN_DETECTED      // From consolidation
-  SYSTEM                // System-generated
+  EXPLICIT_STATEMENT
+  AGENT_OBSERVATION
+  CORRECTION
+  PATTERN_DETECTED
+  SYSTEM
 }
 
 /// Importance hint from API caller
@@ -141,210 +304,21 @@ enum ImportanceHint {
   CRITICAL
 }
 
-/// Core memory entity
-model Memory {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  projectId       String?  @map("project_id")
-  sessionId       String?  @map("session_id")
-  
-  // Content
-  raw             String   // Original text
-  layer           MemoryLayer
-  source          MemorySource @default(EXPLICIT_STATEMENT)
-  
-  // Importance scoring
-  importanceHint  ImportanceHint? @map("importance_hint")
-  importanceScore Float    @default(0.5) @map("importance_score")
-  
-  // Confidence
-  confidence      Float    @default(1.0)
-  
-  // Position in session (for primacy/recency)
-  sessionPosition Int?     @map("session_position")
-  
-  // Embedding reference (stored in Pinecone)
-  embeddingId     String?  @unique @map("embedding_id")
-  embeddingModel  String?  @map("embedding_model")
-  
-  // Usage tracking
-  retrievalCount  Int      @default(0) @map("retrieval_count")
-  lastRetrievedAt DateTime? @map("last_retrieved_at")
-  usedCount       Int      @default(0) @map("used_count")
-  lastUsedAt      DateTime? @map("last_used_at")
-  
-  // Consolidation
-  consolidated    Boolean  @default(false)
-  consolidatedAt  DateTime? @map("consolidated_at")
-  supersededById  String?  @map("superseded_by_id")
-  
-  // Timestamps
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
-  
-  // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  session         Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  supersededBy    Memory?  @relation("MemorySupersedes", fields: [supersededById], references: [id])
-  supersedes      Memory[] @relation("MemorySupersedes")
-  
-  extraction      MemoryExtraction?
-  feedback        Feedback[]
-  
-  // Chain relations
-  chainSources    MemoryChainLink[] @relation("ChainSource")
-  chainTargets    MemoryChainLink[] @relation("ChainTarget")
-  
-  // Entity relations
-  entities        MemoryEntity[]
-  
-  @@index([userId, layer])
-  @@index([userId, createdAt])
-  @@index([projectId])
-  @@index([sessionId])
-  @@index([deletedAt])
-  @@map("memories")
-}
-
-/// Extracted structure from memory (5W1H)
-model MemoryExtraction {
-  id          String   @id @default(cuid())
-  memoryId    String   @unique @map("memory_id")
-  
-  // 5W1H
-  who         String?
-  what        String?
-  when        DateTime?
-  whereCtx    String?  @map("where_ctx") // "where" is reserved
-  why         String?
-  how         String?
-  
-  // Extracted topics
-  topics      String[] // Array of topic strings
-  
-  // Raw JSON for additional extracted data
-  rawJson     Json?    @map("raw_json")
-  
-  // Extraction metadata
-  extractedAt DateTime @default(now()) @map("extracted_at")
-  model       String?  // Model used for extraction
-  
-  // Relations
-  memory      Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
-  
-  @@map("memory_extractions")
-}
-
-/// Named entities extracted from memories
-model Entity {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  name        String
-  type        String   // person, organization, product, etc.
-  normalizedName String @map("normalized_name") // Lowercase, trimmed
-  
-  // Metadata
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  memories    MemoryEntity[]
-  
-  @@unique([userId, normalizedName, type])
-  @@map("entities")
-}
-
-/// Junction table for Memory <-> Entity
-model MemoryEntity {
-  id          String   @id @default(cuid())
-  memoryId    String   @map("memory_id")
-  entityId    String   @map("entity_id")
-  
-  // Relations
-  memory      Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
-  entity      Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  
-  @@unique([memoryId, entityId])
-  @@map("memory_entities")
-}
-
-// ============================================================================
-// MEMORY CHAINS (Reasoning Traces)
-// ============================================================================
-
 /// Link type for memory chains
 enum ChainLinkType {
-  LED_TO       // A led to conclusion B
-  SUPPORTS     // A supports B
-  CONTRADICTS  // A contradicts B
-  UPDATES      // A updates/supersedes B
-  RELATED      // General relation
+  LED_TO
+  SUPPORTS
+  CONTRADICTS
+  UPDATES
+  RELATED
 }
-
-/// Links between memories forming reasoning chains
-model MemoryChainLink {
-  id          String   @id @default(cuid())
-  sourceId    String   @map("source_id")
-  targetId    String   @map("target_id")
-  linkType    ChainLinkType @map("link_type")
-  
-  // Confidence in this link
-  confidence  Float    @default(1.0)
-  
-  // How was this link created?
-  createdBy   String   @map("created_by") // "agent", "consolidation", "user"
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  source      Memory   @relation("ChainSource", fields: [sourceId], references: [id], onDelete: Cascade)
-  target      Memory   @relation("ChainTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  
-  @@unique([sourceId, targetId, linkType])
-  @@map("memory_chain_links")
-}
-
-// ============================================================================
-// FEEDBACK & LEARNING
-// ============================================================================
-
-/// Feedback on memory retrieval/usage
-model Feedback {
-  id          String   @id @default(cuid())
-  memoryId    String   @map("memory_id")
-  userId      String   @map("user_id")
-  
-  // Feedback type
-  wasUsed     Boolean  @default(false) @map("was_used")
-  wasHelpful  Boolean? @map("was_helpful")
-  correction  String?  // If correcting, the new value
-  
-  // Context when feedback was given
-  queryContext String? @map("query_context")
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  memory      Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("feedback")
-}
-
-// ============================================================================
-// CONSOLIDATION
-// ============================================================================
 
 /// Consolidation job type
 enum ConsolidationType {
-  POST_SESSION  // After session ends
-  NIGHTLY       // 2-4 AM local time
-  PERIODIC      // Weekly/monthly
-  MANUAL        // Triggered via API
+  POST_SESSION
+  NIGHTLY
+  PERIODIC
+  MANUAL
 }
 
 /// Consolidation job status
@@ -355,127 +329,10 @@ enum ConsolidationStatus {
   FAILED
 }
 
-/// Track consolidation runs
-model ConsolidationJob {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  type        ConsolidationType
-  status      ConsolidationStatus @default(PENDING)
-  
-  // Scope
-  sessionId   String?  @map("session_id") // For POST_SESSION
-  startDate   DateTime? @map("start_date") // For date-range jobs
-  endDate     DateTime? @map("end_date")
-  
-  // Results
-  memoriesProcessed Int? @map("memories_processed")
-  patternsDetected  Int? @map("patterns_detected")
-  linksCreated      Int? @map("links_created")
-  memoriesMerged    Int? @map("memories_merged")
-  
-  // Timing
-  startedAt   DateTime? @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  
-  // Error handling
-  error       String?
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  @@index([userId, type, status])
-  @@map("consolidation_jobs")
-}
-
-// ============================================================================
-// WEBHOOKS
-// ============================================================================
-
 /// Webhook event types
 enum WebhookEvent {
   PROACTIVE_SURFACE
   CONTRADICTION_DETECTED
   PATTERN_DETECTED
   CONSOLIDATION_COMPLETE
-}
-
-/// Webhook configuration
-model Webhook {
-  id          String   @id @default(cuid())
-  agentId     String   @map("agent_id")
-  url         String
-  events      WebhookEvent[]
-  
-  // Security
-  secret      String   // For signing payloads
-  
-  // Status
-  isActive    Boolean  @default(true) @map("is_active")
-  lastSuccess DateTime? @map("last_success")
-  lastFailure DateTime? @map("last_failure")
-  failureCount Int     @default(0) @map("failure_count")
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  
-  @@map("webhooks")
-}
-
-/// Webhook delivery log
-model WebhookDelivery {
-  id          String   @id @default(cuid())
-  webhookId   String   @map("webhook_id")
-  event       WebhookEvent
-  
-  // Payload
-  payload     Json
-  
-  // Response
-  statusCode  Int?     @map("status_code")
-  responseMs  Int?     @map("response_ms")
-  error       String?
-  
-  // Retry tracking
-  attempt     Int      @default(1)
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  @@index([webhookId, createdAt])
-  @@map("webhook_deliveries")
-}
-
-// ============================================================================
-// AUDIT LOG
-// ============================================================================
-
-/// Audit log for compliance
-model AuditLog {
-  id          String   @id @default(cuid())
-  agentId     String   @map("agent_id")
-  userId      String?  @map("user_id")
-  
-  // Action
-  action      String   // create, read, update, delete, query, etc.
-  resource    String   // memory, project, session, etc.
-  resourceId  String?  @map("resource_id")
-  
-  // Details
-  details     Json?
-  
-  // Request context
-  ipAddress   String?  @map("ip_address")
-  userAgent   String?  @map("user_agent")
-  
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  @@index([agentId, createdAt])
-  @@index([userId, createdAt])
-  @@map("audit_logs")
 }

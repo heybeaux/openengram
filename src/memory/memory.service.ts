@@ -420,8 +420,31 @@ export class MemoryService {
     userId: string,
     context?: ExtractionContext,
   ): Promise<void> {
+    const inputPreview = raw.length > 80 ? raw.substring(0, 80) + '...' : raw;
+    
+    console.log('[Memory] extractAndEmbed starting:', {
+      memoryId,
+      inputPreview,
+      userId,
+      userName: context?.userName,
+    });
+
     // 1. Extract 5W1H structure with user context
     const extracted = await this.extraction.extract(raw, context);
+
+    console.log('[Memory] Extraction result:', {
+      memoryId,
+      who: extracted.who,
+      what: extracted.what?.substring(0, 50),
+      hasWhen: !!extracted.when,
+      hasWhere: !!extracted.where,
+      hasWhy: !!extracted.why,
+      hasHow: !!extracted.how,
+      topicCount: extracted.topics.length,
+      topics: extracted.topics,
+      entityCount: extracted.entities.length,
+      entities: extracted.entities.map(e => ({ name: e.name, type: e.type })),
+    });
 
     // 2. Build source metadata for rawJson
     const sourceMetadata = context ? {
@@ -447,15 +470,25 @@ export class MemoryService {
         rawJson: sourceMetadata,
       },
     });
+    console.log('[Memory] MemoryExtraction saved for:', memoryId);
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
+      console.log('[Memory] Storing entities:', {
+        memoryId,
+        count: extracted.entities.length,
+        entities: extracted.entities.map(e => `${e.name}:${e.type}`),
+      });
       await this.storeEntities(userId, memoryId, extracted.entities);
+      console.log('[Memory] Entities stored successfully for:', memoryId);
+    } else {
+      console.log('[Memory] No entities to store for:', memoryId);
     }
 
     // 5. Generate and store embedding
     const embedding = await this.embedding.generate(raw);
     const embeddingId = await this.embedding.store(memoryId, embedding);
+    console.log('[Memory] Embedding stored:', { memoryId, embeddingId });
 
     // 6. Update memory with embedding reference
     await this.prisma.memory.update({
@@ -465,6 +498,8 @@ export class MemoryService {
 
     // 7. Link to related memories
     await this.linkRelatedMemories(memoryId, embedding, userId);
+    
+    console.log('[Memory] extractAndEmbed complete:', memoryId);
   }
 
   /**
@@ -539,6 +574,11 @@ export class MemoryService {
              m.score < DEDUP_SIMILARITY_THRESHOLD
       );
 
+      if (related.length > 0) {
+        console.debug(`[linkRelatedMemories] Memory ${memoryId}: found ${related.length} linkable memories (scores: ${related.map(r => r.score.toFixed(3)).join(', ')})`);
+      }
+
+      let linksCreated = 0;
       for (const match of related) {
         try {
           await this.prisma.memoryChainLink.upsert({
@@ -560,13 +600,18 @@ export class MemoryService {
               confidence: match.score, // Update confidence if link exists
             },
           });
+          linksCreated++;
         } catch (error) {
           // Ignore constraint violations (link may already exist)
-          console.debug(`Link creation skipped for ${memoryId} -> ${match.id}`);
+          console.debug(`[linkRelatedMemories] Link skipped (may exist): ${memoryId} -> ${match.id}`);
         }
       }
+      
+      if (linksCreated > 0) {
+        console.debug(`[linkRelatedMemories] Memory ${memoryId}: created ${linksCreated} links`);
+      }
     } catch (error) {
-      console.error('Failed to link related memories:', error);
+      console.error('[linkRelatedMemories] Failed to link related memories:', error);
     }
   }
 

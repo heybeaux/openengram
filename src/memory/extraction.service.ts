@@ -69,6 +69,15 @@ export class ExtractionService {
    * @param context - Optional context including user name for better extraction
    */
   async extract(raw: string, context?: ExtractionContext): Promise<ExtractionResult> {
+    const inputPreview = raw.length > 100 ? raw.substring(0, 100) + '...' : raw;
+    
+    console.log('[Extraction] Starting extraction:', {
+      inputPreview,
+      inputLength: raw.length,
+      userName: context?.userName,
+      userId: context?.userId,
+    });
+
     try {
       const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName);
       
@@ -81,10 +90,19 @@ export class ExtractionService {
         { temperature: 0.2 }, // Low temperature for consistent extraction
       );
 
+      // Log raw LLM response keys to catch case sensitivity issues
+      console.log('[Extraction] Raw LLM response:', {
+        keys: Object.keys(rawResult),
+        hasUppercaseKeys: Object.keys(rawResult).some(k => k !== k.toLowerCase()),
+        entityCount: Array.isArray(rawResult.entities ?? rawResult.ENTITIES) 
+          ? (rawResult.entities ?? rawResult.ENTITIES as unknown[]).length 
+          : 0,
+      });
+
       // Normalize keys to lowercase (LLM sometimes returns WHO instead of who)
       const result = this.normalizeResponseKeys(rawResult);
 
-      return {
+      const extractionResult: ExtractionResult = {
         who: result.who || null,
         what: result.what || null,
         when: result.when || null,
@@ -94,12 +112,27 @@ export class ExtractionService {
         topics: Array.isArray(result.topics) ? result.topics : [],
         entities: this.normalizeEntities(result.entities, context?.userName),
       };
-    } catch (error) {
-      console.error('[ExtractionService] LLM extraction failed:', {
-        error: error instanceof Error ? error.message : String(error),
-        rawPreview: raw.substring(0, 100),
-        userName: context?.userName,
+
+      console.log('[Extraction] Extraction complete:', {
+        who: extractionResult.who,
+        what: extractionResult.what?.substring(0, 50),
+        topicCount: extractionResult.topics.length,
+        entityCount: extractionResult.entities.length,
+        entities: extractionResult.entities.map(e => `${e.name}:${e.type}`),
       });
+
+      return extractionResult;
+    } catch (error) {
+      console.error('[Extraction] LLM extraction FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        inputPreview,
+        inputLength: raw.length,
+        userName: context?.userName,
+        userId: context?.userId,
+        timestamp: new Date().toISOString(),
+      });
+      console.log('[Extraction] Falling back to basicExtraction');
       return this.basicExtraction(raw, context?.userName);
     }
   }
