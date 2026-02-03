@@ -6,6 +6,7 @@ import { ImportanceService } from './importance.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { Memory, MemoryLayer, MemorySource, Entity } from '@prisma/client';
+import { parseFlexibleDate } from '../utils/date-parser';
 
 // Similarity threshold for deduplication (0.90 = very similar)
 const DEDUP_SIMILARITY_THRESHOLD = 0.90;
@@ -457,12 +458,26 @@ export class MemoryService {
     } : undefined;
 
     // 3. Save extraction with source metadata
+    // Use parseFlexibleDate for robust handling of:
+    // - ISO dates: "2026-02-01"
+    // - Relative: "yesterday", "last week", "2 days ago"
+    // - Natural language: "February 1st, 2026"
+    const parsedWhen = parseFlexibleDate(extracted.when, context?.timestamp ?? new Date());
+    
+    if (extracted.when && !parsedWhen) {
+      console.warn('[Memory] Could not parse date:', {
+        memoryId,
+        rawWhen: extracted.when,
+        contextTimestamp: context?.timestamp?.toISOString(),
+      });
+    }
+
     await this.prisma.memoryExtraction.create({
       data: {
         memoryId,
         who: extracted.who,
         what: extracted.what,
-        when: extracted.when ? new Date(extracted.when) : null,
+        when: parsedWhen,
         whereCtx: extracted.where,
         why: extracted.why,
         how: extracted.how,
@@ -470,7 +485,7 @@ export class MemoryService {
         rawJson: sourceMetadata,
       },
     });
-    console.log('[Memory] MemoryExtraction saved for:', memoryId);
+    console.log('[Memory] MemoryExtraction saved for:', memoryId, { parsedWhen: parsedWhen?.toISOString() ?? null });
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
