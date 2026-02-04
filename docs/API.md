@@ -223,6 +223,65 @@ GET /v1/memories/clx1abc123
 
 ---
 
+### Update Memory
+
+Update an existing memory. If raw content changes, the memory is re-embedded for accurate semantic search.
+
+```
+PATCH /v1/memories/:id
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `raw` | string | | Updated memory content (triggers re-embedding) |
+| `layer` | enum | | Change layer: `IDENTITY`, `PROJECT`, `SESSION`, `TASK` |
+| `importanceHint` | enum | | Adjust importance: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
+| `importanceScore` | number | | Directly set importance (0.0-1.0) |
+| `extraction` | object | | Update 5W1H fields |
+| `extraction.who` | string | | Who is involved |
+| `extraction.what` | string | | What happened |
+| `extraction.when` | string | | When (ISO date or natural language) |
+| `extraction.where` | string | | Where it happened |
+| `extraction.why` | string | | Why it happened |
+| `extraction.how` | string | | How it happened |
+| `extraction.topics` | array | | Topic tags |
+
+**Example:**
+
+```bash
+PATCH /v1/memories/clx1abc123
+
+{
+  "raw": "User prefers dark mode on all devices",
+  "layer": "IDENTITY",
+  "extraction": {
+    "what": "prefers dark mode on all devices"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "clx1abc123",
+  "raw": "User prefers dark mode on all devices",
+  "layer": "IDENTITY",
+  "importanceScore": 0.83,
+  "updatedAt": "2026-02-03T15:30:00.000Z",
+  "extraction": {
+    "who": "User",
+    "what": "prefers dark mode on all devices"
+  }
+}
+```
+
+**Use Case:** Direct edits for typo fixes, layer promotions, or extraction corrections. For factual corrections that should preserve history, use [Correct Memory](#correct-memory) instead.
+
+---
+
 ### Delete Memory
 
 Soft-delete a memory.
@@ -324,7 +383,7 @@ POST /v1/memories/:id/helpful
 
 ### Correct Memory
 
-Correct an inaccurate memory. Creates a new memory and marks the original as superseded.
+Correct an inaccurate memory with contradiction tracking. Creates a new "correction" memory and marks the original as superseded. A `CONTRADICTS` link is created between them, preserving the correction history.
 
 ```
 POST /v1/memories/:id/correct
@@ -334,7 +393,10 @@ POST /v1/memories/:id/correct
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `correction` | string | ✓ | The corrected information |
+| `correctedContent` | string | ✓ | The corrected information |
+| `reason` | string | | Explanation of why this correction was made |
+| `layer` | enum | | Override layer (defaults to original's layer) |
+| `importanceHint` | enum | | Override importance |
 
 **Example:**
 
@@ -342,11 +404,31 @@ POST /v1/memories/:id/correct
 POST /v1/memories/clx1abc123/correct
 
 {
-  "correction": "User actually prefers light mode with high contrast"
+  "correctedContent": "User actually prefers light mode with high contrast",
+  "reason": "Original preference was outdated"
 }
 ```
 
-**Response:** Returns the new corrected memory.
+**Response:**
+
+```json
+{
+  "id": "clx2new789",
+  "raw": "User actually prefers light mode with high contrast",
+  "layer": "IDENTITY",
+  "source": "CORRECTION",
+  "importanceScore": 0.93,
+  "createdAt": "2026-02-03T15:30:00.000Z"
+}
+```
+
+**What happens:**
+1. Original memory gets `supersededById` set to the new memory's ID
+2. Original memory gets `supersededAt` timestamp set
+3. A `CONTRADICTS` link is created from new → original
+4. The correction reason is stored in the link metadata
+
+**Use Case:** When a memory contains factually incorrect information that should be corrected while preserving the history of what was believed before. For simple typo fixes, use [Update Memory](#update-memory) instead.
 
 ---
 
