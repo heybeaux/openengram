@@ -1279,7 +1279,7 @@ async function onSessionEnd(session: Session) {
 | P4-003 | Health checks | P2 | 4h | Phase 1 | 🔴 Not Started |
 | **P5-001** | **Memory correction API** | **P1** | **4h** | Phase 1 | 🔴 Not Started |
 | **P5-002** | **User identity backfill** | **P2** | **2h** | P0-001 | 🔴 Not Started |
-| **P5-003** | **Intelligent layer classification** | **P2** | **6h** | P0-001 | 🔴 Not Started |
+| **P5-003** | **Intelligent layer classification** | **P2** | **6h** | P0-001 | ✅ **Complete (2026-02-03)** |
 | **P5-004** | **Agent self-memories** | **P1** | **8h** | Phase 1 | 🔴 Not Started |
 
 ---
