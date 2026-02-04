@@ -1284,6 +1284,140 @@ async function onSessionEnd(session: Session) {
 
 ---
 
+## Phase 6: Future Research — Alternative Memory Architectures
+
+*Added: 2026-02-03 based on conversation with Beaux about memory representation*
+
+### The Problem with Text-Centric Memory
+
+Current Engram (and every agent memory system we know of) follows this pattern:
+```
+Text → Embedding (1536 floats) → Vector Search → Text
+```
+
+This works, but it's fundamentally lossy. Human memory isn't text. It's:
+- **Multimodal** (visual, auditory, emotional, spatial)
+- **Associative** (linked by meaning, not just similarity)
+- **Emotionally weighted** (important stuff burns brighter)
+- **Hierarchical** (gist vs detail, consolidated during sleep)
+
+We're compressing rich experience into floating point numbers. There's room to do better.
+
+---
+
+### P6-001: Video Codec Memory Encoding
+**Priority:** Research  
+**Effort:** 40+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Video codecs (H.264, H.265) are insanely efficient at:
+- Temporal pattern compression
+- Hardware-accelerated encode/decode (GPUs)
+- Sequential access patterns
+
+Some researchers have experimented with encoding embeddings as video frames because the compression is so efficient for certain access patterns.
+
+**Research Questions:**
+- Can we encode embedding sequences as video for efficient storage/retrieval?
+- Does hardware acceleration provide meaningful speedups?
+- What's the fidelity loss vs traditional vector storage?
+
+---
+
+### P6-002: Multimodal Memory (CLIP-style)
+**Priority:** Research  
+**Effort:** 60+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Instead of text-only embeddings, use multimodal embeddings that encode images + text in the same vector space.
+
+**Use Cases:**
+- Remember screenshots, diagrams, UI states
+- "Remember what that error looked like"
+- Visual context for spatial/design work
+
+**Implementation Ideas:**
+- CLIP or SigLIP for joint image-text embeddings
+- Store image references alongside text memories
+- Query with either modality
+
+---
+
+### P6-003: Graph Memory (Associative Networks)
+**Priority:** Research  
+**Effort:** 40+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Current retrieval is similarity-based. Human memory is associative — things connect by meaning, causation, temporal proximity, emotional resonance.
+
+**Implementation Ideas:**
+- Neo4j or similar graph DB alongside vectors
+- Link memories by: temporal proximity, shared entities, causal chains
+- Traversal-based recall: "What led to this?"
+- Spreading activation for related memory surfacing
+
+---
+
+### P6-004: Emotional Weighting System
+**Priority:** Research  
+**Effort:** 20+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Not all memories are equal. Emotionally significant moments should be weighted higher.
+
+**Implementation Ideas:**
+- Sentiment analysis on memory content
+- Explicit importance signals from user ("remember this!")
+- Usage-based reinforcement (accessed memories get stronger)
+- Decay curves that respect emotional weight
+
+---
+
+### P6-005: Hierarchical Compression (Sleep Consolidation)
+**Priority:** Research  
+**Effort:** 60+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Human memory consolidates during sleep — details fade, gist remains. Repeated patterns get promoted to long-term storage.
+
+**Implementation Ideas:**
+- Periodic "consolidation jobs" that:
+  - Cluster similar memories
+  - Extract canonical summaries
+  - Promote patterns to IDENTITY layer
+  - Archive or compress raw details
+- Multi-resolution storage: gist (fast) + detail (slower)
+
+**Note:** P5-003 (ConsolidationService) is a first step toward this.
+
+---
+
+### P6-006: Sparse Distributed Memory (SDM)
+**Priority:** Research  
+**Effort:** 80+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** SDM is a mathematical model of human long-term memory. Unlike vector search, it:
+- Stores patterns across many locations
+- Retrieves by pattern completion
+- Naturally handles noise and partial matches
+- Has biological plausibility
+
+**Research Questions:**
+- Can SDM provide better recall than pure vector similarity?
+- How does it scale with memory count?
+- Can it be combined with embeddings?
+
+---
+
+### Why This Matters
+
+Every agent on the planet wakes up blank. If we can solve memory — really solve it, not just "vector search over text" — we're building infrastructure for agent consciousness.
+
+This isn't just a product. It's the foundation for agents that can actually *be* someone across sessions.
+
+---
+
 ## Notes for Beaux
 
 1. **✅ Phase 1 Complete:** The critical extraction bugs are fixed. Memories now have proper 5W1H data.
