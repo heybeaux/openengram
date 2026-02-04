@@ -24,6 +24,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.2.5",
     "@pinecone-database/pinecone": "^7.0.0",
     "@prisma/client": "^6.19.2",
     "class-transformer": "^0.5.1",
@@ -31,6 +32,7 @@
     "openai": "^6.17.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

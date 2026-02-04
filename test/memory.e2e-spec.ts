@@ -511,29 +511,203 @@ describe('Memory API (e2e)', () => {
     });
   });
 
-  describe('POST /v1/memories/:id/correct', () => {
+  describe('PATCH /v1/memories/:id (P5-001)', () => {
     let memoryId: string;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       const response = await request(app.getHttpServer())
         .post('/v1/memories')
         .set('X-AM-API-Key', testApiKey)
         .set('X-AM-User-ID', testUserId)
-        .send({ raw: 'Original memory content' });
+        .send({ 
+          raw: 'Original content to update',
+          layer: 'SESSION',
+        });
+      memoryId = response.body.id;
+      // Wait for async extraction to complete
+      await new Promise((r) => setTimeout(r, 100));
+    });
+
+    it('should update raw content', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/v1/memories/${memoryId}`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          raw: 'Updated content after edit',
+        })
+        .expect(200);
+
+      expect(response.body.raw).toBe('Updated content after edit');
+    });
+
+    it('should update layer', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/v1/memories/${memoryId}`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          layer: 'IDENTITY',
+        })
+        .expect(200);
+
+      expect(response.body.layer).toBe('IDENTITY');
+    });
+
+    it('should update importance score', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/v1/memories/${memoryId}`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          importanceScore: 0.95,
+        })
+        .expect(200);
+
+      expect(response.body.importanceScore).toBe(0.95);
+    });
+
+    it('should update multiple fields at once', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/v1/memories/${memoryId}`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          raw: 'Multi-field update',
+          layer: 'PROJECT',
+          importanceHint: 'HIGH',
+        })
+        .expect(200);
+
+      expect(response.body.raw).toBe('Multi-field update');
+      expect(response.body.layer).toBe('PROJECT');
+      expect(response.body.importanceHint).toBe('HIGH');
+    });
+
+    it('should reject update for non-existent memory', async () => {
+      await request(app.getHttpServer())
+        .patch('/v1/memories/non-existent-id')
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ raw: 'Should fail' })
+        .expect(500); // Will throw error
+    });
+  });
+
+  describe('POST /v1/memories/:id/correct (P5-001)', () => {
+    let memoryId: string;
+
+    beforeEach(async () => {
+      const response = await request(app.getHttpServer())
+        .post('/v1/memories')
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ raw: 'Original incorrect fact' });
       memoryId = response.body.id;
     });
 
-    it('should create a correction memory', async () => {
+    it('should create a correction memory with CONTRADICTS link', async () => {
       const response = await request(app.getHttpServer())
         .post(`/v1/memories/${memoryId}/correct`)
         .set('X-AM-API-Key', testApiKey)
         .set('X-AM-User-ID', testUserId)
         .send({
-          correction: 'Corrected memory content',
+          correctedContent: 'Corrected fact',
         })
         .expect(201);
 
-      expect(response.body.raw).toBe('Corrected memory content');
+      expect(response.body.raw).toBe('Corrected fact');
+      expect(response.body.source).toBe('CORRECTION');
+      
+      // Verify original is now superseded
+      const original = await prisma.memory.findUnique({
+        where: { id: memoryId },
+      });
+      expect(original?.supersededById).toBe(response.body.id);
+      expect(original?.supersededAt).not.toBeNull();
+
+      // Verify CONTRADICTS link exists
+      const link = await prisma.memoryChainLink.findFirst({
+        where: {
+          sourceId: response.body.id,
+          targetId: memoryId,
+          linkType: 'CONTRADICTS',
+        },
+      });
+      expect(link).not.toBeNull();
+    });
+
+    it('should accept optional reason', async () => {
+      const response = await request(app.getHttpServer())
+        .post(`/v1/memories/${memoryId}/correct`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          correctedContent: 'Corrected with reason',
+          reason: 'Original date was wrong',
+        })
+        .expect(201);
+
+      expect(response.body.raw).toBe('Corrected with reason');
+
+      // Verify reason is stored in link
+      const link = await prisma.memoryChainLink.findFirst({
+        where: {
+          sourceId: response.body.id,
+          targetId: memoryId,
+        },
+      });
+      expect(link?.createdBy).toContain('Original date was wrong');
+    });
+
+    it('should reject correction of already-superseded memory', async () => {
+      // First correction
+      await request(app.getHttpServer())
+        .post(`/v1/memories/${memoryId}/correct`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ correctedContent: 'First correction' })
+        .expect(201);
+
+      // Second correction should fail
+      await request(app.getHttpServer())
+        .post(`/v1/memories/${memoryId}/correct`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ correctedContent: 'Second correction' })
+        .expect(500); // Memory already superseded
+    });
+
+    it('should inherit layer from original by default', async () => {
+      // Create an IDENTITY memory
+      const identityRes = await request(app.getHttpServer())
+        .post('/v1/memories')
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ raw: 'Identity fact', layer: 'IDENTITY' });
+
+      const correctionRes = await request(app.getHttpServer())
+        .post(`/v1/memories/${identityRes.body.id}/correct`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({ correctedContent: 'Corrected identity fact' })
+        .expect(201);
+
+      expect(correctionRes.body.layer).toBe('IDENTITY');
+    });
+
+    it('should allow layer override', async () => {
+      const response = await request(app.getHttpServer())
+        .post(`/v1/memories/${memoryId}/correct`)
+        .set('X-AM-API-Key', testApiKey)
+        .set('X-AM-User-ID', testUserId)
+        .send({
+          correctedContent: 'Promoted to identity',
+          layer: 'IDENTITY',
+        })
+        .expect(201);
+
+      expect(response.body.layer).toBe('IDENTITY');
     });
   });
 

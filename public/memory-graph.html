@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Engram Memory Graph</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
@@ -18,12 +18,15 @@
       color: #c9d1d9;
       overflow: hidden;
       height: 100vh;
+      height: 100dvh; /* Dynamic viewport height for mobile */
+      touch-action: none; /* Prevent default touch behaviors */
     }
 
     /* Main container */
     .container {
       display: flex;
       height: 100vh;
+      height: 100dvh;
     }
 
     /* Sidebar */
@@ -35,6 +38,7 @@
       flex-direction: column;
       backdrop-filter: blur(10px);
       z-index: 10;
+      transition: transform 0.3s ease;
     }
 
     .sidebar-header {
@@ -93,7 +97,7 @@
       border-radius: 8px;
       background: #0d1117;
       color: #c9d1d9;
-      font-size: 0.9rem;
+      font-size: 16px; /* Prevent iOS zoom on focus */
       transition: all 0.2s ease;
     }
 
@@ -137,6 +141,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .filter-chip.active {
@@ -190,12 +196,13 @@
       background: #21262d;
       border-radius: 3px;
       outline: none;
+      touch-action: none;
     }
 
     .time-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       background: linear-gradient(135deg, #58a6ff, #1f6feb);
       cursor: pointer;
@@ -207,11 +214,22 @@
       transform: scale(1.1);
     }
 
+    .time-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #58a6ff, #1f6feb);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(88, 166, 255, 0.4);
+      border: none;
+    }
+
     /* Memory details panel */
     .memory-details {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
+      -webkit-overflow-scrolling: touch;
     }
 
     .memory-details::-webkit-scrollbar {
@@ -385,6 +403,7 @@
     #graph {
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
 
     /* Tooltip */
@@ -428,11 +447,12 @@
       right: 20px;
       display: flex;
       gap: 8px;
+      z-index: 5;
     }
 
     .control-btn {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 8px;
       border: 1px solid #30363d;
       background: rgba(22, 27, 34, 0.9);
@@ -443,17 +463,19 @@
       justify-content: center;
       transition: all 0.2s ease;
       backdrop-filter: blur(10px);
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .control-btn:hover {
+    .control-btn:hover,
+    .control-btn:active {
       background: #30363d;
       border-color: #58a6ff;
       color: #58a6ff;
     }
 
     .control-btn svg {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
     }
 
     /* Legend */
@@ -466,6 +488,7 @@
       border-radius: 12px;
       padding: 15px;
       backdrop-filter: blur(10px);
+      z-index: 5;
     }
 
     .legend-title {
@@ -540,24 +563,63 @@
       margin-bottom: 15px;
     }
 
-    /* Responsive */
-    @media (max-width: 900px) {
-      .sidebar {
-        width: 300px;
-      }
+    /* Mobile bottom sheet handle */
+    .bottom-sheet-handle {
+      display: none;
+      width: 40px;
+      height: 4px;
+      background: #6e7681;
+      border-radius: 2px;
+      margin: 8px auto 0;
     }
 
-    @media (max-width: 700px) {
-      .container {
-        flex-direction: column;
-      }
-      .sidebar {
-        width: 100%;
-        height: 40vh;
-      }
-      .graph-container {
-        height: 60vh;
-      }
+    /* Mobile toggle button */
+    .mobile-panel-toggle {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid #30363d;
+      background: rgba(22, 27, 34, 0.95);
+      color: #58a6ff;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-panel-toggle svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Touch hint for mobile */
+    .touch-hint {
+      display: none;
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      color: #8b949e;
+      white-space: nowrap;
+      z-index: 5;
+      animation: fadeOut 3s ease forwards;
+      animation-delay: 2s;
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
     }
 
     /* Node glow effect */
@@ -575,12 +637,309 @@
         opacity: 1;
       }
     }
+
+    /* ============================================
+       RESPONSIVE STYLES - TABLET (768px)
+       ============================================ */
+    @media (max-width: 900px) {
+      .sidebar {
+        width: 300px;
+      }
+
+      .stats {
+        gap: 15px;
+      }
+
+      .stat-value {
+        font-size: 1.3rem;
+      }
+
+      .legend {
+        padding: 12px;
+      }
+
+      .legend-item {
+        font-size: 0.75rem;
+      }
+    }
+
+    /* ============================================
+       RESPONSIVE STYLES - MOBILE (< 768px)
+       Sidebar becomes bottom sheet
+       ============================================ */
+    @media (max-width: 767px) {
+      .container {
+        flex-direction: column-reverse;
+      }
+
+      /* Bottom sheet styles */
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+        min-height: 180px;
+        border-right: none;
+        border-top: 1px solid #30363d;
+        border-radius: 20px 20px 0 0;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transform: translateY(calc(100% - 180px));
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .sidebar.expanded {
+        transform: translateY(0);
+      }
+
+      .sidebar.hidden {
+        transform: translateY(100%);
+      }
+
+      .bottom-sheet-handle {
+        display: block;
+      }
+
+      /* Graph takes full space */
+      .graph-container {
+        flex: 1;
+        height: 100vh;
+        height: 100dvh;
+      }
+
+      /* Compact header */
+      .sidebar-header {
+        padding: 12px 16px;
+      }
+
+      .sidebar-header h1 {
+        font-size: 1.2rem;
+      }
+
+      .sidebar-header h1::before {
+        font-size: 1.1rem;
+      }
+
+      /* Stats row - compact */
+      .stats {
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .stat-value {
+        font-size: 1.1rem;
+      }
+
+      .stat-label {
+        font-size: 0.65rem;
+      }
+
+      /* Search */
+      .search-container {
+        padding: 10px 16px;
+      }
+
+      .search-input {
+        padding: 12px 15px;
+        font-size: 16px;
+      }
+
+      /* Filters - horizontal scroll */
+      .filters {
+        padding: 10px 16px;
+      }
+
+      .filter-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 5px;
+        margin: 0 -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .filter-chips::-webkit-scrollbar {
+        display: none;
+      }
+
+      .filter-chip {
+        flex-shrink: 0;
+        padding: 8px 14px;
+        font-size: 0.75rem;
+      }
+
+      /* Time slider - larger touch target */
+      .time-slider-container {
+        padding: 10px 16px;
+      }
+
+      .time-slider {
+        height: 8px;
+      }
+
+      .time-slider::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+      }
+
+      .time-slider::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+      }
+
+      /* Memory details */
+      .memory-details {
+        padding: 12px 16px;
+        max-height: 40vh;
+      }
+
+      .memory-card {
+        padding: 15px;
+      }
+
+      .memory-raw {
+        font-size: 0.9rem;
+      }
+
+      .extraction-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .memory-meta {
+        flex-direction: column;
+        gap: 5px;
+        align-items: flex-start;
+      }
+
+      /* Hide desktop legend */
+      .legend {
+        display: none;
+      }
+
+      /* Mobile toggle button */
+      .mobile-panel-toggle {
+        display: flex;
+      }
+
+      /* Controls - move to avoid conflict */
+      .controls-overlay {
+        bottom: 200px;
+        right: 16px;
+      }
+
+      .control-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .control-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Touch hint */
+      .touch-hint {
+        display: block;
+        bottom: 200px;
+      }
+
+      /* Tooltip adjustments */
+      .tooltip {
+        max-width: calc(100vw - 40px);
+        font-size: 0.8rem;
+      }
+    }
+
+    /* ============================================
+       RESPONSIVE STYLES - SMALL PHONES (< 375px)
+       ============================================ */
+    @media (max-width: 374px) {
+      .sidebar-header h1 {
+        font-size: 1rem;
+      }
+
+      .stats {
+        justify-content: space-between;
+      }
+
+      .stat-value {
+        font-size: 1rem;
+      }
+
+      .stat-label {
+        font-size: 0.6rem;
+      }
+
+      .filter-chip {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+      }
+
+      .search-input {
+        padding: 10px 12px;
+      }
+
+      .memory-card {
+        padding: 12px;
+      }
+
+      .memory-raw {
+        font-size: 0.85rem;
+      }
+    }
+
+    /* ============================================
+       LANDSCAPE PHONE
+       ============================================ */
+    @media (max-width: 767px) and (orientation: landscape) {
+      .sidebar {
+        max-height: 50vh;
+        transform: translateY(calc(100% - 120px));
+      }
+
+      .sidebar.expanded {
+        transform: translateY(0);
+      }
+
+      .sidebar-header {
+        padding: 8px 16px;
+      }
+
+      .stats {
+        margin-top: 6px;
+      }
+
+      .search-container,
+      .filters,
+      .time-slider-container {
+        padding: 6px 16px;
+      }
+
+      .memory-details {
+        max-height: 30vh;
+      }
+
+      .controls-overlay {
+        bottom: 140px;
+      }
+
+      .touch-hint {
+        bottom: 140px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Sidebar -->
-    <div class="sidebar">
+    <!-- Sidebar (becomes bottom sheet on mobile) -->
+    <div class="sidebar" id="sidebar">
+      <div class="bottom-sheet-handle" id="bottomSheetHandle"></div>
+      
       <div class="sidebar-header">
         <h1>Engram Memory</h1>
         <div class="stats">
@@ -642,7 +1001,7 @@
             <circle cx="12" cy="12" r="10"/>
             <path d="M12 16v-4M12 8h.01"/>
           </svg>
-          <p>Click on a memory node to see details</p>
+          <p>Tap a memory node to see details</p>
         </div>
       </div>
     </div>
@@ -661,13 +1020,13 @@
         </svg>
         <p>Failed to load graph data</p>
         <p style="font-size: 0.85rem; margin-top: 10px; color: #8b949e;">
-          Make sure Engram server is running at localhost:3001
+          Make sure Engram server is running at 10.0.0.108:3001
         </p>
       </div>
 
       <svg id="graph"></svg>
 
-      <!-- Legend -->
+      <!-- Legend (hidden on mobile) -->
       <div class="legend">
         <div class="legend-title">Link Types</div>
         <div class="legend-item">
@@ -682,6 +1041,11 @@
           <div class="legend-line dotted"></div>
           <span>Led To / Contradicts</span>
         </div>
+      </div>
+
+      <!-- Touch hint for mobile -->
+      <div class="touch-hint" id="touchHint">
+        Pinch to zoom • Drag to pan • Tap nodes
       </div>
 
       <!-- Controls -->
@@ -705,6 +1069,13 @@
           </svg>
         </button>
       </div>
+
+      <!-- Mobile panel toggle -->
+      <button class="mobile-panel-toggle" id="mobilePanelToggle" title="Toggle Panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -716,8 +1087,8 @@
 
   <script>
     // Configuration
-    const API_BASE = 'http://localhost:3001/v1';
-    const API_KEY = 'test-api-key-12345'; // Default dev API key
+    const API_BASE = 'http://10.0.0.108:3001/v1';
+    const API_KEY = 'eg_sk_test_key_12345'; // Default dev API key
     const USER_ID = 'user_beaux'; // Default user ID
 
     // State
@@ -729,6 +1100,7 @@
     let timeThreshold = 100;
     let simulation = null;
     let selectedNode = null;
+    let isMobile = window.innerWidth < 768;
 
     // Color scheme
     const entityColors = {
@@ -752,6 +1124,7 @@
     const tooltip = document.getElementById('tooltip');
     const loading = document.getElementById('loading');
     const error = document.getElementById('error');
+    const sidebar = document.getElementById('sidebar');
 
     // Initialize
     async function init() {
@@ -759,6 +1132,7 @@
         await fetchGraphData();
         setupGraph();
         setupEventListeners();
+        setupMobileInteractions();
         hideLoading();
       } catch (err) {
         console.error('Failed to initialize:', err);
@@ -880,14 +1254,16 @@
       // Nodes layer
       container.append('g').attr('class', 'nodes');
 
-      // Setup zoom
+      // Setup zoom with touch support
       const zoom = d3.zoom()
         .scaleExtent([0.1, 4])
         .on('zoom', (event) => {
           container.attr('transform', event.transform);
         });
 
-      svg.call(zoom);
+      // Enable touch gestures
+      svg.call(zoom)
+        .on('dblclick.zoom', null); // Disable double-click zoom (use tap instead)
 
       // Store zoom for controls
       window.zoomBehavior = zoom;
@@ -903,8 +1279,10 @@
     }
 
     function getNodeRadius(node) {
-      // Size based on importance score (min 6, max 20)
-      return 6 + (node.importanceScore || 0.5) * 14;
+      // Size based on importance score (min 8, max 24 for better touch targets)
+      const baseRadius = isMobile ? 10 : 6;
+      const maxRadius = isMobile ? 28 : 20;
+      return baseRadius + (node.importanceScore || 0.5) * (maxRadius - baseRadius);
     }
 
     function getNodeColor(node) {
@@ -967,20 +1345,28 @@
         .duration(300)
         .attr('r', d => getNodeRadius(d));
 
+      // Larger invisible hit area for touch
       nodesEnter.append('circle')
         .attr('r', 0)
         .attr('fill', 'transparent')
         .attr('class', 'node-hitarea')
         .transition()
         .duration(300)
-        .attr('r', d => getNodeRadius(d) + 5);
+        .attr('r', d => getNodeRadius(d) + (isMobile ? 15 : 5));
 
-      // Events
+      // Events - handle both mouse and touch
       nodesGroup.selectAll('g')
-        .on('mouseenter', (event, d) => showTooltip(event, d))
-        .on('mousemove', (event) => moveTooltip(event))
-        .on('mouseleave', hideTooltip)
-        .on('click', (event, d) => selectNode(d));
+        .on('mouseenter', (event, d) => {
+          if (!isMobile) showTooltip(event, d);
+        })
+        .on('mousemove', (event) => {
+          if (!isMobile) moveTooltip(event);
+        })
+        .on('mouseleave', () => {
+          if (!isMobile) hideTooltip();
+        })
+        .on('click', (event, d) => selectNode(d))
+        .on('touchstart', handleNodeTouch, { passive: true });
 
       // Highlight selected node
       nodesGroup.selectAll('circle.node-glow')
@@ -1006,10 +1392,46 @@
       }
     }
 
+    // Touch handler for nodes
+    let touchTimeout;
+    function handleNodeTouch(event, d) {
+      event.stopPropagation();
+      
+      // Detect tap vs drag
+      const touch = event.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      
+      clearTimeout(touchTimeout);
+      touchTimeout = setTimeout(() => {
+        // Short tap - select node
+        selectNode(d);
+        // Show brief tooltip on mobile
+        showMobileTooltip(event, d);
+      }, 100);
+    }
+
+    function showMobileTooltip(event, d) {
+      const truncated = d.raw.length > 60 ? d.raw.substring(0, 60) + '...' : d.raw;
+      tooltip.querySelector('.tooltip-title').textContent = truncated;
+      tooltip.querySelector('.tooltip-meta').textContent = 
+        `${d.layer} • ${d.entities.length} entities`;
+      
+      // Position tooltip at top center of screen
+      tooltip.style.left = '50%';
+      tooltip.style.top = '20px';
+      tooltip.style.transform = 'translateX(-50%)';
+      tooltip.classList.add('visible');
+      
+      // Auto-hide after 2s
+      setTimeout(hideTooltip, 2000);
+    }
+
     function dragStarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
+      clearTimeout(touchTimeout); // Cancel tap if dragging
     }
 
     function dragged(event, d) {
@@ -1028,6 +1450,7 @@
       tooltip.querySelector('.tooltip-title').textContent = truncated;
       tooltip.querySelector('.tooltip-meta').textContent = 
         `${d.layer} • ${formatDate(d.createdAt)} • ${d.entities.length} entities`;
+      tooltip.style.transform = 'none';
       tooltip.classList.add('visible');
       moveTooltip(event);
     }
@@ -1047,6 +1470,11 @@
       selectedNode = node;
       updateGraph();
       showMemoryDetails(node);
+      
+      // On mobile, expand the sidebar to show details
+      if (isMobile) {
+        sidebar.classList.add('expanded');
+      }
     }
 
     function showMemoryDetails(node) {
@@ -1200,12 +1628,89 @@
       });
 
       // Window resize
+      let resizeTimeout;
       window.addEventListener('resize', () => {
-        const width = document.querySelector('.graph-container').clientWidth;
-        const height = document.querySelector('.graph-container').clientHeight;
-        svg.attr('width', width).attr('height', height);
-        simulation.force('center', d3.forceCenter(width / 2, height / 2));
-        simulation.alpha(0.3).restart();
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          const wasM = isMobile;
+          isMobile = window.innerWidth < 768;
+          
+          const width = document.querySelector('.graph-container').clientWidth;
+          const height = document.querySelector('.graph-container').clientHeight;
+          svg.attr('width', width).attr('height', height);
+          simulation.force('center', d3.forceCenter(width / 2, height / 2));
+          
+          // If transitioning between mobile/desktop, update node sizes
+          if (wasM !== isMobile) {
+            updateGraph();
+          }
+          
+          simulation.alpha(0.3).restart();
+        }, 100);
+      });
+    }
+
+    function setupMobileInteractions() {
+      // Mobile panel toggle
+      const toggleBtn = document.getElementById('mobilePanelToggle');
+      toggleBtn.addEventListener('click', () => {
+        if (sidebar.classList.contains('hidden')) {
+          sidebar.classList.remove('hidden');
+          sidebar.classList.add('expanded');
+        } else if (sidebar.classList.contains('expanded')) {
+          sidebar.classList.remove('expanded');
+        } else {
+          sidebar.classList.add('expanded');
+        }
+      });
+
+      // Bottom sheet drag handle
+      const handle = document.getElementById('bottomSheetHandle');
+      let startY, startTransform;
+
+      handle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        const transform = getComputedStyle(sidebar).transform;
+        const matrix = new DOMMatrix(transform);
+        startTransform = matrix.m42; // translateY value
+        sidebar.style.transition = 'none';
+      }, { passive: true });
+
+      handle.addEventListener('touchmove', (e) => {
+        const deltaY = e.touches[0].clientY - startY;
+        const newY = startTransform + deltaY;
+        
+        // Clamp to valid range
+        const maxY = sidebar.offsetHeight - 180; // Collapsed state
+        const clampedY = Math.max(0, Math.min(maxY, newY));
+        
+        sidebar.style.transform = `translateY(${clampedY}px)`;
+      }, { passive: true });
+
+      handle.addEventListener('touchend', () => {
+        sidebar.style.transition = '';
+        const transform = getComputedStyle(sidebar).transform;
+        const matrix = new DOMMatrix(transform);
+        const currentY = matrix.m42;
+        
+        const maxY = sidebar.offsetHeight - 180;
+        const threshold = maxY * 0.4;
+        
+        // Snap to expanded or collapsed
+        if (currentY < threshold) {
+          sidebar.classList.add('expanded');
+        } else {
+          sidebar.classList.remove('expanded');
+        }
+        
+        sidebar.style.transform = '';
+      });
+
+      // Tap on graph area to collapse sidebar on mobile
+      document.querySelector('.graph-container').addEventListener('click', (e) => {
+        if (isMobile && !e.target.closest('.control-btn') && !e.target.closest('.node')) {
+          sidebar.classList.remove('expanded');
+        }
       });
     }
 
@@ -1221,6 +1726,15 @@
     function formatDate(isoString) {
       if (!isoString) return 'Unknown';
       const date = new Date(isoString);
+      
+      // Shorter format for mobile
+      if (isMobile) {
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+      
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',

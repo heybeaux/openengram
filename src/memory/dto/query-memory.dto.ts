@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum } from 'class-validator';
-import { MemoryLayer } from '@prisma/client';
+import { MemoryLayer, SubjectType } from '@prisma/client';
 
 export class QueryMemoryDto {
   @IsString()
@@ -21,6 +21,23 @@ export class QueryMemoryDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+
+  // Subject filtering: what kind of memories to include?
+  @IsOptional()
+  @IsBoolean()
+  includeUserMemories?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  includeAgentMemories?: boolean = true;
+
+  @IsOptional()
+  @IsEnum(SubjectType)
+  subjectType?: SubjectType;
+
+  @IsOptional()
+  @IsString()
+  agentId?: string;
 }
 
 export class LoadContextDto {

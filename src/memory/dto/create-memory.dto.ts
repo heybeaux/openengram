@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsObject, IsNumber, IsArray, IsDate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { ImportanceHint, MemoryLayer } from '@prisma/client';
+import { ImportanceHint, MemoryLayer, SubjectType } from '@prisma/client';
 
 /**
  * Map legacy memoryType values to MemoryLayer enum
@@ -75,6 +75,20 @@ export class CreateMemoryDto {
     projectId?: string;
     sessionId?: string;
   };
+
+  // Subject fields: who/what is this memory ABOUT?
+  @IsOptional()
+  @IsEnum(SubjectType)
+  subjectType?: SubjectType;
+
+  @IsOptional()
+  @IsString()
+  subjectId?: string;
+
+  // For agent self-memories: which agent is this about?
+  @IsOptional()
+  @IsString()
+  agentId?: string;
 
   // Source attribution fields (for tracking where memories came from)
   @IsOptional()
