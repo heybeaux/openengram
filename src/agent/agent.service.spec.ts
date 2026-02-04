@@ -54,7 +54,7 @@ describe('AgentService', () => {
   describe('reflect', () => {
     it('should extract insights and create agent memories', async () => {
       // Mock LLM response with insights
-      llmService.json.mockResolvedValue({
+      mockLLM.json.mockResolvedValue({
         insights: [
           {
             content: 'I am Rook, an AI assistant',
@@ -72,12 +72,12 @@ describe('AgentService', () => {
       });
 
       // Mock embedding generation (no duplicates)
-      embeddingService.generate.mockResolvedValue(new Array(1536).fill(0.1));
-      embeddingService.search.mockResolvedValue([]);
-      embeddingService.store.mockResolvedValue('embedding-1');
+      mockEmbedding.generate.mockResolvedValue(new Array(1536).fill(0.1));
+      mockEmbedding.search.mockResolvedValue([]);
+      mockEmbedding.store.mockResolvedValue('embedding-1');
 
       // Mock memory creation
-      prismaService.memory.create
+      mockPrisma.memory.create
         .mockResolvedValueOnce({
           id: 'mem-1',
           userId: mockAgentId,
@@ -91,7 +91,7 @@ describe('AgentService', () => {
           confidence: 0.9,
           createdAt: new Date(),
           updatedAt: new Date(),
-        } as any)
+        })
         .mockResolvedValueOnce({
           id: 'mem-2',
           userId: mockAgentId,
@@ -105,10 +105,10 @@ describe('AgentService', () => {
           confidence: 0.9,
           createdAt: new Date(),
           updatedAt: new Date(),
-        } as any);
+        });
 
-      prismaService.memoryExtraction.create.mockResolvedValue({} as any);
-      prismaService.memory.update.mockResolvedValue({} as any);
+      mockPrisma.memoryExtraction.create.mockResolvedValue({});
+      mockPrisma.memory.update.mockResolvedValue({});
 
       const result = await service.reflect(mockAgentId, {
         recentTurns: [
@@ -129,7 +129,7 @@ describe('AgentService', () => {
       expect(result.categories.lessons).toBe(1);
 
       // Verify memories were created with correct subjectType
-      expect(prismaService.memory.create).toHaveBeenCalledWith(
+      expect(mockPrisma.memory.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             subjectType: SubjectType.AGENT,
@@ -141,7 +141,7 @@ describe('AgentService', () => {
     });
 
     it('should filter out low importance insights', async () => {
-      llmService.json.mockResolvedValue({
+      mockLLM.json.mockResolvedValue({
         insights: [
           {
             content: 'I am Rook',
@@ -158,15 +158,15 @@ describe('AgentService', () => {
         ],
       });
 
-      embeddingService.generate.mockResolvedValue(new Array(1536).fill(0.1));
-      embeddingService.search.mockResolvedValue([]);
-      embeddingService.store.mockResolvedValue('embedding-1');
-      prismaService.memory.create.mockResolvedValue({
+      mockEmbedding.generate.mockResolvedValue(new Array(1536).fill(0.1));
+      mockEmbedding.search.mockResolvedValue([]);
+      mockEmbedding.store.mockResolvedValue('embedding-1');
+      mockPrisma.memory.create.mockResolvedValue({
         id: 'mem-1',
         raw: 'I am Rook',
-      } as any);
-      prismaService.memoryExtraction.create.mockResolvedValue({} as any);
-      prismaService.memory.update.mockResolvedValue({} as any);
+      });
+      mockPrisma.memoryExtraction.create.mockResolvedValue({});
+      mockPrisma.memory.update.mockResolvedValue({});
 
       const result = await service.reflect(mockAgentId, {
         recentTurns: [{ role: 'user', content: 'Hello' }],
@@ -178,7 +178,7 @@ describe('AgentService', () => {
     });
 
     it('should deduplicate similar insights', async () => {
-      llmService.json.mockResolvedValue({
+      mockLLM.json.mockResolvedValue({
         insights: [
           {
             content: 'I am Rook, an AI assistant',
@@ -190,8 +190,8 @@ describe('AgentService', () => {
       });
 
       // Mock embedding search to return a similar existing memory
-      embeddingService.generate.mockResolvedValue(new Array(1536).fill(0.1));
-      embeddingService.search.mockResolvedValue([
+      mockEmbedding.generate.mockResolvedValue(new Array(1536).fill(0.1));
+      mockEmbedding.search.mockResolvedValue([
         { id: 'existing-mem', score: 0.95 }, // Very similar
       ]);
 
@@ -201,11 +201,11 @@ describe('AgentService', () => {
 
       // No new memories should be created due to deduplication
       expect(result.memoriesCreated).toHaveLength(0);
-      expect(prismaService.memory.create).not.toHaveBeenCalled();
+      expect(mockPrisma.memory.create).not.toHaveBeenCalled();
     });
 
     it('should respect maxMemories limit', async () => {
-      llmService.json.mockResolvedValue({
+      mockLLM.json.mockResolvedValue({
         insights: [
           { content: 'Insight 1', category: 'identity', importance: 0.9, reasoning: '' },
           { content: 'Insight 2', category: 'identity', importance: 0.9, reasoning: '' },
@@ -213,12 +213,12 @@ describe('AgentService', () => {
         ],
       });
 
-      embeddingService.generate.mockResolvedValue(new Array(1536).fill(0.1));
-      embeddingService.search.mockResolvedValue([]);
-      embeddingService.store.mockResolvedValue('emb');
-      prismaService.memory.create.mockResolvedValue({ id: 'mem' } as any);
-      prismaService.memoryExtraction.create.mockResolvedValue({} as any);
-      prismaService.memory.update.mockResolvedValue({} as any);
+      mockEmbedding.generate.mockResolvedValue(new Array(1536).fill(0.1));
+      mockEmbedding.search.mockResolvedValue([]);
+      mockEmbedding.store.mockResolvedValue('emb');
+      mockPrisma.memory.create.mockResolvedValue({ id: 'mem' });
+      mockPrisma.memoryExtraction.create.mockResolvedValue({});
+      mockPrisma.memory.update.mockResolvedValue({});
 
       const result = await service.reflect(mockAgentId, {
         recentTurns: [{ role: 'user', content: 'Test' }],
@@ -226,11 +226,11 @@ describe('AgentService', () => {
       });
 
       expect(result.memoriesCreated).toHaveLength(2);
-      expect(prismaService.memory.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.memory.create).toHaveBeenCalledTimes(2);
     });
 
     it('should handle LLM failures gracefully', async () => {
-      llmService.json.mockRejectedValue(new Error('LLM unavailable'));
+      mockLLM.json.mockRejectedValue(new Error('LLM unavailable'));
 
       const result = await service.reflect(mockAgentId, {
         recentTurns: [{ role: 'user', content: 'Test' }],
@@ -254,12 +254,12 @@ describe('AgentService', () => {
         },
       ];
 
-      prismaService.memory.findMany.mockResolvedValue(mockMemories as any);
+      mockPrisma.memory.findMany.mockResolvedValue(mockMemories);
 
       const result = await service.getAgentMemories(mockAgentId);
 
       expect(result).toEqual(mockMemories);
-      expect(prismaService.memory.findMany).toHaveBeenCalledWith(
+      expect(mockPrisma.memory.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             subjectType: SubjectType.AGENT,
@@ -270,11 +270,11 @@ describe('AgentService', () => {
     });
 
     it('should filter by layer when specified', async () => {
-      prismaService.memory.findMany.mockResolvedValue([]);
+      mockPrisma.memory.findMany.mockResolvedValue([]);
 
       await service.getAgentMemories(mockAgentId, { layer: MemoryLayer.IDENTITY });
 
-      expect(prismaService.memory.findMany).toHaveBeenCalledWith(
+      expect(mockPrisma.memory.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             layer: MemoryLayer.IDENTITY,
@@ -286,10 +286,10 @@ describe('AgentService', () => {
 
   describe('getAgentContext', () => {
     it('should return formatted context for prompt injection', async () => {
-      prismaService.memory.findMany.mockResolvedValue([
+      mockPrisma.memory.findMany.mockResolvedValue([
         { id: '1', raw: 'I am Rook, an AI assistant' },
         { id: '2', raw: 'I should verify data before marking tasks complete' },
-      ] as any);
+      ]);
 
       const result = await service.getAgentContext(mockAgentId);
 
@@ -305,7 +305,7 @@ describe('AgentService', () => {
         raw: `This is memory number ${i} with some content that takes up tokens`,
       }));
 
-      prismaService.memory.findMany.mockResolvedValue(manyMemories as any);
+      mockPrisma.memory.findMany.mockResolvedValue(manyMemories);
 
       const result = await service.getAgentContext(mockAgentId, 100); // Very low token limit
 
