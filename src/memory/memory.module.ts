@@ -5,6 +5,7 @@ import { ExtractionService } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { BackfillService } from './backfill.service';
+import { ConsolidationService } from './consolidation.service';
 
 @Module({
   controllers: [MemoryController],
@@ -14,7 +15,8 @@ import { BackfillService } from './backfill.service';
     EmbeddingService,
     ImportanceService,
     BackfillService,
+    ConsolidationService,
   ],
-  exports: [MemoryService, BackfillService],
+  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService],
 })
 export class MemoryModule {}

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExtractionService, ExtractionResult } from './extraction.service';
 import { LLMService } from '../llm/llm.service';
+import { MemoryLayer } from '@prisma/client';
 
 describe('ExtractionService', () => {
   let service: ExtractionService;
@@ -255,6 +256,102 @@ describe('ExtractionService', () => {
 
       const result = await service.extract(rawText);
       expect(result.what).toBe(rawText);
+    });
+  });
+
+  describe('classifyLayer (P5-003)', () => {
+    describe('IDENTITY classification', () => {
+      it('should classify preferences as IDENTITY', () => {
+        expect(service.classifyLayer('I prefer dark mode for all applications')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('Beaux always uses vim')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I never deploy on Fridays')).toBe(MemoryLayer.IDENTITY);
+      });
+
+      it('should classify personal facts as IDENTITY', () => {
+        expect(service.classifyLayer('I was born in Vancouver')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('My birthday is January 15th')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I am 35 years old')).toBe(MemoryLayer.IDENTITY);
+      });
+
+      it('should classify family/relationship info as IDENTITY', () => {
+        expect(service.classifyLayer('My wife is named Sarah')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I have two daughters')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('My brother works at Google')).toBe(MemoryLayer.IDENTITY);
+      });
+
+      it('should classify work/career info as IDENTITY', () => {
+        expect(service.classifyLayer('I work at Anthropic')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('My job is software engineering')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I am a developer')).toBe(MemoryLayer.IDENTITY);
+      });
+
+      it('should classify hobbies and interests as IDENTITY', () => {
+        expect(service.classifyLayer('My hobby is woodworking')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I am passionate about AI safety')).toBe(MemoryLayer.IDENTITY);
+      });
+
+      it('should classify allergies and health facts as IDENTITY', () => {
+        expect(service.classifyLayer('I am allergic to peanuts')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I have a gluten intolerance')).toBe(MemoryLayer.IDENTITY);
+      });
+    });
+
+    describe('PROJECT classification', () => {
+      it('should classify project work as PROJECT', () => {
+        expect(service.classifyLayer('Working on the Engram memory project')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Building a new feature for the dashboard')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Developing the API integration')).toBe(MemoryLayer.PROJECT);
+      });
+
+      it('should classify repository/code references as PROJECT', () => {
+        expect(service.classifyLayer('The repo is at github.com/example')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Need to check the main branch')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Reviewing the pull request')).toBe(MemoryLayer.PROJECT);
+      });
+
+      it('should classify deadlines and milestones as PROJECT', () => {
+        expect(service.classifyLayer('Deadline is next Friday')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Sprint ends on Feb 14')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Release scheduled for March')).toBe(MemoryLayer.PROJECT);
+      });
+
+      it('should classify bugs and issues as PROJECT', () => {
+        expect(service.classifyLayer('Found a bug in the login flow')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Issue #123 needs attention')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('This feature has a ticket')).toBe(MemoryLayer.PROJECT);
+      });
+
+      it('should classify deployment topics as PROJECT', () => {
+        expect(service.classifyLayer('Need to deploy to production')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Staging environment is ready')).toBe(MemoryLayer.PROJECT);
+      });
+
+      it('should classify based on project/org entities', () => {
+        const extracted: ExtractionResult = {
+          who: 'Beaux',
+          what: 'working on something',
+          when: null,
+          where: null,
+          why: null,
+          how: null,
+          topics: [],
+          entities: [{ name: 'Engram', type: 'project' }],
+        };
+        expect(service.classifyLayer('Working on something', extracted)).toBe(MemoryLayer.PROJECT);
+      });
+    });
+
+    describe('SESSION classification (default)', () => {
+      it('should default to SESSION for transient information', () => {
+        expect(service.classifyLayer('Had a good meeting today')).toBe(MemoryLayer.SESSION);
+        expect(service.classifyLayer('The weather is nice')).toBe(MemoryLayer.SESSION);
+        expect(service.classifyLayer('Grabbed coffee this morning')).toBe(MemoryLayer.SESSION);
+      });
+
+      it('should default to SESSION for ambiguous content', () => {
+        expect(service.classifyLayer('Looking at some code')).toBe(MemoryLayer.SESSION);
+        expect(service.classifyLayer('Thinking about next steps')).toBe(MemoryLayer.SESSION);
+      });
     });
   });
 });

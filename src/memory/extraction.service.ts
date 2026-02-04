@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
+import { MemoryLayer } from '@prisma/client';
 
 export interface ExtractionResult {
   who: string | null;
@@ -194,6 +195,88 @@ export class ExtractionService {
     const validTypes = ['person', 'organization', 'project', 'product', 'location', 'other'];
     const normalized = type?.toLowerCase().trim();
     return validTypes.includes(normalized) ? normalized as EntityWithType['type'] : 'other';
+  }
+
+  /**
+   * Classify the appropriate memory layer based on content analysis
+   * P5-003: Intelligent Layer Classification
+   * 
+   * @param raw - The raw memory text
+   * @param extracted - Optional extraction result for entity-based classification
+   * @returns The recommended MemoryLayer
+   */
+  classifyLayer(raw: string, extracted?: ExtractionResult): MemoryLayer {
+    const lowered = raw.toLowerCase();
+
+    // IDENTITY patterns - persistent facts about the user
+    const identityPatterns = [
+      /\b(prefer|prefers|always|never|favorite|hate|hates|love|loves)\b/i,
+      /\b(born|birthday|age|years? old)\b/i,
+      /\b(live|lives|from|hometown|grew up)\b/i,
+      /\b(name is|called|known as|go by)\b/i,
+      /\b(wife|husband|spouse|daughters?|sons?|family|mother|father|parents?|siblings?|brothers?|sisters?|child|children)\b/i,
+      /\b(work at|works at|job|profession|career|employed|employer|occupation)\b/i,
+      /\b(allergic|allergy|allergies|intolerant|intolerance)\b/i,
+      /\b(believe|believes|religion|faith)\b/i,
+      /\b(hobby|hobbies|passionate about)\b/i,
+      /\b(timezone|time zone|located in)\b/i,
+      /\bi (am|'m) a\b/i, // "I am a developer"
+      /\bmy (name|birthday|job|wife|husband|family)\b/i,
+    ];
+
+    // Check for identity patterns
+    for (const pattern of identityPatterns) {
+      if (pattern.test(raw)) {
+        console.log('[classifyLayer] Matched IDENTITY pattern:', pattern.toString());
+        return MemoryLayer.IDENTITY;
+      }
+    }
+
+    // PROJECT patterns - work/project related
+    const projectPatterns = [
+      /\b(project|projects)\b/i,
+      /\b(building|developing|implementing|working on)\b/i,
+      /\b(repo|repository|codebase|branch)\b/i,
+      /\b(deadline|due date|milestone|sprint|release)\b/i,
+      /\b(feature|bug|issue|ticket|pr|pull request)\b/i,
+      /\b(deploy|deployment|production|staging)\b/i,
+      /\b(client|customer|stakeholder)\s+(wants|needs|requested)/i,
+      /\b(architecture|design doc|spec|specification)\b/i,
+      /\b(team|teammate|collaborator)\b/i,
+    ];
+
+    // Check for project patterns
+    for (const pattern of projectPatterns) {
+      if (pattern.test(raw)) {
+        console.log('[classifyLayer] Matched PROJECT pattern:', pattern.toString());
+        return MemoryLayer.PROJECT;
+      }
+    }
+
+    // Additional heuristic: if entities include projects or organizations, lean toward PROJECT
+    if (extracted?.entities) {
+      const hasProjectEntity = extracted.entities.some(
+        e => e.type === 'project' || e.type === 'organization'
+      );
+      if (hasProjectEntity) {
+        console.log('[classifyLayer] Entity-based classification: PROJECT');
+        return MemoryLayer.PROJECT;
+      }
+
+      // If it's about a person (not the user), could be relationship info (IDENTITY)
+      const personEntities = extracted.entities.filter(e => e.type === 'person');
+      if (personEntities.length > 0 && extracted.who) {
+        // Check if it's about family/relationships
+        if (/\b(wife|husband|daughter|son|friend|colleague)\b/i.test(raw)) {
+          console.log('[classifyLayer] Relationship-based classification: IDENTITY');
+          return MemoryLayer.IDENTITY;
+        }
+      }
+    }
+
+    // Default to SESSION for transient/temporary memories
+    console.log('[classifyLayer] Default classification: SESSION');
+    return MemoryLayer.SESSION;
   }
 
   /**

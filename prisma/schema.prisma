@@ -88,6 +88,11 @@ model Memory {
   sessionId       String?                @map("session_id")
   raw             String
   layer           MemoryLayer
+  
+  // Subject fields: who/what is this memory ABOUT?
+  subjectType     SubjectType            @default(USER) @map("subject_type")
+  subjectId       String?                @map("subject_id")  // userId, agentId, or entityId
+  agentId         String?                @map("agent_id")    // For agent self-memories
   source          MemorySource           @default(EXPLICIT_STATEMENT)
   importanceHint  ImportanceHint?        @map("importance_hint")
   importanceScore Float                  @default(0.5) @map("importance_score")
@@ -101,8 +106,10 @@ model Memory {
   lastUsedAt      DateTime?              @map("last_used_at")
   consolidated    Boolean                @default(false)
   consolidatedAt  DateTime?              @map("consolidated_at")
-  supersededById  String?                @map("superseded_by_id")
-  createdAt       DateTime               @default(now()) @map("created_at")
+  supersededById    String?                @map("superseded_by_id")
+  supersededAt      DateTime?              @map("superseded_at")
+  consolidatedInto  String?                @map("consolidated_into")
+  createdAt         DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
   deletedAt       DateTime?              @map("deleted_at")
   embedding       Unsupported("vector")?
@@ -111,6 +118,8 @@ model Memory {
   session         Session?               @relation(fields: [sessionId], references: [id])
   supersededBy    Memory?                @relation("MemorySupersedes", fields: [supersededById], references: [id])
   supersedes      Memory[]               @relation("MemorySupersedes")
+  consolidatedTo  Memory?                @relation("MemoryConsolidates", fields: [consolidatedInto], references: [id])
+  consolidates    Memory[]               @relation("MemoryConsolidates")
   user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   chainSources    MemoryChainLink[]      @relation("ChainSource")
   chainTargets    MemoryChainLink[]      @relation("ChainTarget")
@@ -123,6 +132,7 @@ model Memory {
   @@index([sessionId])
   @@index([deletedAt])
   @@index([embedding])
+  @@index([subjectType, agentId])
   @@map("memories")
 }
 
@@ -287,10 +297,18 @@ enum MemoryLayer {
   TASK
 }
 
+/// Subject type - who/what is this memory about?
+enum SubjectType {
+  USER    // Memory about a user
+  AGENT   // Memory about an agent (self-memory)
+  ENTITY  // Memory about a thing/project
+}
+
 /// Source of the memory
 enum MemorySource {
   EXPLICIT_STATEMENT
   AGENT_OBSERVATION
+  AGENT_REFLECTION
   CORRECTION
   PATTERN_DETECTED
   SYSTEM

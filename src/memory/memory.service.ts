@@ -5,7 +5,8 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
-import { Memory, MemoryLayer, MemorySource, Entity } from '@prisma/client';
+import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
+import { Memory, MemoryLayer, MemorySource, Entity, SubjectType } from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 
 // Similarity threshold for deduplication (0.90 = very similar)
@@ -98,21 +99,40 @@ export class MemoryService {
     // 4. Resolve sessionId - auto-create session if needed
     const sessionId = await this.resolveSessionId(userId, dto.context?.sessionId);
 
-    // 5. Create memory record
+    // 5. Determine layer - use smart classification if not explicitly specified
+    // P5-003: Intelligent Layer Classification
+    let layer = dto.layer;
+    if (!layer) {
+      // Run quick extraction to help with classification
+      // Note: Full extraction happens async, this is just for layer classification
+      layer = this.extraction.classifyLayer(rawContent);
+      console.log('[Memory] Smart layer classification:', { rawPreview: rawContent.substring(0, 50), layer });
+    }
+
+    // 6. Determine subject fields
+    // Default: memory is about the user (USER subject type)
+    const subjectType = dto.subjectType ?? SubjectType.USER;
+    const subjectId = dto.subjectId ?? (subjectType === SubjectType.USER ? userId : dto.agentId);
+
+    // 7. Create memory record
     const memory = await this.prisma.memory.create({
       data: {
         userId,
         raw: rawContent,
-        layer: dto.layer ?? MemoryLayer.SESSION,
+        layer,
         source: MemorySource.EXPLICIT_STATEMENT,
         importanceHint: dto.importanceHint,
         importanceScore,
         projectId: dto.context?.projectId,
         sessionId,
+        // Subject fields for agent self-memories
+        subjectType,
+        subjectId,
+        agentId: dto.agentId,
       },
     });
 
-    // 6. Build extraction context
+    // 8. Build extraction context
     const extractionContext: ExtractionContext = {
       userId,
       userName: user?.externalId, // Use externalId as user's name/identifier
@@ -121,7 +141,7 @@ export class MemoryService {
       conversationId: dto.context?.sessionId,
     };
 
-    // 7. Extract structure asynchronously (don't block response)
+    // 9. Extract structure asynchronously (don't block response)
     this.extractAndEmbed(memory.id, rawContent, userId, extractionContext).catch((err) => {
       console.error(`Extraction failed for memory ${memory.id}:`, err);
     });
@@ -234,18 +254,22 @@ export class MemoryService {
     const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
     const memoryIds = vectorResults.map((r) => r.id);
 
-    // 4. Fetch full memory records from Postgres
+    // 4. Build subject type filter
+    const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+
+    // 5. Fetch full memory records from Postgres with subject filtering
     const memories = await this.prisma.memory.findMany({
       where: {
         id: { in: memoryIds },
         deletedAt: null,
+        ...subjectTypeFilter,
       },
       include: {
         extraction: true,
       },
     });
 
-    // 5. Preserve vector search order and attach scores
+    // 6. Preserve vector search order and attach scores
     const orderedMemories: MemoryWithScore[] = memoryIds
       .map((id) => {
         const memory = memories.find((m) => m.id === id);
@@ -257,13 +281,13 @@ export class MemoryService {
       })
       .filter((m): m is MemoryWithScore => m !== null);
 
-    // 6. Optionally include reasoning chains
+    // 7. Optionally include reasoning chains
     let result: MemoryWithScore[] = orderedMemories;
     if (dto.includeChains) {
       result = await this.attachChains(orderedMemories) as MemoryWithScore[];
     }
 
-    // 7. Update retrieval counts
+    // 8. Update retrieval counts
     await this.prisma.memory.updateMany({
       where: { id: { in: memoryIds } },
       data: {
@@ -375,6 +399,223 @@ export class MemoryService {
   }
 
   /**
+   * Update an existing memory (P5-001)
+   * 
+   * Allows editing raw content, layer, importance, and extraction fields.
+   * If raw content changes, the memory is re-embedded for accurate search.
+   * 
+   * @throws Error if memory not found or user doesn't own it
+   */
+  async update(
+    userId: string,
+    memoryId: string,
+    dto: UpdateMemoryDto,
+  ): Promise<MemoryWithExtraction> {
+    // 1. Fetch memory and verify ownership
+    const memory = await this.prisma.memory.findUnique({
+      where: { id: memoryId },
+      include: { extraction: true, user: { select: { id: true, externalId: true } } },
+    });
+
+    if (!memory) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+
+    if (memory.userId !== userId) {
+      throw new Error(`Access denied: Memory belongs to another user`);
+    }
+
+    if (memory.deletedAt) {
+      throw new Error(`Cannot update deleted memory: ${memoryId}`);
+    }
+
+    // 2. Check if content changed (need to re-embed)
+    const contentChanged = dto.raw && dto.raw !== memory.raw;
+
+    // 3. Update memory record
+    const updateData: any = {
+      ...(dto.raw && { raw: dto.raw }),
+      ...(dto.layer && { layer: dto.layer }),
+      ...(dto.importanceHint && { importanceHint: dto.importanceHint }),
+      ...(dto.importanceScore !== undefined && { importanceScore: dto.importanceScore }),
+    };
+
+    // Recalculate importance if hint changed but score not explicitly set
+    if (dto.importanceHint && dto.importanceScore === undefined) {
+      updateData.importanceScore = this.importance.calculate({
+        hint: dto.importanceHint,
+        layer: dto.layer ?? memory.layer,
+      });
+    }
+
+    const updated = await this.prisma.memory.update({
+      where: { id: memoryId },
+      data: updateData,
+      include: { extraction: true },
+    });
+
+    // 4. Update extraction fields if provided
+    if (dto.extraction && memory.extraction) {
+      const extractionUpdate: any = {};
+      
+      if (dto.extraction.who !== undefined) extractionUpdate.who = dto.extraction.who;
+      if (dto.extraction.what !== undefined) extractionUpdate.what = dto.extraction.what;
+      if (dto.extraction.where !== undefined) extractionUpdate.whereCtx = dto.extraction.where;
+      if (dto.extraction.why !== undefined) extractionUpdate.why = dto.extraction.why;
+      if (dto.extraction.how !== undefined) extractionUpdate.how = dto.extraction.how;
+      if (dto.extraction.topics !== undefined) extractionUpdate.topics = dto.extraction.topics;
+      
+      // Handle 'when' field - parse if string provided
+      if (dto.extraction.when !== undefined) {
+        if (dto.extraction.when === null) {
+          extractionUpdate.when = null;
+        } else {
+          extractionUpdate.when = parseFlexibleDate(dto.extraction.when, new Date());
+        }
+      }
+
+      if (Object.keys(extractionUpdate).length > 0) {
+        await this.prisma.memoryExtraction.update({
+          where: { memoryId },
+          data: extractionUpdate,
+        });
+      }
+    }
+
+    // 5. Re-embed if content changed
+    if (contentChanged && dto.raw) {
+      console.log(`[Memory] Content changed, re-embedding: ${memoryId}`);
+      
+      // Generate new embedding
+      const embedding = await this.embedding.generate(dto.raw);
+      await this.embedding.store(memoryId, embedding, {
+        userId,
+        layer: updated.layer,
+        importance: updated.importanceScore,
+      });
+
+      // Re-link related memories with new embedding
+      await this.linkRelatedMemories(memoryId, embedding, userId);
+
+      // Optionally re-extract (background)
+      const context: ExtractionContext = {
+        userId,
+        userName: memory.user?.externalId,
+      };
+      this.extraction.extract(dto.raw, context).then(async (extracted) => {
+        await this.prisma.memoryExtraction.update({
+          where: { memoryId },
+          data: {
+            who: extracted.who,
+            what: extracted.what,
+            when: parseFlexibleDate(extracted.when, new Date()),
+            whereCtx: extracted.where,
+            why: extracted.why,
+            how: extracted.how,
+            topics: extracted.topics,
+            extractedAt: new Date(),
+          },
+        });
+      }).catch((err) => {
+        console.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
+      });
+    }
+
+    // 6. Return updated memory with extraction
+    return this.getById(memoryId) as Promise<MemoryWithExtraction>;
+  }
+
+  /**
+   * Correct a memory with contradiction tracking (P5-001)
+   * 
+   * Creates a new "correction" memory that supersedes the original.
+   * - Original memory is marked as superseded (preserved for history)
+   * - New correction memory is created with CORRECTION source
+   * - CONTRADICTS link is created between them
+   * 
+   * @returns The new correction memory
+   */
+  async correctMemory(
+    userId: string,
+    memoryId: string,
+    dto: CorrectMemoryDto,
+  ): Promise<MemoryWithExtraction> {
+    // 1. Fetch original memory and verify ownership
+    const original = await this.prisma.memory.findUnique({
+      where: { id: memoryId },
+      include: { user: { select: { id: true, externalId: true } } },
+    });
+
+    if (!original) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+
+    if (original.userId !== userId) {
+      throw new Error(`Access denied: Memory belongs to another user`);
+    }
+
+    if (original.deletedAt) {
+      throw new Error(`Cannot correct deleted memory: ${memoryId}`);
+    }
+
+    if (original.supersededById) {
+      throw new Error(`Memory already superseded by: ${original.supersededById}`);
+    }
+
+    // 2. Calculate importance for correction (at least as important as original)
+    const correctionImportance = dto.importanceHint
+      ? this.importance.calculate({ hint: dto.importanceHint, layer: dto.layer ?? original.layer })
+      : Math.min(1.0, original.importanceScore + 0.1); // Slightly boost importance
+
+    // 3. Create the correction memory
+    const correction = await this.prisma.memory.create({
+      data: {
+        userId,
+        raw: dto.correctedContent,
+        layer: dto.layer ?? original.layer,
+        source: MemorySource.CORRECTION,
+        importanceHint: dto.importanceHint ?? original.importanceHint ?? undefined,
+        importanceScore: correctionImportance,
+        projectId: original.projectId,
+        sessionId: original.sessionId,
+      },
+    });
+
+    // 4. Mark original as superseded
+    await this.prisma.memory.update({
+      where: { id: memoryId },
+      data: {
+        supersededById: correction.id,
+        supersededAt: new Date(),
+      },
+    });
+
+    // 5. Create CONTRADICTS link
+    await this.prisma.memoryChainLink.create({
+      data: {
+        sourceId: correction.id,
+        targetId: memoryId,
+        linkType: 'CONTRADICTS',
+        confidence: 1.0,
+        createdBy: dto.reason ? `user:${dto.reason}` : 'user:correction',
+      },
+    });
+
+    // 6. Extract and embed the correction (async)
+    const context: ExtractionContext = {
+      userId,
+      userName: original.user?.externalId,
+    };
+    this.extractAndEmbed(correction.id, dto.correctedContent, userId, context).catch((err) => {
+      console.error(`[Memory] Extraction failed for correction ${correction.id}:`, err);
+    });
+
+    console.log(`[Memory] Created correction: ${correction.id} supersedes ${memoryId}`);
+
+    return correction;
+  }
+
+  /**
    * Get graph data for visualization
    */
   async getGraphData(
@@ -480,6 +721,40 @@ export class MemoryService {
   // =========================================================================
   // PRIVATE HELPERS
   // =========================================================================
+
+  /**
+   * Build subject type filter for queries
+   * Supports filtering by explicit subjectType, agentId, or convenience flags
+   */
+  private buildSubjectTypeFilter(dto: QueryMemoryDto): Record<string, any> {
+    const filter: Record<string, any> = {};
+
+    // If explicit subjectType is provided, use it
+    if (dto.subjectType) {
+      filter.subjectType = dto.subjectType;
+    }
+    
+    // If agentId is provided, filter to that agent's memories
+    if (dto.agentId) {
+      filter.agentId = dto.agentId;
+    }
+    
+    // Handle includeUserMemories and includeAgentMemories flags
+    // These are convenience flags for common use cases
+    if (dto.includeUserMemories === false && dto.includeAgentMemories === false) {
+      // Neither included - return empty result by filtering to impossible value
+      filter.subjectType = 'IMPOSSIBLE' as any;
+    } else if (dto.includeUserMemories === false) {
+      // Only agent memories
+      filter.subjectType = SubjectType.AGENT;
+    } else if (dto.includeAgentMemories === false) {
+      // Only user memories (default behavior)
+      filter.subjectType = SubjectType.USER;
+    }
+    // If both are true (default), no subjectType filter needed - return all
+    
+    return filter;
+  }
 
   /**
    * Resolve sessionId - if provided as external ID, find or create the session
