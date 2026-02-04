@@ -22,6 +22,22 @@ export interface BackfillResult {
   }>;
 }
 
+export interface UserIdentityBackfillResult {
+  updated: number;
+  skipped: number;
+  total: number;
+  dryRun: boolean;
+  details: Array<{
+    memoryId: string;
+    rawBefore: string;
+    rawAfter: string;
+    whoBefore: string | null;
+    whoAfter: string | null;
+    whatBefore: string | null;
+    whatAfter: string | null;
+  }>;
+}
+
 /**
  * Service to backfill missing extraction data for existing memories.
  * This is needed because the case sensitivity bug caused 5W1H extraction to fail silently.
@@ -224,5 +240,163 @@ export class BackfillService {
 
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // =========================================================================
+  // USER IDENTITY BACKFILL (P5-002)
+  // =========================================================================
+
+  /**
+   * Backfill user identity in memories by replacing generic references
+   * like "user_beaux", "User", "the user" with the actual name.
+   * 
+   * This fixes old memories that were created before identity resolution was added.
+   * 
+   * @param userId - The user's internal ID
+   * @param actualName - The actual name to replace generic references with (e.g., "Beaux")
+   * @param options - Dry run, batch size
+   */
+  async backfillUserIdentity(
+    userId: string,
+    actualName: string,
+    options: { dryRun?: boolean; batchSize?: number } = {},
+  ): Promise<UserIdentityBackfillResult> {
+    const { dryRun = false, batchSize = 1000 } = options;
+
+    console.log(`[Backfill:UserIdentity] Starting backfill for userId=${userId}, actualName="${actualName}", dryRun=${dryRun}`);
+
+    // Patterns to replace - ordered by specificity (most specific first)
+    // Note: We use negative lookahead/lookbehind to avoid matching within compound words
+    const patterns: Array<{ pattern: RegExp; replacement: string }> = [
+      // user_beaux, user_123, etc. - specific external IDs
+      { pattern: /\buser_\w+\b/gi, replacement: actualName },
+      // "the user" with various cases (safe - already has word boundary)
+      { pattern: /\bthe user\b/gi, replacement: actualName },
+      // Standalone "User" - only when NOT followed by: -ID, Id, Name, etc.
+      // This prevents matching User in X-AM-User-ID, userId, userName, etc.
+      { pattern: /\bUser(?![-_]?[Ii][Dd]|[-_]?[Nn]ame|[-_]?[Ee]mail)\b/g, replacement: actualName },
+    ];
+
+    // Get all memories for this user
+    const memories = await this.prisma.memory.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+      },
+      include: {
+        extraction: true,
+      },
+      take: batchSize,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const total = memories.length;
+    let updated = 0;
+    let skipped = 0;
+    const details: Array<{
+      memoryId: string;
+      rawBefore: string;
+      rawAfter: string;
+      whoBefore: string | null;
+      whoAfter: string | null;
+      whatBefore: string | null;
+      whatAfter: string | null;
+    }> = [];
+
+    for (const memory of memories) {
+      // Apply replacements to raw content
+      let rawUpdated = memory.raw;
+      for (const { pattern, replacement } of patterns) {
+        rawUpdated = rawUpdated.replace(pattern, replacement);
+      }
+
+      // Apply replacements to extraction fields
+      let whoUpdated = memory.extraction?.who ?? null;
+      let whatUpdated = memory.extraction?.what ?? null;
+
+      if (whoUpdated) {
+        for (const { pattern, replacement } of patterns) {
+          whoUpdated = whoUpdated.replace(pattern, replacement);
+        }
+      }
+
+      if (whatUpdated) {
+        for (const { pattern, replacement } of patterns) {
+          whatUpdated = whatUpdated.replace(pattern, replacement);
+        }
+      }
+
+      // Check if anything changed
+      const rawChanged = rawUpdated !== memory.raw;
+      const whoChanged = whoUpdated !== (memory.extraction?.who ?? null);
+      const whatChanged = whatUpdated !== (memory.extraction?.what ?? null);
+      const hasChanges = rawChanged || whoChanged || whatChanged;
+
+      if (!hasChanges) {
+        skipped++;
+        continue;
+      }
+
+      // Record details
+      details.push({
+        memoryId: memory.id,
+        rawBefore: memory.raw.substring(0, 100) + (memory.raw.length > 100 ? '...' : ''),
+        rawAfter: rawUpdated.substring(0, 100) + (rawUpdated.length > 100 ? '...' : ''),
+        whoBefore: memory.extraction?.who ?? null,
+        whoAfter: whoUpdated,
+        whatBefore: memory.extraction?.what?.substring(0, 50) ?? null,
+        whatAfter: whatUpdated?.substring(0, 50) ?? null,
+      });
+
+      if (!dryRun) {
+        // Update the memory
+        await this.prisma.memory.update({
+          where: { id: memory.id },
+          data: { raw: rawUpdated },
+        });
+
+        // Update extraction if it exists
+        if (memory.extraction && (whoChanged || whatChanged)) {
+          await this.prisma.memoryExtraction.update({
+            where: { memoryId: memory.id },
+            data: {
+              who: whoUpdated,
+              what: whatUpdated,
+            },
+          });
+        }
+
+        console.log(`[Backfill:UserIdentity] Updated ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`);
+      } else {
+        console.log(`[Backfill:UserIdentity] [DRY RUN] Would update ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`);
+      }
+
+      updated++;
+    }
+
+    console.log(`[Backfill:UserIdentity] Complete: ${updated} updated, ${skipped} skipped, ${total} total (dryRun=${dryRun})`);
+
+    return { updated, skipped, total, dryRun, details };
+  }
+
+  /**
+   * Find user by externalId pattern (e.g., 'beaux')
+   */
+  async findUserByExternalIdPattern(pattern: string): Promise<Array<{ id: string; externalId: string }>> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        externalId: {
+          contains: pattern,
+          mode: 'insensitive',
+        },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        externalId: true,
+      },
+    });
+
+    return users;
   }
 }

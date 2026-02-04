@@ -13,9 +13,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MemoryService, MemoryWithExtraction, QueryResult, ContextResult } from './memory.service';
-import { BackfillService, BackfillResult } from './backfill.service';
+import { BackfillService, BackfillResult, UserIdentityBackfillResult } from './backfill.service';
+import { ConsolidationService, ConsolidationResult } from './consolidation.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
+import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 
@@ -25,6 +27,7 @@ export class MemoryController {
   constructor(
     private readonly memoryService: MemoryService,
     private readonly backfillService: BackfillService,
+    private readonly consolidationService: ConsolidationService,
   ) {}
 
   // =========================================================================
@@ -96,6 +99,30 @@ export class MemoryController {
   }
 
   /**
+   * PATCH /v1/memories/:id
+   * Update an existing memory
+   * 
+   * P5-001: Memory Correction API
+   * 
+   * Allows direct editing of:
+   * - raw: Memory content (triggers re-embedding)
+   * - layer: IDENTITY, PROJECT, SESSION, TASK
+   * - importance: Hint or explicit score
+   * - extraction: 5W1H fields (who, what, when, where, why, how, topics)
+   * 
+   * Use this for typo fixes, layer promotions, or extraction corrections.
+   * For factual corrections that should preserve history, use POST /:id/correct instead.
+   */
+  @Patch('memories/:id')
+  async updateMemory(
+    @UserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateMemoryDto,
+  ): Promise<MemoryWithExtraction> {
+    return this.memoryService.update(userId, id, dto);
+  }
+
+  /**
    * DELETE /v1/memories/:id
    * Soft delete a memory
    */
@@ -132,19 +159,30 @@ export class MemoryController {
 
   /**
    * POST /v1/memories/:id/correct
-   * Correct a memory (creates new memory, links to original)
+   * Correct a memory with contradiction tracking
+   * 
+   * P5-001: Memory Correction API
+   * 
+   * Creates a new "correction" memory that supersedes the original:
+   * 1. Original memory is marked as superseded (preserved for history)
+   * 2. New correction memory is created with CORRECTION source
+   * 3. CONTRADICTS link is created between them
+   * 
+   * Use this when a memory contains incorrect information.
+   * For simple typo fixes, use PATCH /:id instead.
+   * 
+   * @param correctedContent - The corrected content for the new memory
+   * @param reason - Optional explanation of why this correction was made
+   * @param layer - Optional override for the correction's layer
+   * @param importanceHint - Optional override for the correction's importance
    */
   @Post('memories/:id/correct')
   async correct(
     @UserId() userId: string,
     @Param('id') id: string,
-    @Body('correction') correction: string,
+    @Body() dto: CorrectMemoryDto,
   ): Promise<MemoryWithExtraction> {
-    // TODO: Implement correction flow
-    // 1. Create new memory with correction
-    // 2. Link to original with UPDATES chain
-    // 3. Mark original as superseded
-    return this.memoryService.remember(userId, { raw: correction });
+    return this.memoryService.correctMemory(userId, id, dto);
   }
 
   // =========================================================================
@@ -193,5 +231,88 @@ export class MemoryController {
       batchSize: batchSize ? parseInt(batchSize, 10) : 50,
       delayMs: 500, // 500ms delay between extractions to avoid rate limits
     });
+  }
+
+  /**
+   * POST /v1/backfill/user-identity
+   * Replace generic user references (user_xxx, User, the user) with actual name.
+   * 
+   * P5-002: User Identity Backfill
+   * 
+   * @param userId - The user's internal ID
+   * @param actualName - The actual name to replace generic references with
+   * @param dryRun - If 'true', only report what would be done
+   * @param batchSize - Number of memories to process (default 1000)
+   */
+  @Post('backfill/user-identity')
+  async backfillUserIdentity(
+    @Body() body: { userId: string; actualName: string; dryRun?: boolean; batchSize?: number },
+  ): Promise<UserIdentityBackfillResult> {
+    const { userId, actualName, dryRun = false, batchSize = 1000 } = body;
+    return this.backfillService.backfillUserIdentity(userId, actualName, { dryRun, batchSize });
+  }
+
+  /**
+   * GET /v1/backfill/user-identity/lookup
+   * Find users by externalId pattern (e.g., 'beaux')
+   */
+  @Get('backfill/user-identity/lookup')
+  async lookupUserForBackfill(
+    @Query('pattern') pattern: string,
+  ): Promise<Array<{ id: string; externalId: string }>> {
+    if (!pattern) {
+      return [];
+    }
+    return this.backfillService.findUserByExternalIdPattern(pattern);
+  }
+
+  // =========================================================================
+  // CONSOLIDATION (P5-003)
+  // =========================================================================
+
+  /**
+   * POST /v1/consolidate
+   * Trigger memory consolidation - promotes recurring SESSION patterns to IDENTITY.
+   * 
+   * P5-003: Intelligent Layer Classification - Consolidation Endpoint
+   * 
+   * This finds SESSION memories with 3+ similar occurrences and:
+   * - Promotes the canonical (most complete) version to IDENTITY layer
+   * - Soft-deletes duplicates with consolidatedInto reference
+   * 
+   * @param dryRun - If 'true', only report what would be done
+   * @param minOccurrences - Minimum similar memories to trigger promotion (default 3)
+   * @param similarityThreshold - Similarity threshold for clustering (default 0.85)
+   */
+  @Post('consolidate')
+  async consolidate(
+    @UserId() userId: string,
+    @Query('dryRun') dryRun?: string,
+    @Query('minOccurrences') minOccurrences?: string,
+    @Query('similarityThreshold') similarityThreshold?: string,
+  ): Promise<ConsolidationResult> {
+    return this.consolidationService.promoteRecurringPatterns(userId, {
+      dryRun: dryRun === 'true',
+      minOccurrences: minOccurrences ? parseInt(minOccurrences, 10) : undefined,
+      similarityThreshold: similarityThreshold ? parseFloat(similarityThreshold) : undefined,
+    });
+  }
+
+  /**
+   * GET /v1/consolidate/stats
+   * Get consolidation statistics for the current user.
+   */
+  @Get('consolidate/stats')
+  async getConsolidationStats(
+    @UserId() userId: string,
+  ): Promise<{
+    totalMemories: number;
+    sessionMemories: number;
+    identityMemories: number;
+    projectMemories: number;
+    consolidatedCount: number;
+    potentialClusters: number;
+  }> {
+    return this.consolidationService.getStats(userId);
   }
 }
