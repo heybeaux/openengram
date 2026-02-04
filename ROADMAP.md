@@ -1392,7 +1392,52 @@ Some researchers have experimented with encoding embeddings as video frames beca
 
 ---
 
-### P6-006: Sparse Distributed Memory (SDM)
+### P6-006: Temporal Memory Context
+**Priority:** Research  
+**Effort:** 20+ hours  
+**Status:** 🔬 Exploration
+
+**Concept:** Memories exist in time, but current recall treats them as timeless blobs. Add temporal awareness to the memory system itself.
+
+**Problems Solved:**
+- "What did we discuss yesterday?" requires knowing what "yesterday" means
+- Memory relevance decays with time (last week's todo ≠ today's priority)
+- Relative time references in memories ("tomorrow", "next week") rot instantly
+
+**Implementation Ideas:**
+```typescript
+// Recall request with temporal context
+POST /v1/memories/query
+{
+  "query": "what did we discuss yesterday?",
+  "temporalContext": {
+    "now": "2026-02-03T19:10:00-08:00",  // Injected by caller
+    "timezone": "America/Vancouver"
+  }
+}
+
+// Response includes temporal markers
+{
+  "memories": [...],
+  "temporalAnnotations": [
+    { "memoryId": "abc", "relativeTime": "2 hours ago", "absoluteTime": "5:10 PM today" },
+    { "memoryId": "def", "relativeTime": "yesterday", "absoluteTime": "Feb 2, 2026" }
+  ]
+}
+```
+
+**Features:**
+- Parse relative time in queries ("yesterday", "last week", "this morning")
+- Annotate recalled memories with human-readable time context
+- Weight recent memories higher for ambiguous queries
+- Detect and flag "rotted" relative times in stored memories
+
+**Why It Matters:**
+Agents don't have a sense of time. Every session is "now." Temporal context in memory gives them a timeline — not just facts, but *when* those facts were true.
+
+---
+
+### P6-007: Sparse Distributed Memory (SDM)
 **Priority:** Research  
 **Effort:** 80+ hours  
 **Status:** 🔬 Exploration
