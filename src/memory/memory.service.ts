@@ -45,6 +45,7 @@ export interface ContextResult {
     identity: number;
     project: number;
     session: number;
+    agent?: number;
   };
 }
 
@@ -306,56 +307,137 @@ export class MemoryService {
   /**
    * Load context for session start
    * Returns formatted string ready for system prompt injection
+   * 
+   * Memory Intelligence v2: Priority-based retrieval
+   * - Layer determines WHERE: IDENTITY (800 tokens), PROJECT (600), SESSION (400)
+   * - Type determines PRIORITY: CONSTRAINT (1) > PREFERENCE/TASK (2) > FACT (3) > EVENT (4)
+   * - CONSTRAINTS have a protected reserve (200 tokens in IDENTITY)
    */
   async loadContext(userId: string, dto: LoadContextDto): Promise<ContextResult> {
-    const layers = { identity: 0, project: 0, session: 0 };
+    const layers: ContextResult['layers'] = { identity: 0, project: 0, session: 0 };
     const memories: Memory[] = [];
+    const evictions: Array<{ id: string; reason: string }> = [];
 
-    // 1. Always load identity layer
-    const identityMemories = await this.prisma.memory.findMany({
+    // Layer budgets (in tokens, roughly 4 chars/token)
+    const LAYER_BUDGETS = {
+      identity: dto.maxTokens ? Math.floor(dto.maxTokens * 0.44) : 800, // ~44%
+      project: dto.maxTokens ? Math.floor(dto.maxTokens * 0.33) : 600,  // ~33%
+      session: dto.maxTokens ? Math.floor(dto.maxTokens * 0.22) : 400,  // ~22%
+    };
+    const CONSTRAINT_RESERVE = Math.min(200, Math.floor(LAYER_BUDGETS.identity * 0.25));
+
+    // 1. Load IDENTITY layer with priority-based selection
+    const identityCandidates = await this.prisma.memory.findMany({
       where: {
         userId,
         layer: MemoryLayer.IDENTITY,
+        subjectType: SubjectType.USER,
         deletedAt: null,
+        userHidden: false, // Memory Intelligence: respect user hiding
       },
-      orderBy: { importanceScore: 'desc' },
-      take: 50,
+      orderBy: [
+        { priority: 'asc' },       // Lower = higher priority (1=CONSTRAINT first)
+        { userPinned: 'desc' },    // Pinned items next
+        { createdAt: 'desc' },     // Then recency
+      ],
+      take: 200, // Get enough candidates to select from
     });
+    
+    const { selected: identityMemories, evicted: identityEvicted } = this.selectMemoriesForBudget(
+      identityCandidates,
+      LAYER_BUDGETS.identity,
+      CONSTRAINT_RESERVE,
+    );
     memories.push(...identityMemories);
     layers.identity = identityMemories.length;
+    evictions.push(...identityEvicted.map(m => ({ id: m.id, reason: 'identity_budget' })));
 
-    // 2. Load project memories if specified
+    // 2. Load PROJECT layer if specified
     if (dto.projectId) {
-      const projectMemories = await this.prisma.memory.findMany({
+      const projectCandidates = await this.prisma.memory.findMany({
         where: {
           userId,
           projectId: dto.projectId,
           layer: MemoryLayer.PROJECT,
           deletedAt: null,
+          userHidden: false,
         },
-        orderBy: { importanceScore: 'desc' },
-        take: 50,
+        orderBy: [
+          { priority: 'asc' },
+          { userPinned: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: 100,
       });
+      
+      const { selected: projectMemories, evicted: projectEvicted } = this.selectMemoriesForBudget(
+        projectCandidates,
+        LAYER_BUDGETS.project,
+        0, // No CONSTRAINT reserve for PROJECT layer
+      );
       memories.push(...projectMemories);
       layers.project = projectMemories.length;
+      evictions.push(...projectEvicted.map(m => ({ id: m.id, reason: 'project_budget' })));
     }
 
-    // 3. Load recent session memories
-    const sessionMemories = await this.prisma.memory.findMany({
+    // 3. Load SESSION layer (recent memories)
+    const sessionCandidates = await this.prisma.memory.findMany({
       where: {
         userId,
         layer: MemoryLayer.SESSION,
         deletedAt: null,
+        userHidden: false,
         createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
       },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
+      orderBy: [
+        { priority: 'asc' },
+        { createdAt: 'desc' },
+      ],
+      take: 100,
     });
+    
+    const { selected: sessionMemories, evicted: sessionEvicted } = this.selectMemoriesForBudget(
+      sessionCandidates,
+      LAYER_BUDGETS.session,
+      0,
+    );
     memories.push(...sessionMemories);
     layers.session = sessionMemories.length;
+    evictions.push(...sessionEvicted.map(m => ({ id: m.id, reason: 'session_budget' })));
 
-    // 4. Format as context string
+    // 4. Load agent self-memories if agentId is specified
+    if (dto.agentId) {
+      const agentMemories = await this.prisma.memory.findMany({
+        where: {
+          agentId: dto.agentId,
+          subjectType: SubjectType.AGENT,
+          deletedAt: null,
+          userHidden: false,
+        },
+        orderBy: [
+          { priority: 'asc' },
+          { createdAt: 'desc' },
+        ],
+        take: 20,
+      });
+      memories.push(...agentMemories);
+      layers.agent = agentMemories.length;
+    }
+
+    // 5. Format as context string
     const context = this.formatContext(memories, dto.maxTokens ?? 4000);
+
+    // Log evictions for monitoring
+    if (evictions.length > 0) {
+      console.log('[Memory] Context evictions:', {
+        userId,
+        totalEvicted: evictions.length,
+        byReason: evictions.reduce((acc, e) => {
+          acc[e.reason] = (acc[e.reason] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+      });
+    }
 
     return {
       context: context.text,
@@ -363,6 +445,57 @@ export class MemoryService {
       memoriesIncluded: memories.length,
       layers,
     };
+  }
+
+  /**
+   * Memory Intelligence: Select memories that fit within a token budget
+   * Uses priority-based eviction with CONSTRAINT protection
+   */
+  private selectMemoriesForBudget(
+    candidates: Memory[],
+    budget: number,
+    constraintReserve: number,
+  ): { selected: Memory[]; evicted: Memory[] } {
+    const selected: Memory[] = [];
+    const evicted: Memory[] = [];
+    let usedTokens = 0;
+    
+    // Rough token estimation: ~4 characters per token
+    const estimateTokens = (m: Memory) => Math.ceil(m.raw.length / 4);
+
+    // Phase 1: Add all CONSTRAINTS (priority 1) up to reserve
+    const constraints = candidates.filter(m => m.priority === 1);
+    let constraintTokens = 0;
+    
+    for (const memory of constraints) {
+      const tokens = estimateTokens(memory);
+      if (constraintTokens + tokens <= constraintReserve || constraintReserve === 0) {
+        selected.push(memory);
+        constraintTokens += tokens;
+        usedTokens += tokens;
+      } else if (usedTokens + tokens <= budget) {
+        // If reserve is full but budget has room, still add
+        selected.push(memory);
+        usedTokens += tokens;
+      } else {
+        evicted.push(memory);
+      }
+    }
+
+    // Phase 2: Fill remaining budget by priority order (already sorted)
+    for (const memory of candidates) {
+      if (selected.includes(memory)) continue;
+      
+      const tokens = estimateTokens(memory);
+      if (usedTokens + tokens <= budget) {
+        selected.push(memory);
+        usedTokens += tokens;
+      } else {
+        evicted.push(memory);
+      }
+    }
+
+    return { selected, evicted };
   }
 
   /**
@@ -514,8 +647,23 @@ export class MemoryService {
             how: extracted.how,
             topics: extracted.topics,
             extractedAt: new Date(),
+            // Memory Intelligence: update classification
+            memoryType: extracted.memoryType,
+            typeConfidence: extracted.typeConfidence,
           },
         });
+        // Memory Intelligence: Update memory record with type and priority
+        if (extracted.memoryType) {
+          const priority = this.extraction.getPriorityForType(extracted.memoryType);
+          await this.prisma.memory.update({
+            where: { id: memoryId },
+            data: {
+              memoryType: extracted.memoryType,
+              typeConfidence: extracted.typeConfidence,
+              priority,
+            },
+          });
+        }
       }).catch((err) => {
         console.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
       });
@@ -861,9 +1009,30 @@ export class MemoryService {
         how: extracted.how,
         topics: extracted.topics,
         rawJson: sourceMetadata,
+        // Memory Intelligence: classification from LLM
+        memoryType: extracted.memoryType,
+        typeConfidence: extracted.typeConfidence,
       },
     });
-    console.log('[Memory] MemoryExtraction saved for:', memoryId, { parsedWhen: parsedWhen?.toISOString() ?? null });
+    console.log('[Memory] MemoryExtraction saved for:', memoryId, { 
+      parsedWhen: parsedWhen?.toISOString() ?? null,
+      memoryType: extracted.memoryType,
+      typeConfidence: extracted.typeConfidence,
+    });
+
+    // Memory Intelligence: Update memory record with type and priority
+    if (extracted.memoryType) {
+      const priority = this.extraction.getPriorityForType(extracted.memoryType);
+      await this.prisma.memory.update({
+        where: { id: memoryId },
+        data: {
+          memoryType: extracted.memoryType,
+          typeConfidence: extracted.typeConfidence,
+          priority,
+        },
+      });
+      console.log('[Memory] Memory Intelligence updated:', { memoryId, memoryType: extracted.memoryType, priority });
+    }
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {

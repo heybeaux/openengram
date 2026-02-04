@@ -81,7 +81,11 @@ describe('MemoryService', () => {
         how: null,
         topics: [],
         entities: [],
+        memoryType: null,
+        typeConfidence: null,
       }),
+      getPriorityForType: jest.fn().mockReturnValue(3),
+      classifyLayer: jest.fn().mockReturnValue('SESSION'),
     } as any;
 
     mockEmbedding = {
@@ -126,6 +130,8 @@ describe('MemoryService', () => {
         how: null,
         topics: [],
         entities: [],
+        memoryType: null,
+        typeConfidence: null,
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.store.mockResolvedValue('embed-123');
@@ -205,6 +211,8 @@ describe('MemoryService', () => {
           how: null,
           topics: [],
           entities: [],
+          memoryType: null,
+          typeConfidence: null,
         });
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2]);

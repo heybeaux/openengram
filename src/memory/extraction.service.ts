@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
-import { MemoryLayer } from '@prisma/client';
+import { MemoryLayer, MemoryType } from '@prisma/client';
 
 export interface ExtractionResult {
   who: string | null;
@@ -11,7 +11,19 @@ export interface ExtractionResult {
   how: string | null;
   topics: string[];
   entities: EntityWithType[];
+  // Memory Intelligence: Classification
+  memoryType: MemoryType | null;
+  typeConfidence: number | null;
 }
+
+// Priority mapping for memory types
+export const MEMORY_TYPE_PRIORITY: Record<MemoryType, number> = {
+  CONSTRAINT: 1,  // Safety-critical, highest priority
+  PREFERENCE: 2,  // User preferences
+  TASK: 2,        // Actionable items (same as preferences)
+  FACT: 3,        // Stable information
+  EVENT: 4,       // Conversational moments, lowest priority
+};
 
 export interface EntityWithType {
   name: string;
@@ -26,7 +38,7 @@ export interface ExtractionContext {
   conversationId?: string;
 }
 
-const EXTRACTION_PROMPT_TEMPLATE = (userName?: string) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework.
+const EXTRACTION_PROMPT_TEMPLATE = (userName?: string) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
 
 ${userName ? `IMPORTANT: This memory is about or from a user named "${userName}". Replace generic references like "User", "user", "the user", "I", "they" with "${userName}" in your extraction.` : ''}
 
@@ -39,6 +51,34 @@ Extract these fields (use these EXACT lowercase JSON keys):
 - "how": Method, manner, or process
 - "topics": Relevant categories (e.g., "preferences", "work", "technical", "personal")
 - "entities": Named entities with types. Return as array of {name, type} objects where type is: person, organization, project, product, location, or other
+
+MEMORY TYPE CLASSIFICATION (this is critical for retrieval priority):
+
+Classify this memory into exactly ONE type:
+
+- "CONSTRAINT": Safety-critical rules that must NEVER be violated. Allergies, medications, legal requirements, hard boundaries. Keywords often include "allergic", "can't have", "must not", "medical", "never", "always" when referring to safety. Ask: "Could violating this harm the user?"
+
+- "PREFERENCE": Personal preferences about how things should be done. Coffee orders, UI preferences, communication styles, work habits. Ask: "Is this about what the user likes or how they want things?"
+
+- "FACT": Stable information about the user or their world. Location, job, relationships, skills, history. Ask: "Is this something that describes who they are or their situation?"
+
+- "TASK": Actionable items with implicit or explicit deadlines. Reminders, todos, commitments. Ask: "Is this something to be done?"
+
+- "EVENT": Conversational moments, things that happened. Ask: "Is this about something that occurred?"
+
+Important distinctions:
+- "I'm allergic to peanuts" → CONSTRAINT (safety-critical)
+- "I don't like peanuts" → PREFERENCE (not safety-critical)
+- "I can't eat peanuts" → CONSTRAINT (assume safety unless clearly preference)
+- "I prefer not to eat peanuts" → PREFERENCE (explicit preference language)
+- "I ate peanuts yesterday" → EVENT (past occurrence)
+- "I need a large oat milk latte every morning" → PREFERENCE (daily routine/habit)
+- "Remind me to call mom" → TASK (actionable)
+- "I live in Vancouver" → FACT (stable info)
+
+Output these classification fields:
+- "memoryType": One of: CONSTRAINT, PREFERENCE, FACT, TASK, EVENT
+- "typeConfidence": A number 0.0-1.0 indicating classification confidence
 
 If a field cannot be determined from the text, set it to null.
 For topics and entities, return empty arrays if none found.
@@ -54,6 +94,11 @@ interface ExtractionResponse {
   how: string | null;
   topics: string[];
   entities: Array<{ name: string; type: string } | string>;
+  // Memory Intelligence
+  memoryType: string | null;
+  memorytype: string | null; // Handle case variations
+  typeConfidence: number | null;
+  typeconfidence: number | null; // Handle case variations
 }
 
 /**
@@ -102,6 +147,11 @@ export class ExtractionService {
       // Normalize keys to lowercase (LLM sometimes returns WHO instead of who)
       const result = this.normalizeResponseKeys(rawResult);
 
+      // Normalize memory type (handle case variations)
+      const rawMemoryType = result.memoryType || result.memorytype;
+      const memoryType = this.normalizeMemoryType(rawMemoryType);
+      const typeConfidence = result.typeConfidence ?? result.typeconfidence ?? null;
+
       const extractionResult: ExtractionResult = {
         who: result.who || null,
         what: result.what || null,
@@ -111,6 +161,8 @@ export class ExtractionService {
         how: result.how || null,
         topics: Array.isArray(result.topics) ? result.topics : [],
         entities: this.normalizeEntities(result.entities, context?.userName),
+        memoryType,
+        typeConfidence: typeof typeConfidence === 'number' ? typeConfidence : null,
       };
 
       console.log('[Extraction] Extraction complete:', {
@@ -119,6 +171,8 @@ export class ExtractionService {
         topicCount: extractionResult.topics.length,
         entityCount: extractionResult.entities.length,
         entities: extractionResult.entities.map(e => `${e.name}:${e.type}`),
+        memoryType: extractionResult.memoryType,
+        typeConfidence: extractionResult.typeConfidence,
       });
 
       return extractionResult;
@@ -195,6 +249,46 @@ export class ExtractionService {
     const validTypes = ['person', 'organization', 'project', 'product', 'location', 'other'];
     const normalized = type?.toLowerCase().trim();
     return validTypes.includes(normalized) ? normalized as EntityWithType['type'] : 'other';
+  }
+
+  /**
+   * Normalize memory type from LLM response
+   * Handles case variations and invalid values
+   */
+  private normalizeMemoryType(type: string | null | undefined): MemoryType | null {
+    if (!type) return null;
+    
+    const normalized = type.toUpperCase().trim();
+    const validTypes: MemoryType[] = ['CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT'];
+    
+    if (validTypes.includes(normalized as MemoryType)) {
+      return normalized as MemoryType;
+    }
+    
+    // Handle common variations
+    const mappings: Record<string, MemoryType> = {
+      'CONSTRAINTS': 'CONSTRAINT',
+      'PREFERENCES': 'PREFERENCE',
+      'FACTS': 'FACT',
+      'TASKS': 'TASK',
+      'EVENTS': 'EVENT',
+      'PREF': 'PREFERENCE',
+    };
+    
+    if (mappings[normalized]) {
+      return mappings[normalized];
+    }
+    
+    console.warn('[Extraction] Unknown memory type:', type, '-> defaulting to FACT');
+    return 'FACT'; // Safe default
+  }
+
+  /**
+   * Get priority number for a memory type
+   */
+  getPriorityForType(type: MemoryType | null): number {
+    if (!type) return 3; // Default to FACT priority
+    return MEMORY_TYPE_PRIORITY[type] ?? 3;
   }
 
   /**
@@ -292,6 +386,9 @@ export class ExtractionService {
         .replace(/\bthe user\b/gi, userName);
     }
 
+    // Basic memory type classification (fallback heuristics)
+    const memoryType = this.basicMemoryTypeClassification(processedRaw);
+
     return {
       who: userName || this.extractWho(processedRaw),
       what: processedRaw.length > 200 ? processedRaw.substring(0, 200) + '...' : processedRaw,
@@ -301,7 +398,48 @@ export class ExtractionService {
       how: null,
       topics: this.extractTopics(processedRaw),
       entities: this.extractEntitiesWithTypes(processedRaw, userName),
+      memoryType,
+      typeConfidence: 0.5, // Low confidence for heuristic classification
     };
+  }
+
+  /**
+   * Basic heuristic-based memory type classification
+   * Used as fallback when LLM is unavailable
+   */
+  private basicMemoryTypeClassification(raw: string): MemoryType {
+    const lowered = raw.toLowerCase();
+
+    // CONSTRAINT patterns (safety-critical)
+    if (/\b(allergic|allergy|allergies|intolerant|medication|medical|deadly|fatal)\b/i.test(raw)) {
+      return 'CONSTRAINT';
+    }
+    if (/\b(must not|cannot|can't|never|forbidden|prohibited)\b/i.test(raw) && 
+        /\b(eat|take|use|do|have)\b/i.test(raw)) {
+      return 'CONSTRAINT';
+    }
+
+    // TASK patterns
+    if (/\b(remind|todo|task|need to|should|must|deadline|by tomorrow|by next)\b/i.test(raw)) {
+      return 'TASK';
+    }
+
+    // PREFERENCE patterns
+    if (/\b(prefer|prefers|favorite|favourite|like|likes|love|loves|enjoy|enjoys|want|wants)\b/i.test(raw)) {
+      return 'PREFERENCE';
+    }
+    if (/\b(always|usually|normally|every morning|every day)\b/i.test(raw) && 
+        !/\b(allergic|medical|cannot)\b/i.test(raw)) {
+      return 'PREFERENCE';
+    }
+
+    // EVENT patterns
+    if (/\b(yesterday|today|last week|recently|just now|this morning|earlier)\b/i.test(raw)) {
+      return 'EVENT';
+    }
+
+    // Default to FACT
+    return 'FACT';
   }
 
   /**

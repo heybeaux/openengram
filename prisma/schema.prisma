@@ -82,49 +82,58 @@ model Session {
 
 /// Core memory entity
 model Memory {
-  id              String                 @id @default(cuid())
-  userId          String                 @map("user_id")
-  projectId       String?                @map("project_id")
-  sessionId       String?                @map("session_id")
-  raw             String
-  layer           MemoryLayer
-  
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  projectId String?     @map("project_id")
+  sessionId String?     @map("session_id")
+  raw       String
+  layer     MemoryLayer
+
+  // Memory Intelligence: Type-based classification
+  memoryType     MemoryType? @map("memory_type")
+  typeConfidence Float?      @map("type_confidence") // 0.0-1.0 from LLM
+  priority       Int         @default(3) // 1=CONSTRAINT, 2=PREF/TASK, 3=FACT, 4=EVENT
+
+  // User controls for manual override
+  userPinned Boolean @default(false) @map("user_pinned")
+  userHidden Boolean @default(false) @map("user_hidden")
+
   // Subject fields: who/what is this memory ABOUT?
-  subjectType     SubjectType            @default(USER) @map("subject_type")
-  subjectId       String?                @map("subject_id")  // userId, agentId, or entityId
-  agentId         String?                @map("agent_id")    // For agent self-memories
-  source          MemorySource           @default(EXPLICIT_STATEMENT)
-  importanceHint  ImportanceHint?        @map("importance_hint")
-  importanceScore Float                  @default(0.5) @map("importance_score")
-  confidence      Float                  @default(1.0)
-  sessionPosition Int?                   @map("session_position")
-  embeddingId     String?                @unique @map("embedding_id")
-  embeddingModel  String?                @map("embedding_model")
-  retrievalCount  Int                    @default(0) @map("retrieval_count")
-  lastRetrievedAt DateTime?              @map("last_retrieved_at")
-  usedCount       Int                    @default(0) @map("used_count")
-  lastUsedAt      DateTime?              @map("last_used_at")
-  consolidated    Boolean                @default(false)
-  consolidatedAt  DateTime?              @map("consolidated_at")
-  supersededById    String?                @map("superseded_by_id")
-  supersededAt      DateTime?              @map("superseded_at")
-  consolidatedInto  String?                @map("consolidated_into")
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
-  deletedAt       DateTime?              @map("deleted_at")
-  embedding       Unsupported("vector")?
-  feedback        Feedback[]
-  project         Project?               @relation(fields: [projectId], references: [id])
-  session         Session?               @relation(fields: [sessionId], references: [id])
-  supersededBy    Memory?                @relation("MemorySupersedes", fields: [supersededById], references: [id])
-  supersedes      Memory[]               @relation("MemorySupersedes")
-  consolidatedTo  Memory?                @relation("MemoryConsolidates", fields: [consolidatedInto], references: [id])
-  consolidates    Memory[]               @relation("MemoryConsolidates")
-  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chainSources    MemoryChainLink[]      @relation("ChainSource")
-  chainTargets    MemoryChainLink[]      @relation("ChainTarget")
-  entities        MemoryEntity[]
-  extraction      MemoryExtraction?
+  subjectType      SubjectType            @default(USER) @map("subject_type")
+  subjectId        String?                @map("subject_id") // userId, agentId, or entityId
+  agentId          String?                @map("agent_id") // For agent self-memories
+  source           MemorySource           @default(EXPLICIT_STATEMENT)
+  importanceHint   ImportanceHint?        @map("importance_hint")
+  importanceScore  Float                  @default(0.5) @map("importance_score")
+  confidence       Float                  @default(1.0)
+  sessionPosition  Int?                   @map("session_position")
+  embeddingId      String?                @unique @map("embedding_id")
+  embeddingModel   String?                @map("embedding_model")
+  retrievalCount   Int                    @default(0) @map("retrieval_count")
+  lastRetrievedAt  DateTime?              @map("last_retrieved_at")
+  usedCount        Int                    @default(0) @map("used_count")
+  lastUsedAt       DateTime?              @map("last_used_at")
+  consolidated     Boolean                @default(false)
+  consolidatedAt   DateTime?              @map("consolidated_at")
+  supersededById   String?                @map("superseded_by_id")
+  supersededAt     DateTime?              @map("superseded_at")
+  consolidatedInto String?                @map("consolidated_into")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  deletedAt        DateTime?              @map("deleted_at")
+  embedding        Unsupported("vector")?
+  feedback         Feedback[]
+  project          Project?               @relation(fields: [projectId], references: [id])
+  session          Session?               @relation(fields: [sessionId], references: [id])
+  supersededBy     Memory?                @relation("MemorySupersedes", fields: [supersededById], references: [id])
+  supersedes       Memory[]               @relation("MemorySupersedes")
+  consolidatedTo   Memory?                @relation("MemoryConsolidates", fields: [consolidatedInto], references: [id])
+  consolidates     Memory[]               @relation("MemoryConsolidates")
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chainSources     MemoryChainLink[]      @relation("ChainSource")
+  chainTargets     MemoryChainLink[]      @relation("ChainTarget")
+  entities         MemoryEntity[]
+  extraction       MemoryExtraction?
 
   @@index([userId, layer])
   @@index([userId, createdAt])
@@ -133,24 +142,31 @@ model Memory {
   @@index([deletedAt])
   @@index([embedding])
   @@index([subjectType, agentId])
+  @@index([userId, layer, priority, createdAt(sort: Desc)]) // Memory Intelligence: priority retrieval
+  @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
   @@map("memories")
 }
 
-/// Extracted structure from memory (5W1H)
+/// Extracted structure from memory (5W1H + Classification)
 model MemoryExtraction {
-  id          String    @id @default(cuid())
-  memoryId    String    @unique @map("memory_id")
-  who         String?
-  what        String?
-  when        DateTime?
-  whereCtx    String?   @map("where_ctx")
-  why         String?
-  how         String?
-  topics      String[]
-  rawJson     Json?     @map("raw_json")
-  extractedAt DateTime  @default(now()) @map("extracted_at")
+  id       String    @id @default(cuid())
+  memoryId String    @unique @map("memory_id")
+  who      String?
+  what     String?
+  when     DateTime?
+  whereCtx String?   @map("where_ctx")
+  why      String?
+  how      String?
+  topics   String[]
+
+  // Memory Intelligence: LLM classification
+  memoryType     MemoryType? @map("memory_type")
+  typeConfidence Float?      @map("type_confidence") // 0.0-1.0
+
+  rawJson     Json?    @map("raw_json")
+  extractedAt DateTime @default(now()) @map("extracted_at")
   model       String?
-  memory      Memory    @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  memory      Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
 
   @@map("memory_extractions")
 }
@@ -297,11 +313,20 @@ enum MemoryLayer {
   TASK
 }
 
+/// Memory type for classification (priority-based)
+enum MemoryType {
+  CONSTRAINT // Priority 1: Safety-critical (allergies, medications, hard rules)
+  PREFERENCE // Priority 2: User preferences (coffee order, dark mode)
+  FACT // Priority 3: Stable information (location, job, relationships)
+  TASK // Priority 2: Actionable items (reminders, todos)
+  EVENT // Priority 4: Conversational moments (recent events)
+}
+
 /// Subject type - who/what is this memory about?
 enum SubjectType {
-  USER    // Memory about a user
-  AGENT   // Memory about an agent (self-memory)
-  ENTITY  // Memory about a thing/project
+  USER // Memory about a user
+  AGENT // Memory about an agent (self-memory)
+  ENTITY // Memory about a thing/project
 }
 
 /// Source of the memory

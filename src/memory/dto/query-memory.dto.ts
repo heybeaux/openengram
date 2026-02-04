@@ -50,6 +50,10 @@ export class LoadContextDto {
   sessionId?: string;
 
   @IsOptional()
+  @IsString()
+  agentId?: string;
+
+  @IsOptional()
   @IsNumber()
   maxTokens?: number = 4000;
 }
