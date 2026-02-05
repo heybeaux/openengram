@@ -837,6 +837,10 @@ export class MemoryService {
       layer: m.layer,
       source: m.source,
       importanceScore: m.importanceScore,
+      effectiveScore: m.effectiveScore, // Memory Intelligence v2
+      safetyCritical: m.safetyCritical, // Memory Intelligence v2
+      consolidated: m.consolidated,
+      userPinned: m.userPinned,
       confidence: m.confidence,
       createdAt: m.createdAt.toISOString(),
       extraction: m.extraction ? {
@@ -847,6 +851,7 @@ export class MemoryService {
         why: m.extraction.why,
         how: m.extraction.how,
         topics: m.extraction.topics,
+        memoryType: m.extraction.memoryType, // Type classification
       } : null,
       entities: m.entities.map(me => ({
         id: me.entity.id,

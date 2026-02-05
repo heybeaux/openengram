@@ -317,6 +317,23 @@
       height: 100%;
       background: linear-gradient(90deg, #238636, #3fb950);
       border-radius: 2px;
+    }
+
+    .safety-badge {
+      padding: 4px 8px;
+      background: rgba(248, 81, 73, 0.15);
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+
+    .safety-warning {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      color: #f85149;
+      margin-bottom: 15px;
       transition: width 0.3s ease;
     }
 
@@ -1280,10 +1297,16 @@
     }
 
     function getNodeRadius(node) {
-      // Size based on importance score (min 8, max 24 for better touch targets)
+      // Size based on effectiveScore (Memory Intelligence v2)
+      // Falls back to importanceScore for older data
       const baseRadius = isMobile ? 10 : 6;
       const maxRadius = isMobile ? 28 : 20;
-      return baseRadius + (node.importanceScore || 0.5) * (maxRadius - baseRadius);
+      const score = node.effectiveScore ?? node.importanceScore ?? 0.5;
+      return baseRadius + score * (maxRadius - baseRadius);
+    }
+
+    function isSafetyCritical(node) {
+      return node.safetyCritical === true;
     }
 
     function getNodeColor(node) {
@@ -1335,6 +1358,17 @@
           .on('drag', dragged)
           .on('end', dragEnded)
         );
+
+      // Safety-critical ring (red outer ring for allergies, medications, etc.)
+      nodesEnter.append('circle')
+        .attr('r', 0)
+        .attr('fill', 'none')
+        .attr('stroke', d => isSafetyCritical(d) ? '#f85149' : 'none')
+        .attr('stroke-width', 3)
+        .attr('class', 'safety-ring')
+        .transition()
+        .duration(300)
+        .attr('r', d => isSafetyCritical(d) ? getNodeRadius(d) + 4 : 0);
 
       nodesEnter.append('circle')
         .attr('r', 0)
@@ -1548,13 +1582,15 @@
         <div class="memory-card">
           <div class="memory-card-header">
             <span class="memory-layer ${node.layer}">${node.layer}</span>
+            ${node.safetyCritical ? '<span class="safety-badge" title="Safety-critical memory">🏥</span>' : ''}
             <div class="memory-importance">
-              <span>${Math.round(node.importanceScore * 100)}%</span>
+              <span>${Math.round((node.effectiveScore ?? node.importanceScore) * 100)}%</span>
               <div class="importance-bar">
-                <div class="importance-fill" style="width: ${node.importanceScore * 100}%"></div>
+                <div class="importance-fill" style="width: ${(node.effectiveScore ?? node.importanceScore) * 100}%; background: ${node.safetyCritical ? '#f85149' : ''};"></div>
               </div>
             </div>
           </div>
+          ${node.safetyCritical ? '<div class="safety-warning">⚠️ Safety-critical: This memory is protected and will never be evicted</div>' : ''}
           <div class="memory-raw">${escapeHtml(node.raw)}</div>
           ${extractionHtml}
           ${entitiesHtml}
