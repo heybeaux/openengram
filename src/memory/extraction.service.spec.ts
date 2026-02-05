@@ -338,6 +338,14 @@ describe('ExtractionService', () => {
           entities: [{ name: 'Engram', type: 'project' }],
           memoryType: null,
           typeConfidence: null,
+          confidence: {
+            whoConfidence: null,
+            whatConfidence: null,
+            whenConfidence: null,
+            whereConfidence: null,
+            whyConfidence: null,
+            howConfidence: null,
+          },
         };
         expect(service.classifyLayer('Working on something', extracted)).toBe(MemoryLayer.PROJECT);
       });

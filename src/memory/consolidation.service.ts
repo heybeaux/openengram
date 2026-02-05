@@ -241,19 +241,30 @@ export class ConsolidationService {
     const assigned = new Set<string>();
 
     // For each unassigned memory, find all similar memories
+    // Use existing stored embeddings via vector search instead of regenerating
     for (const memory of memories) {
       if (assigned.has(memory.id)) continue;
 
-      // Generate embedding for this memory
+      // Retrieve existing embedding from pgvector instead of regenerating (much faster!)
       let embedding: number[];
       try {
-        embedding = await this.embedding.generate(memory.raw);
+        const raw = await this.prisma.$queryRawUnsafe<Array<{ embedding: string }>>(
+          `SELECT embedding::text FROM memories WHERE id = $1 AND embedding IS NOT NULL`,
+          memory.id,
+        );
+        if (!raw.length || !raw[0].embedding) {
+          // No stored embedding — fall back to generating one
+          embedding = await this.embedding.generate(memory.raw);
+        } else {
+          // Parse the pgvector text format: [0.1,0.2,...]
+          embedding = JSON.parse(raw[0].embedding);
+        }
       } catch (error) {
-        console.error(`[Consolidation] Failed to generate embedding for ${memory.id}:`, error);
+        console.error(`[Consolidation] Failed to get embedding for ${memory.id}:`, error);
         continue;
       }
 
-      // Search for similar memories
+      // Search for similar memories using existing embedding
       const similar = await this.embedding.search(userId, embedding, 20);
 
       // Filter to memories in our list that are above threshold

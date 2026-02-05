@@ -2,6 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
 import { MemoryLayer, MemoryType } from '@prisma/client';
 
+export interface FieldConfidence {
+  whoConfidence: number | null;
+  whatConfidence: number | null;
+  whenConfidence: number | null;
+  whereConfidence: number | null;
+  whyConfidence: number | null;
+  howConfidence: number | null;
+}
+
 export interface ExtractionResult {
   who: string | null;
   what: string | null;
@@ -14,6 +23,8 @@ export interface ExtractionResult {
   // Memory Intelligence: Classification
   memoryType: MemoryType | null;
   typeConfidence: number | null;
+  // Field-level confidence scores
+  confidence: FieldConfidence;
 }
 
 // Priority mapping for memory types
@@ -80,7 +91,22 @@ Output these classification fields:
 - "memoryType": One of: CONSTRAINT, PREFERENCE, FACT, TASK, EVENT
 - "typeConfidence": A number 0.0-1.0 indicating classification confidence
 
-If a field cannot be determined from the text, set it to null.
+FIELD CONFIDENCE SCORING:
+For each 5W1H field, also provide a confidence score (0.0-1.0):
+- 1.0: Explicitly stated in the text ("I live in Vancouver" → where_confidence: 1.0)
+- 0.7-0.9: Strongly implied ("working from home in the Pacific timezone" → where_confidence: 0.8)
+- 0.4-0.6: Inferred from context ("mentioned a meeting at Google" → where_confidence: 0.5)
+- 0.1-0.3: Guessed or very uncertain
+
+Output these additional fields:
+- "who_confidence": confidence for the who field
+- "what_confidence": confidence for the what field
+- "when_confidence": confidence for the when field
+- "where_confidence": confidence for the where field
+- "why_confidence": confidence for the why field
+- "how_confidence": confidence for the how field
+
+If a 5W1H field is null, set its confidence to null too.
 For topics and entities, return empty arrays if none found.
 
 Respond with valid JSON only, using lowercase keys. No explanation.`;
@@ -99,6 +125,13 @@ interface ExtractionResponse {
   memorytype: string | null; // Handle case variations
   typeConfidence: number | null;
   typeconfidence: number | null; // Handle case variations
+  // Field-level confidence
+  who_confidence: number | null;
+  what_confidence: number | null;
+  when_confidence: number | null;
+  where_confidence: number | null;
+  why_confidence: number | null;
+  how_confidence: number | null;
 }
 
 /**
@@ -152,6 +185,16 @@ export class ExtractionService {
       const memoryType = this.normalizeMemoryType(rawMemoryType);
       const typeConfidence = result.typeConfidence ?? result.typeconfidence ?? null;
 
+      // Parse field-level confidence scores
+      const confidence: FieldConfidence = {
+        whoConfidence: this.parseConfidence(result.who_confidence, result.who),
+        whatConfidence: this.parseConfidence(result.what_confidence, result.what),
+        whenConfidence: this.parseConfidence(result.when_confidence, result.when),
+        whereConfidence: this.parseConfidence(result.where_confidence, result.where),
+        whyConfidence: this.parseConfidence(result.why_confidence, result.why),
+        howConfidence: this.parseConfidence(result.how_confidence, result.how),
+      };
+
       const extractionResult: ExtractionResult = {
         who: result.who || null,
         what: result.what || null,
@@ -163,6 +206,7 @@ export class ExtractionService {
         entities: this.normalizeEntities(result.entities, context?.userName),
         memoryType,
         typeConfidence: typeof typeConfidence === 'number' ? typeConfidence : null,
+        confidence,
       };
 
       console.log('[Extraction] Extraction complete:', {
@@ -173,6 +217,7 @@ export class ExtractionService {
         entities: extractionResult.entities.map(e => `${e.name}:${e.type}`),
         memoryType: extractionResult.memoryType,
         typeConfidence: extractionResult.typeConfidence,
+        confidence: extractionResult.confidence,
       });
 
       return extractionResult;
@@ -189,6 +234,16 @@ export class ExtractionService {
       console.log('[Extraction] Falling back to basicExtraction');
       return this.basicExtraction(raw, context?.userName);
     }
+  }
+
+  /**
+   * Parse a confidence value from LLM response
+   * Returns null if the corresponding field is null (no confidence for absent data)
+   */
+  private parseConfidence(confidence: number | null | undefined, fieldValue: unknown): number | null {
+    if (fieldValue === null || fieldValue === undefined) return null;
+    if (typeof confidence !== 'number') return null;
+    return Math.max(0, Math.min(1, confidence)); // Clamp to 0-1
   }
 
   /**
@@ -389,9 +444,12 @@ export class ExtractionService {
     // Basic memory type classification (fallback heuristics)
     const memoryType = this.basicMemoryTypeClassification(processedRaw);
 
+    const who = userName || this.extractWho(processedRaw);
+    const what = processedRaw.length > 200 ? processedRaw.substring(0, 200) + '...' : processedRaw;
+
     return {
-      who: userName || this.extractWho(processedRaw),
-      what: processedRaw.length > 200 ? processedRaw.substring(0, 200) + '...' : processedRaw,
+      who,
+      what,
       when: null,
       where: null,
       why: null,
@@ -400,6 +458,14 @@ export class ExtractionService {
       entities: this.extractEntitiesWithTypes(processedRaw, userName),
       memoryType,
       typeConfidence: 0.5, // Low confidence for heuristic classification
+      confidence: {
+        whoConfidence: who ? 0.3 : null, // Low confidence for heuristic extraction
+        whatConfidence: what ? 0.4 : null, // Raw text used as-is, moderate
+        whenConfidence: null,
+        whereConfidence: null,
+        whyConfidence: null,
+        howConfidence: null,
+      },
     };
   }
 

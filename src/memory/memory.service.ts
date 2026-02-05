@@ -662,6 +662,13 @@ export class MemoryService {
             // Memory Intelligence: update classification
             memoryType: extracted.memoryType,
             typeConfidence: extracted.typeConfidence,
+            // Field-level confidence scores
+            whoConfidence: extracted.confidence.whoConfidence,
+            whatConfidence: extracted.confidence.whatConfidence,
+            whenConfidence: extracted.confidence.whenConfidence,
+            whereConfidence: extracted.confidence.whereConfidence,
+            whyConfidence: extracted.confidence.whyConfidence,
+            howConfidence: extracted.confidence.howConfidence,
           },
         });
         // Memory Intelligence: Update memory record with type and priority
@@ -852,6 +859,13 @@ export class MemoryService {
         how: m.extraction.how,
         topics: m.extraction.topics,
         memoryType: m.extraction.memoryType, // Type classification
+        // Field-level confidence scores
+        whoConfidence: m.extraction.whoConfidence,
+        whatConfidence: m.extraction.whatConfidence,
+        whenConfidence: m.extraction.whenConfidence,
+        whereConfidence: m.extraction.whereConfidence,
+        whyConfidence: m.extraction.whyConfidence,
+        howConfidence: m.extraction.howConfidence,
       } : null,
       entities: m.entities.map(me => ({
         id: me.entity.id,
@@ -1029,12 +1043,20 @@ export class MemoryService {
         // Memory Intelligence: classification from LLM
         memoryType: extracted.memoryType,
         typeConfidence: extracted.typeConfidence,
+        // Field-level confidence scores
+        whoConfidence: extracted.confidence.whoConfidence,
+        whatConfidence: extracted.confidence.whatConfidence,
+        whenConfidence: extracted.confidence.whenConfidence,
+        whereConfidence: extracted.confidence.whereConfidence,
+        whyConfidence: extracted.confidence.whyConfidence,
+        howConfidence: extracted.confidence.howConfidence,
       },
     });
     console.log('[Memory] MemoryExtraction saved for:', memoryId, { 
       parsedWhen: parsedWhen?.toISOString() ?? null,
       memoryType: extracted.memoryType,
       typeConfidence: extracted.typeConfidence,
+      confidence: extracted.confidence,
     });
 
     // Memory Intelligence: Update memory record with type and priority

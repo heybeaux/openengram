@@ -169,6 +169,15 @@ model MemoryExtraction {
   memoryType     MemoryType? @map("memory_type")
   typeConfidence Float?      @map("type_confidence") // 0.0-1.0
 
+  // Field-level confidence scores (0.0-1.0)
+  // 1.0 = explicitly stated, 0.7-0.9 = strongly implied, 0.4-0.6 = inferred, 0.1-0.3 = guessed
+  whoConfidence   Float? @map("who_confidence")
+  whatConfidence  Float? @map("what_confidence")
+  whenConfidence  Float? @map("when_confidence")
+  whereConfidence Float? @map("where_confidence")
+  whyConfidence   Float? @map("why_confidence")
+  howConfidence   Float? @map("how_confidence")
+
   rawJson     Json?    @map("raw_json")
   extractedAt DateTime @default(now()) @map("extracted_at")
   model       String?
