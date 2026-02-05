@@ -2,12 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConsolidationService } from './consolidation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
+import { LLMService } from '../llm/llm.service';
 import { MemoryLayer } from '@prisma/client';
 
 describe('ConsolidationService', () => {
   let service: ConsolidationService;
   let mockPrisma: jest.Mocked<PrismaService>;
   let mockEmbedding: jest.Mocked<EmbeddingService>;
+  let mockLLM: jest.Mocked<LLMService>;
 
   beforeEach(async () => {
     mockPrisma = {
@@ -16,6 +18,10 @@ describe('ConsolidationService', () => {
         update: jest.fn(),
         count: jest.fn(),
       },
+      memoryExtraction: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
     } as any;
 
     mockEmbedding = {
@@ -23,11 +29,19 @@ describe('ConsolidationService', () => {
       search: jest.fn(),
     } as any;
 
+    mockLLM = {
+      json: jest.fn().mockResolvedValue({
+        gist: 'Consolidated memory gist',
+        confidence: 0.9,
+      }),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConsolidationService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EmbeddingService, useValue: mockEmbedding },
+        { provide: LLMService, useValue: mockLLM },
       ],
     }).compile();
 

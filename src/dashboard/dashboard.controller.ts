@@ -7,21 +7,30 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { DashboardService, StatsResponse, MemoriesListResponse, UsersListResponse, UserDetailResponse } from './dashboard.service';
+import { DashboardService, StatsResponse, MemoriesListResponse, UsersListResponse, UserDetailResponse, HealthResponse } from './dashboard.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { ListMemoriesDto } from './dto/list-memories.dto';
 
 @Controller('v1')
-@UseGuards(ApiKeyGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
+
+  /**
+   * GET /v1/health
+   * Comprehensive memory system health check (public, no auth required)
+   */
+  @Get('health')
+  async getHealth(): Promise<HealthResponse> {
+    return this.dashboardService.getHealth();
+  }
 
   /**
    * GET /v1/stats
    * Dashboard overview statistics
    */
   @Get('stats')
+  @UseGuards(ApiKeyGuard)
   async getStats(@Agent() agent: any): Promise<StatsResponse> {
     return this.dashboardService.getStats(agent.id);
   }
@@ -31,6 +40,7 @@ export class DashboardController {
    * List memories with pagination and filters
    */
   @Get('memories')
+  @UseGuards(ApiKeyGuard)
   async listMemories(
     @Agent() agent: any,
     @Query() dto: ListMemoriesDto,
@@ -43,6 +53,7 @@ export class DashboardController {
    * List all users with memory stats
    */
   @Get('users')
+  @UseGuards(ApiKeyGuard)
   async listUsers(@Agent() agent: any): Promise<UsersListResponse> {
     return this.dashboardService.listUsers(agent.id);
   }
@@ -52,6 +63,7 @@ export class DashboardController {
    * User detail with stats
    */
   @Get('users/:id')
+  @UseGuards(ApiKeyGuard)
   async getUserDetail(@Param('id') id: string): Promise<UserDetailResponse> {
     const user = await this.dashboardService.getUserDetail(id);
     if (!user) {
@@ -65,6 +77,7 @@ export class DashboardController {
    * Delete a user and optionally their memories
    */
   @Delete('users/:id')
+  @UseGuards(ApiKeyGuard)
   async deleteUser(
     @Param('id') id: string,
     @Query('deleteMemories') deleteMemories?: string,

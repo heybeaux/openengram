@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
+import { LLMService } from '../llm/llm.service';
 import { MemoryLayer } from '@prisma/client';
 
 export interface ConsolidationResult {
@@ -46,6 +47,7 @@ export class ConsolidationService {
   constructor(
     private prisma: PrismaService,
     private embedding: EmbeddingService,
+    private llm: LLMService,
   ) {}
 
   /**
@@ -138,24 +140,52 @@ export class ConsolidationService {
         const canonical = this.selectCanonical(cluster.memories);
         const duplicates = cluster.memories.filter(m => m.id !== canonical.id);
 
+        // Extract gist from the cluster (sleep consolidation!)
+        const { gist, confidence } = await this.extractGist(cluster.memories);
+
         console.log('[Consolidation] Promoting cluster:', {
           canonicalId: canonical.id,
-          canonicalRaw: canonical.raw.substring(0, 50),
+          originalRaw: canonical.raw.substring(0, 50),
+          gist: gist.substring(0, 50),
+          gistConfidence: confidence.toFixed(2),
           duplicateCount: duplicates.length,
           avgSimilarity: cluster.averageSimilarity.toFixed(3),
         });
 
         if (!dryRun) {
-          // Promote canonical to IDENTITY
+          // Promote canonical to IDENTITY with gist as the new content
           await this.prisma.memory.update({
             where: { id: canonical.id },
             data: {
+              raw: gist, // Replace with consolidated gist
               layer: MemoryLayer.IDENTITY,
               importanceScore: Math.min(1.0, canonical.importanceScore + 0.2),
               consolidated: true,
               consolidatedAt: new Date(),
             },
           });
+
+          // Store original details in extraction rawJson for audit trail
+          const extraction = await this.prisma.memoryExtraction.findUnique({
+            where: { memoryId: canonical.id },
+          });
+          if (extraction) {
+            await this.prisma.memoryExtraction.update({
+              where: { memoryId: canonical.id },
+              data: {
+                rawJson: {
+                  ...(extraction.rawJson as object || {}),
+                  consolidatedFrom: cluster.memories.map(m => ({
+                    id: m.id,
+                    raw: m.raw,
+                    createdAt: m.createdAt,
+                  })),
+                  gistConfidence: confidence,
+                  originalRaw: canonical.raw,
+                },
+              },
+            });
+          }
 
           // Soft-delete duplicates with consolidatedInto reference
           for (const dup of duplicates) {
@@ -173,7 +203,7 @@ export class ConsolidationService {
         result.duplicatesRemoved += duplicates.length;
         result.details.push({
           canonicalId: canonical.id,
-          canonicalRaw: canonical.raw,
+          canonicalRaw: gist, // Return the gist, not original
           promotedToLayer: MemoryLayer.IDENTITY,
           duplicateIds: duplicates.map(d => d.id),
         });
@@ -288,6 +318,56 @@ export class ConsolidationService {
       // 3. Prefer more recent (keep the latest version)
       return b.createdAt.getTime() - a.createdAt.getTime();
     })[0];
+  }
+
+  /**
+   * Extract a gist (summary) from a cluster of similar memories.
+   * This is the "sleep consolidation" step - compress details into essence.
+   */
+  private async extractGist(
+    memories: Array<{ id: string; raw: string }>,
+  ): Promise<{ gist: string; confidence: number }> {
+    const memoriesText = memories
+      .map((m, i) => `${i + 1}. ${m.raw}`)
+      .join('\n');
+
+    const prompt = `You are consolidating similar memories into a single, essential fact.
+
+These memories all express the same underlying information:
+${memoriesText}
+
+Extract the CORE FACT that these memories share. Be concise but complete.
+- Keep the subject's name (don't use "the user")
+- Preserve any specific details that appear consistently
+- Remove redundancy and temporal noise
+- Write as a single, timeless statement
+
+Respond with JSON:
+{
+  "gist": "The consolidated fact",
+  "confidence": 0.95
+}`;
+
+    try {
+      const result = await this.llm.json<{ gist: string; confidence: number }>(
+        [
+          { role: 'system', content: prompt },
+          { role: 'user', content: 'Extract the gist.' },
+        ],
+        undefined,
+        { temperature: 0.2 },
+      );
+
+      return {
+        gist: result.gist || memories[0].raw,
+        confidence: result.confidence || 0.7,
+      };
+    } catch (error) {
+      console.error('[Consolidation] Gist extraction failed:', error);
+      // Fallback to longest memory
+      const longest = memories.sort((a, b) => b.raw.length - a.raw.length)[0];
+      return { gist: longest.raw, confidence: 0.5 };
+    }
   }
 
   /**

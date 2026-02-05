@@ -352,4 +352,104 @@ export class DashboardService {
 
     return { deleted: true, memoriesDeleted };
   }
+
+  /**
+   * Comprehensive health check for the memory system
+   * Reports on extraction quality, entity extraction, linking, and more
+   */
+  async getHealth(): Promise<HealthResponse> {
+    const [
+      totalMemories,
+      extractionsWithWho,
+      extractionsWithWhat,
+      totalEntities,
+      totalLinks,
+      memoriesLast24h,
+      safetyCriticalCount,
+      consolidatedCount,
+    ] = await Promise.all([
+      this.prisma.memory.count({ where: { deletedAt: null } }),
+      this.prisma.memoryExtraction.count({
+        where: { who: { not: null }, memory: { deletedAt: null } },
+      }),
+      this.prisma.memoryExtraction.count({
+        where: { what: { not: null }, memory: { deletedAt: null } },
+      }),
+      this.prisma.entity.count(),
+      this.prisma.memoryChainLink.count(),
+      this.prisma.memory.count({
+        where: {
+          deletedAt: null,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      }),
+      this.prisma.memory.count({ where: { safetyCritical: true, deletedAt: null } }),
+      this.prisma.memory.count({ where: { consolidated: true } }),
+    ]);
+
+    const extractionRate = totalMemories > 0
+      ? Math.round((extractionsWithWhat / totalMemories) * 100)
+      : 100;
+
+    const whoExtractionRate = totalMemories > 0
+      ? Math.round((extractionsWithWho / totalMemories) * 100)
+      : 100;
+
+    // Determine overall status
+    let status: 'healthy' | 'degraded' | 'unhealthy';
+    const issues: string[] = [];
+
+    if (extractionRate >= 80 && whoExtractionRate >= 70) {
+      status = 'healthy';
+    } else if (extractionRate >= 50) {
+      status = 'degraded';
+    } else {
+      status = 'unhealthy';
+    }
+
+    if (extractionRate < 80) {
+      issues.push(`Low extraction rate: ${extractionRate}% (target: 80%)`);
+    }
+    if (whoExtractionRate < 70) {
+      issues.push(`Low WHO extraction: ${whoExtractionRate}% (target: 70%)`);
+    }
+    if (totalEntities === 0 && totalMemories > 10) {
+      issues.push('No entities extracted - check extraction pipeline');
+    }
+    if (totalLinks === 0 && totalMemories > 20) {
+      issues.push('No memory links - check linking pipeline');
+    }
+
+    return {
+      status,
+      timestamp: new Date().toISOString(),
+      metrics: {
+        totalMemories,
+        extractionRate,
+        whoExtractionRate,
+        entitiesPerMemory: totalMemories > 0 ? +(totalEntities / totalMemories).toFixed(2) : 0,
+        linksPerMemory: totalMemories > 0 ? +(totalLinks / totalMemories).toFixed(2) : 0,
+        memoriesLast24h,
+        safetyCriticalCount,
+        consolidatedCount,
+      },
+      issues,
+    };
+  }
+}
+
+export interface HealthResponse {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  metrics: {
+    totalMemories: number;
+    extractionRate: number;
+    whoExtractionRate: number;
+    entitiesPerMemory: number;
+    linksPerMemory: number;
+    memoriesLast24h: number;
+    safetyCriticalCount: number;
+    consolidatedCount: number;
+  };
+  issues: string[];
 }
