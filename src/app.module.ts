@@ -16,7 +16,8 @@ import { AgentModule } from './agent/agent.module';
       isGlobal: true,
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'public'),
+      // Works for both ts-node (src/) and compiled (dist/src/) by resolving from project root
+      rootPath: join(process.cwd(), 'public'),
       serveRoot: '/',
       serveStaticOptions: {
         index: false, // Don't serve index.html for /
