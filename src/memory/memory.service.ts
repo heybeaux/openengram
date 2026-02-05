@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ExtractionService, ExtractionContext, EntityWithType } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
+import { TemporalParserService } from './temporal/temporal-parser.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
@@ -56,6 +57,7 @@ export class MemoryService {
     private extraction: ExtractionService,
     private embedding: EmbeddingService,
     private importance: ImportanceService,
+    private temporalParser: TemporalParserService,
   ) {}
 
   /**
@@ -240,62 +242,103 @@ export class MemoryService {
   async recall(userId: string, dto: QueryMemoryDto): Promise<QueryResult> {
     const startTime = Date.now();
 
-    // 1. Generate query embedding
-    const queryEmbedding = await this.embedding.generate(dto.query);
+    // 1. Parse temporal intent from query (P6-006)
+    const now = new Date();
+    const parsed = this.temporalParser.parse(dto.query, now);
+    const hasTemporalIntent = parsed.temporalFilter !== null;
+    const searchQuery = parsed.semanticQuery;
 
-    // 2. Search vector store for similar memories (returns scored, ordered results)
+    if (hasTemporalIntent) {
+      console.log('[Recall] Temporal intent detected:', {
+        expression: parsed.temporalFilter!.expression,
+        start: parsed.temporalFilter!.start.toISOString(),
+        end: parsed.temporalFilter!.end.toISOString(),
+        semanticQuery: searchQuery,
+      });
+    }
+
+    // 2. Generate query embedding (using semantic query with temporal parts stripped)
+    const queryEmbedding = await this.embedding.generate(searchQuery);
+
+    // 3. Search vector store — fetch more results if temporal filtering will narrow them
+    const searchLimit = hasTemporalIntent ? (dto.limit ?? 10) * 3 : (dto.limit ?? 10);
     const vectorResults = await this.embedding.search(
       userId,
       queryEmbedding,
-      dto.limit ?? 10,
+      searchLimit,
       dto.layers,
     );
 
-    // 3. Build score map for efficient lookup
+    // 4. Build score map for efficient lookup
     const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
     const memoryIds = vectorResults.map((r) => r.id);
 
-    // 4. Build subject type filter
+    // 5. Build subject type filter + optional temporal filter
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+    const whereClause: Record<string, unknown> = {
+      id: { in: memoryIds },
+      deletedAt: null,
+      ...subjectTypeFilter,
+    };
 
-    // 5. Fetch full memory records from Postgres with subject filtering
+    // Apply temporal filter as a database constraint
+    if (hasTemporalIntent) {
+      whereClause.createdAt = {
+        gte: parsed.temporalFilter!.start,
+        lte: parsed.temporalFilter!.end,
+      };
+    }
+
+    // 6. Fetch full memory records from Postgres
     const memories = await this.prisma.memory.findMany({
-      where: {
-        id: { in: memoryIds },
-        deletedAt: null,
-        ...subjectTypeFilter,
-      },
+      where: whereClause,
       include: {
         extraction: true,
       },
     });
 
-    // 6. Preserve vector search order and attach scores
-    const orderedMemories: MemoryWithScore[] = memoryIds
-      .map((id) => {
-        const memory = memories.find((m) => m.id === id);
-        if (!memory) return null;
+    // 7. Score and rank memories
+    const scoredMemories: MemoryWithScore[] = memories
+      .map((memory) => {
+        const semanticScore = scoreMap.get(memory.id) ?? 0;
+        const temporalScore = this.temporalParser.calculateTemporalRelevance(
+          memory.createdAt,
+          parsed.temporalFilter,
+        );
+        const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+
+        const blendedScore = this.temporalParser.blendScores(
+          semanticScore,
+          temporalScore,
+          importanceScore,
+          hasTemporalIntent,
+        );
+
         return {
           ...memory,
-          score: scoreMap.get(id),
+          score: blendedScore,
         } as MemoryWithScore;
       })
-      .filter((m): m is MemoryWithScore => m !== null);
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .slice(0, dto.limit ?? 10);
 
-    // 7. Optionally include reasoning chains
-    let result: MemoryWithScore[] = orderedMemories;
+    // 8. Optionally include reasoning chains
+    let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
-      result = await this.attachChains(orderedMemories) as MemoryWithScore[];
+      result = await this.attachChains(scoredMemories) as MemoryWithScore[];
     }
 
-    // 8. Update retrieval counts
-    await this.prisma.memory.updateMany({
-      where: { id: { in: memoryIds } },
-      data: {
-        retrievalCount: { increment: 1 },
-        lastRetrievedAt: new Date(),
-      },
-    });
+    // 9. Update retrieval counts
+    const resultIds = result.map(m => m.id);
+    if (resultIds.length > 0) {
+      await this.prisma.memory.updateMany({
+        where: { id: { in: resultIds } },
+        data: {
+          retrievalCount: { increment: 1 },
+          lastRetrievedAt: new Date(),
+        },
+      });
+    }
 
     return {
       memories: result,

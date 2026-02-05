@@ -6,6 +6,7 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { BackfillService } from './backfill.service';
 import { ConsolidationService } from './consolidation.service';
+import { TemporalParserService } from './temporal/temporal-parser.service';
 import { LLMModule } from '../llm/llm.module';
 
 @Module({
@@ -18,7 +19,8 @@ import { LLMModule } from '../llm/llm.module';
     ImportanceService,
     BackfillService,
     ConsolidationService,
+    TemporalParserService,
   ],
-  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService],
+  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService],
 })
 export class MemoryModule {}
