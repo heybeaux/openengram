@@ -230,7 +230,7 @@ Every extraction field carries a confidence score:
 | `/v1/consolidate` | POST | ✅ | Trigger sleep consolidation |
 | `/v1/health` | GET | ❌ | System health + metrics |
 
-Full API documentation available in the [dashboard](http://localhost:3000/docs) when running locally.
+Full API documentation available in the [dashboard](https://github.com/heybeaux/engram-dashboard).
 
 ## Memory Layers
 
