@@ -260,69 +260,125 @@ export class MemoryService {
     // 2. Generate query embedding (using semantic query with temporal parts stripped)
     const queryEmbedding = await this.embedding.generate(searchQuery);
 
-    // 3. Search vector store — fetch more results if temporal filtering will narrow them
-    const searchLimit = hasTemporalIntent ? (dto.limit ?? 10) * 3 : (dto.limit ?? 10);
-    const vectorResults = await this.embedding.search(
-      userId,
-      queryEmbedding,
-      searchLimit,
-      dto.layers,
-    );
-
-    // 4. Build score map for efficient lookup
-    const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
-    const memoryIds = vectorResults.map((r) => r.id);
-
-    // 5. Build subject type filter + optional temporal filter
+    // Build subject type filter
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
-    const whereClause: Record<string, unknown> = {
-      id: { in: memoryIds },
-      deletedAt: null,
-      ...subjectTypeFilter,
-    };
+    const limit = dto.limit ?? 10;
 
-    // Apply temporal filter as a database constraint
+    let scoredMemories: MemoryWithScore[];
+
     if (hasTemporalIntent) {
-      whereClause.createdAt = {
-        gte: parsed.temporalFilter!.start,
-        lte: parsed.temporalFilter!.end,
-      };
+      // =====================================================================
+      // TEMPORAL PATH: Time range is the PRIMARY filter.
+      // Fetch ALL memories in the time range, then rank by semantic similarity.
+      // This avoids the problem where vector search returns mostly older
+      // memories that get filtered out by the temporal constraint.
+      // =====================================================================
+
+      // 3a. Fetch all memories in the temporal range
+      const temporalMemories = await this.prisma.memory.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          createdAt: {
+            gte: parsed.temporalFilter!.start,
+            lte: parsed.temporalFilter!.end,
+          },
+          ...subjectTypeFilter,
+        },
+        include: {
+          extraction: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200, // Cap to avoid loading thousands
+      });
+
+      console.log('[Recall] Temporal path: found', temporalMemories.length, 'memories in range');
+
+      // 3b. Also get vector similarity scores for the semantic query
+      // (search broadly to get scores for as many memories as possible)
+      const vectorResults = await this.embedding.search(
+        userId,
+        queryEmbedding,
+        200, // Large search to overlap with temporal results
+        dto.layers,
+      );
+      const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
+
+      // 3c. Score temporal memories by blending semantic + temporal + importance
+      scoredMemories = temporalMemories
+        .map((memory) => {
+          const semanticScore = scoreMap.get(memory.id) ?? 0.1; // Low default if not in vector results
+          const temporalScore = this.temporalParser.calculateTemporalRelevance(
+            memory.createdAt,
+            parsed.temporalFilter,
+          );
+          const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+
+          const blendedScore = this.temporalParser.blendScores(
+            semanticScore,
+            temporalScore,
+            importanceScore,
+            true,
+          );
+
+          return {
+            ...memory,
+            score: blendedScore,
+          } as MemoryWithScore;
+        })
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, limit);
+
+    } else {
+      // =====================================================================
+      // STANDARD PATH: Vector similarity is the PRIMARY filter.
+      // No temporal intent — use the normal vector search pipeline.
+      // =====================================================================
+
+      // 3. Search vector store for similar memories
+      const vectorResults = await this.embedding.search(
+        userId,
+        queryEmbedding,
+        limit,
+        dto.layers,
+      );
+
+      const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
+      const memoryIds = vectorResults.map((r) => r.id);
+
+      // 4. Fetch full memory records from Postgres
+      const memories = await this.prisma.memory.findMany({
+        where: {
+          id: { in: memoryIds },
+          deletedAt: null,
+          ...subjectTypeFilter,
+        },
+        include: {
+          extraction: true,
+        },
+      });
+
+      // 5. Score and rank (standard: semantic + importance only)
+      scoredMemories = memories
+        .map((memory) => {
+          const semanticScore = scoreMap.get(memory.id) ?? 0;
+          const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+          const blendedScore = this.temporalParser.blendScores(
+            semanticScore,
+            0.5, // Neutral temporal
+            importanceScore,
+            false,
+          );
+
+          return {
+            ...memory,
+            score: blendedScore,
+          } as MemoryWithScore;
+        })
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     }
 
-    // 6. Fetch full memory records from Postgres
-    const memories = await this.prisma.memory.findMany({
-      where: whereClause,
-      include: {
-        extraction: true,
-      },
-    });
-
-    // 7. Score and rank memories
-    const scoredMemories: MemoryWithScore[] = memories
-      .map((memory) => {
-        const semanticScore = scoreMap.get(memory.id) ?? 0;
-        const temporalScore = this.temporalParser.calculateTemporalRelevance(
-          memory.createdAt,
-          parsed.temporalFilter,
-        );
-        const importanceScore = memory.effectiveScore ?? memory.importanceScore;
-
-        const blendedScore = this.temporalParser.blendScores(
-          semanticScore,
-          temporalScore,
-          importanceScore,
-          hasTemporalIntent,
-        );
-
-        return {
-          ...memory,
-          score: blendedScore,
-        } as MemoryWithScore;
-      })
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-      .slice(0, dto.limit ?? 10);
-
-    // 8. Optionally include reasoning chains
+    // 6. Optionally include reasoning chains
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
       result = await this.attachChains(scoredMemories) as MemoryWithScore[];
