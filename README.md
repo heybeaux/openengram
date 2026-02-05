@@ -1,305 +1,353 @@
-# Engram
-
-**Memory infrastructure for AI agents.**
+<p align="center">
+  <h1 align="center">Engram</h1>
+  <p align="center"><strong>Memory infrastructure for AI agents.</strong></p>
+  <p align="center">
+    <a href="https://github.com/heybeaux/engram/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
+    <a href="https://github.com/heybeaux/engram/actions"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci.yml?label=tests" alt="Tests"></a>
+  </p>
+</p>
 
 > An **engram** is a hypothetical permanent change in the brain accounting for the existence of memory — a memory trace.
 
-Engram solves the fundamental problem that AI agents wake up blank every session, losing context, decisions, and continuity.
+Every AI agent wakes up blank. Engram fixes that.
 
 ---
 
 ## Why Engram?
 
-AI agents are stateless by nature. Every conversation starts fresh. Engram gives your agent:
+Most "memory" solutions for AI agents are glorified vector search over chat history. Engram is different:
 
-- **Persistent memory** — Facts, preferences, and context survive across sessions
-- **Semantic recall** — Find relevant memories by meaning, not keywords
-- **Automatic structure** — 5W1H extraction (who, what, when, where, why, how)
-- **Importance scoring** — Critical memories surface first
-- **Memory layers** — Identity, Project, Session, Task lifespans
-- **Provider flexibility** — Bring your own LLM and vector store
+- **Type-aware** — Classifies memories as CONSTRAINT, PREFERENCE, FACT, TASK, or EVENT
+- **Safety-critical** — Allergies, medications, and emergencies are never evicted from context
+- **Time-aware** — Understands "yesterday," "last week," "3 hours ago" in recall queries
+- **Scored** — effectiveScore blends decay, novelty, usage, and importance
+- **Consolidating** — Sleep consolidation compresses duplicates into essential facts
+- **Confident** — Per-field confidence scores (0.0-1.0) on every extraction
+- **Flexible** — Bring your own LLM (OpenAI, Anthropic, Ollama, LM Studio)
+- **Local-first** — pgvector for embeddings, no cloud required
 
----
+```
+"I'm allergic to peanuts"     → CONSTRAINT (safety-critical, never evicted)
+"I prefer dark mode"          → PREFERENCE (high priority, slow decay)
+"I live in Vancouver"         → FACT (stable, minimal decay)
+"Fix the login bug"           → TASK (fast decay after completion)
+"We discussed auth yesterday" → EVENT (normal decay)
+```
 
 ## Quick Start
 
-### 1. Install the SDK
-
 ```bash
-npm install @engram/sdk
-# or
-pnpm add @engram/sdk
-```
-
-### 2. Initialize the client
-
-```typescript
-import { Engram } from '@engram/sdk';
-
-const engram = new Engram({
-  apiKey: 'eg_sk_...',      // Your API key
-  userId: 'user_123',        // The end-user you're storing memories for
-  baseUrl: 'http://localhost:3000',  // Self-hosted or cloud
-});
-```
-
-### 3. Store memories
-
-```typescript
-// Simple memory
-await engram.remember("User prefers dark mode");
-
-// With options
-await engram.remember("Never deploy on Fridays", { 
-  importance: 'critical',
-  layer: 'identity'
-});
-
-// Batch import (e.g., from conversation history)
-await engram.rememberAll([
-  { raw: "Working on the dashboard redesign" },
-  { raw: "Meeting with design team tomorrow at 2pm" },
-]);
-```
-
-### 4. Recall memories
-
-```typescript
-// Semantic search
-const memories = await engram.recall("user preferences");
-// Returns memories about dark mode, UI preferences, etc.
-
-// Load context for session start
-const context = await engram.loadContext({ maxTokens: 4000 });
-// Returns formatted string ready for system prompt injection
-```
-
-### 5. Provide feedback
-
-```typescript
-// Mark memory as used (implicit signal)
-await engram.used(memoryId);
-
-// Mark as helpful (explicit signal)
-await engram.helpful(memoryId);
-
-// Correct a memory
-await engram.correct(memoryId, "Actually prefers light mode");
-```
-
----
-
-## Self-Hosting
-
-Engram is designed to run anywhere:
-
-```bash
-# Clone the repo
-git clone https://github.com/your-org/engram
+# Clone
+git clone https://github.com/heybeaux/engram
 cd engram
 
-# Install dependencies
+# Install
 pnpm install
 
-# Configure environment
+# Configure
 cp .env.example .env
-# Edit .env with your database URL and API keys
+# Edit .env with your database URL and LLM keys
 
-# Run database migrations
+# Database
 pnpm prisma migrate dev
 
-# Start the server
+# Run
 pnpm start:dev
 ```
 
-See [Self-Hosting Guide](./docs/SELF_HOSTING.md) for detailed setup instructions.
+Server starts at `http://localhost:3001`. Health check: `GET /v1/health` (no auth required).
 
----
+### Store a memory
 
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [API Reference](./docs/API.md) | Full REST API documentation |
-| [Configuration](./docs/CONFIGURATION.md) | Environment variables and options |
-| [Providers](./docs/PROVIDERS.md) | LLM and vector provider options |
-| [Self-Hosting](./docs/SELF_HOSTING.md) | Deployment guide |
-| [SDK Guide](./docs/SDK.md) | TypeScript SDK usage |
-
----
-
-## Core Concepts
-
-### Memory Layers
-
-Engram organizes memories into layers with different lifespans:
-
-| Layer | Purpose | Lifespan | Example |
-|-------|---------|----------|---------|
-| **Identity** | Core user facts | Permanent | "Prefers dark mode" |
-| **Project** | Workstream context | Weeks/months | "Working on v2 redesign" |
-| **Session** | Conversation context | Days | "Just discussed auth flow" |
-| **Task** | Immediate work | Hours | "Debugging login issue" |
-
-### Importance Scoring
-
-Memories have importance scores (0-1) that determine retrieval priority:
-
-- **Explicit hints** — API can flag memories as `low`, `medium`, `high`, or `critical`
-- **Usage signals** — Memories used more often gain importance
-- **Layer weight** — Identity > Project > Session > Task
-- **Time decay** — Unused memories fade (except Identity layer)
-
-### 5W1H Extraction
-
-Every memory is automatically analyzed to extract:
-
-- **Who** — People, organizations, entities
-- **What** — Core fact or action
-- **When** — Temporal context
-- **Where** — Location or setting
-- **Why** — Reasoning or motivation
-- **How** — Method or process
-
-### Auto-Mode (Conversation Observation)
-
-Engram can passively observe conversations and automatically extract memories based on importance signals:
-
-| Signal Type | Triggers | Example |
-|-------------|----------|---------|
-| **Explicit** | "remember this", "important", "never forget" | "Remember this: I'm allergic to shellfish" |
-| **Correction** | "actually", "no that's wrong", "I meant" | "Actually, my email is john@example.com" |
-| **Preference** | "I prefer", "I always", "I never", "I like", "I hate" | "I always use dark mode" |
-| **Repetition** | Same concept mentioned 2+ times | Mentioning "TypeScript" in multiple turns |
-
-```typescript
-// Observe a conversation and auto-extract memories
-const result = await engram.observe([
-  { role: 'user', content: 'I always use dark mode in my editors' },
-  { role: 'assistant', content: 'Got it! I\'ll remember that.' },
-  { role: 'user', content: 'Remember this: never deploy on Fridays' },
-], { minImportance: 0.5 });
-
-console.log(result.created);  // 2 memories created
-console.log(result.signals);  // Detected preference + explicit signals
+```bash
+curl -X POST http://localhost:3001/v1/memories \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -H "X-AM-User-ID: beaux" \
+  -d '{"raw": "I prefer dark mode for all applications"}'
 ```
 
----
+Engram automatically:
+- Extracts 5W1H structure (who, what, when, where, why, how)
+- Classifies the memory type (PREFERENCE)
+- Generates an embedding for semantic search
+- Scores importance and detects safety-critical content
+- Assigns field-level confidence scores
+- Links related memories
+
+### Recall memories
+
+```bash
+# Semantic search
+curl -X POST http://localhost:3001/v1/memories/query \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -H "X-AM-User-ID: beaux" \
+  -d '{"query": "user preferences", "limit": 10}'
+
+# Temporal search — understands "yesterday", "last week", etc.
+curl -X POST http://localhost:3001/v1/memories/query \
+  -d '{"query": "What did we discuss yesterday?", "limit": 10}'
+
+# Load context for system prompt injection
+curl -X POST http://localhost:3001/v1/context \
+  -d '{"maxTokens": 4000}'
+```
+
+### Auto-capture from conversations
+
+```bash
+curl -X POST http://localhost:3001/v1/observe \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -H "X-AM-User-ID: beaux" \
+  -d '{
+    "turns": [
+      {"role": "user", "content": "I always use TypeScript for new projects"},
+      {"role": "assistant", "content": "Noted — TypeScript it is."},
+      {"role": "user", "content": "Remember: never deploy on Fridays"}
+    ]
+  }'
+```
+
+## Features
+
+### Memory Intelligence v2
+
+Every memory is classified by type and scored for priority:
+
+| Type | Priority | Decay | Example |
+|------|----------|-------|---------|
+| CONSTRAINT | 1 (highest) | None (safety floor 0.6) | "Allergic to penicillin" |
+| PREFERENCE | 2 | Slow (60d half-life) | "Prefers dark mode" |
+| TASK | 2 | Fast (3d half-life) | "Fix the login bug by Friday" |
+| FACT | 3 | Slow (60d half-life) | "Lives in Vancouver" |
+| EVENT | 4 (lowest) | Normal (14d half-life) | "Discussed auth flow" |
+
+### effectiveScore
+
+```
+effectiveScore = max(safetyFloor, (baseScore × decayFactor) + noveltyBoost + usageBoost + pinnedBoost)
+```
+
+- **Decay**: Memories fade over time (configurable per-layer half-life)
+- **Novelty**: New memories get a temporary boost (+0.15, tapers over 7 days)
+- **Usage**: Frequently retrieved memories score higher
+- **Pinned**: User-pinned memories get a permanent boost
+- **Safety floor**: Safety-critical memories never drop below 0.6
+
+### Temporal Recall
+
+Queries with temporal expressions are automatically parsed and time-filtered:
+
+```
+"What happened yesterday?"     → Filters to yesterday, searches "what happened"
+"Show me last week's decisions" → Filters to last 7 days, searches "decisions"
+"What did we discuss 2 hours ago?" → Filters to 2h window
+```
+
+Time is the primary constraint. Semantic similarity is secondary. This matches how human memory works — you jump to the time period first, then search within it.
+
+### Sleep Consolidation
+
+Periodic job that compresses duplicate memories:
+
+1. Clusters similar SESSION memories (0.85 similarity threshold)
+2. Uses LLM to extract the essential "gist" from each cluster
+3. Promotes the canonical memory to IDENTITY layer
+4. Soft-deletes duplicates with audit trail
+
+### Safety-Critical Detection
+
+16 patterns detect safety-relevant information:
+
+Allergies, medications, diabetes, seizures, asthma, emergency contacts, blood type, DNR directives, life-threatening conditions, and more.
+
+Safety-critical memories:
+- Get a score floor of 0.6 (never fade below this)
+- Are never evicted from context, regardless of token budget
+- Display with a red ring and 🏥 badge in the graph visualization
+
+### Field-Level Confidence
+
+Every extraction field carries a confidence score:
+
+| Score | Meaning | Example |
+|-------|---------|---------|
+| 1.0 | Explicitly stated | "I live in Vancouver" → where: 1.0 |
+| 0.7-0.9 | Strongly implied | "Working from Pacific timezone" → where: 0.8 |
+| 0.4-0.6 | Inferred | "Mentioned a meeting at Google" → where: 0.5 |
+| 0.1-0.3 | Guessed | Weak signal, heuristic extraction |
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│   Engram    │────▶│  PostgreSQL │
-│   (Agent)   │     │   Server    │     │  (metadata) │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-       ┌──────▼──────┐  ┌──▼───┐  ┌─────▼─────┐
-       │  pgvector   │  │ LLM  │  │ Pinecone  │
-       │   (local)   │  │ APIs │  │  (cloud)  │
-       └─────────────┘  └──────┘  └───────────┘
+┌─────────────┐     ┌──────────────────────────────┐     ┌─────────────┐
+│   Client    │────▶│         Engram Server         │────▶│  PostgreSQL │
+│  (Agent /   │     │  ┌──────────┐ ┌────────────┐ │     │  + pgvector │
+│   SDK)      │     │  │Extraction│ │  Temporal   │ │     └─────────────┘
+└─────────────┘     │  │ Pipeline │ │   Parser    │ │
+                    │  └──────────┘ └────────────┘ │     ┌─────────────┐
+                    │  ┌──────────┐ ┌────────────┐ │     │  LLM APIs   │
+                    │  │ Scoring  │ │   Safety    │ │────▶│  (OpenAI /  │
+                    │  │ Engine   │ │  Detector   │ │     │  Anthropic /│
+                    │  └──────────┘ └────────────┘ │     │  Ollama)    │
+                    │  ┌──────────┐ ┌────────────┐ │     └─────────────┘
+                    │  │Consolid- │ │   Graph     │ │
+                    │  │ation     │ │   Viz (D3)  │ │     ┌─────────────┐
+                    │  └──────────┘ └────────────┘ │     │  Pinecone   │
+                    └──────────────────────────────┘     │  (optional) │
+                                                         └─────────────┘
 ```
 
-**Bring your own:**
-- **LLM**: OpenAI, Anthropic, Ollama, LM Studio
-- **Vector store**: pgvector (local) or Pinecone (cloud)
-- **Database**: PostgreSQL
+### LLM Providers
 
----
+| Provider | Chat/Extraction | Embeddings | Local? |
+|----------|----------------|------------|--------|
+| OpenAI | ✅ | ✅ | No |
+| Anthropic | ✅ | ❌ (use OpenAI) | No |
+| Ollama | ✅ | ✅ | Yes |
+| LM Studio | ✅ | ✅ | Yes |
 
-## API at a Glance
+### Vector Providers
 
-### REST Endpoints
+| Provider | Local? | Notes |
+|----------|--------|-------|
+| pgvector | Yes | Default. Runs in your PostgreSQL. |
+| Pinecone | No | Optional cloud vector store. |
+
+## API Reference
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/v1/memories` | POST | ✅ | Create a memory |
+| `/v1/memories/:id` | PATCH | ✅ | Update a memory |
+| `/v1/memories/:id` | DELETE | ✅ | Soft-delete a memory |
+| `/v1/memories/query` | POST | ✅ | Semantic + temporal search |
+| `/v1/memories/graph` | GET | ✅ | Graph data for visualization |
+| `/v1/context` | POST | ✅ | Load context for system prompt |
+| `/v1/observe` | POST | ✅ | Auto-capture from conversation |
+| `/v1/consolidate` | POST | ✅ | Trigger sleep consolidation |
+| `/v1/health` | GET | ❌ | System health + metrics |
+
+Full API documentation available in the [dashboard](http://localhost:3000/docs) when running locally.
+
+## Memory Layers
+
+| Layer | Purpose | Decay Half-Life | Example |
+|-------|---------|-----------------|---------|
+| IDENTITY | Core user facts | ∞ (no decay) | Name, preferences, allergies |
+| PROJECT | Work context | 60 days | Current projects, teammates |
+| SESSION | Conversation context | 14 days | Recent discussions |
+| TASK | Immediate work | 3 days | Active todos |
+
+## Dashboard
+
+Engram ships with a web dashboard (separate repo: [engram-dashboard](https://github.com/heybeaux/engram-dashboard)):
+
+- **Memory browser** — Search, filter, edit memories
+- **Graph visualization** — D3 force-directed graph with effectiveScore sizing and safety-critical badges
+- **Documentation** — Built-in docs with quickstart, architecture, and API reference
+- **Health monitoring** — System metrics and issue detection
+
+## Integrations
+
+### OpenClaw
+
+Engram integrates with [OpenClaw](https://github.com/openclaw/openclaw) via workspace hooks for automatic memory capture from conversations.
+
+See [OpenClaw Integration Guide](./docs/OPENCLAW_HOOK_INTEGRATION.md).
+
+## Self-Hosting
+
+### Requirements
+
+- Node.js 20+
+- PostgreSQL 15+ with pgvector extension
+- An LLM provider (OpenAI API key, or local Ollama/LM Studio)
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  engram:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
+      LLM_PROVIDER: openai
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      - postgres
+  
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: engram
+      POSTGRES_DB: engram
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
+```
+
+### Fully Local (No Cloud APIs)
 
 ```bash
-# Create memory
-POST /v1/memories
-X-AM-API-Key: eg_sk_...
-X-AM-User-ID: user_123
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
 
-{
-  "raw": "User prefers dark mode",
-  "layer": "IDENTITY",
-  "importanceHint": "HIGH"
-}
+# Pull models
+ollama pull llama3.2
+ollama pull nomic-embed-text
 
-# Query memories
-POST /v1/memories/query
-{
-  "query": "user preferences",
-  "limit": 10
-}
-
-# Load context
-POST /v1/context
-{
-  "maxTokens": 4000
-}
-
-# Observe conversation (auto-mode)
-POST /v1/observe
-{
-  "turns": [
-    { "role": "user", "content": "I prefer TypeScript over JavaScript" },
-    { "role": "assistant", "content": "Noted!" },
-    { "role": "user", "content": "Remember this: always use strict mode" }
-  ],
-  "minImportance": 0.4
-}
-
-# Analyze signals only (preview, no storage)
-POST /v1/observe/analyze
-{
-  "turns": [...]
-}
+# Configure .env
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2
+EMBEDDING_PROVIDER=ollama
+VECTOR_PROVIDER=pgvector
 ```
 
-### TypeScript SDK
+Zero data leaves your machine.
 
-```typescript
-// Remember
-await engram.remember(text, options);
-await engram.rememberAll(memories);
+## Contributing
 
-// Recall
-const memories = await engram.recall(query, options);
-const context = await engram.loadContext(options);
+We'd love your help. See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
-// Feedback
-await engram.used(memoryId);
-await engram.helpful(memoryId);
-await engram.correct(memoryId, correction);
+**High-impact areas:**
+- Python SDK
+- Integration guides (LangChain, AutoGen, CrewAI)
+- New LLM/vector providers
+- Extraction improvements
+- Documentation
 
-// Auto-mode
-const result = await engram.observe(turns, options);
-const analysis = await engram.analyzeSignals(turns);
-```
+## Roadmap
 
----
+See [ROADMAP.md](./ROADMAP.md) for current priorities and future plans.
 
-## Tech Stack
-
-- **NestJS** — API framework
-- **Prisma** — Database ORM
-- **PostgreSQL** — Metadata storage
-- **pgvector / Pinecone** — Vector embeddings
-- **TypeScript** — Type safety
-
----
+**Coming soon:**
+- Webhook events (memory created, contradiction detected)
+- Dashboard authentication
+- Analytics and usage trends
+- Python SDK
+- Engram Cloud (managed hosting)
 
 ## License
 
-MIT
-
----
+Apache License 2.0 — see [LICENSE](./LICENSE).
 
 ## Authors
 
-- Beaux Walton
-- Rook ♜
+Built by [Beaux Walton](https://heybeaux.dev) and Rook ♜ in Powell River, BC.
 
 ---
 
-*Built with late-night coffee and good vibes.*
+<p align="center">
+  <em>Every agent deserves to remember.</em>
+</p>
