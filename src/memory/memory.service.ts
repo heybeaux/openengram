@@ -326,7 +326,7 @@ export class MemoryService {
     };
     const CONSTRAINT_RESERVE = Math.min(200, Math.floor(LAYER_BUDGETS.identity * 0.25));
 
-    // 1. Load IDENTITY layer with priority-based selection
+    // 1. Load IDENTITY layer with effectiveScore-based selection
     const identityCandidates = await this.prisma.memory.findMany({
       where: {
         userId,
@@ -336,9 +336,10 @@ export class MemoryService {
         userHidden: false, // Memory Intelligence: respect user hiding
       },
       orderBy: [
-        { priority: 'asc' },       // Lower = higher priority (1=CONSTRAINT first)
-        { userPinned: 'desc' },    // Pinned items next
-        { createdAt: 'desc' },     // Then recency
+        { effectiveScore: 'desc' }, // Memory Intelligence v2: unified score (includes safety floor, decay, boosts)
+        { priority: 'asc' },        // Tie-breaker: lower = higher priority (1=CONSTRAINT first)
+        { userPinned: 'desc' },     // Then pinned items
+        { createdAt: 'desc' },      // Finally recency
       ],
       take: 200, // Get enough candidates to select from
     });
@@ -363,6 +364,7 @@ export class MemoryService {
           userHidden: false,
         },
         orderBy: [
+          { effectiveScore: 'desc' },
           { priority: 'asc' },
           { userPinned: 'desc' },
           { createdAt: 'desc' },
@@ -390,6 +392,7 @@ export class MemoryService {
         createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
       },
       orderBy: [
+        { effectiveScore: 'desc' },
         { priority: 'asc' },
         { createdAt: 'desc' },
       ],
@@ -415,6 +418,7 @@ export class MemoryService {
           userHidden: false,
         },
         orderBy: [
+          { effectiveScore: 'desc' },
           { priority: 'asc' },
           { createdAt: 'desc' },
         ],
@@ -463,8 +467,16 @@ export class MemoryService {
     // Rough token estimation: ~4 characters per token
     const estimateTokens = (m: Memory) => Math.ceil(m.raw.length / 4);
 
-    // Phase 1: Add all CONSTRAINTS (priority 1) up to reserve
-    const constraints = candidates.filter(m => m.priority === 1);
+    // Phase 0: Safety-critical memories ALWAYS get included (never evicted)
+    const safetyCritical = candidates.filter(m => m.safetyCritical);
+    for (const memory of safetyCritical) {
+      const tokens = estimateTokens(memory);
+      selected.push(memory);
+      usedTokens += tokens;
+    }
+
+    // Phase 1: Add CONSTRAINTS (priority 1) up to reserve
+    const constraints = candidates.filter(m => m.priority === 1 && !m.safetyCritical);
     let constraintTokens = 0;
     
     for (const memory of constraints) {
@@ -482,7 +494,7 @@ export class MemoryService {
       }
     }
 
-    // Phase 2: Fill remaining budget by priority order (already sorted)
+    // Phase 2: Fill remaining budget by effectiveScore order (already sorted)
     for (const memory of candidates) {
       if (selected.includes(memory)) continue;
       
