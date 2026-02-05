@@ -11,6 +11,15 @@ export interface FieldConfidence {
   howConfidence: number | null;
 }
 
+export interface LessonFields {
+  lessonMistake: string | null;
+  lessonRootCause: string | null;
+  lessonCorrectAction: string | null;
+  lessonSeverity: 'low' | 'medium' | 'high' | 'critical' | null;
+  lessonSource: 'user_correction' | 'error_detection' | 'self_reflection' | 'explicit' | null;
+  lessonTriggerPatterns: string[];
+}
+
 export interface ExtractionResult {
   who: string | null;
   what: string | null;
@@ -25,11 +34,14 @@ export interface ExtractionResult {
   typeConfidence: number | null;
   // Field-level confidence scores
   confidence: FieldConfidence;
+  // LESSON-specific fields (populated when memoryType is LESSON)
+  lesson: LessonFields | null;
 }
 
 // Priority mapping for memory types
 export const MEMORY_TYPE_PRIORITY: Record<MemoryType, number> = {
   CONSTRAINT: 1,  // Safety-critical, highest priority
+  LESSON: 1,      // Mistakes and learnings, same tier as CONSTRAINT
   PREFERENCE: 2,  // User preferences
   TASK: 2,        // Actionable items (same as preferences)
   FACT: 3,        // Stable information
@@ -77,6 +89,8 @@ Classify this memory into exactly ONE type:
 
 - "EVENT": Conversational moments, things that happened. Ask: "Is this about something that occurred?"
 
+- "LESSON": A mistake, correction, or learning. The user corrected the agent, an error occurred and was resolved, or an explicit lesson was stated. Contains what went wrong, why, and what should have happened. Keywords: "that's wrong", "actually", "don't do that again", "lesson learned", "mistake", "I told you". Ask: "Is this about learning from a failure or correction?"
+
 Important distinctions:
 - "I'm allergic to peanuts" → CONSTRAINT (safety-critical)
 - "I don't like peanuts" → PREFERENCE (not safety-critical)
@@ -86,10 +100,22 @@ Important distinctions:
 - "I need a large oat milk latte every morning" → PREFERENCE (daily routine/habit)
 - "Remind me to call mom" → TASK (actionable)
 - "I live in Vancouver" → FACT (stable info)
+- "No, you pushed WhaleHawk stuff to the Engram repo" → LESSON (user correction)
+- "Remember: always check which repo you're in before committing" → LESSON (explicit lesson)
+- "The deploy failed because we forgot to run migrations" → LESSON (error + learning)
+- "Never deploy on Fridays" → CONSTRAINT (hard rule, not experiential)
 
 Output these classification fields:
-- "memoryType": One of: CONSTRAINT, PREFERENCE, FACT, TASK, EVENT
+- "memoryType": One of: CONSTRAINT, PREFERENCE, FACT, TASK, EVENT, LESSON
 - "typeConfidence": A number 0.0-1.0 indicating classification confidence
+
+If memoryType is LESSON, also extract these fields:
+- "lessonMistake": What went wrong (the error or incorrect action)
+- "lessonRootCause": Why it went wrong (the underlying cause)
+- "lessonCorrectAction": What should have been done instead
+- "lessonSeverity": One of: "low", "medium", "high", "critical"
+- "lessonSource": One of: "user_correction", "error_detection", "self_reflection", "explicit"
+- "lessonTriggerPatterns": Array of strings - situations where this lesson should surface in future
 
 FIELD CONFIDENCE SCORING:
 For each 5W1H field, also provide a confidence score (0.0-1.0):
@@ -132,6 +158,13 @@ interface ExtractionResponse {
   where_confidence: number | null;
   why_confidence: number | null;
   how_confidence: number | null;
+  // LESSON-specific fields
+  lessonmistake: string | null;
+  lessonrootcause: string | null;
+  lessoncorrectaction: string | null;
+  lessonseverity: string | null;
+  lessonsource: string | null;
+  lessontriggerpatterns: string[] | null;
 }
 
 /**
@@ -195,6 +228,16 @@ export class ExtractionService {
         howConfidence: this.parseConfidence(result.how_confidence, result.how),
       };
 
+      // Parse LESSON-specific fields if applicable
+      const lesson: LessonFields | null = memoryType === 'LESSON' ? {
+        lessonMistake: result.lessonmistake || null,
+        lessonRootCause: result.lessonrootcause || null,
+        lessonCorrectAction: result.lessoncorrectaction || null,
+        lessonSeverity: this.normalizeLessonSeverity(result.lessonseverity),
+        lessonSource: this.normalizeLessonSource(result.lessonsource),
+        lessonTriggerPatterns: Array.isArray(result.lessontriggerpatterns) ? result.lessontriggerpatterns : [],
+      } : null;
+
       const extractionResult: ExtractionResult = {
         who: result.who || null,
         what: result.what || null,
@@ -207,6 +250,7 @@ export class ExtractionService {
         memoryType,
         typeConfidence: typeof typeConfidence === 'number' ? typeConfidence : null,
         confidence,
+        lesson,
       };
 
       console.log('[Extraction] Extraction complete:', {
@@ -314,7 +358,7 @@ export class ExtractionService {
     if (!type) return null;
     
     const normalized = type.toUpperCase().trim();
-    const validTypes: MemoryType[] = ['CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT'];
+    const validTypes: MemoryType[] = ['CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT', 'LESSON'];
     
     if (validTypes.includes(normalized as MemoryType)) {
       return normalized as MemoryType;
@@ -327,6 +371,7 @@ export class ExtractionService {
       'FACTS': 'FACT',
       'TASKS': 'TASK',
       'EVENTS': 'EVENT',
+      'LESSONS': 'LESSON',
       'PREF': 'PREFERENCE',
     };
     
@@ -336,6 +381,26 @@ export class ExtractionService {
     
     console.warn('[Extraction] Unknown memory type:', type, '-> defaulting to FACT');
     return 'FACT'; // Safe default
+  }
+
+  /**
+   * Normalize lesson severity from LLM response
+   */
+  private normalizeLessonSeverity(severity: string | null | undefined): LessonFields['lessonSeverity'] {
+    if (!severity) return null;
+    const normalized = severity.toLowerCase().trim();
+    const valid: LessonFields['lessonSeverity'][] = ['low', 'medium', 'high', 'critical'];
+    return valid.includes(normalized as any) ? normalized as LessonFields['lessonSeverity'] : 'medium';
+  }
+
+  /**
+   * Normalize lesson source from LLM response
+   */
+  private normalizeLessonSource(source: string | null | undefined): LessonFields['lessonSource'] {
+    if (!source) return null;
+    const normalized = source.toLowerCase().trim().replace(/\s+/g, '_');
+    const valid: LessonFields['lessonSource'][] = ['user_correction', 'error_detection', 'self_reflection', 'explicit'];
+    return valid.includes(normalized as any) ? normalized as LessonFields['lessonSource'] : 'explicit';
   }
 
   /**
@@ -466,6 +531,7 @@ export class ExtractionService {
         whyConfidence: null,
         howConfidence: null,
       },
+      lesson: null, // Basic extraction doesn't extract lesson fields
     };
   }
 
@@ -483,6 +549,14 @@ export class ExtractionService {
     if (/\b(must not|cannot|can't|never|forbidden|prohibited)\b/i.test(raw) && 
         /\b(eat|take|use|do|have)\b/i.test(raw)) {
       return 'CONSTRAINT';
+    }
+
+    // LESSON patterns (mistakes, corrections, learnings)
+    if (/\b(that's wrong|that was wrong|you made a mistake|lesson learned|don't do that again)\b/i.test(raw)) {
+      return 'LESSON';
+    }
+    if (/\b(actually|no,)\b/i.test(raw) && /\b(wrong|incorrect|mistake|shouldn't have|should have)\b/i.test(raw)) {
+      return 'LESSON';
     }
 
     // TASK patterns

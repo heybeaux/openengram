@@ -25,6 +25,9 @@ export interface ScoringConfig {
   noveltyBoostMax: number; // Max boost for brand new memories
   noveltyBoostDays: number; // Days over which novelty tapers to 0
   safetyFloor: number; // Minimum score for safety-critical memories
+
+  // Lesson scoring
+  lessonBaseScoreFloor: number; // Minimum score for LESSON memories (default 0.7)
 }
 
 const DEFAULT_CONFIG: ScoringConfig = {
@@ -44,6 +47,9 @@ const DEFAULT_CONFIG: ScoringConfig = {
   noveltyBoostMax: 0.15,
   noveltyBoostDays: 7,
   safetyFloor: 0.6,
+
+  // Lesson scoring
+  lessonBaseScoreFloor: 0.7,
 };
 
 type MemoryWithRelations = Memory & {
@@ -86,7 +92,13 @@ export class ImportanceScorerService {
     // Compute final score: max of safety floor and computed score
     const computedScore =
       baseScore * decayFactor + noveltyBoost + usageBoost + pinnedBoost;
-    const effectiveScore = Math.min(1.0, Math.max(safetyFloor, computedScore));
+    let effectiveScore = Math.min(1.0, Math.max(safetyFloor, computedScore));
+
+    // Lesson floor - lessons maintain high visibility
+    if (memory.memoryType === 'LESSON') {
+      const lessonFloor = this.config.lessonBaseScoreFloor ?? 0.7;
+      effectiveScore = Math.max(lessonFloor, effectiveScore);
+    }
 
     return {
       baseScore,

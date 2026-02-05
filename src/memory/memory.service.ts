@@ -996,6 +996,22 @@ export class MemoryService {
     };
   }
 
+  /**
+   * Promote a LESSON memory to CONSTRAINT
+   * Used for critical lessons that should be treated as hard rules
+   */
+  private async promoteToConstraint(memoryId: string): Promise<void> {
+    await this.prisma.memory.update({
+      where: { id: memoryId },
+      data: {
+        memoryType: 'CONSTRAINT',
+        priority: 1,
+        promotedFrom: memoryId, // Self-reference to track lineage
+      },
+    });
+    console.log(`[LESSON→CONSTRAINT] Auto-promoted critical lesson: ${memoryId}`);
+  }
+
   // =========================================================================
   // PRIVATE HELPERS
   // =========================================================================
@@ -1128,6 +1144,12 @@ export class MemoryService {
       });
     }
 
+    // Merge source metadata with lesson fields for rawJson storage
+    const rawJsonData = {
+      ...sourceMetadata,
+      ...(extracted.lesson ? { lesson: extracted.lesson } : {}),
+    };
+
     await this.prisma.memoryExtraction.create({
       data: {
         memoryId,
@@ -1138,7 +1160,7 @@ export class MemoryService {
         why: extracted.why,
         how: extracted.how,
         topics: extracted.topics,
-        rawJson: sourceMetadata,
+        rawJson: Object.keys(rawJsonData).length > 0 ? rawJsonData : undefined,
         // Memory Intelligence: classification from LLM
         memoryType: extracted.memoryType,
         typeConfidence: extracted.typeConfidence,
@@ -1170,6 +1192,11 @@ export class MemoryService {
         },
       });
       console.log('[Memory] Memory Intelligence updated:', { memoryId, memoryType: extracted.memoryType, priority });
+
+      // LESSON auto-promotion: critical lessons become constraints
+      if (extracted.memoryType === 'LESSON' && extracted.lesson?.lessonSeverity === 'critical') {
+        await this.promoteToConstraint(memoryId);
+      }
     }
 
     // 4. Store extracted entities

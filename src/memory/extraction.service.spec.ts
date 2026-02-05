@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExtractionService, ExtractionResult } from './extraction.service';
+import { ExtractionService, ExtractionResult, MEMORY_TYPE_PRIORITY } from './extraction.service';
 import { LLMService } from '../llm/llm.service';
 import { MemoryLayer } from '@prisma/client';
 
@@ -346,6 +346,7 @@ describe('ExtractionService', () => {
             whyConfidence: null,
             howConfidence: null,
           },
+          lesson: null,
         };
         expect(service.classifyLayer('Working on something', extracted)).toBe(MemoryLayer.PROJECT);
       });
@@ -362,6 +363,176 @@ describe('ExtractionService', () => {
         expect(service.classifyLayer('Looking at some code')).toBe(MemoryLayer.SESSION);
         expect(service.classifyLayer('Thinking about next steps')).toBe(MemoryLayer.SESSION);
       });
+    });
+  });
+
+  describe('LESSON memory type', () => {
+    it('should classify user correction text as LESSON', async () => {
+      mockLlmService.json.mockResolvedValue({
+        who: 'Agent',
+        what: 'Pushed WhaleHawk stuff to the Engram repo',
+        when: null,
+        where: null,
+        why: 'Cross-project context contamination',
+        how: null,
+        topics: ['mistakes', 'git'],
+        entities: [{ name: 'WhaleHawk', type: 'project' }, { name: 'Engram', type: 'project' }],
+        memoryType: 'LESSON',
+        typeConfidence: 0.95,
+        who_confidence: 0.8,
+        what_confidence: 0.9,
+        when_confidence: null,
+        where_confidence: null,
+        why_confidence: 0.8,
+        how_confidence: null,
+        lessonMistake: 'Pushed WhaleHawk content to the Engram repo',
+        lessonRootCause: 'Cross-project memories injected without namespace filtering',
+        lessonCorrectAction: 'Verify all content relates to target repo before committing',
+        lessonSeverity: 'high',
+        lessonSource: 'user_correction',
+        lessonTriggerPatterns: ['committing to git', 'working across multiple projects'],
+      });
+
+      const result = await service.extract('No, you pushed WhaleHawk stuff to the Engram repo');
+
+      expect(result.memoryType).toBe('LESSON');
+      expect(result.lesson).not.toBeNull();
+      expect(result.lesson!.lessonMistake).toBe('Pushed WhaleHawk content to the Engram repo');
+      expect(result.lesson!.lessonRootCause).toBe('Cross-project memories injected without namespace filtering');
+      expect(result.lesson!.lessonCorrectAction).toBe('Verify all content relates to target repo before committing');
+    });
+
+    it('should classify explicit lesson text as LESSON', async () => {
+      mockLlmService.json.mockResolvedValue({
+        who: null,
+        what: 'Always check which repo you are in before committing',
+        when: null,
+        where: null,
+        why: null,
+        how: null,
+        topics: ['git', 'workflow'],
+        entities: [],
+        memoryType: 'LESSON',
+        typeConfidence: 0.9,
+        who_confidence: null,
+        what_confidence: 0.9,
+        when_confidence: null,
+        where_confidence: null,
+        why_confidence: null,
+        how_confidence: null,
+        lessonMistake: 'Committed to the wrong repo',
+        lessonRootCause: 'Did not verify current repo context',
+        lessonCorrectAction: 'Always check which repo you are in before committing',
+        lessonSeverity: 'medium',
+        lessonSource: 'explicit',
+        lessonTriggerPatterns: ['git commit', 'checking repo'],
+      });
+
+      const result = await service.extract('Remember: always check which repo you\'re in before committing');
+
+      expect(result.memoryType).toBe('LESSON');
+      expect(result.lesson).not.toBeNull();
+      expect(result.lesson!.lessonSource).toBe('explicit');
+    });
+
+    it('should extract lessonSeverity and lessonSource fields for LESSON', async () => {
+      mockLlmService.json.mockResolvedValue({
+        who: null,
+        what: 'The deploy failed because we forgot to run migrations',
+        when: null,
+        where: null,
+        why: 'Forgot to run migrations',
+        how: null,
+        topics: ['deployment'],
+        entities: [],
+        memoryType: 'LESSON',
+        typeConfidence: 0.92,
+        who_confidence: null,
+        what_confidence: 0.95,
+        when_confidence: null,
+        where_confidence: null,
+        why_confidence: 0.85,
+        how_confidence: null,
+        lessonMistake: 'Deployed without running database migrations',
+        lessonRootCause: 'Migration step was skipped in deployment checklist',
+        lessonCorrectAction: 'Always run migrations before deploying',
+        lessonSeverity: 'critical',
+        lessonSource: 'error_detection',
+        lessonTriggerPatterns: ['deploying', 'database changes', 'migrations'],
+      });
+
+      const result = await service.extract('The deploy failed because we forgot to run migrations');
+
+      expect(result.memoryType).toBe('LESSON');
+      expect(result.lesson).not.toBeNull();
+      expect(result.lesson!.lessonSeverity).toBe('critical');
+      expect(result.lesson!.lessonSource).toBe('error_detection');
+      expect(result.lesson!.lessonTriggerPatterns).toContain('deploying');
+      expect(result.lesson!.lessonTriggerPatterns).toContain('migrations');
+    });
+
+    it('should have LESSON at priority 1 (same as CONSTRAINT)', () => {
+      expect(MEMORY_TYPE_PRIORITY.LESSON).toBe(1);
+      expect(MEMORY_TYPE_PRIORITY.LESSON).toBe(MEMORY_TYPE_PRIORITY.CONSTRAINT);
+    });
+
+    it('should normalize LESSONS to LESSON in normalizeMemoryType', async () => {
+      mockLlmService.json.mockResolvedValue({
+        who: null,
+        what: 'test',
+        when: null,
+        where: null,
+        why: null,
+        how: null,
+        topics: [],
+        entities: [],
+        memoryType: 'LESSONS', // Plural variation
+        typeConfidence: 0.8,
+        who_confidence: null,
+        what_confidence: null,
+        when_confidence: null,
+        where_confidence: null,
+        why_confidence: null,
+        how_confidence: null,
+      });
+
+      const result = await service.extract('test lesson');
+
+      expect(result.memoryType).toBe('LESSON');
+    });
+
+    it('should return null lesson for non-LESSON types', async () => {
+      mockLlmService.json.mockResolvedValue({
+        who: null,
+        what: 'I live in Vancouver',
+        when: null,
+        where: 'Vancouver',
+        why: null,
+        how: null,
+        topics: ['personal'],
+        entities: [],
+        memoryType: 'FACT',
+        typeConfidence: 0.95,
+        who_confidence: null,
+        what_confidence: 0.9,
+        when_confidence: null,
+        where_confidence: 1.0,
+        why_confidence: null,
+        how_confidence: null,
+      });
+
+      const result = await service.extract('I live in Vancouver');
+
+      expect(result.memoryType).toBe('FACT');
+      expect(result.lesson).toBeNull();
+    });
+
+    it('should classify correction text as LESSON in basic extraction fallback', async () => {
+      mockLlmService.json.mockRejectedValue(new Error('LLM unavailable'));
+
+      const result = await service.extract("That's wrong, you made a mistake with the deployment");
+
+      expect(result.memoryType).toBe('LESSON');
     });
   });
 });

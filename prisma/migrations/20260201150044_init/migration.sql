@@ -1,3 +1,6 @@
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- CreateEnum
 CREATE TYPE "MemoryLayer" AS ENUM ('IDENTITY', 'PROJECT', 'SESSION', 'TASK');
 

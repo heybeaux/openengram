@@ -156,6 +156,101 @@ describe('ImportanceScorerService', () => {
     });
   });
 
+  describe('LESSON score floor', () => {
+    it('should respect 0.7 score floor for LESSON memories', () => {
+      const now = new Date();
+      const oldMemory = createMockMemory({
+        createdAt: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), // 1 year old
+        memoryType: 'LESSON',
+        importanceScore: 0.3, // Low base score
+        layer: MemoryLayer.SESSION,
+      });
+
+      const result = scorer.computeScore(oldMemory, now);
+
+      expect(result.effectiveScore).toBeGreaterThanOrEqual(0.7);
+    });
+
+    it('should not reduce LESSON score below floor even with decay', () => {
+      const now = new Date();
+      const veryOldMemory = createMockMemory({
+        createdAt: new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000), // 2 years old
+        memoryType: 'LESSON',
+        importanceScore: 0.2, // Very low base score
+        layer: MemoryLayer.TASK, // Fast-decaying layer
+      });
+
+      const result = scorer.computeScore(veryOldMemory, now);
+
+      expect(result.effectiveScore).toBeGreaterThanOrEqual(0.7);
+    });
+
+    it('should allow LESSON score above floor', () => {
+      const now = new Date();
+      const highScoreLesson = createMockMemory({
+        createdAt: now,
+        memoryType: 'LESSON',
+        importanceScore: 0.9,
+        userPinned: true,
+        layer: MemoryLayer.IDENTITY,
+      });
+
+      const result = scorer.computeScore(highScoreLesson, now);
+
+      expect(result.effectiveScore).toBeGreaterThan(0.7);
+    });
+
+    it('should apply lesson floor independently of safety floor', () => {
+      const now = new Date();
+      const lessonMemory = createMockMemory({
+        createdAt: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+        memoryType: 'LESSON',
+        safetyCritical: false, // NOT safety-critical
+        importanceScore: 0.2,
+        layer: MemoryLayer.SESSION,
+      });
+
+      const result = scorer.computeScore(lessonMemory, now);
+
+      // Safety floor is 0 (not safety-critical), but lesson floor should still apply
+      expect(result.safetyFloor).toBe(0);
+      expect(result.effectiveScore).toBeGreaterThanOrEqual(0.7);
+    });
+
+    it('should not apply lesson floor to non-LESSON types', () => {
+      const now = new Date();
+      const factMemory = createMockMemory({
+        createdAt: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+        memoryType: 'FACT',
+        safetyCritical: false,
+        importanceScore: 0.2,
+        layer: MemoryLayer.SESSION,
+      });
+
+      const result = scorer.computeScore(factMemory, now);
+
+      expect(result.effectiveScore).toBeLessThan(0.7);
+    });
+
+    it('should use custom lesson floor from config', () => {
+      const customScorer = new ImportanceScorerService({
+        lessonBaseScoreFloor: 0.8,
+      });
+
+      const now = new Date();
+      const lessonMemory = createMockMemory({
+        createdAt: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+        memoryType: 'LESSON',
+        importanceScore: 0.2,
+        layer: MemoryLayer.SESSION,
+      });
+
+      const result = customScorer.computeScore(lessonMemory, now);
+
+      expect(result.effectiveScore).toBeGreaterThanOrEqual(0.8);
+    });
+  });
+
   describe('computeUsageBoost', () => {
     it('should return 0 for unused memories', () => {
       const memory = createMockMemory({ retrievalCount: 0, usedCount: 0 });

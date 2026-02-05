@@ -94,6 +94,8 @@ model Memory {
   typeConfidence Float?      @map("type_confidence") // 0.0-1.0 from LLM
   priority       Int         @default(3) // 1=CONSTRAINT, 2=PREF/TASK, 3=FACT, 4=EVENT
 
+  promotedFrom   String?   @map("promoted_from")  // Source memory ID when promoted (e.g., LESSON → CONSTRAINT)
+
   // User controls for manual override
   userPinned Boolean @default(false) @map("user_pinned")
   userHidden Boolean @default(false) @map("user_hidden")
@@ -335,6 +337,7 @@ enum MemoryType {
   FACT // Priority 3: Stable information (location, job, relationships)
   TASK // Priority 2: Actionable items (reminders, todos)
   EVENT // Priority 4: Conversational moments (recent events)
+  LESSON // Priority 1: Mistakes, corrections, and learnings
 }
 
 /// Subject type - who/what is this memory about?
