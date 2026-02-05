@@ -943,7 +943,7 @@ async correctMemory(
 **Effort:** 2 hours  
 **Dependencies:** P0-001 (complete)
 
-**Problem:** Old memories contain `user_beaux` or `User` instead of `Beaux`. The user identity resolution fix only applies to NEW memories.
+**Problem:** Old memories contain `beaux` or `User` instead of `Beaux`. The user identity resolution fix only applies to NEW memories.
 
 **Solution:** Backfill script to update old memories.
 
@@ -955,7 +955,7 @@ async backfillUserIdentity(
   options: { dryRun?: boolean } = {}
 ): Promise<{ updated: number }> {
   const patterns = [
-    /\buser_\w+\b/gi,           // user_beaux, user_123
+    /\buser_\w+\b/gi,           // beaux, user_123
     /\bUser\b/g,                 // User (capitalized)
     /\bthe user\b/gi,            // the user
   ];

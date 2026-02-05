@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { LLMModule } from './llm/llm.module';
 import { VectorModule } from './vector/vector.module';
@@ -12,6 +14,13 @@ import { AgentModule } from './agent/agent.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'public'),
+      serveRoot: '/',
+      serveStaticOptions: {
+        index: false, // Don't serve index.html for /
+      },
     }),
     PrismaModule,
     LLMModule,

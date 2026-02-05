@@ -309,4 +309,47 @@ export class DashboardService {
 
     return result;
   }
+
+  /**
+   * Delete a user and optionally their memories
+   */
+  async deleteUser(
+    userId: string,
+    deleteMemories: boolean = false,
+  ): Promise<{ deleted: boolean; memoriesDeleted?: number } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    let memoriesDeleted = 0;
+
+    if (deleteMemories) {
+      // Hard delete memories
+      const result = await this.prisma.memory.deleteMany({
+        where: { userId },
+      });
+      memoriesDeleted = result.count;
+    } else {
+      // Check if user has memories - prevent deletion if so
+      const memoryCount = await this.prisma.memory.count({
+        where: { userId, deletedAt: null },
+      });
+      
+      if (memoryCount > 0) {
+        // Soft delete by reassigning to a "deleted" placeholder or just leave orphaned
+        // For now, we'll allow deletion and orphan the memories
+      }
+    }
+
+    // Delete the user
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return { deleted: true, memoriesDeleted };
+  }
 }

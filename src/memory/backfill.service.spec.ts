@@ -9,7 +9,7 @@ describe('BackfillService', () => {
 
   const mockUser = {
     id: 'user-123',
-    externalId: 'user_beaux',
+    externalId: 'beaux',
     agentId: 'agent-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -20,7 +20,7 @@ describe('BackfillService', () => {
     {
       id: 'mem-1',
       userId: 'user-123',
-      raw: 'user_beaux prefers dark mode for all applications',
+      raw: 'beaux prefers dark mode for all applications',
       layer: 'IDENTITY',
       source: 'EXPLICIT_STATEMENT',
       importanceScore: 0.8,
@@ -31,8 +31,8 @@ describe('BackfillService', () => {
       extraction: {
         id: 'ext-1',
         memoryId: 'mem-1',
-        who: 'user_beaux',
-        what: 'user_beaux prefers dark mode for all applications',
+        who: 'beaux',
+        what: 'beaux prefers dark mode for all applications',
         when: null,
         whereCtx: null,
         why: null,
@@ -206,10 +206,10 @@ describe('BackfillService', () => {
     it('should handle multiple patterns in same memory', async () => {
       const memoryWithMultiplePatterns = {
         ...mockMemories[0],
-        raw: 'user_beaux said the user prefers dark mode. User confirmed this.',
+        raw: 'beaux said the user prefers dark mode. User confirmed this.',
         extraction: {
           ...mockMemories[0].extraction,
-          who: 'user_beaux',
+          who: 'beaux',
           what: 'the user prefers dark mode',
         },
       };
@@ -307,7 +307,7 @@ describe('BackfillService', () => {
       const result = await service.findUserByExternalIdPattern('beaux');
 
       expect(result).toHaveLength(1);
-      expect(result[0].externalId).toBe('user_beaux');
+      expect(result[0].externalId).toBe('beaux');
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: {
           externalId: {

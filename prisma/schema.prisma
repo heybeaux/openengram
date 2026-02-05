@@ -98,6 +98,11 @@ model Memory {
   userPinned Boolean @default(false) @map("user_pinned")
   userHidden Boolean @default(false) @map("user_hidden")
 
+  // Importance scoring (Memory Intelligence v2)
+  effectiveScore  Float     @default(0.5) @map("effective_score")
+  scoreComputedAt DateTime? @map("score_computed_at")
+  safetyCritical  Boolean   @default(false) @map("safety_critical")
+
   // Subject fields: who/what is this memory ABOUT?
   subjectType      SubjectType            @default(USER) @map("subject_type")
   subjectId        String?                @map("subject_id") // userId, agentId, or entityId
@@ -144,6 +149,7 @@ model Memory {
   @@index([subjectType, agentId])
   @@index([userId, layer, priority, createdAt(sort: Desc)]) // Memory Intelligence: priority retrieval
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
+  @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
   @@map("memories")
 }
 

@@ -92,17 +92,17 @@ Search, filter, and inspect individual memories.
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │ ● "Beaux prefers tabs over spaces"                      │   │
-│  │   User: user_beaux | Layer: IDENTITY | Score: 0.82      │   │
+│  │   User: beaux | Layer: IDENTITY | Score: 0.82      │   │
 │  │   Created: 2 hours ago | Retrieved: 5 times             │   │
 │  │   [View] [Delete]                                       │   │
 │  ├─────────────────────────────────────────────────────────┤   │
 │  │ ● "Never deploy on Fridays - learned the hard way"      │   │
-│  │   User: user_beaux | Layer: IDENTITY | Score: 1.0       │   │
+│  │   User: beaux | Layer: IDENTITY | Score: 1.0       │   │
 │  │   Created: 2 hours ago | Retrieved: 3 times             │   │
 │  │   [View] [Delete]                                       │   │
 │  ├─────────────────────────────────────────────────────────┤   │
 │  │ ● "Working on Engram memory infrastructure project"     │   │
-│  │   User: user_beaux | Layer: PROJECT | Score: 0.65       │   │
+│  │   User: beaux | Layer: PROJECT | Score: 0.65       │   │
 │  │   Created: 1 hour ago | Retrieved: 0 times              │   │
 │  │   [View] [Delete]                                       │   │
 │  └─────────────────────────────────────────────────────────┘   │
@@ -136,7 +136,7 @@ Inspect a single memory with full extraction data.
 │  │  METADATA                                               │   │
 │  │  ─────────────────────────────────────────────────────  │   │
 │  │  ID:          mem_abc123xyz                             │   │
-│  │  User:        user_beaux                                │   │
+│  │  User:        beaux                                │   │
 │  │  Layer:       IDENTITY                                  │   │
 │  │  Importance:  ████████░░ 0.82                           │   │
 │  │  Confidence:  ██████████ 1.0                            │   │
@@ -198,7 +198,7 @@ View all users and their memory stats.
 │  ┌───────────────────────────────────────────────────────────┐ │
 │  │  User ID       │ Memories │ Last Active │ Actions         │ │
 │  ├───────────────────────────────────────────────────────────┤ │
-│  │  user_beaux    │   847    │ 2 min ago   │ [View] [Export] │ │
+│  │  beaux    │   847    │ 2 min ago   │ [View] [Export] │ │
 │  │  user_alex     │   234    │ 1 hour ago  │ [View] [Export] │ │
 │  │  user_sam      │   156    │ Yesterday   │ [View] [Export] │ │
 │  │  user_jordan   │    42    │ 3 days ago  │ [View] [Export] │ │

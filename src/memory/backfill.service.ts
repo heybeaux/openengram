@@ -248,7 +248,7 @@ export class BackfillService {
 
   /**
    * Backfill user identity in memories by replacing generic references
-   * like "user_beaux", "User", "the user" with the actual name.
+   * like "beaux", "User", "the user" with the actual name.
    * 
    * This fixes old memories that were created before identity resolution was added.
    * 
@@ -268,7 +268,7 @@ export class BackfillService {
     // Patterns to replace - ordered by specificity (most specific first)
     // Note: We use negative lookahead/lookbehind to avoid matching within compound words
     const patterns: Array<{ pattern: RegExp; replacement: string }> = [
-      // user_beaux, user_123, etc. - specific external IDs
+      // beaux, user_123, etc. - specific external IDs
       { pattern: /\buser_\w+\b/gi, replacement: actualName },
       // "the user" with various cases (safe - already has word boundary)
       { pattern: /\bthe user\b/gi, replacement: actualName },

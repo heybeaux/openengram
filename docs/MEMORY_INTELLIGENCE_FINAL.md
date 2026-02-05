@@ -82,7 +82,7 @@ Classification happens during memory extraction. The existing LLM call is extend
 **Current Extraction Output:**
 ```json
 {
-  "who": "user_beaux",
+  "who": "beaux",
   "what": "prefers large oat milk latte every morning",
   "where": null,
   "when": "daily",
@@ -94,7 +94,7 @@ Classification happens during memory extraction. The existing LLM call is extend
 **New Extraction Output:**
 ```json
 {
-  "who": "user_beaux",
+  "who": "beaux",
   "what": "prefers large oat milk latte every morning",
   "where": null,
   "when": "daily",

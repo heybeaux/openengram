@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Delete,
   Param,
   Query,
   UseGuards,
@@ -57,5 +58,21 @@ export class DashboardController {
       throw new NotFoundException(`User ${id} not found`);
     }
     return user;
+  }
+
+  /**
+   * DELETE /v1/users/:id
+   * Delete a user and optionally their memories
+   */
+  @Delete('users/:id')
+  async deleteUser(
+    @Param('id') id: string,
+    @Query('deleteMemories') deleteMemories?: string,
+  ): Promise<{ deleted: boolean; memoriesDeleted?: number }> {
+    const result = await this.dashboardService.deleteUser(id, deleteMemories === 'true');
+    if (!result) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+    return result;
   }
 }
