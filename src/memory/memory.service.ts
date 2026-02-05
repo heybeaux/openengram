@@ -1147,7 +1147,7 @@ export class MemoryService {
     // Merge source metadata with lesson fields for rawJson storage
     const rawJsonData = {
       ...sourceMetadata,
-      ...(extracted.lesson ? { lesson: extracted.lesson } : {}),
+      ...(extracted.lesson ? { lesson: JSON.parse(JSON.stringify(extracted.lesson)) } : {}),
     };
 
     await this.prisma.memoryExtraction.create({
@@ -1160,7 +1160,7 @@ export class MemoryService {
         why: extracted.why,
         how: extracted.how,
         topics: extracted.topics,
-        rawJson: Object.keys(rawJsonData).length > 0 ? rawJsonData : undefined,
+        rawJson: Object.keys(rawJsonData).length > 0 ? (rawJsonData as any) : undefined,
         // Memory Intelligence: classification from LLM
         memoryType: extracted.memoryType,
         typeConfidence: extracted.typeConfidence,

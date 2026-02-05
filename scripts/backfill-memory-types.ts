@@ -18,6 +18,7 @@ const prisma = new PrismaClient();
 // Priority mapping
 const TYPE_PRIORITY: Record<MemoryType, number> = {
   CONSTRAINT: 1,  // Never evict
+  LESSON: 1,      // Mistakes/corrections - high priority
   PREFERENCE: 2,
   TASK: 2,
   FACT: 3,
@@ -139,6 +140,7 @@ async function main() {
   // Stats tracking
   const stats: Record<MemoryType, number> = {
     CONSTRAINT: 0,
+    LESSON: 0,
     PREFERENCE: 0,
     TASK: 0,
     FACT: 0,
