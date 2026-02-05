@@ -227,9 +227,12 @@ export class DashboardService {
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
-          select: { memories: true },
+          select: {
+            memories: { where: { deletedAt: null } },
+          },
         },
         memories: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: { createdAt: true },
