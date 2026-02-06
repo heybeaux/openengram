@@ -9,6 +9,11 @@ import { MemoryModule } from './memory/memory.module';
 import { AutoModule } from './auto/auto.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AgentModule } from './agent/agent.module';
+import { HierarchyModule } from './hierarchy/hierarchy.module';
+import { GraphModule } from './graph/graph.module';
+import { ReembeddingModule } from './reembedding/reembedding.module';
+import { EnsembleModule } from './ensemble/ensemble.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -30,6 +35,11 @@ import { AgentModule } from './agent/agent.module';
     AutoModule,
     DashboardModule,
     AgentModule,
+    HierarchyModule,
+    GraphModule,
+    ReembeddingModule,
+    EnsembleModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

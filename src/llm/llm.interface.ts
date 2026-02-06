@@ -9,7 +9,7 @@
  */
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'ollama' | 'lmstudio';
+  provider: 'openai' | 'anthropic' | 'ollama' | 'lmstudio' | 'local';
   model: string;
   apiKey?: string;
   baseUrl?: string;
@@ -83,6 +83,7 @@ export const DEFAULT_MODELS: Record<LLMConfig['provider'], string> = {
   anthropic: 'claude-3-5-sonnet-20241022',
   ollama: 'llama3.2',
   lmstudio: 'local-model',
+  local: 'bge-base-en-v1.5', // embedding-only provider
 };
 
 /**
@@ -90,5 +91,5 @@ export const DEFAULT_MODELS: Record<LLMConfig['provider'], string> = {
  */
 export const DEFAULT_EMBEDDING_MODELS: Record<string, string> = {
   openai: 'text-embedding-3-small',
-  // Others don't have standard embedding models
+  local: 'bge-base-en-v1.5', // 768-dim local embeddings via engram-embed
 };

@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ExtractionService } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
+import { TemporalParserService } from './temporal/temporal-parser.service';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { ImportanceHint, MemoryLayer, MemorySource } from '@prisma/client';
 
 describe('MemoryService', () => {
@@ -12,6 +14,8 @@ describe('MemoryService', () => {
   let mockExtraction: jest.Mocked<ExtractionService>;
   let mockEmbedding: jest.Mocked<EmbeddingService>;
   let mockImportance: jest.Mocked<ImportanceService>;
+  let mockTemporalParser: jest.Mocked<TemporalParserService>;
+  let mockHierarchyService: jest.Mocked<HierarchyService>;
 
   const mockMemory = {
     id: 'mem-123',
@@ -104,6 +108,25 @@ describe('MemoryService', () => {
       applyDecay: jest.fn(),
     } as any;
 
+    mockTemporalParser = {
+      parse: jest.fn().mockReturnValue({
+        temporalFilter: null,
+        semanticQuery: 'test query',
+      }),
+      blendScores: jest.fn().mockImplementation((semantic, temporal, importance) => semantic + importance),
+      computeTemporalScore: jest.fn().mockReturnValue(0.5),
+    } as any;
+
+    mockHierarchyService = {
+      isEnabled: jest.fn().mockReturnValue(false),
+      processMemory: jest.fn().mockResolvedValue({
+        memoryId: 'mem-123',
+        unitsCreated: 0,
+        levels: [],
+        units: [],
+      }),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MemoryService,
@@ -111,6 +134,8 @@ describe('MemoryService', () => {
         { provide: ExtractionService, useValue: mockExtraction },
         { provide: EmbeddingService, useValue: mockEmbedding },
         { provide: ImportanceService, useValue: mockImportance },
+        { provide: TemporalParserService, useValue: mockTemporalParser },
+        { provide: HierarchyService, useValue: mockHierarchyService },
       ],
     }).compile();
 

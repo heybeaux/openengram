@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MemoryService } from './memory.service';
 import { MemoryController } from './memory.controller';
 import { ExtractionService } from './extraction.service';
@@ -8,9 +8,10 @@ import { BackfillService } from './backfill.service';
 import { ConsolidationService } from './consolidation.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { LLMModule } from '../llm/llm.module';
+import { HierarchyModule } from '../hierarchy/hierarchy.module';
 
 @Module({
-  imports: [LLMModule],
+  imports: [LLMModule, forwardRef(() => HierarchyModule)],
   controllers: [MemoryController],
   providers: [
     MemoryService,

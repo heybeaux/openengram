@@ -12,6 +12,7 @@ import { OpenAIProvider } from './providers/openai.provider';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { OllamaProvider } from './providers/ollama.provider';
 import { LMStudioProvider } from './providers/lmstudio.provider';
+import { LocalProvider } from './providers/local.provider';
 
 /**
  * LLM Service
@@ -75,6 +76,14 @@ export class LLMService {
       provider: 'lmstudio',
       model: llmProvider === 'lmstudio' ? llmModel : 'local-model',
       baseUrl: lmstudioUrl,
+    }));
+
+    // Local embedding server (engram-embed, no API key needed)
+    const localUrl = this.config.get<string>('LOCAL_EMBED_URL') || 'http://127.0.0.1:8080';
+    this.providers.set('local', new LocalProvider({
+      provider: 'local',
+      model: 'bge-base-en-v1.5',
+      baseUrl: localUrl,
     }));
 
     // Set default providers

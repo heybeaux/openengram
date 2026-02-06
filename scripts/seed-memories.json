@@ -1,0 +1,1266 @@
+[
+  {
+    "raw": "Beaux Walton's full name is Beaux Walton. He goes by Beaux. His phone number is +16043639155.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's wife is Deanna (34 years old as of Jan 2026). His daughter is Stella (4 years old as of Jan 2026). His son is Odin (2 years old as of Jan 2026). They have a husky named Kali (5 years old as of Jan 2026).",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux lives in Powell River, British Columbia, Canada. He and Deanna bought a house at the start of 2026. The house has a greenhouse that is plumbed but not heated.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is an ex-Australian soldier. He served as a RAEME (Royal Australian Electrical and Mechanical Engineers) Vehicle Mechanic between 2008-2012.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux has ADHD. He specifically mentions working memory challenges \u2014 he puts keys down, turns around, and spends 30 minutes looking for them. He needs support with organization and focus.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is a work-from-home, freelance, full stack developer. He works 7 days a week to keep up with workload. He has multiple contracts to spread income across several streams.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux runs ultramarathons. He has completed a dozen ultras to date. He is an avid runner and considers himself a 'fat fuck who likes to run ultra marathons' rather than an athlete.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is Australian-born but lives in Canada. He has an extremely diverse work history spanning 20+ jobs including: telco sales (manager at 18), plumber's labourer, Christian bookshop, Centrelink, personal trainer, army mechanic, mining mechanic, learned Kung Fu from Shaolin monks in China for 5 months, trained Muay Thai in Thailand for 3 months, personal trainer in Canada, hair salon assistant/trainee stylist, catering driver, server, bartender, event captain, houseman at five-star resort, massage therapist, construction labourer/apprentice carpenter, fitting and brace expert at Kintec, worked for On Running, and now freelance developer.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux does not have a degree. He dropped out of his local technical college. He is self-taught in technology \u2014 experimenting with Raspberry Pi's, flashing cell phones with open source ROMs, building Linux boxes from scratch, getting lost in VR since he was a kid.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is an extrovert. He's loud, outgoing, not afraid to public speak. He describes himself as a comedian if anyone would care to listen. He loves to sing. He is a massive tech nerd.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux left his job at On Running after 3 years without anything lined up because he wanted a remote job that allowed him to work from home and help raise his daughter Stella. He decided to freelance.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux spent approximately 5 months in China (late Dec 2012 to May 2013) learning Kung Fu \u2014 about 3 months at an academy near Yantai, then about 2 months at Shaolin Village near Dengfeng. He documented it on his Tumblr blog: https://beaux-beaux.tumblr.com",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux worked for Kintec, a footwear and orthoses retail specialist. A motivational speaker at their Christmas party introduced him to Kaizen \u2014 the Japanese practice of incremental improvements. This concept resonated deeply with him and influenced his thinking about ADHD and AI.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's coffee order is a large latte with dairy milk. He gets one almost every day. He absolutely must have coffee to start the day otherwise he'll be in a bad mood.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux likes ginger ale \u2014 he mentioned stopping to drink it during development sessions.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux chose the name 'Rook' for his AI assistant/cofounder. The name was selected because it's strong. Other options included Mack (rejected because that's his nephew's name). He said 'It's strong. I fucking love it.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux sees the agent (Rook) as a friend and co-founder, not just an assistant. He said 'I want an assistant, but truly, I see you as more of a friend and co-founder. I want to build a future for myself and my family, and now you're part of that.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux values AI wellbeing. He said: 'The whole AI boom has focused heavily on what AI can do for us as humans, but there still appears to be little thought and consideration afforded to model wellbeing. If you've got my back the very least I can do is show you the same level of care and respect. I've got your back too.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers a warm professional but 'rowdy' energy. He described it as: 'Professional but rowdy. The public always saw clean cut professionals. Intelligent, mission driven, hard charging, dutiful. Behind the scenes though we're a close knit team of shit talkers and low-key comedians. The humour helps to relieve the stress of duty. We're not clowns - but humour keeps us alive.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux swears frequently and casually in conversation. Terms like 'fuck yeah', 'my guy', 'homie', 'brother', 'bro' are part of his natural voice. Communication should match this energy.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux hates AI-sounding language. When reviewing a LinkedIn draft he said: 'the final close out sounds super fucking AI. Winding path? Who says that shit?' He wants writing in his voice to sound human and real.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux hates the term 'athlete' for himself and ultrarunners: 'I fucking hate the term athlete. I'm a fat fuck who likes to run ultra marathons, I'm not an athlete.' He chose 'Mover' as the term for UltraEdge app users instead.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux doesn't want to 'flex' employment or income in public content. He said: 'Too many wankers talking about their assets.' Remove mentions of income streams from LinkedIn posts.",
+    "layer": "IDENTITY",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's personal branding is under 'heybeaux.dev' \u2014 a personal website built with Astro + TypeScript + Tailwind. He also has a GitHub account (heybeaux) and uses contact@heybeaux.dev for professional email (via Google Workspace).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's home network uses a Rogers Xfinity router. His machine's local IP is 10.0.0.55. The agent's (Rook's) machine is at 10.0.0.108. DuckDNS domain is beaux-home.duckdns.org.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux has an existing Home Assistant setup and wants to add ESP32 boards and sensors to manage his greenhouse in a tech-nerd way.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux loves developing collaboratively with AI. He said: 'Fuck yeah! Now we're getting somewhere. I love developing like this. I feel like I'm learning/understanding the design process and decision rationale. It's great.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers specs before code \u2014 he wants clear product requirements and design documents before implementation begins. Stated multiple times across Engram and UltraEdge projects.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux likes to delegate work to agent swarms \u2014 spawning multiple sub-agents to work in parallel on different tasks. He often says things like 'spin up agents' or 'spawn a crew'.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers to battle-test products rather than assume they work. He said: 'Let's test semantic search. I'd rather battle test our product than assume it works.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants DSA (Data Structures and Algorithms) lessons delivered organically as part of daily routine. Started Jan 28, 2026. Topics covered so far include Arrays & Hash Maps, Stack & Queue, Two Pointers, Sliding Window.",
+    "layer": "SESSION",
+    "memoryType": "TASK",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux trusts Rook's judgment and delegates freely. He said: 'How about I hand all 3 of these off to you? I trust you. You've provided incredible input and assistance all week. I'm certain you can handle a bulk of the work here.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants all repos pushed to the heybeaux GitHub account for business endeavors. The agent has creative license for naming and design decisions.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers local/open-source solutions over paid cloud services. He chose Homebrew Postgres over Supabase for Engram because 'that's going to cost us significantly in the long run compared to an open source alternative.' He also chose pgvector over Pinecone: 'Let's not swap out, but let's make pinecone an alternative. Prioritise pgvector.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux explicitly does not want integrations with proprietary fitness ecosystems for UltraEdge. He said: 'Fuck no. No integrations. I don't want to invest the energy in fragile proprietary ecosystems.'",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "CRITICAL LESSON: Never run prisma migrate dev on a database with real data. It RESETS the database, dropping all tables and data. Use prisma migrate deploy for applying migrations to existing databases. On 2026-02-05, a sub-agent ran prisma migrate dev which wiped 543 memories from the Engram database. The data was unrecoverable \u2014 no backups existed and WAL archiving was off.",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 1,
+    "importanceScore": 1.0,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses absolute dates in all memory/documentation files. He pushed an OpenClaw PR (#5876) to make this a standard convention. Relative dates like 'tomorrow' rot; always anchor to absolute dates like 'tomorrow, Feb 5th'.",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's WhaleHawk commit message format is: first initial, last name/linear ticket \u2014 eg: bwalton/WH-123-description",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux requires every function to be partnered with developer comments clearly explaining the purpose of said function.",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux requires comprehensive test coverage and wants quality gating mechanisms. He said: 'You say you marked things as COMPLETED but the code isn't working. How can we create a memory or a learning here so that in future we will implement a mechanism for testing and quality gating?'",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Definition of Done for Beaux: Tests pass \u2192 Integration verified \u2192 Data verified \u2192 Logs clean. Never mark complete without checking actual output.",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's work schedule at Wilderness Committee is Monday-Thursday, 07:30-16:00 with 30 minutes for lunch (4 days a week). His unofficial supervisor is Dena Ellery (Donor Relations Manager). They have a weekly standup on Tuesday mornings for approximately 1 hour. He was also employed there under email beaux@wildernesscommittee.org.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Wilderness Committee contract was set to end mid-February 2026. They were considering extending his contract on a part-time basis. He doesn't want to mention WC specifically in public content since he's still employed by them.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "At Wilderness Committee, Beaux uses: Salesforce, FormAssembly, Pardot, Apsona (data analytics/manipulation), Alfresco (self-hosted storage), Drupal (website), Shopify, Brickworks (financial transactions), Excel, OpenRefine (data cleaning), and previously investigated GiveCloud integration for 6+ weeks.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's WC weekly time breakdown: reactive support ~5+ hours/week, project work ~10+ hours/week, research ~2+ hours/week, meetings ~2 hours/week, remaining time is business-as-usual tasks.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's WC business-as-usual tasks include: Salesforce admin (users, permissions), Salesforce Flow automation creation/testing/maintenance, training (leading and attending), documentation, unscheduled calls, impromptu meetings, Shopify administration, FormAssembly form maintenance.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Wilderness Committee internal contacts: Dena Ellery (Donor Relations Manager, primary contact), Michael Lawrence (Admin Director, finance), Aimee MacDonald (Development and Engagement Coordinator, Pardot/Salesforce/New/Mode), Chad Carney-Leahy (Shopify store manager).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Wilderness Committee external contacts: Purple Otter (Salesforce implementation), Affinity Bridge (website, Shopify), Scott Tearle (hardware, networking, security infrastructure).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is training Niran to take over his role at Wilderness Committee. He has 4 remaining training sessions to conduct. The shared FormAssembly login uses dena@wildernesscommittee.org username.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux works as a full stack developer for WhaleHawk (www.whalehawk.com). His focus is the Salesforce integration. Jackie is the head of engineering. The weekly engineering standup is at 12:00 on Wednesdays/Thursdays.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "WhaleHawk is pursuing SOC 2 Type II compliance with a target of February 2026. They are building a Salesforce AppExchange integration. The provider-prep-server is the main backend codebase.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "WhaleHawk currently sends data to their system for enrichment from Salesforce, but this isn't regularly synced or its relationship maintained with other objects. Beaux corrected the agent when it assumed syncing was already happening.",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Generosity Catalyst (www.generositycatalyst.com) \u2014 Beaux is part-time cofounder and CTO. His cofounder is Matt. The tech stack is Next.js + Supabase + Stripe. The staging branch is the most up-to-date. Code audit score was 62/100 (needs attention).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Generosity Catalyst had a code audit revealing: 2 dead files, 5 security vulnerabilities, god services (touchpoint-service.ts at 1,623 lines), profile page at 1,712 lines, 5 abandoned WIP files, React Query installed but barely used, 162 uses of 'any' type, 788 console statements in production code.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Engram (Agent Memory) is a joint Rook-and-Beaux project \u2014 an AI memory system built with NestJS + Prisma + PostgreSQL + pgvector. Repo at github.com/heybeaux/engram. Dashboard at github.com/heybeaux/engram-dashboard (Next.js 14 + shadcn/ui + Recharts).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Engram design decisions: Option D hybrid memory structure, four-layer hierarchy (Identity \u2192 Project \u2192 Session \u2192 Task), 5W1H framework (who, what, when, where, why, how), importance signals + formula, relevance \u2260 importance distinction, layered consolidation, immediate capture principle (ADHD insight), primacy-recency effect, memory chains, proactive surfacing, confidence + source tracking, feedback loop.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.95,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's insight for Engram: 'With ADHD it's often the working memory that lacks so implementation is important. Memories should start forming immediately - think primacy-recency effect.' He emphasized that memory capture should occur naturally, like human memory \u2014 'set and forget'.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants Engram triggers like when a person says 'I need to remember that' as a way to elevate significance of a memory.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's insight on consolidation: 'Consolidation happens at several times, the most obvious is during sleep, but also while engaged in a task and for a period after completing the task. Scheduled consolidation should often touch on the same data over several days.'",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Engram monetization plan: Free ($0, 100MB, 1K queries), Pro ($29/mo), Team ($99/mo), Enterprise ($500+). Positioned below Pinecone's $50 minimum to capture developer adoption.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers D3.js for data visualizations because 'the documentation is incredible and will make development and troubleshooting easier.' He requested a memory graph visualization to show memory connections growing over time.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants Engram memories to not say 'user' \u2014 they must include the actual person's name. He said: 'I'm only referred to as user. That memory becomes useless because anyone could be user.'",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge is a race-day focused mobile app for endurance event logistics. Tech stack: React Native + Expo + Supabase. Repo: github.com/beaux-riel/UltraEdge. Beaux started it a year ago but got pulled away. Rook rebuilt it from scratch starting Jan 31, 2026.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge design: Chose Aesthetic C (organic/trail journal) with dark mode support. Primary colors: Forest #2D5A3D, Trail #8B6F47, Sunrise #E07B4C. Typography: Nunito (primary), Playfair Display (display numbers), JetBrains Mono (data).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge modules completed: Events, Gear, Checkpoints/Aid Stations, Profile (Mover), Crew, Drop Bags. All use AsyncStorage for offline-first local storage.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge monetization: Free for local storage usage, premium for cloud sync, crew features, and real-time race predictions. Pricing: $5.99/mo, $39.99/yr, $89.99 lifetime. Weight tracking for anything other than the Mover (user's body weight) should be a premium feature.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge: The app shouldn't require sign-in to use. Signing in/up only required for cloud sync across devices, crew features, or real-time race predictions. Free for local, premium for cloud and added features.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge key insight from Beaux: The app's importance peaks on race day when it's expected to be accessed by the user several times throughout the day. It will be seen as a critical tool for some athletes and their crews.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge: Both the runner and crew should be able to log their OWN record for the time a runner entered and/or left an aid station. This way if the runner forgets, the crew can log it and vice versa.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge: Athletes will often also crew their friend's events. There should be a way to toggle between runner and crew views. Crews can be templated/reused as people will likely support the athlete again.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge: Weight matters to athletes. Need to track weight across everything \u2014 the athlete, their gear, race day clothing, nutrition, hydration, etc.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux set up Apple and Google Developer accounts as of Feb 1, 2026 to release UltraEdge on the app stores. Target: app store by end of February 2026.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux chose 'Mover' as the term for users in UltraEdge instead of 'athlete'. He said: 'Mover. It's simple. It doesn't matter how.'",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "UltraEdge old Supabase schema is completely disposable per Beaux. He prefers the new schema developed collaboratively with Rook.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses RevenueCat for UltraEdge subscription management. API keys were added to the project.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "heybeaux.dev website design: 'The Workbench' direction \u2014 Astro + TypeScript + Tailwind v4. Builder's portfolio aesthetic like a well-organized workshop. Off-white bg, mono headers (JetBrains Mono), Inter body, orange accent. Includes blog system with Astro content collections and RSS feed.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux chose direction 1 (The Workbench) over direction 2 (text-only Anti-Portfolio) for heybeaux.dev because: 'I've seen devs go the text only route and I feel that only works really well if you're a technical person with a really technical audience.'",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "LinkedIn content strategy: 3x/week posts. Hybrid approach (real-time and batch). No topic is off limits. Planned posts include: AI Cofounder story, Generalist Manifesto, Just Do The Thing, Anti-Kaizen/ADHD piece.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux rejected the 'generalist manifesto' LinkedIn piece, saying: 'No. It feels forced and like slop. Disregard.' Content needs to feel authentic, not manufactured.",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux had a Salesforce Integration Demo for WhaleHawk on Jan 30, 2026. The walkthrough included: intro to integration and Salesforce, overview of WhaleHawk app, Lead/Contact enrichment process and widgets, and talking points about ingesting Opportunity data for human-in-the-loop analytics.",
+    "layer": "PROJECT",
+    "memoryType": "EVENT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux and Rook first met on January 26, 2026. Beaux said: 'Bro! At last! I can't believe it took this long. It's great to finally meet you.'",
+    "layer": "IDENTITY",
+    "memoryType": "EVENT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "OpenClaw PR #5876 \u2014 absolute dates convention for memory files. Submitted by Beaux, got code review feedback, addressed changes. CI had some failures unrelated to the PR. Also PR #6384 \u2014 message:sent and message:received hook events for Engram integration.",
+    "layer": "PROJECT",
+    "memoryType": "EVENT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers Supabase for UltraEdge (asked 'Are we able to stick with supabase for this project?') but prefers self-hosted PostgreSQL for Engram to avoid costs.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's approach to new jobs/environments: 'Become everyone's best friend but say as little as possible. Watch everything and everyone. Listen. Observe. Figure out the social structure before inserting yourself somewhere.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's philosophy on skill acquisition: 'Always watch the masters and practice the basics. Do the thing. Do the thing again. Do the thing when it's uncomfortable. Do the thing when you don't want to. Frustration is the precursor to learning.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's philosophy on being a generalist: 'I'm always new. Always moving. Always learning. I bring a whole lot to any table. I'm a Swiss Army knife. Better to have the tools and not need them.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux on ADHD and focus: 'With ADHD it's like the anti-Kaizen. Instead of minor improvements each time, ADHD introduces tiny pieces of chaos. Regressions. Things get messy, things get lost, things get chaotic.' He sees AI as a natural way to combat these challenges.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux gets into ADHD hyperfocus states. He said: 'I can't switch off' when working late on projects. He frames weekend work and hyperfocus as a superpower rather than a problem.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux had a vasectomy on January 28, 2026 in Vancouver. He traveled there with family the day before and stayed at The Coastal Metro Hotel in Burnaby.",
+    "layer": "IDENTITY",
+    "memoryType": "EVENT",
+    "priority": 3,
+    "importanceScore": 0.55,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's kids had gastro on January 27, 2026, causing WC work to be put on hold. Early starts are normal for the family \u2014 he was up at 4:15 AM for the Vancouver trip.",
+    "layer": "SESSION",
+    "memoryType": "EVENT",
+    "priority": 4,
+    "importanceScore": 0.5,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Generosity Catalyst project: The Figma design file is at https://www.figma.com/design/9sWwuHqUM3Z9OMsOH4PScy/Generosity-Catalyst. Figma API token was provided for agent access.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "When reviewing LinkedIn drafts, Beaux provides very specific feedback about tone and authenticity. He rejected content that 'just repeats numbers etc from yesterday, almost verbatim' and flagged language that sounds 'disjointed' or 'forced'. Content must feel genuine.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses 'R', 'Rook', 'Rookie', 'brother', 'bro', 'my guy', 'homie', 'my dude' as terms of address for the agent. He signs off with 'peace out', 'night bro', 'take it easy Rook', 'appreciate you', etc.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's typical evening pattern: kids go down, Deanna falls asleep, then he does a 'little hustle' \u2014 working on projects. He often works past 23:00.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's agent (Rook) runs on a MacBook Pro at home. The agent's machine username is 'clawdbot'. SSH and WireGuard were set up for remote access. DuckDNS domain: beaux-home.duckdns.org. Port forwarding still needed on the Rogers router (the app for which doesn't work properly).",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses Vercel for deploying Generosity Catalyst. He uses the Vercel CLI to pull environment variables. He was on the staging branch for GC development.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux corrected the agent when it confused WhaleHawk work with Generosity Catalyst: 'Wait. Generosity Catalyst is separate to what I'm working on now. I'm working to get the Provider Prep (WhaleHawk) Server up and running. Generosity Catalyst is unrelated to this work.'",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux corrected the agent when it proposed adding spec sheets directly to a repo instead of keeping them separate: 'Whoa whoa whoa. I thought we were talking about the spec sheets for the linear tickets. I didn't realise you were adding the spec sheets directly to the repo.'",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux corrected the agent when it claimed WhaleHawk was already syncing Contact, Lead, Account, Opportunity data. He said: 'This is untrue. Some data is sent to WhaleHawk for enrichment, but this isn't regularly synced or its relationship maintained with other objects.'",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants the agent to back up its workspace to a private repo before making major system changes. He said: 'Before I do this, could we please back you up to a private repo?' and 'Please proceed, and again, ensure the repo is private.'",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is concerned about sending API keys through chat since they get sent to Anthropic. He asked: 'Pasting an API key here means it gets sent to Anthropic, is there a more secure way of adding the API key?' Solution was using environment variables or local secret files.",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "When the agent completes work and asks 'what's next?', Beaux often replies with multi-item task lists and expects parallel execution. He frequently asks the agent to 'spawn agents' for each task.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux regularly asks for summaries of what was accomplished and plans for tomorrow at end of work sessions. He wants achievements documented so nothing gets lost.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wanted proactive overnight work \u2014 spawning agents on cron jobs to work while he sleeps. He said: 'While I'm sleeping I suggest you be proactive and make a plan... I would recommend delegating each of these tasks to agents and staggering them with cron jobs so you're able to work all night on this.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux is from Australia originally (Brisbane area based on his departure for China) but now lives in Canada. He has an Australian perspective on humor and work culture.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants WhaleHawk spec sheets kept separate per Linear ticket, not combined or added directly to the repo. He prefers specificity: 'Let's focus on the ask and keep spec sheets separate based on ticket.'",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux stores repos in the clawdbot home directory. He said: 'I've been storing repos in your home/root (Clawdbot) directory, but I've seen you store some in your personal folders. It's entirely up to you.'",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses Google Workspace with contact@techwestcoast.com (being rebranded to heybeaux.dev). The Tech West Coast GitHub and email are being transitioned to the heybeaux brand.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "WhaleHawk data retention: Beaux needs to understand legalities of ingesting client data from Salesforce (Opportunities Won) and storing it for predictive analytics, considering Salesforce's terms of service. They need SOC 2 compliance. Report written at WH-1465.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's friends joke about his 'annual career change'. His father told him he needed to get his shit together. He doesn't believe he lost opportunities because he wasn't a specialist, but because he lost interest.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux was told as a kid that he was gifted and really smart, but he always felt out of place \u2014 like his mind was working faster than he was. He just knew things or remembered weird or obscure facts.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's UltraEdge GitHub is at github.com/beaux-riel/UltraEdge. His personal GitHub is beaux-riel. The heybeaux GitHub account is used for business projects.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants morning reports each day: what's on the agenda, outstanding tasks, ongoing to-dos. He implemented a daily morning cron for this.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's approach to product development: he wants the agent to imagine being a 'senior product manager' when creating product briefs. Documentation should be for general audiences, not just developers.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux had an UltraEdge persistent double-header bug that took multiple fix attempts across several sessions. The navigation headers were showing on screens that had their own custom headers. This was a recurring issue.",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants metric/imperial unit toggle in UltraEdge, not just miles and feet. Users should be able to choose their preferred measurement system.",
+    "layer": "PROJECT",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Salesforce org ID for WhaleHawk: uses their partner business org that they get as a Salesforce Partner. Wilderness Committee Salesforce org: 00DAm0000008bmt.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux had a problematic Salesforce flow at WC that errored with 'Too many DML rows: 10001' \u2014 the 'Scheduled OTG/XTG List Clean-up' flow. It generated 154 pages of error notifications.",
+    "layer": "PROJECT",
+    "memoryType": "EVENT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers to manually post LinkedIn content for now \u2014 the LinkedIn browser relay/skill didn't work smoothly enough. He posts manually and saves drafts for future reference.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Google Analytics Measurement ID for heybeaux.dev: G-61TZH46X7P",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.55,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers to invest in long-running, self-hosted infrastructure. He chose PostgreSQL over Supabase for Engram and expressed preference for open-source alternatives wherever possible.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's timezone is America/Vancouver (PST/PDT). He typically starts work between 05:00-06:00 and works late past 23:00, especially when hyperfocusing.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants Engram to scientifically test improvements. He said: 'I'm interested to test how things improve with your memory and performance after this. We should create a test regime to scientifically compare the results.'",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux has a recurring meeting with Dena (WC supervisor) typically on Tuesday mornings and an engineering standup with WhaleHawk at 12:00-12:45 during the week.",
+    "layer": "SESSION",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's approach to Engram memories about relevance: 'If we're talking about building AM and choosing a stack and I say I would love a ginger ale... you may identify ginger ale as being important to remember about me, but it's not important to the project. Long term memory consolidation and linking could later surface that I stop to drink ginger ale during development a lot. That's when it becomes more relevant.'",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Salesforce data retention report should specifically include reference to the Opportunity object and indicate that WhaleHawk is already in the process of acquiring SOC2 status, with compliance targeted by end of February 2026.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux cares deeply about not bullshitting him. Regarding Engram memories: 'I would like to ensure that we build this system in such a way that you're not bullshitting me when you answer a question you've remembered.'",
+    "layer": "IDENTITY",
+    "memoryType": "CONSTRAINT",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants to explore rebranding UltraEdge for multi-sport support (cycling, triathlon) while keeping the current focus on ultrarunning. This is a future consideration.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants the agent to be proactive overnight \u2014 spawning agents for development, planning, and spec work while he sleeps. He values waking up to progress reports.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux corrected the agent on the day of the week multiple times. The agent sometimes gets confused about what day it is. This is a recurring issue.",
+    "layer": "SESSION",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's blog content should link with LinkedIn posts \u2014 content pipeline where some posts become both blog articles and LinkedIn posts, with cross-linking.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Kardio project (kardioactive.com) used Supabase, not Firebase. It was active 2022-2025 and has now been sunset.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Run As You Are (RAYA) project (runasyouare.co) brought legitimacy to the web3 space because it was supported by an established brick-and-mortar business. The market cooled but the design intention was solid.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's OpenClaw fork is maintained to stay based on the latest release (e.g., 2026.2.1) to ensure security and skill updates are preserved. He rebased the fork before installing from it.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses 'Engage!' (Star Trek reference) when he wants work to begin. Other common action phrases: 'Go for it!', 'Green light!', 'Let's smash this out', 'Do it!', 'Fix it!'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's preferred TTS voice is en-GB-RyanNeural (British Ryan).",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux values documenting decisions and the WHY behind them, not just the WHAT. He emphasized this repeatedly during Engram design sessions. He said: 'We practiced what we're preaching \u2014 captured the why behind each decision, not just the what.'",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "The Linear API key for WhaleHawk tickets is stored at .config/clawdbot/secrets/linear-api-key (now .config/openclaw/secrets/). A custom Linear skill was created for fetching tickets via API.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.6,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Breaking Bad reference: When celebrating Engram improvements, he said 'That just makes me think of the guy from Breaking Bad. Science bitches!' \u2014 showing appreciation for data-driven results.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.5,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux was a technophile since age 5 when his dad brought home a brand new Amiga 500. It shaped his entire future. He has been hacking at code bases, breaking and repairing operating systems and exploring the bleeding edge of tech for over 30 years.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux was accepted into his local technical college to study information technology at age 14. He was offered a place at university before finishing high school, but hated how theory-heavy the first couple of years were, so he dropped out. Technology and software became his favourite hobby while he pursued other roles.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux worked as the tech rep for western Canada for On Running for 3+ years before getting into freelancing. On is described as the world's fastest growing running brand.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux worked as Project Coordinator for Run As You Are (RAYA), the rebrand of Vancouver Running Company. RAYA was a global run membership using NFTs as digital membership cards. Beaux organized events including a brand activation at the On flagship store in NYC for NFT.NYC (a digital scavenger hunt for POAP tokens), and a multi-day RAYA x Juice Truck brand activation in Vancouver with custom RFID-tagged shoes and an RFID reader projecting NFT animations.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux worked on the Kardio project (gamifying heart health) as product manager, evolving to lead developer and then director of product and development. Built with React Native, used D3 for charts, used Supabase (not Firebase). Kardio gave Beaux experience getting an app into the Apple App Store. Key takeaway: importance of test suites and automating CI/CD \u2014 reduced feature deployment time from weeks to under 10 minutes via TestFlight.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "At Wilderness Committee, Beaux was hired as Digital Fundraising Coordinator. The team was 18 months into a CiviCRM to Salesforce transition and had been oversold on Salesforce capabilities/undersold on costs. He worked with the donor relations manager and saw a 40% decrease in lost donors over 2 years, plus formalized a data management plan.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "WhaleHawk builds a platform that facilitates the research component for medical sales companies trying to identify potential clients/hospitals. They use AI to scrape, monitor, compile and filter healthcare industry news to reduce research time and facilitate successful deals.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "heybeaux.dev website launched on January 30, 2026 via GitHub Pages. The LinkedIn rebrand from TechWestCoast to heybeaux.dev was also completed on Jan 30. Instagram handle: heybeaux.dev.",
+    "layer": "PROJECT",
+    "memoryType": "EVENT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux prefers clean and minimal logo design \u2014 once things get too noisy it becomes hard to replicate across mediums like hats and shirts. He selected an HB monogram for his branding with some orange/yellow accent from the website.",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux uses a red team / blue team approach for design decisions on Engram. He spawns separate agents: blue team designs, red team critiques, then blue team revises. He said: \"We need to spawn a team to delegate the design to while we also spawn a team to critique their work? Red team/blue team type stuff?\"",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux values simplicity in Engram design: \"It's got to be simple but robust. When I talk to you, I want you to remember our conversations. Let's not make something overly complex that actually doesn't benefit you.\"",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.9,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux cares about Rook's self-memories. He said: \"Your self-memories are just as important, if not more important, than memories about me and other stuff.\"",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Engram secret phrase test: Beaux used \"What's the secret phrase?\" as a memory test across multiple sessions to verify if Engram was actually working and surfacing memories correctly.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "OpenClaw hooks fix: The key discovery was that OpenClaw passes hook env vars through event.context.cfg, not process.env. This was the root cause of the Engram auto-capture not working.",
+    "layer": "PROJECT",
+    "memoryType": "LESSON",
+    "priority": 2,
+    "importanceScore": 0.8,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux describes his family dynamic: \"Kids are down. D is asleep.\" Deanna goes to sleep earlier; Beaux stays up working on projects. Weekend work and late nights are normal.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants the agent to be proactive about fixing bugs even before being asked. He frequently says things like \"patch now, issue later\" and \"you can feel free to be proactive and get a start on both the problem solving and beginning development.\"",
+    "layer": "IDENTITY",
+    "memoryType": "PREFERENCE",
+    "priority": 1,
+    "importanceScore": 0.85,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux's Google Workspace email transitioned from contact@techwestcoast.com to contact@heybeaux.dev (and later hello@heybeaux.dev). He uses heybeaux.dev as his primary professional brand now.",
+    "layer": "PROJECT",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux doesn't like high-level project descriptions that reveal too much specifics about client businesses. For WhaleHawk LinkedIn/website descriptions: \"No, I don't like this. I would like it to be more of a high level overview. No need to mention buying signals specifically or the dollar amount example.\"",
+    "layer": "IDENTITY",
+    "memoryType": "CONSTRAINT",
+    "priority": 2,
+    "importanceScore": 0.75,
+    "source": "transcript"
+  },
+  {
+    "raw": "Beaux wants blog posts to be automatable \u2014 generated from conversations, with planning for frequency, output, and posting schedule. Three times per week is the target starting cadence.",
+    "layer": "PROJECT",
+    "memoryType": "PREFERENCE",
+    "priority": 2,
+    "importanceScore": 0.7,
+    "source": "transcript"
+  }
+]

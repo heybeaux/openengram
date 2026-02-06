@@ -79,12 +79,18 @@ export class MemoryController {
   async getGraph(
     @UserId() userId: string,
     @Query('limit') limit?: string,
+    @Query('includeAgent') includeAgent?: string,
   ): Promise<{
     nodes: any[];
     edges: any[];
     entities: any[];
+    stats?: { human: number; agent: number };
   }> {
-    return this.memoryService.getGraphData(userId, limit ? parseInt(limit, 10) : 500);
+    return this.memoryService.getGraphData(
+      userId, 
+      limit ? parseInt(limit, 10) : 500,
+      includeAgent === 'true',
+    );
   }
 
   /**

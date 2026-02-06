@@ -19,6 +19,6 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'X-AM-API-Key', 'X-AM-User-ID', 'x-api-key'],
   });
   
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();

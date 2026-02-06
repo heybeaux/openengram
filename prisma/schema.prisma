@@ -37,6 +37,11 @@ model User {
   projects   Project[]
   sessions   Session[]
   agent      Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  // Semantic Memory Graph relations
+  graphEntities     GraphEntity[]
+  graphRelationships GraphRelationship[]
+  graphMentions     GraphEntityMention[]
 
   @@unique([agentId, externalId])
   @@map("users")
@@ -141,6 +146,11 @@ model Memory {
   chainTargets     MemoryChainLink[]      @relation("ChainTarget")
   entities         MemoryEntity[]
   extraction       MemoryExtraction?
+  hierarchyUnits   HierarchyUnit[]
+  
+  // Semantic Memory Graph relations
+  graphMentions    GraphEntityMention[]
+  graphEntityFirstSeen GraphEntity[] @relation("GraphEntityFirstSeen")
 
   @@index([userId, layer])
   @@index([userId, createdAt])
@@ -396,4 +406,202 @@ enum WebhookEvent {
   CONTRADICTION_DETECTED
   PATTERN_DETECTED
   CONSOLIDATION_COMPLETE
+}
+
+// ============================================================================
+// SEMANTIC MEMORY GRAPHS (Phase 0/1 MVP)
+// ============================================================================
+
+/// GraphEntity represents a semantic node in the knowledge graph
+/// Examples: people, places, organizations, concepts
+model GraphEntity {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String
+  type            GraphEntityType
+  aliases         String[] @default([])
+  description     String?
+  metadata        Json     @default("{}")
+  mentionCount    Int      @default(1) @map("mention_count")
+  firstSeenMemoryId String? @map("first_seen_memory_id")
+  embeddingId     String?  @unique @map("embedding_id") // Pinecone vector ID
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstSeenMemory Memory?  @relation("GraphEntityFirstSeen", fields: [firstSeenMemoryId], references: [id], onDelete: SetNull)
+  outgoingRelationships GraphRelationship[] @relation("GraphRelationshipSource")
+  incomingRelationships GraphRelationship[] @relation("GraphRelationshipTarget")
+  mentions        GraphEntityMention[]
+  
+  @@unique([userId, name, type])
+  @@index([userId])
+  @@index([type])
+  @@index([name])
+  @@index([userId, mentionCount(sort: Desc)])
+  @@map("graph_entities")
+}
+
+/// GraphRelationship represents a directed edge between two entities
+model GraphRelationship {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  sourceEntityId  String   @map("source_entity_id")
+  targetEntityId  String   @map("target_entity_id")
+  type            GraphRelationshipType
+  label           String?  // For CUSTOM type
+  weight          Float    @default(1.0)
+  properties      Json     @default("{}")
+  sourceMemoryIds String[] @default([]) @map("source_memory_ids")
+  isInferred      Boolean  @default(false) @map("is_inferred")
+  lastConfirmedAt DateTime @default(now()) @map("last_confirmed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceEntity  GraphEntity @relation("GraphRelationshipSource", fields: [sourceEntityId], references: [id], onDelete: Cascade)
+  targetEntity  GraphEntity @relation("GraphRelationshipTarget", fields: [targetEntityId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, sourceEntityId, targetEntityId, type])
+  @@index([userId])
+  @@index([sourceEntityId])
+  @@index([targetEntityId])
+  @@index([type])
+  @@map("graph_relationships")
+}
+
+/// GraphEntityMention links entities to the memories that mention them
+model GraphEntityMention {
+  id        String    @id @default(cuid())
+  entityId  String    @map("entity_id")
+  memoryId  String    @map("memory_id")
+  userId    String    @map("user_id")
+  span      Json?     // { start: number, end: number }
+  role      GraphMentionRole
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  entity    GraphEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  memory    Memory      @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([entityId, memoryId])
+  @@index([memoryId])
+  @@index([entityId])
+  @@index([userId])
+  @@map("graph_entity_mentions")
+}
+
+/// Entity type classification
+enum GraphEntityType {
+  PERSON
+  PLACE
+  ORGANIZATION
+  CONCEPT
+  EVENT
+  OBJECT
+  TIME
+  UNKNOWN
+}
+
+/// Semantic relationship types
+enum GraphRelationshipType {
+  // Personal Relationships
+  SPOUSE_OF
+  PARENT_OF
+  CHILD_OF
+  SIBLING_OF
+  FRIEND_OF
+  COLLEAGUE_OF
+  
+  // Location
+  LIVES_IN
+  WORKS_AT
+  LOCATED_IN
+  BORN_IN
+  
+  // Ownership/Association
+  OWNS
+  MEMBER_OF
+  PART_OF
+  INSTANCE_OF
+  
+  // Temporal
+  HAPPENED_BEFORE
+  HAPPENED_AFTER
+  HAPPENED_DURING
+  
+  // Attributes
+  HAS_ATTRIBUTE
+  
+  // Causal
+  CAUSED_BY
+  RESULTS_IN
+  
+  // Generic
+  RELATED_TO
+  CUSTOM
+}
+
+/// How an entity appears in a memory
+enum GraphMentionRole {
+  SUBJECT   // Entity is the main subject
+  OBJECT    // Entity is acted upon
+  REFERENCE // Entity is mentioned incidentally
+  LOCATION  // Entity provides location context
+}
+
+// =============================================================================
+// HIERARCHICAL EMBEDDINGS (Phase 1 MVP)
+// =============================================================================
+
+/// Hierarchy level for multi-granularity embeddings
+enum HierarchyLevel {
+  L0 // Sentence level - fine-grained facts
+  L1 // Paragraph level - contextual chunks
+  L2 // Session level - conversation summary (Phase 2)
+  L3 // Theme level - cross-session patterns (Phase 2)
+}
+
+/// Hierarchical embedding units for multi-granularity search
+model HierarchyUnit {
+  id              String         @id @default(cuid())
+  level           HierarchyLevel
+  
+  /// The actual text content of this unit
+  text            String
+  /// LLM-generated summary (used for L1+ embeddings)
+  summary         String?
+  
+  /// Link to source memory (for L0, L1)
+  sourceMemoryId  String?        @map("source_memory_id")
+  sourceMemory    Memory?        @relation(fields: [sourceMemoryId], references: [id], onDelete: Cascade)
+  
+  /// Link to parent unit in hierarchy (L0 -> L1, etc.)
+  parentUnitId    String?        @map("parent_unit_id")
+  parentUnit      HierarchyUnit? @relation("UnitHierarchy", fields: [parentUnitId], references: [id], onDelete: SetNull)
+  childUnits      HierarchyUnit[] @relation("UnitHierarchy")
+  
+  /// Position within source memory
+  position        Int?
+  charStart       Int?           @map("char_start")
+  charEnd         Int?           @map("char_end")
+  
+  /// Pinecone reference
+  pineconeId      String         @unique @map("pinecone_id")
+  pineconeNamespace String       @map("pinecone_namespace")
+  
+  /// Owner reference (for queries)
+  userId          String         @map("user_id")
+  
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  
+  @@index([level])
+  @@index([sourceMemoryId])
+  @@index([userId, level])
+  @@index([parentUnitId])
+  @@map("hierarchy_units")
 }

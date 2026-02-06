@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExtractionService, ExtractionContext, EntityWithType } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
@@ -9,6 +9,7 @@ import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 import { Memory, MemoryLayer, MemorySource, Entity, SubjectType } from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 // Similarity threshold for deduplication (0.90 = very similar)
 const DEDUP_SIMILARITY_THRESHOLD = 0.90;
@@ -58,6 +59,7 @@ export class MemoryService {
     private embedding: EmbeddingService,
     private importance: ImportanceService,
     private temporalParser: TemporalParserService,
+    @Optional() private hierarchyService?: HierarchyService,
   ) {}
 
   /**
@@ -887,15 +889,43 @@ export class MemoryService {
   async getGraphData(
     userId: string,
     limit: number = 500,
+    includeAgent: boolean = false,
   ): Promise<{
     nodes: any[];
     edges: any[];
     entities: any[];
+    stats?: { human: number; agent: number };
   }> {
+    // Build list of user IDs to fetch
+    const userIds = [userId];
+    let agentUserId: string | null = null;
+    
+    if (includeAgent) {
+      // Find the agent user (externalId = 'rook') in the same agent
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      
+      if (currentUser) {
+        const agentUser = await this.prisma.user.findFirst({
+          where: {
+            agentId: currentUser.agentId,
+            externalId: 'rook', // Agent's self-reflection user
+            deletedAt: null,
+          },
+        });
+        
+        if (agentUser) {
+          userIds.push(agentUser.id);
+          agentUserId = agentUser.id;
+        }
+      }
+    }
+
     // Fetch memories with entities and extraction
     const memories = await this.prisma.memory.findMany({
       where: {
-        userId,
+        userId: { in: userIds },
         deletedAt: null,
       },
       include: {
@@ -942,6 +972,8 @@ export class MemoryService {
       raw: m.raw,
       layer: m.layer,
       source: m.source,
+      // Tag memory source for merged view visualization
+      memorySource: agentUserId && m.userId === agentUserId ? 'agent' : 'human',
       importanceScore: m.importanceScore,
       effectiveScore: m.effectiveScore, // Memory Intelligence v2
       safetyCritical: m.safetyCritical, // Memory Intelligence v2
@@ -976,6 +1008,10 @@ export class MemoryService {
         ? m.entities[0].entity.type.toLowerCase()
         : 'other',
     }));
+    
+    // Calculate stats for merged view
+    const humanCount = nodes.filter(n => n.memorySource === 'human').length;
+    const agentCount = nodes.filter(n => n.memorySource === 'agent').length;
 
     // Transform to graph edges
     const edges = chainLinks
@@ -993,6 +1029,7 @@ export class MemoryService {
       nodes,
       edges,
       entities: Array.from(entityMap.values()),
+      ...(includeAgent && { stats: { human: humanCount, agent: agentCount } }),
     };
   }
 
@@ -1227,6 +1264,14 @@ export class MemoryService {
     await this.linkRelatedMemories(memoryId, embedding, userId);
     
     console.log('[Memory] extractAndEmbed complete:', memoryId);
+
+    // 8. Process hierarchical embeddings (async, non-blocking)
+    // This creates L0 (sentence) and L1 (paragraph) level embeddings
+    if (this.hierarchyService?.isEnabled()) {
+      this.hierarchyService.processMemory(memoryId, raw, userId).catch((err) => {
+        console.error(`[Memory] Hierarchy processing failed for ${memoryId}:`, err);
+      });
+    }
   }
 
   /**

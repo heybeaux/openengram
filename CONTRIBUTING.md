@@ -802,3 +802,37 @@ By contributing to Engram, you agree that your contributions will be licensed un
 *Questions? Open an issue or reach out to [@heybeaux](https://github.com/heybeaux).*
 
 *Every agent deserves to remember.*
+
+---
+
+## ⚠️ Database Safety
+
+> **On 2026-02-05, a sub-agent ran `prisma migrate dev` and wiped 543 memories from the production Engram database. The data was unrecoverable — no backups existed.**
+
+### Rules
+
+1. **NEVER run `prisma migrate dev` on a database with real data.** It resets the database, dropping all tables and recreating them from scratch. All data is lost.
+
+2. **Use `prisma migrate deploy`** to apply migrations to existing databases with real data. This applies pending migrations without resetting.
+
+3. **Always run `scripts/pre-migrate.sh` before any migration** to create a safety backup:
+   ```bash
+   ./scripts/pre-migrate.sh && npx prisma migrate deploy
+   ```
+
+4. **`prisma migrate dev` is ONLY safe** on:
+   - A fresh, empty database
+   - A local development database you're willing to lose
+   - Never on staging, production, or any database with real memories
+
+### Backup & Restore
+
+```bash
+# Manual backup
+./scripts/backup.sh
+
+# Restore from backup
+gunzip -c backups/engram_backup_YYYY-MM-DD_HHMMSS.sql.gz | psql -U clawdbot -h localhost engram
+```
+
+Backups are stored in `backups/` and retained for 30 days.
