@@ -224,6 +224,8 @@ Every extraction field carries a confidence score:
 
 ## API Reference
 
+### Core Memory Endpoints
+
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/v1/memories` | POST | ✅ | Create a memory |
@@ -235,6 +237,39 @@ Every extraction field carries a confidence score:
 | `/v1/observe` | POST | ✅ | Auto-capture from conversation |
 | `/v1/consolidate` | POST | ✅ | Trigger sleep consolidation |
 | `/v1/health` | GET | ❌ | System health + metrics |
+
+### Multi-Model Ensemble Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/ensemble/status` | GET | ✅ | Get ensemble config and status |
+| `/ensemble/query` | POST | ✅ | Multi-model RRF fusion query |
+| `/ensemble/upsert` | POST | ✅ | Upsert with multi-model embeddings |
+| `/ensemble/compare` | POST | ✅ | Compare ensemble vs single-model |
+| `/ensemble/embed` | POST | ✅ | Generate embeddings for text |
+
+### Re-embedding Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/v1/reembedding/enabled` | GET | ✅ | Check if re-embedding is enabled |
+| `/v1/reembedding/status` | GET | ✅ | Get current job status |
+| `/v1/reembedding/status/:jobId` | GET | ✅ | Get specific job status |
+| `/v1/reembedding/jobs` | GET | ✅ | List all re-embedding jobs |
+| `/v1/reembedding/run` | POST | ✅ | Trigger batch re-embedding |
+| `/v1/reembedding/preview/:memoryId` | GET | ✅ | Preview enrichment for memory |
+| `/v1/reembedding/memory/:memoryId` | POST | ✅ | Re-embed a single memory |
+
+### Dashboard Integration Endpoints (Proposed)
+
+These endpoints would enhance the dashboard's multi-model visibility:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/ensemble/models` | GET | List all registered models with status |
+| `/ensemble/memories/:id/embeddings` | GET | Per-memory embedding status per model |
+| `/ensemble/coverage` | GET | Embedding coverage statistics |
+| `/ensemble/ab-results` | GET | A/B test results for model comparison |
 
 Full API documentation available in the [dashboard](https://github.com/heybeaux/engram-dashboard).
 
