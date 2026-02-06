@@ -5,6 +5,12 @@
     <a href="https://github.com/heybeaux/engram/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
     <a href="https://github.com/heybeaux/engram/actions"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci.yml?label=tests" alt="Tests"></a>
   </p>
+  <p align="center">
+    <strong>Ecosystem:</strong>&nbsp;
+    <a href="https://github.com/heybeaux/engram">Core API</a> •
+    <a href="https://github.com/heybeaux/engram-dashboard">Dashboard</a> •
+    <a href="https://github.com/heybeaux/engram-embed">Local Embeddings</a>
+  </p>
 </p>
 
 > An **engram** is a hypothetical permanent change in the brain accounting for the existence of memory — a memory trace.
