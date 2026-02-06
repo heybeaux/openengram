@@ -1,5 +1,7 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { MemoryLayer, SubjectType } from '@prisma/client';
+import { MultiQueryOptionsDto } from '../../multi-query/dto/multi-query.dto';
 
 export class QueryMemoryDto {
   @IsString()
@@ -38,6 +40,12 @@ export class QueryMemoryDto {
   @IsOptional()
   @IsString()
   agentId?: string;
+
+  // Multi-query retrieval options
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MultiQueryOptionsDto)
+  multiQuery?: MultiQueryOptionsDto;
 }
 
 export class LoadContextDto {

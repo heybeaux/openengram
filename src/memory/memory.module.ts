@@ -9,6 +9,9 @@ import { ConsolidationService } from './consolidation.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { LLMModule } from '../llm/llm.module';
 import { HierarchyModule } from '../hierarchy/hierarchy.module';
+import { MultiQueryService } from '../multi-query/multi-query.service';
+import { QueryExpansionService } from '../multi-query/query-expansion.service';
+import { ResultFusionService } from '../multi-query/result-fusion.service';
 
 @Module({
   imports: [LLMModule, forwardRef(() => HierarchyModule)],
@@ -21,7 +24,10 @@ import { HierarchyModule } from '../hierarchy/hierarchy.module';
     BackfillService,
     ConsolidationService,
     TemporalParserService,
+    MultiQueryService,
+    QueryExpansionService,
+    ResultFusionService,
   ],
-  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService],
+  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService, MultiQueryService],
 })
 export class MemoryModule {}

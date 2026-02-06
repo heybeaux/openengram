@@ -14,6 +14,8 @@ import { GraphModule } from './graph/graph.module';
 import { ReembeddingModule } from './reembedding/reembedding.module';
 import { EnsembleModule } from './ensemble/ensemble.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { DeduplicationModule } from './deduplication/deduplication.module';
+import { MultiQueryModule } from './multi-query/multi-query.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
     ReembeddingModule,
     EnsembleModule,
     AnalyticsModule,
+    MultiQueryModule,
+    DeduplicationModule,
   ],
 })
 export class AppModule {}

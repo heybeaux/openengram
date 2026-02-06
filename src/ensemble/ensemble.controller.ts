@@ -10,17 +10,24 @@ import {
   Post,
   Body,
   Query,
+  Param,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { EnsembleService } from './ensemble.service';
+import { NightlyReembedService } from './nightly-reembed.service';
 import {
   ModelId,
   EnsembleQueryResult,
   FusedResult,
   EnsembleConfig,
+  ModelInfo,
+  CoverageStats,
+  MemoryEmbeddingStatus,
+  ABTestResult,
 } from './ensemble.types';
 
 // ============================================================================
@@ -71,10 +78,19 @@ interface EnsembleQueryResponse extends Omit<EnsembleQueryResult, 'results'> {
 // Controller
 // ============================================================================
 
+class ReembedDto {
+  models?: ModelId[];
+  mode?: 'incremental' | 'full';
+  memoryIds?: string[];
+}
+
 @ApiTags('ensemble')
 @Controller('ensemble')
 export class EnsembleController {
-  constructor(private readonly ensembleService: EnsembleService) {}
+  constructor(
+    private readonly ensembleService: EnsembleService,
+    private readonly nightlyReembedService: NightlyReembedService,
+  ) {}
 
   /**
    * Get ensemble status and configuration
@@ -230,5 +246,169 @@ export class EnsembleController {
       })),
       totalMs: result.totalMs,
     };
+  }
+
+  /**
+   * Get all registered models with status and configuration
+   */
+  @Get('models')
+  @ApiOperation({ summary: 'List all registered ensemble models' })
+  @ApiResponse({ status: 200, description: 'List of models with their configuration' })
+  async getModels(): Promise<ModelInfo[]> {
+    return this.ensembleService.getModels();
+  }
+
+  /**
+   * Get embedding coverage statistics
+   * Transforms perModel object to array format for dashboard compatibility
+   */
+  @Get('coverage')
+  @ApiOperation({ summary: 'Get embedding coverage statistics' })
+  @ApiResponse({ status: 200, description: 'Coverage stats per model' })
+  async getCoverage() {
+    const stats = await this.ensembleService.getCoverage();
+    
+    // Transform perModel from Record to array for dashboard compatibility
+    const perModelArray = Object.entries(stats.perModel).map(([model, modelStats]) => ({
+      model,
+      status: 'active' as const,
+      embeddedCount: modelStats.embeddingCount,
+      totalMemories: stats.totalMemories,
+      coveragePercentage: modelStats.coveragePercent,
+    }));
+
+    return {
+      totalMemories: stats.totalMemories,
+      modelsConfigured: Object.keys(stats.perModel).length,
+      fullCoverageCount: stats.memoriesWithAllModels,
+      fullCoveragePercentage: stats.coveragePercent,
+      perModel: perModelArray,
+    };
+  }
+
+  /**
+   * Get embeddings status for a specific memory
+   */
+  @Get('memories/:id/embeddings')
+  @ApiOperation({ summary: 'Get embedding status for a specific memory' })
+  @ApiResponse({ status: 200, description: 'Embedding status per model for the memory' })
+  async getMemoryEmbeddings(
+    @Param('id') memoryId: string
+  ): Promise<{ memoryId: string; embeddings: MemoryEmbeddingStatus[] }> {
+    if (!memoryId) {
+      throw new BadRequestException('Memory ID is required');
+    }
+
+    const embeddings = await this.ensembleService.getMemoryEmbeddings(memoryId);
+    return { memoryId, embeddings };
+  }
+
+  /**
+   * Get A/B test results
+   */
+  @Get('ab-results')
+  @ApiOperation({ summary: 'Get A/B test results' })
+  @ApiQuery({ name: 'testId', required: false, description: 'Filter by test ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max results to return' })
+  @ApiResponse({ status: 200, description: 'A/B test results' })
+  async getABTestResults(
+    @Query('testId') testId?: string,
+    @Query('limit') limit?: string
+  ): Promise<{ results: ABTestResult[]; count: number }> {
+    const limitNum = limit ? parseInt(limit, 10) : 100;
+    const results = await this.ensembleService.getABTestResults(testId, limitNum);
+    return { results, count: results.length };
+  }
+
+  /**
+   * Trigger re-embedding for specified models
+   */
+  @Post('reembed')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Trigger batch re-embedding for models' })
+  @ApiResponse({ status: 200, description: 'Re-embed job started' })
+  async triggerReembed(@Body() dto: ReembedDto): Promise<{
+    jobId: string;
+    message: string;
+  }> {
+    const mode = dto.mode ?? 'incremental';
+    const jobId = await this.nightlyReembedService.startManualJob({
+      mode,
+      models: dto.models,
+      memoryIds: dto.memoryIds,
+    });
+    return {
+      jobId,
+      message: `Re-embed job ${jobId} started in ${mode} mode`,
+    };
+  }
+
+  /**
+   * Get active re-embed job status
+   */
+  @Get('reembed/status')
+  @ApiOperation({ summary: 'Get active re-embed job status' })
+  @ApiResponse({ status: 200, description: 'Job status or null if no active job' })
+  getReembedStatus() {
+    return this.nightlyReembedService.getActiveJobStatus();
+  }
+
+  /**
+   * Re-embed specific memories with specific models (direct endpoint)
+   */
+  @Post('reembed/targeted')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Re-embed specific memories with specific models' })
+  @ApiResponse({ status: 200, description: 'Targeted re-embed job started' })
+  async targetedReembed(@Body() dto: { memoryIds: string[]; models: ModelId[] }): Promise<{
+    jobId: string;
+    total: number;
+    message: string;
+  }> {
+    if (!dto.memoryIds || dto.memoryIds.length === 0) {
+      throw new BadRequestException('memoryIds is required');
+    }
+    if (!dto.models || dto.models.length === 0) {
+      throw new BadRequestException('models is required');
+    }
+
+    // Start processing asynchronously
+    const jobId = `targeted-${Date.now()}`;
+    this.processTargetedReembed(jobId, dto.memoryIds, dto.models);
+
+    return {
+      jobId,
+      total: dto.memoryIds.length,
+      message: `Processing ${dto.memoryIds.length} memories for models: ${dto.models.join(', ')}`,
+    };
+  }
+
+  private async processTargetedReembed(
+    jobId: string,
+    memoryIds: string[],
+    models: ModelId[],
+  ): Promise<void> {
+    console.log(`[${jobId}] Starting targeted re-embed for ${memoryIds.length} memories`);
+
+    // Process in batches of 50
+    const batchSize = 50;
+    let processed = 0;
+    let errors = 0;
+
+    for (let i = 0; i < memoryIds.length; i += batchSize) {
+      const batchIds = memoryIds.slice(i, i + batchSize);
+      
+      try {
+        // Call the batch embedding method which handles storage
+        await this.ensembleService.embedBatchForMemories(batchIds, models);
+        processed += batchIds.length;
+        console.log(`[${jobId}] Processed ${processed}/${memoryIds.length}`);
+      } catch (error) {
+        console.error(`[${jobId}] Batch error:`, error);
+        errors += batchIds.length;
+      }
+    }
+
+    console.log(`[${jobId}] Completed: ${processed} processed, ${errors} errors`);
   }
 }

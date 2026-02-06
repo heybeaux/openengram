@@ -151,6 +151,9 @@ model Memory {
   // Semantic Memory Graph relations
   graphMentions    GraphEntityMention[]
   graphEntityFirstSeen GraphEntity[] @relation("GraphEntityFirstSeen")
+  
+  // Multi-model ensemble embeddings
+  ensembleEmbeddings MemoryEmbedding[]
 
   @@index([userId, layer])
   @@index([userId, createdAt])
@@ -604,4 +607,307 @@ model HierarchyUnit {
   @@index([userId, level])
   @@index([parentUnitId])
   @@map("hierarchy_units")
+}
+
+// ============================================================================
+// MULTI-MODEL ENSEMBLE (Section 10: Nightly Batch Re-embedding)
+// ============================================================================
+
+/// Track nightly/manual re-embedding jobs
+model EnsembleReembedJob {
+  id              String    @id @default(cuid())
+  jobId           String    @unique @map("job_id")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  status          EnsembleJobStatus @default(PENDING)
+  mode            EnsembleReembedMode
+  models          String[]
+  
+  // Progress tracking
+  totalMemories   Int       @default(0) @map("total_memories")
+  processedMemories Int     @default(0) @map("processed_memories")
+  failedMemories  Int       @default(0) @map("failed_memories")
+  skippedMemories Int       @default(0) @map("skipped_memories")
+  
+  // Metrics (JSON)
+  metrics         Json?
+  
+  // Drift detection results
+  avgDrift        Float?    @map("avg_drift")
+  maxDrift        Float?    @map("max_drift")
+  driftFlags      Int       @default(0) @map("drift_flags")
+  
+  // Error info
+  error           String?
+  
+  // Triggering info
+  triggeredBy     String    @default("cron") @map("triggered_by")  // cron, manual, event
+  triggeredReason String?   @map("triggered_reason")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([startedAt])
+  @@index([triggeredBy])
+  @@map("ensemble_reembed_jobs")
+}
+
+/// Checkpoint for resumable re-embedding
+model EnsembleReembedCheckpoint {
+  id              String    @id @default(cuid())
+  jobId           String    @unique @map("job_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  lastProcessedId String    @map("last_processed_id")
+  progress        Json                            // ReembedProgress JSON
+  completedModels String[]  @map("completed_models")
+  metrics         Json?
+  
+  @@index([jobId])
+  @@map("ensemble_reembed_checkpoints")
+}
+
+/// Event-triggered re-embedding queue
+model EnsembleReembedEvent {
+  id              String    @id @default(cuid())
+  eventId         String    @unique @map("event_id")
+  type            String                          // lesson_created, user_correction, etc.
+  priority        String    @default("normal")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  processedAt     DateTime? @map("processed_at")
+  status          String    @default("pending")
+  
+  // Scope
+  scope           Json
+  
+  // Metadata
+  triggeredBy     String    @map("triggered_by")
+  reason          String
+  error           String?
+  
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("ensemble_reembed_events")
+}
+
+/// Track embedding versions for rollback capability
+model EnsembleEmbeddingVersion {
+  id              String    @id @default(cuid())
+  versionId       String    @unique @map("version_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       String    @map("created_by")  // nightly, manual, model-upgrade
+  status          EnsembleVersionStatus @default(CREATING)
+  memoriesEmbedded Int      @default(0) @map("memories_embedded")
+  previousVersion String?   @map("previous_version")
+  modelVersions   Json                            // Array of { modelId, modelVersion, checksum }
+  
+  @@index([status])
+  @@index([createdAt])
+  @@map("ensemble_embedding_versions")
+}
+
+/// Model configuration in the ensemble registry
+model EnsembleModelConfig {
+  id              String    @id @default(cuid())
+  modelId         String    @unique @map("model_id")
+  status          EnsembleModelStatus @default(SHADOW)
+  addedAt         DateTime  @default(now()) @map("added_at")
+  promotedAt      DateTime? @map("promoted_at")
+  deprecatedAt    DateTime? @map("deprecated_at")
+  
+  // Weights
+  weight          Float     @default(1.0)
+  queryTypeWeights Json?    @map("query_type_weights")
+  
+  // Quality metrics
+  qualityMetrics  Json?     @map("quality_metrics")
+  
+  // Promotion thresholds
+  promotionThresholds Json? @map("promotion_thresholds")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("ensemble_model_configs")
+}
+
+/// A/B test results for model comparison
+model EnsembleABTestResult {
+  id              String    @id @default(cuid())
+  testId          String    @map("test_id")
+  config          String                          // control, treatment
+  queryId         String    @map("query_id")
+  metrics         Json
+  timestamp       DateTime  @default(now())
+  
+  @@index([testId])
+  @@index([timestamp])
+  @@map("ensemble_ab_test_results")
+}
+
+/// Multi-model memory embeddings for ensemble retrieval
+/// Stores embeddings from different models (bge-base, nomic, minilm) per memory
+model MemoryEmbedding {
+  id         String   @id @default(cuid())
+  memoryId   String   @map("memory_id")
+  modelId    String   @map("model_id")  // "bge-base", "minilm", "nomic", "gte-base"
+  dimensions Int      @default(768)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Store embedding as raw vector - pgvector handles variable dimensions
+  // Using Unsupported because Prisma doesn't natively support vector type
+  // We use raw SQL for queries
+  embedding  Unsupported("vector")?
+  
+  memory     Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  
+  @@unique([memoryId, modelId])
+  @@index([modelId])
+  @@index([memoryId])
+  @@map("memory_embeddings")
+}
+
+/// Re-embed job status
+enum EnsembleJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Re-embed mode
+enum EnsembleReembedMode {
+  INCREMENTAL
+  FULL
+}
+
+/// Embedding version status
+enum EnsembleVersionStatus {
+  CREATING
+  ACTIVE
+  DEPRECATED
+  DELETED
+}
+
+/// Model status in ensemble
+enum EnsembleModelStatus {
+  ACTIVE
+  SHADOW
+  DEPRECATED
+  DISABLED
+}
+
+// ============================================================================
+// DEDUPLICATION SYSTEM
+// ============================================================================
+
+/// Tracks merge events for lineage and rollback
+model MemoryMergeEvent {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  
+  survivorMemoryId    String    @map("survivor_memory_id")
+  absorbedMemoryIds   String[]  @map("absorbed_memory_ids")
+  strategy            String
+  similarity          Float
+  
+  triggeredBy         String    @map("triggered_by")  // auto, batch, manual
+  approvedBy          String?   @map("approved_by")
+  
+  originalContents    String    @map("original_contents")  // JSON array
+  mergedContent       String    @map("merged_content")
+  contentChanged      Boolean   @default(false) @map("content_changed")
+  
+  canRollback         Boolean   @default(true) @map("can_rollback")
+  rolledBackAt        DateTime? @map("rolled_back_at")
+  
+  createdAt           DateTime  @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([survivorMemoryId])
+  @@index([createdAt])
+  @@map("memory_merge_events")
+}
+
+/// Pending merge candidates for review
+model MergeCandidate {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  
+  memoryIds           String[]  @map("memory_ids")
+  similarity          Float
+  suggestedStrategy   String    @map("suggested_strategy")
+  suggestedSurvivorId String    @map("suggested_survivor_id")
+  
+  safetyFlags         String    @default("[]") @map("safety_flags")  // JSON array
+  
+  status              String    @default("PENDING")
+  reviewedBy          String?   @map("reviewed_by")
+  reviewedAt          DateTime? @map("reviewed_at")
+  reviewNotes         String?   @map("review_notes")
+  
+  skipUntil           DateTime? @map("skip_until")
+  
+  createdAt           DateTime  @default(now()) @map("created_at")
+  
+  @@index([userId, status])
+  @@index([createdAt])
+  @@map("merge_candidates")
+}
+
+/// User-specific deduplication configuration
+model DedupConfig {
+  id                           String    @id @default(cuid())
+  userId                       String    @unique @map("user_id")
+  
+  autoMergeThreshold           Float     @default(0.95) @map("auto_merge_threshold")
+  reviewSuggestThreshold       Float     @default(0.85) @map("review_suggest_threshold")
+  
+  defaultStrategy              String    @default("KEEP_DETAILED") @map("default_strategy")
+  strategyByType               String    @default("{}") @map("strategy_by_type")  // JSON
+  
+  preserveSourceContent        Boolean   @default(true) @map("preserve_source_content")
+  regenerateEmbedding          Boolean   @default(true) @map("regenerate_embedding")
+  
+  protectedTypes               String[]  @default(["CONSTRAINT"]) @map("protected_types")
+  protectedKeywords            String[]  @default([]) @map("protected_keywords")
+  protectedImportanceThreshold Float     @default(0.9) @map("protected_importance_threshold")
+  
+  batchSchedule                String    @default("0 3 * * *") @map("batch_schedule")
+  maxMemoriesPerBatch          Int       @default(5000) @map("max_memories_per_batch")
+  batchEnabled                 Boolean   @default(true) @map("batch_enabled")
+  
+  lastBatchRunAt               DateTime? @map("last_batch_run_at")
+  lastBatchStats               String?   @map("last_batch_stats")  // JSON
+  
+  updatedAt                    DateTime  @updatedAt @map("updated_at")
+  
+  @@map("dedup_configs")
+}
+
+/// Batch deduplication run history
+model DedupBatchRun {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  
+  status              String
+  startedAt           DateTime  @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+  
+  memoriesProcessed   Int       @default(0) @map("memories_processed")
+  clustersFound       Int       @default(0) @map("clusters_found")
+  autoMerged          Int       @default(0) @map("auto_merged")
+  queuedForReview     Int       @default(0) @map("queued_for_review")
+  skipped             Int       @default(0)
+  errors              String[]  @default([])
+  
+  configSnapshot      String    @map("config_snapshot")  // JSON
+  
+  @@index([userId])
+  @@index([startedAt])
+  @@map("dedup_batch_runs")
 }

@@ -10,6 +10,8 @@ import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 import { Memory, MemoryLayer, MemorySource, Entity, SubjectType } from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { MultiQueryService } from '../multi-query/multi-query.service';
+import { MultiQueryMetadataDto, ResultExplanationDto } from '../multi-query/dto/multi-query.dto';
 
 // Similarity threshold for deduplication (0.90 = very similar)
 const DEDUP_SIMILARITY_THRESHOLD = 0.90;
@@ -37,6 +39,9 @@ export interface QueryResult {
   memories: MemoryWithScore[];
   queryTokens: number;
   latencyMs: number;
+  // Multi-query metadata (when enabled)
+  multiQuery?: MultiQueryMetadataDto;
+  explanations?: Record<string, ResultExplanationDto>;
 }
 
 export interface ContextResult {
@@ -60,6 +65,7 @@ export class MemoryService {
     private importance: ImportanceService,
     private temporalParser: TemporalParserService,
     @Optional() private hierarchyService?: HierarchyService,
+    @Optional() private multiQueryService?: MultiQueryService,
   ) {}
 
   /**
@@ -244,6 +250,13 @@ export class MemoryService {
   async recall(userId: string, dto: QueryMemoryDto): Promise<QueryResult> {
     const startTime = Date.now();
 
+    // Check if multi-query is enabled and should be used
+    const useMultiQuery = this.shouldUseMultiQuery(dto);
+    
+    if (useMultiQuery) {
+      return this.recallWithMultiQuery(userId, dto, startTime);
+    }
+
     // 1. Parse temporal intent from query (P6-006)
     const now = new Date();
     const parsed = this.temporalParser.parse(dto.query, now);
@@ -402,6 +415,140 @@ export class MemoryService {
       memories: result,
       queryTokens: dto.query.split(/\s+/).length, // Rough estimate
       latencyMs: Date.now() - startTime,
+    };
+  }
+
+  /**
+   * Check if multi-query retrieval should be used for this request
+   */
+  private shouldUseMultiQuery(dto: QueryMemoryDto): boolean {
+    // Check if multi-query service is available
+    if (!this.multiQueryService) {
+      return false;
+    }
+
+    // Check if explicitly disabled in request
+    if (dto.multiQuery?.enabled === false) {
+      return false;
+    }
+
+    // Check if explicitly enabled in request
+    if (dto.multiQuery?.enabled === true) {
+      return true;
+    }
+
+    // Check global setting
+    return this.multiQueryService.isEnabled();
+  }
+
+  /**
+   * Perform recall using multi-query retrieval
+   */
+  private async recallWithMultiQuery(
+    userId: string,
+    dto: QueryMemoryDto,
+    startTime: number,
+  ): Promise<QueryResult> {
+    // 1. Parse temporal intent - multi-query doesn't work well with temporal queries
+    // because it's designed for semantic expansion, not temporal constraints
+    const now = new Date();
+    const parsed = this.temporalParser.parse(dto.query, now);
+    const hasTemporalIntent = parsed.temporalFilter !== null;
+
+    if (hasTemporalIntent) {
+      // For temporal queries, fall back to standard recall
+      console.log('[Recall] Temporal intent detected, falling back to standard search');
+      // Reset multi-query option and recursively call recall
+      const dtoWithoutMultiQuery = { ...dto, multiQuery: { enabled: false } };
+      return this.recall(userId, dtoWithoutMultiQuery);
+    }
+
+    // 2. Perform multi-query search
+    const multiQueryResult = await this.multiQueryService!.search(
+      dto.query,
+      userId,
+      {
+        topK: dto.limit ?? 10,
+        layers: dto.layers,
+        projectId: dto.projectId,
+        multiQuery: dto.multiQuery,
+      },
+    );
+
+    // 3. Fetch full memory records for the fused results
+    const memoryIds = multiQueryResult.results.map(r => r.memoryId);
+    const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+
+    const memories = await this.prisma.memory.findMany({
+      where: {
+        id: { in: memoryIds },
+        deletedAt: null,
+        ...subjectTypeFilter,
+      },
+      include: {
+        extraction: true,
+      },
+    });
+
+    // 4. Create score map from multi-query results
+    const scoreMap = new Map(
+      multiQueryResult.results.map(r => [r.memoryId, r.score])
+    );
+
+    // 5. Score and rank memories using multi-query scores
+    const scoredMemories: MemoryWithScore[] = memories
+      .map((memory) => {
+        const multiQueryScore = scoreMap.get(memory.id) ?? 0;
+        const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+        
+        // Blend multi-query score with importance (weighted towards multi-query)
+        const blendedScore = multiQueryScore * 0.8 + importanceScore * 0.2;
+
+        return {
+          ...memory,
+          score: blendedScore,
+        } as MemoryWithScore;
+      })
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+    // 6. Optionally include reasoning chains
+    let result: MemoryWithScore[] = scoredMemories;
+    if (dto.includeChains) {
+      result = await this.attachChains(scoredMemories) as MemoryWithScore[];
+    }
+
+    // 7. Update retrieval counts
+    const resultIds = result.map(m => m.id);
+    if (resultIds.length > 0) {
+      await this.prisma.memory.updateMany({
+        where: { id: { in: resultIds } },
+        data: {
+          retrievalCount: { increment: 1 },
+          lastRetrievedAt: new Date(),
+        },
+      });
+    }
+
+    // 8. Generate metadata and explanations
+    const multiQueryMetadata = this.multiQueryService!.generateMetadata(
+      multiQueryResult,
+      dto.multiQuery,
+    );
+
+    let explanations: Record<string, ResultExplanationDto> | undefined;
+    if (dto.multiQuery?.includeExplanations) {
+      explanations = this.multiQueryService!.generateExplanations(
+        multiQueryResult.results,
+        multiQueryResult.expansion,
+      );
+    }
+
+    return {
+      memories: result,
+      queryTokens: dto.query.split(/\s+/).length,
+      latencyMs: Date.now() - startTime,
+      multiQuery: multiQueryMetadata,
+      explanations,
     };
   }
 
