@@ -148,6 +148,11 @@ model Memory {
   extraction       MemoryExtraction?
   hierarchyUnits   HierarchyUnit[]
   
+  // Dream Cycle additions
+  archivedReason    String?   @map("archived_reason")
+  lastDreamCycleAt  DateTime? @map("last_dream_cycle_at")
+  patternSourceIds  String[]  @default([]) @map("pattern_source_ids")
+
   // Semantic Memory Graph relations
   graphMentions    GraphEntityMention[]
   graphEntityFirstSeen GraphEntity[] @relation("GraphEntityFirstSeen")
@@ -910,4 +915,35 @@ model DedupBatchRun {
   @@index([userId])
   @@index([startedAt])
   @@map("dedup_batch_runs")
+}
+
+/// Dream Cycle consolidation reports
+model DreamCycleReport {
+  id                 String   @id @default(cuid())
+  userId             String   @map("user_id")
+
+  startedAt          DateTime @map("started_at")
+  completedAt        DateTime? @map("completed_at")
+  durationMs         Int?     @map("duration_ms")
+  dryRun             Boolean  @default(false) @map("dry_run")
+
+  // Stage results
+  scoresRefreshed    Int      @default(0) @map("scores_refreshed")
+  duplicatesMerged   Int      @default(0) @map("duplicates_merged")
+  patternsCreated    Int      @default(0) @map("patterns_created")
+  memoriesArchived   Int      @default(0) @map("memories_archived")
+
+  // Health metrics
+  totalActive        Int      @default(0) @map("total_active")
+  avgEffectiveScore  Float    @default(0) @map("avg_effective_score")
+
+  // Details
+  stageDetails       Json     @default("{}") @map("stage_details")
+  errors             String[] @default([])
+  status             String   @default("RUNNING")
+
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("dream_cycle_reports")
 }

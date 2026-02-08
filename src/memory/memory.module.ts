@@ -12,6 +12,7 @@ import { HierarchyModule } from '../hierarchy/hierarchy.module';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { QueryExpansionService } from '../multi-query/query-expansion.service';
 import { ResultFusionService } from '../multi-query/result-fusion.service';
+import { ContextualRecallService } from './contextual-recall.service';
 
 @Module({
   imports: [LLMModule, forwardRef(() => HierarchyModule)],
@@ -27,7 +28,8 @@ import { ResultFusionService } from '../multi-query/result-fusion.service';
     MultiQueryService,
     QueryExpansionService,
     ResultFusionService,
+    ContextualRecallService,
   ],
-  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService, MultiQueryService],
+  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService, MultiQueryService, ContextualRecallService],
 })
 export class MemoryModule {}

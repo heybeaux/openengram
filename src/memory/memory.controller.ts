@@ -18,6 +18,8 @@ import { ConsolidationService, ConsolidationResult } from './consolidation.servi
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
+import { ContextualRecallService } from './contextual-recall.service';
+import { ContextualRecallDto, ContextualRecallResponseDto } from './dto/contextual-recall.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 
@@ -28,6 +30,7 @@ export class MemoryController {
     private readonly memoryService: MemoryService,
     private readonly backfillService: BackfillService,
     private readonly consolidationService: ConsolidationService,
+    private readonly contextualRecallService: ContextualRecallService,
   ) {}
 
   // =========================================================================
@@ -68,6 +71,19 @@ export class MemoryController {
     @Body() dto: QueryMemoryDto,
   ): Promise<QueryResult> {
     return this.memoryService.recall(userId, dto);
+  }
+
+  /**
+   * POST /v1/recall/contextual
+   * Mid-conversation contextual recall with topic shift detection.
+   * Returns relevant memories only when a topic shift is detected.
+   */
+  @Post('recall/contextual')
+  async contextualRecall(
+    @UserId() userId: string,
+    @Body() dto: ContextualRecallDto,
+  ): Promise<ContextualRecallResponseDto> {
+    return this.contextualRecallService.recall(userId, dto);
   }
 
   /**
