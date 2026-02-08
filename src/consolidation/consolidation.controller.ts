@@ -1,11 +1,14 @@
 import { Controller, Post, Query, Body, Get } from '@nestjs/common';
 import { DreamCycleService, DreamCycleStage, DreamCycleResult } from './dream-cycle.service';
+import { GenerateContextService } from './generate-context.service';
+import type { GenerateContextOptions, GenerateContextResult } from './generate-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('v1/consolidation')
 export class ConsolidationController {
   constructor(
     private dreamCycle: DreamCycleService,
+    private generateContext: GenerateContextService,
     private prisma: PrismaService,
   ) {}
 
@@ -20,6 +23,13 @@ export class ConsolidationController {
       userId: body?.userId,
       maxMemories: body?.maxMemories,
     });
+  }
+
+  @Post('generate-context')
+  async generateContextEndpoint(
+    @Body() body: GenerateContextOptions,
+  ): Promise<GenerateContextResult> {
+    return this.generateContext.generate(body);
   }
 
   @Get('dream-cycle/reports')

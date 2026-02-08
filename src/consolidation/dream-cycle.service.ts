@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConsolidationService } from '../memory/consolidation.service';
 import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
 import { EmbeddingService } from '../memory/embedding.service';
 import { LLMService } from '../llm/llm.service';
 import { ConfigService } from '@nestjs/config';
+import { GenerateContextService } from './generate-context.service';
 
 export type DreamCycleStage = 'dedup' | 'staleness' | 'patterns' | 'report';
 
@@ -48,6 +49,7 @@ export class DreamCycleService {
     private embedding: EmbeddingService,
     private llm: LLMService,
     private config: ConfigService,
+    @Optional() private generateContextService?: GenerateContextService,
   ) {
     this.dedupThreshold = parseFloat(this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85');
     this.stalenessScoreThreshold = parseFloat(this.config.get('DREAM_STALENESS_SCORE') ?? '0.3');
@@ -164,6 +166,32 @@ export class DreamCycleService {
           totalActive,
           avgEffectiveScore: avgResult._avg.effectiveScore ?? 0,
         };
+      }
+
+      // Stage 5: Generate context (optional)
+      const generateContextEnabled = this.config.get('DREAM_GENERATE_CONTEXT') === 'true';
+      const contextWritePath = this.config.get<string>('DREAM_CONTEXT_WRITE_PATH');
+      const contextAgentId = this.config.get<string>('DREAM_CONTEXT_AGENT_ID');
+      if (generateContextEnabled && contextAgentId && this.generateContextService) {
+        this.log('Stage 5: Generate context');
+        try {
+          const contextResult = await this.generateContextService.generate({
+            agentId: contextAgentId,
+            writePath: contextWritePath,
+            dryRun,
+          });
+          stageDetails.generateContext = {
+            memoriesIncluded: contextResult.memoriesIncluded,
+            tokenCount: contextResult.tokenCount,
+            writtenTo: contextResult.writtenTo,
+            latencyMs: contextResult.latencyMs,
+          };
+          this.log('Stage 5 complete', stageDetails.generateContext);
+        } catch (err) {
+          const msg = `Generate context stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
       }
 
       const durationMs = Date.now() - startTime;

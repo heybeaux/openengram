@@ -16,17 +16,37 @@ import {
 @Injectable()
 export class PgVectorProvider implements VectorProvider {
   readonly name = 'pgvector';
+  private readonly searchModel: string;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {
+    this.searchModel = process.env.VECTOR_SEARCH_MODEL || 'bge-base';
+  }
 
   async upsert(record: VectorRecord): Promise<void> {
     const embeddingStr = `[${record.embedding.join(',')}]`;
     
+    // Write to inline column for backward compat
     await this.prisma.$executeRawUnsafe(`
       UPDATE memories 
       SET embedding = $1::vector
       WHERE id = $2
     `, embeddingStr, record.id);
+
+    // Also write to memory_embeddings table for ensemble search
+    await this.prisma.$executeRawUnsafe(`
+      INSERT INTO memory_embeddings (id, memory_id, model_id, dimensions, embedding, created_at, updated_at)
+      VALUES (
+        concat('cl', substr(md5(random()::text), 1, 23)),
+        $2,
+        $3,
+        $4,
+        $1::vector,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (memory_id, model_id)
+      DO UPDATE SET embedding = $1::vector, updated_at = NOW()
+    `, embeddingStr, record.id, this.searchModel, record.embedding.length);
   }
 
   async upsertMany(records: VectorRecord[]): Promise<void> {
@@ -42,35 +62,63 @@ export class PgVectorProvider implements VectorProvider {
     const embeddingStr = `[${embedding.join(',')}]`;
     const limit = options.limit || 10;
 
-    // Build WHERE clause
-    let whereClause = `user_id = $2 AND embedding IS NOT NULL AND deleted_at IS NULL`;
-    const params: any[] = [embeddingStr, options.userId];
-    let paramIndex = 3;
+    // Build WHERE clause for the memories table filters
+    let memoryWhereClause = `m.user_id = $2 AND m.deleted_at IS NULL`;
+    const params: any[] = [embeddingStr, options.userId, this.searchModel];
+    let paramIndex = 4;
 
     if (options.filter?.layers && options.filter.layers.length > 0) {
       const layerPlaceholders = options.filter.layers.map((_, i) => `$${paramIndex + i}`).join(', ');
-      whereClause += ` AND layer IN (${layerPlaceholders})`;
+      memoryWhereClause += ` AND m.layer IN (${layerPlaceholders})`;
       params.push(...options.filter.layers);
       paramIndex += options.filter.layers.length;
     }
 
     if (options.filter?.projectId) {
-      whereClause += ` AND project_id = $${paramIndex}`;
+      memoryWhereClause += ` AND m.project_id = $${paramIndex}`;
       params.push(options.filter.projectId);
+      paramIndex++;
     }
 
-    // Use cosine distance for similarity (1 - distance = similarity)
+    // DEBUG: log search params
+    console.log(`[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}`);
+
+    // Search ensemble embeddings first, fall back to inline column
     const results = await this.prisma.$queryRawUnsafe<
       Array<{ id: string; score: number }>
     >(`
-      SELECT 
-        id,
-        1 - (embedding <=> $1::vector) as score
-      FROM memories
-      WHERE ${whereClause}
-      ORDER BY embedding <=> $1::vector
+      (
+        SELECT 
+          m.id,
+          1 - (me.embedding <=> $1::vector) as score
+        FROM memories m
+        JOIN memory_embeddings me ON me.memory_id = m.id
+        WHERE me.model_id = $3
+          AND ${memoryWhereClause}
+          AND me.embedding IS NOT NULL
+        ORDER BY me.embedding <=> $1::vector
+        LIMIT ${limit}
+      )
+      UNION ALL
+      (
+        SELECT
+          m.id,
+          1 - (m.embedding <=> $1::vector) as score
+        FROM memories m
+        WHERE ${memoryWhereClause}
+          AND m.embedding IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM memory_embeddings me
+            WHERE me.memory_id = m.id AND me.model_id = $3
+          )
+        ORDER BY m.embedding <=> $1::vector
+        LIMIT ${limit}
+      )
+      ORDER BY score DESC
       LIMIT ${limit}
     `, ...params);
+
+    console.log(`[PgVector] search results: ${results.length}`, results.slice(0, 3));
 
     return results.map((r) => ({
       id: r.id,

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, Inject } from '@nestjs/common';
 import { Memory, MemoryLayer } from '@prisma/client';
 
 export interface ScoreComponents {
@@ -63,7 +63,7 @@ type MemoryWithRelations = Memory & {
 export class ImportanceScorerService {
   private config: ScoringConfig;
 
-  constructor(config?: Partial<ScoringConfig>) {
+  constructor(@Optional() @Inject('SCORING_CONFIG') config?: Partial<ScoringConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 

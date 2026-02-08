@@ -55,7 +55,7 @@ export class ContextualRecallService {
 
     // 4. Semantic search
     const limit = dto.maxResults ?? 5;
-    const minScore = dto.minScore ?? 0.75;
+    const minScore = dto.minScore ?? 0.65;
     const excludeSet = new Set([
       ...(dto.excludeIds ?? []),
       ...session.recalledIds,
@@ -68,6 +68,7 @@ export class ContextualRecallService {
     );
 
     // 5. Filter: exclude already-known IDs, apply score threshold
+    console.log(`[ContextualRecall] vectorResults: ${vectorResults.length}, scores: [${vectorResults.slice(0, 5).map(r => r.score.toFixed(3)).join(', ')}], minScore: ${minScore}`);
     const filteredIds = vectorResults
       .filter((r) => r.score >= minScore && !excludeSet.has(r.id))
       .slice(0, limit)

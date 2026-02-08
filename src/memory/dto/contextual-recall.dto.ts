@@ -22,7 +22,7 @@ export class ContextualRecallDto {
 
   @IsOptional()
   @IsNumber()
-  minScore?: number = 0.75;
+  minScore?: number = 0.65;
 }
 
 export class ContextualRecallResponseDto {
