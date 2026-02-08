@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsObject, IsNumber, IsArray, IsDate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { ImportanceHint, MemoryLayer, SubjectType } from '@prisma/client';
+import { ImportanceHint, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
 
 /**
  * Map legacy memoryType values to MemoryLayer enum
@@ -89,6 +89,11 @@ export class CreateMemoryDto {
   @IsOptional()
   @IsString()
   agentId?: string;
+
+  // Memory source type (defaults to EXPLICIT_STATEMENT)
+  @IsOptional()
+  @IsEnum(MemorySource)
+  source?: MemorySource;
 
   // Source attribution fields (for tracking where memories came from)
   @IsOptional()

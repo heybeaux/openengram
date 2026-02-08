@@ -69,29 +69,40 @@ export class ImportanceScorerService {
 
   /**
    * Compute effective score for a memory
+   * v2: includes confidence weighting and reinforcement-aware decay
    */
   computeScore(memory: MemoryWithRelations, now: Date = new Date()): ScoreComponents {
     // 1. Base score from importanceScore
     const baseScore = memory.importanceScore ?? 0.5;
 
-    // 2. Decay factor based on layer and age
+    // 2. Decay factor based on layer and age (now reinforcement-aware)
     const decayFactor = this.computeDecayFactor(memory, now);
 
-    // 3. Novelty boost for new memories
+    // 3. Reinforcement multiplier: log2(1 + reinforcementCount) * 0.15
+    // Uses usedCount as proxy for reinforcement count
+    const reinforcementCount = memory.usedCount ?? 0;
+    const reinforcementMultiplier = 1 + Math.log2(1 + reinforcementCount) * 0.15;
+
+    // 4. Confidence weight: scales from 0.5x to 1.0x based on confidence
+    const confidence = memory.confidence ?? 1.0;
+    const confidenceWeight = 0.5 + (confidence * 0.5);
+
+    // 5. Novelty boost for new memories
     const noveltyBoost = this.computeNoveltyBoost(memory, now);
 
-    // 4. Usage boost based on retrieval/use count
+    // 6. Usage boost based on retrieval/use count
     const usageBoost = this.computeUsageBoost(memory);
 
-    // 5. Pinned boost
+    // 7. Pinned boost
     const pinnedBoost = memory.userPinned ? this.config.pinnedBoost : 0;
 
-    // 6. Safety floor for critical memories
+    // 8. Safety floor for critical memories
     const safetyFloor = memory.safetyCritical ? this.config.safetyFloor : 0;
 
-    // Compute final score: max of safety floor and computed score
+    // Compute final score with reinforcement and confidence
     const computedScore =
-      baseScore * decayFactor + noveltyBoost + usageBoost + pinnedBoost;
+      baseScore * decayFactor * reinforcementMultiplier * confidenceWeight
+      + noveltyBoost + usageBoost + pinnedBoost;
     let effectiveScore = Math.min(1.0, Math.max(safetyFloor, computedScore));
 
     // Lesson floor - lessons maintain high visibility

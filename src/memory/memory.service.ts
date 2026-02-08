@@ -13,10 +13,31 @@ import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { MultiQueryMetadataDto, ResultExplanationDto } from '../multi-query/dto/multi-query.dto';
 
-// Similarity threshold for deduplication (0.90 = very similar)
-const DEDUP_SIMILARITY_THRESHOLD = 0.90;
+// Three-tier dedup thresholds (v2)
+const DEDUP_AUTO_MERGE_THRESHOLD = 0.93;   // Auto-merge: combine content, boost confidence
+const DEDUP_REINFORCE_THRESHOLD = 0.85;     // Reinforce: increment counts, update timestamps
+const DEDUP_REVIEW_THRESHOLD = 0.78;        // Flag for review: add to MergeCandidate
+// Legacy constant kept for related links
+const DEDUP_SIMILARITY_THRESHOLD = DEDUP_AUTO_MERGE_THRESHOLD;
 // Similarity threshold for creating RELATED links (0.65 = moderately related)
 const RELATED_SIMILARITY_THRESHOLD = 0.65;
+
+// Source-based confidence mapping
+const SOURCE_CONFIDENCE: Record<string, number> = {
+  EXPLICIT_STATEMENT: 1.0,
+  CORRECTION: 1.0,
+  AGENT_OBSERVATION: 0.7,
+  AGENT_REFLECTION: 0.65,
+  PATTERN_DETECTED: 0.65,
+  SYSTEM: 0.8,
+};
+
+// Dedup action result
+interface DedupResult {
+  action: 'create' | 'reinforced' | 'merged' | 'queued_review';
+  existingMemory?: Memory;
+  similarityScore?: number;
+}
 
 export interface MemoryWithExtraction extends Memory {
   extraction?: {
@@ -93,24 +114,36 @@ export class MemoryService {
       select: { id: true, externalId: true },
     });
 
-    // 2. Check for duplicates BEFORE creating
-    const duplicate = await this.findDuplicate(userId, rawContent);
-    if (duplicate) {
-      // Reinforce existing memory instead of creating duplicate
-      await this.reinforceMemory(duplicate.id);
-      return this.getById(duplicate.id) as Promise<MemoryWithExtraction>;
+    // 2. Determine source type
+    const source = dto.source ?? MemorySource.EXPLICIT_STATEMENT;
+
+    // 3. Check for duplicates BEFORE creating (three-tier dedup v2)
+    const dedupResult = await this.findDuplicateV2(userId, rawContent);
+    if (dedupResult.action !== 'create' && dedupResult.existingMemory) {
+      if (dedupResult.action === 'merged') {
+        // Auto-merge: combine content, boost confidence
+        await this.autoMergeMemory(dedupResult.existingMemory.id, rawContent, source);
+      } else if (dedupResult.action === 'reinforced') {
+        // Reinforce existing memory
+        await this.reinforceMemory(dedupResult.existingMemory.id, dto.context?.sessionId);
+      }
+      // For 'queued_review', the MergeCandidate was already created in findDuplicateV2
+      return this.getById(dedupResult.existingMemory.id) as Promise<MemoryWithExtraction>;
     }
 
-    // 3. Calculate initial importance score
+    // 4. Calculate initial importance score
     const importanceScore = this.importance.calculate({
       hint: dto.importanceHint,
       layer: dto.layer,
     });
 
-    // 4. Resolve sessionId - auto-create session if needed
+    // 5. Set confidence based on source type
+    const confidence = SOURCE_CONFIDENCE[source] ?? 1.0;
+
+    // 6. Resolve sessionId - auto-create session if needed
     const sessionId = await this.resolveSessionId(userId, dto.context?.sessionId);
 
-    // 5. Determine layer - use smart classification if not explicitly specified
+    // 7a. Determine layer - use smart classification if not explicitly specified
     // P5-003: Intelligent Layer Classification
     let layer = dto.layer;
     if (!layer) {
@@ -120,7 +153,7 @@ export class MemoryService {
       console.log('[Memory] Smart layer classification:', { rawPreview: rawContent.substring(0, 50), layer });
     }
 
-    // 6. Determine subject fields
+    // 7b. Determine subject fields
     // Default: memory is about the user (USER subject type)
     const subjectType = dto.subjectType ?? SubjectType.USER;
     const subjectId = dto.subjectId ?? (subjectType === SubjectType.USER ? userId : dto.agentId);
@@ -131,9 +164,10 @@ export class MemoryService {
         userId,
         raw: rawContent,
         layer,
-        source: MemorySource.EXPLICIT_STATEMENT,
+        source,
         importanceHint: dto.importanceHint,
         importanceScore,
+        confidence,
         projectId: dto.context?.projectId,
         sessionId,
         // Subject fields for agent self-memories
@@ -162,48 +196,117 @@ export class MemoryService {
 
   /**
    * Check if a similar memory already exists (semantic deduplication)
+   * Legacy method kept for linkRelatedMemories compatibility
    */
   private async findDuplicate(
     userId: string,
     text: string,
     threshold: number = DEDUP_SIMILARITY_THRESHOLD,
   ): Promise<Memory | null> {
+    const result = await this.findDuplicateV2(userId, text);
+    return result.existingMemory ?? null;
+  }
+
+  /**
+   * Three-tier semantic deduplication (v2)
+   * - ≥0.93: auto-merge (combine content, boost confidence)
+   * - ≥0.85: reinforce (increment accessCount, update lastAccessedAt)
+   * - ≥0.78: flag for review (add to MergeCandidate table)
+   */
+  private async findDuplicateV2(
+    userId: string,
+    text: string,
+  ): Promise<DedupResult> {
     try {
-      // Generate embedding for comparison
       const embedding = await this.embedding.generate(text);
-      
-      // Search for similar memories
       const similar = await this.embedding.search(userId, embedding, 5);
-      
-      // Find any above threshold
-      const match = similar.find(m => m.score >= threshold);
-      
-      if (match) {
-        return this.prisma.memory.findUnique({ where: { id: match.id } });
+
+      // Find best match
+      const bestMatch = similar.length > 0 ? similar[0] : null;
+      if (!bestMatch) return { action: 'create' };
+
+      const existingMemory = await this.prisma.memory.findUnique({
+        where: { id: bestMatch.id },
+      });
+      if (!existingMemory || existingMemory.deletedAt) return { action: 'create' };
+
+      if (bestMatch.score >= DEDUP_AUTO_MERGE_THRESHOLD) {
+        console.log(`[Dedup] Auto-merge: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
+        return { action: 'merged', existingMemory, similarityScore: bestMatch.score };
       }
-      
-      return null;
+
+      if (bestMatch.score >= DEDUP_REINFORCE_THRESHOLD) {
+        console.log(`[Dedup] Reinforce: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
+        return { action: 'reinforced', existingMemory, similarityScore: bestMatch.score };
+      }
+
+      if (bestMatch.score >= DEDUP_REVIEW_THRESHOLD) {
+        console.log(`[Dedup] Queue for review: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
+        // Create MergeCandidate for review
+        try {
+          await this.prisma.mergeCandidate.create({
+            data: {
+              userId,
+              memoryIds: [existingMemory.id],
+              similarity: bestMatch.score,
+              suggestedStrategy: 'SEMANTIC_SIMILAR',
+              suggestedSurvivorId: existingMemory.id,
+              status: 'PENDING',
+            },
+          });
+        } catch (err) {
+          console.error('[Dedup] Failed to create MergeCandidate:', err);
+        }
+        // Still allow creation — just flagged for review
+        return { action: 'create' };
+      }
+
+      return { action: 'create' };
     } catch (error) {
-      // If embedding fails, allow creation (fail open)
       console.error('Duplicate check failed:', error);
-      return null;
+      return { action: 'create' };
     }
   }
 
   /**
-   * Reinforce an existing memory (boost importance, update timestamps)
+   * Auto-merge: combine content from new memory into existing, boost confidence
    */
-  private async reinforceMemory(memoryId: string): Promise<void> {
+  private async autoMergeMemory(
+    existingId: string,
+    newContent: string,
+    newSource: MemorySource,
+  ): Promise<void> {
+    const existing = await this.prisma.memory.findUnique({ where: { id: existingId } });
+    if (!existing) return;
+
+    // Boost confidence: take the max of existing and new source confidence
+    const newConfidence = SOURCE_CONFIDENCE[newSource] ?? 1.0;
+    const boostedConfidence = Math.min(1.0, Math.max(existing.confidence, newConfidence) + 0.05);
+
     await this.prisma.memory.update({
-      where: { id: memoryId },
+      where: { id: existingId },
       data: {
+        confidence: boostedConfidence,
         usedCount: { increment: 1 },
         lastUsedAt: new Date(),
-        // Slight importance boost for reinforcement (max 1.0)
-        importanceScore: {
-          increment: 0.05,
-        },
+        importanceScore: Math.min(1.0, existing.importanceScore + 0.05),
       },
+    });
+  }
+
+  /**
+   * Reinforce an existing memory (boost importance, track sessions)
+   */
+  private async reinforceMemory(memoryId: string, sessionId?: string): Promise<void> {
+    const updateData: any = {
+      usedCount: { increment: 1 },
+      lastUsedAt: new Date(),
+      importanceScore: { increment: 0.05 },
+    };
+
+    await this.prisma.memory.update({
+      where: { id: memoryId },
+      data: updateData,
     });
 
     // Cap importance at 1.0
@@ -585,6 +688,7 @@ export class MemoryService {
       },
       orderBy: [
         { effectiveScore: 'desc' }, // Memory Intelligence v2: unified score (includes safety floor, decay, boosts)
+        { confidence: 'desc' },     // Quality v2: prefer higher-confidence memories
         { priority: 'asc' },        // Tie-breaker: lower = higher priority (1=CONSTRAINT first)
         { userPinned: 'desc' },     // Then pinned items
         { createdAt: 'desc' },      // Finally recency
@@ -613,6 +717,7 @@ export class MemoryService {
         },
         orderBy: [
           { effectiveScore: 'desc' },
+          { confidence: 'desc' },
           { priority: 'asc' },
           { userPinned: 'desc' },
           { createdAt: 'desc' },
@@ -641,6 +746,7 @@ export class MemoryService {
       },
       orderBy: [
         { effectiveScore: 'desc' },
+        { confidence: 'desc' },
         { priority: 'asc' },
         { createdAt: 'desc' },
       ],

@@ -102,6 +102,7 @@ export class ConversationObserverService {
           raw: memory.content,
           layer: this.determineLayer(memory),
           importanceHint: this.mapImportanceToHint(memory.importance),
+          source: 'AGENT_OBSERVATION' as any,
           context: {
             projectId: dto.projectId,
             sessionId: dto.sessionId,
