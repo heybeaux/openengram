@@ -163,6 +163,52 @@ Periodic job that compresses duplicate memories:
 3. Promotes the canonical memory to IDENTITY layer
 4. Soft-deletes duplicates with audit trail
 
+### Contextual Recall
+
+Automatically surfaces relevant memories when conversation topics shift:
+
+```bash
+curl -X POST http://localhost:3001/v1/recall/contextual \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -d '{"sessionId": "abc123", "messages": [...]}'
+```
+
+- Detects topic shifts via cosine distance between consecutive messages
+- 30-second cooldown prevents recall flooding
+- Per-session rate limiting for multi-agent environments
+
+### Dream Cycle
+
+A 4-stage memory consolidation pipeline inspired by sleep consolidation in the brain:
+
+```bash
+curl -X POST http://localhost:3001/v1/consolidation/dream-cycle \
+  -H "X-AM-API-Key: your-key" \
+  -d '{"agentId": "clawd-agent-001"}'
+```
+
+1. **Dedup** — Merges duplicate memories (three-tier: auto-merge ≥0.93, reinforce ≥0.85, flag ≥0.78)
+2. **Staleness** — Soft-deletes stale, low-value memories
+3. **Patterns** — Extracts recurring themes into higher-order memories
+4. **Report** — Summarizes all consolidation actions
+
+Protected types (CONSTRAINT, pinned) are never touched. All deletes are soft-deletes.
+
+### Generate Context
+
+Auto-curates your top memories into a ready-to-inject `MEMORY_CONTEXT.md`:
+
+```bash
+curl -X POST http://localhost:3001/v1/consolidation/generate-context \
+  -H "X-AM-API-Key: your-key" \
+  -d '{"agentId": "clawd-agent-001", "maxTokens": 1500}'
+```
+
+- Groups memories by category (Identity, Projects, Recent Context)
+- Respects a configurable token budget
+- Designed as Dream Cycle Stage 5
+
 ### Safety-Critical Detection
 
 16 patterns detect safety-relevant information:
@@ -236,6 +282,9 @@ Every extraction field carries a confidence score:
 | `/v1/context` | POST | ✅ | Load context for system prompt |
 | `/v1/observe` | POST | ✅ | Auto-capture from conversation |
 | `/v1/consolidate` | POST | ✅ | Trigger sleep consolidation |
+| `/v1/recall/contextual` | POST | ✅ | Contextual recall (topic shift detection) |
+| `/v1/consolidation/dream-cycle` | POST | ✅ | Run 4-stage Dream Cycle consolidation |
+| `/v1/consolidation/generate-context` | POST | ✅ | Generate MEMORY_CONTEXT.md from top memories |
 | `/v1/health` | GET | ❌ | System health + metrics |
 
 ### Multi-Model Ensemble Endpoints
