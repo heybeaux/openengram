@@ -153,7 +153,8 @@ async function main() {
   return runResult;
 }
 
-export { main as runRecallTest, RecallRunResult, RecallResult };
+export { main as runRecallTest };
+export type { RecallRunResult, RecallResult };
 
 if (require.main === module) {
   main().catch((err) => {

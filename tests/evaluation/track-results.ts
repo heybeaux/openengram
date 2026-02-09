@@ -129,7 +129,8 @@ async function main() {
   console.log(`\n💾 Trend saved to: ${summaryPath}`);
 }
 
-export { generateTrend, TrendSummary };
+export { generateTrend };
+export type { TrendSummary };
 
 if (require.main === module) {
   main().catch((err) => {
