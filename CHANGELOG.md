@@ -2,9 +2,27 @@
 
 All notable changes to the Engram project will be documented in this file.
 
-## [0.5.0] — 2026-02-08
+## [0.5.0] — 2026-02-09
 
 ### Added
+
+#### Health & Resilience
+- `/health` endpoint returns system status (`healthy | degraded | unhealthy`), quality metrics, and detected issues — no auth required
+- Graceful degradation when `engram-embed` is down: memories saved without embeddings, auto-retry every 5 minutes via `EmbeddingRetryService`
+- `EmbedHealthService` with 30s cache, state-change logging, and `isAvailable()` check
+
+#### Retrieval-Aware Decay
+- Decay anchor uses `lastRetrievedAt` when available (falls back to `createdAt`)
+- Adjusted half-lives: SESSION 30d (was 14d), TASK 7d (was 3d)
+
+#### Generate Context Improvements
+- Recent-first categorization with staleness filtering
+- Current project detection from recent memory patterns
+- Better token budget allocation across categories
+
+#### Eval Framework
+- 22 semantic recall scenarios covering temporal, safety-critical, type classification, and dedup
+- Automated scoring with recall, F1, and latency metrics
 
 #### Dedup & Quality v2
 - Three-tier deduplication with configurable similarity thresholds:

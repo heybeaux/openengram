@@ -40,6 +40,45 @@ Most "memory" solutions for AI agents are glorified vector search over chat hist
 "We discussed auth yesterday" → EVENT (normal decay)
 ```
 
+## What's New in v0.5
+
+### Graceful Degradation
+When `engram-embed` is down, memories are saved without embeddings. A background retry runs every 5 minutes and backfills embeddings automatically once the service recovers.
+
+### `/health` Endpoint
+`GET /v1/health` (no auth) returns system health and quality metrics:
+
+```json
+{
+  "status": "healthy | degraded | unhealthy",
+  "timestamp": "2026-02-09T...",
+  "metrics": {
+    "totalMemories": 1539,
+    "extractionRate": 0.94,
+    "whoExtractionRate": 0.87,
+    "entitiesPerMemory": 2.3,
+    "linksPerMemory": 1.1,
+    "memoriesLast24h": 42,
+    "safetyCriticalCount": 8,
+    "consolidatedCount": 156
+  },
+  "issues": []
+}
+```
+
+### Retrieval-Aware Decay
+Memory decay now anchors on `lastRetrievedAt` instead of `createdAt`. Memories you actively use stay relevant longer. Adjusted half-lives: SESSION 30d (was 14d), TASK 7d (was 3d).
+
+### Generate Context Improvements
+- Recent-first categorization with staleness filtering
+- Current project detection from recent memory patterns
+- Better token budget allocation across categories
+
+### Eval Framework
+22 semantic recall scenarios covering temporal queries, safety-critical recall, type classification, and deduplication. Run with `pnpm test:eval`.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -126,7 +165,7 @@ Every memory is classified by type and scored for priority:
 |------|----------|-------|---------|
 | CONSTRAINT | 1 (highest) | None (safety floor 0.6) | "Allergic to penicillin" |
 | PREFERENCE | 2 | Slow (60d half-life) | "Prefers dark mode" |
-| TASK | 2 | Fast (3d half-life) | "Fix the login bug by Friday" |
+| TASK | 2 | Fast (7d half-life) | "Fix the login bug by Friday" |
 | FACT | 3 | Slow (60d half-life) | "Lives in Vancouver" |
 | EVENT | 4 (lowest) | Normal (14d half-life) | "Discussed auth flow" |
 
@@ -328,8 +367,10 @@ Full API documentation available in the [dashboard](https://github.com/heybeaux/
 |-------|---------|-----------------|---------|
 | IDENTITY | Core user facts | ∞ (no decay) | Name, preferences, allergies |
 | PROJECT | Work context | 60 days | Current projects, teammates |
-| SESSION | Conversation context | 14 days | Recent discussions |
-| TASK | Immediate work | 3 days | Active todos |
+| SESSION | Conversation context | 30 days | Recent discussions |
+| TASK | Immediate work | 7 days | Active todos |
+
+> **v0.5:** Decay is now retrieval-aware — the decay clock resets from `lastRetrievedAt` instead of `createdAt`, so memories you actually use stay fresh longer.
 
 ## Dashboard
 
