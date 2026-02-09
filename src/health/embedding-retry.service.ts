@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 import { EmbeddingService } from '../memory/embedding.service';
@@ -11,9 +10,11 @@ import { EmbeddingService } from '../memory/embedding.service';
  * Runs every 5 minutes. Only attempts if engram-embed is available.
  */
 @Injectable()
-export class EmbeddingRetryService {
+export class EmbeddingRetryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmbeddingRetryService.name);
   private readonly batchSize = 20;
+  private readonly intervalMs = 5 * 60 * 1000; // 5 minutes
+  private timer: NodeJS.Timeout | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -21,7 +22,22 @@ export class EmbeddingRetryService {
     private embeddingService: EmbeddingService,
   ) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  onModuleInit(): void {
+    this.timer = setInterval(() => {
+      this.retryPendingEmbeddings().catch((err) => {
+        this.logger.error('Embedding retry failed:', err);
+      });
+    }, this.intervalMs);
+    this.logger.log('Embedding retry service started (every 5 minutes)');
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
   async retryPendingEmbeddings(): Promise<void> {
     // Only attempt if embed is available
     const available = await this.embedHealth.isAvailable();
@@ -62,7 +78,6 @@ export class EmbeddingRetryService {
       } catch (err) {
         failed++;
         if (failed >= 3) {
-          // If multiple failures, embed is probably down again — stop trying
           this.logger.warn(`Embedding retry: ${failed} failures, stopping batch`);
           break;
         }

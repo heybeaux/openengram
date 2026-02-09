@@ -1,5 +1,4 @@
-import { Controller, Get, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 
@@ -13,7 +12,7 @@ export class HealthController {
   ) {}
 
   @Get()
-  async check(@Res() res: Response): Promise<void> {
+  async check(): Promise<any> {
     const start = Date.now();
 
     // 1. Database health
@@ -47,7 +46,6 @@ export class HealthController {
 
     // Determine overall status
     const overallStatus = dbStatus === 'down' ? 'unhealthy' : embedStatus.status === 'down' ? 'degraded' : 'healthy';
-    const httpStatus = dbStatus === 'down' ? 503 : 200;
 
     const body = {
       status: overallStatus,
@@ -77,6 +75,10 @@ export class HealthController {
       checkedIn: `${Date.now() - start}ms`,
     };
 
-    res.status(httpStatus).json(body);
+    if (dbStatus === 'down') {
+      throw new HttpException(body, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    return body;
   }
 }

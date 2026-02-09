@@ -126,7 +126,17 @@ export class EnsembleService implements OnModuleInit {
       }
     } catch (error) {
       this.logger.error('Failed to get embeddings from local server', error);
-      throw error;
+      // Graceful degradation: return empty embeddings instead of throwing
+      // Memory will be created without embeddings and retried later
+      return {
+        embeddings: [],
+        totalMs: Date.now() - start,
+        errors: this.config.models.map(model => ({
+          model,
+          error: error instanceof Error ? error.message : String(error),
+          recoverable: true,
+        })),
+      };
     }
 
     return {
@@ -179,7 +189,12 @@ export class EnsembleService implements OnModuleInit {
     }
 
     // Generate embeddings from all models
-    const { embeddings } = await this.embedAll(options.content);
+    const { embeddings, errors } = await this.embedAll(options.content);
+
+    if (embeddings.length === 0) {
+      this.logger.warn(`No embeddings generated for memory ${options.memoryId} — embed service may be down`);
+      return;
+    }
 
     // Prepare records for batch upsert
     const records: EnsembleEmbeddingRecord[] = embeddings.map((embResult) => ({

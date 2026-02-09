@@ -1502,19 +1502,24 @@ export class MemoryService {
       console.log('[Memory] No entities to store for:', memoryId);
     }
 
-    // 5. Generate and store embedding
-    const embedding = await this.embedding.generate(raw);
-    const embeddingId = await this.embedding.store(memoryId, embedding);
-    console.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+    // 5. Generate and store embedding (graceful degradation if embed service is down)
+    try {
+      const embedding = await this.embedding.generate(raw);
+      const embeddingId = await this.embedding.store(memoryId, embedding);
+      console.log('[Memory] Embedding stored:', { memoryId, embeddingId });
 
-    // 6. Update memory with embedding reference
-    await this.prisma.memory.update({
-      where: { id: memoryId },
-      data: { embeddingId },
-    });
+      // 6. Update memory with embedding reference
+      await this.prisma.memory.update({
+        where: { id: memoryId },
+        data: { embeddingId },
+      });
 
-    // 7. Link to related memories
-    await this.linkRelatedMemories(memoryId, embedding, userId);
+      // 7. Link to related memories
+      await this.linkRelatedMemories(memoryId, embedding, userId);
+    } catch (embedError) {
+      console.warn(`[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`, embedError instanceof Error ? embedError.message : embedError);
+      // Memory is saved without embedding; the EmbeddingRetryService will pick it up
+    }
     
     console.log('[Memory] extractAndEmbed complete:', memoryId);
 
