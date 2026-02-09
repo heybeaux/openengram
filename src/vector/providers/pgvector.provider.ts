@@ -26,27 +26,30 @@ export class PgVectorProvider implements VectorProvider {
     const embeddingStr = `[${record.embedding.join(',')}]`;
     
     // Write to inline column for backward compat
-    await this.prisma.$executeRawUnsafe(`
+    const updated = await this.prisma.$executeRawUnsafe(`
       UPDATE memories 
       SET embedding = $1::vector
       WHERE id = $2
     `, embeddingStr, record.id);
 
-    // Also write to memory_embeddings table for ensemble search
-    await this.prisma.$executeRawUnsafe(`
-      INSERT INTO memory_embeddings (id, memory_id, model_id, dimensions, embedding, created_at, updated_at)
-      VALUES (
-        concat('cl', substr(md5(random()::text), 1, 23)),
-        $2,
-        $3,
-        $4,
-        $1::vector,
-        NOW(),
-        NOW()
-      )
-      ON CONFLICT (memory_id, model_id)
-      DO UPDATE SET embedding = $1::vector, updated_at = NOW()
-    `, embeddingStr, record.id, this.searchModel, record.embedding.length);
+    // Only write to memory_embeddings if this ID is a real memory
+    // (HierarchyService passes pinecone-style IDs like "hierarchy_l0_xxx" which aren't memory IDs)
+    if (updated > 0) {
+      await this.prisma.$executeRawUnsafe(`
+        INSERT INTO memory_embeddings (id, memory_id, model_id, dimensions, embedding, created_at, updated_at)
+        VALUES (
+          concat('cl', substr(md5(random()::text), 1, 23)),
+          $2,
+          $3,
+          $4,
+          $1::vector,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (memory_id, model_id)
+        DO UPDATE SET embedding = $1::vector, updated_at = NOW()
+      `, embeddingStr, record.id, this.searchModel, record.embedding.length);
+    }
   }
 
   async upsertMany(records: VectorRecord[]): Promise<void> {

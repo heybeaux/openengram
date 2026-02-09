@@ -34,8 +34,8 @@ const DEFAULT_CONFIG: ScoringConfig = {
   decayHalfLifeDays: {
     [MemoryLayer.IDENTITY]: Infinity,
     [MemoryLayer.PROJECT]: 60,
-    [MemoryLayer.SESSION]: 14,
-    [MemoryLayer.TASK]: 3,
+    [MemoryLayer.SESSION]: 30,
+    [MemoryLayer.TASK]: 7,
   },
   minDecayFactor: 0.1,
 
@@ -134,7 +134,9 @@ export class ImportanceScorerService {
       return 1.0;
     }
 
-    const ageMs = now.getTime() - memory.createdAt.getTime();
+    // Use lastRetrievedAt as decay anchor if available — retrieval refreshes relevance
+    const decayAnchor = memory.lastRetrievedAt ?? memory.createdAt;
+    const ageMs = now.getTime() - decayAnchor.getTime();
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
     // Exponential decay: factor = 0.5 ^ (age / halfLife)

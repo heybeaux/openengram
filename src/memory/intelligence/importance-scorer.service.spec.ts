@@ -116,12 +116,12 @@ describe('ImportanceScorerService', () => {
       expect(decay).toBe(1.0);
     });
 
-    it('should decay SESSION memories with 14-day half-life', () => {
+    it('should decay SESSION memories with 30-day half-life', () => {
       const now = new Date();
-      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const memory = createMockMemory({
         layer: MemoryLayer.SESSION,
-        createdAt: fourteenDaysAgo,
+        createdAt: thirtyDaysAgo,
       });
 
       const decay = scorer.computeDecayFactor(memory, now);
@@ -129,17 +129,34 @@ describe('ImportanceScorerService', () => {
       expect(decay).toBeCloseTo(0.5, 1); // Half-life reached
     });
 
-    it('should decay TASK memories faster (3-day half-life)', () => {
+    it('should decay TASK memories with 7-day half-life', () => {
       const now = new Date();
-      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const memory = createMockMemory({
         layer: MemoryLayer.TASK,
-        createdAt: threeDaysAgo,
+        createdAt: sevenDaysAgo,
       });
 
       const decay = scorer.computeDecayFactor(memory, now);
 
       expect(decay).toBeCloseTo(0.5, 1); // Half-life reached
+    });
+
+    it('should use lastRetrievedAt as decay anchor when available', () => {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+      const memory = createMockMemory({
+        layer: MemoryLayer.SESSION,
+        createdAt: thirtyDaysAgo,
+        lastRetrievedAt: fiveDaysAgo,
+      });
+
+      const decay = scorer.computeDecayFactor(memory, now);
+
+      // Should decay from lastRetrievedAt (5 days), not createdAt (30 days)
+      // 0.5^(5/30) ≈ 0.891
+      expect(decay).toBeCloseTo(0.891, 1);
     });
 
     it('should enforce minimum decay factor', () => {

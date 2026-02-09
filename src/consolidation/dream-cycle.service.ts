@@ -52,8 +52,8 @@ export class DreamCycleService {
     @Optional() private generateContextService?: GenerateContextService,
   ) {
     this.dedupThreshold = parseFloat(this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85');
-    this.stalenessScoreThreshold = parseFloat(this.config.get('DREAM_STALENESS_SCORE') ?? '0.3');
-    this.stalenessAgeDays = parseInt(this.config.get('DREAM_STALENESS_DAYS') ?? '30', 10);
+    this.stalenessScoreThreshold = parseFloat(this.config.get('DREAM_STALENESS_SCORE') ?? '0.35');
+    this.stalenessAgeDays = parseInt(this.config.get('DREAM_STALENESS_DAYS') ?? '21', 10);
     this.maxMergesPerRun = parseInt(this.config.get('DREAM_MAX_MERGES') ?? '200', 10);
     this.maxArchivalsPerRun = parseInt(this.config.get('DREAM_MAX_ARCHIVALS') ?? '50', 10);
     this.maxLlmCalls = parseInt(this.config.get('DREAM_MAX_LLM_CALLS') ?? '100', 10);
@@ -61,6 +61,30 @@ export class DreamCycleService {
   }
 
   async run(options: DreamCycleOptions = {}): Promise<DreamCycleResult> {
+    // Auto-discover users if no userId specified and no DEFAULT_USER_ID configured
+    if (!options.userId && !this.config.get('DEFAULT_USER_ID')) {
+      this.log('No userId or DEFAULT_USER_ID configured — auto-discovering users');
+      const users = await this.prisma.memory.findMany({
+        where: { deletedAt: null },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+
+      if (users.length === 0) {
+        throw new Error('No users found with active memories');
+      }
+
+      this.log(`Found ${users.length} distinct users`, { userIds: users.map(u => u.userId) });
+
+      // Run for each user, return the last result (or aggregate)
+      let lastResult: DreamCycleResult | undefined;
+      for (const user of users) {
+        this.log(`Running Dream Cycle for user: ${user.userId}`);
+        lastResult = await this.run({ ...options, userId: user.userId });
+      }
+      return lastResult!;
+    }
+
     const {
       dryRun = false,
       stages = ALL_STAGES,

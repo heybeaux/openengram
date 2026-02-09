@@ -17,6 +17,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { DeduplicationModule } from './deduplication/deduplication.module';
 import { MultiQueryModule } from './multi-query/multi-query.module';
 import { ConsolidationModule } from './consolidation/consolidation.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ConsolidationModule } from './consolidation/consolidation.module';
     MultiQueryModule,
     DeduplicationModule,
     ConsolidationModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
