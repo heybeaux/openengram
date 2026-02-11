@@ -123,9 +123,7 @@ describe('LLMService', () => {
         });
       }
 
-      const result = await service.chat([
-        { role: 'user', content: 'Hi' },
-      ]);
+      const result = await service.chat([{ role: 'user', content: 'Hi' }]);
 
       expect(result.content).toBe('Hello!');
     });
@@ -140,10 +138,9 @@ describe('LLMService', () => {
         });
       }
 
-      const result = await service.chat(
-        [{ role: 'user', content: 'Hi' }],
-        { provider: 'anthropic' },
-      );
+      const result = await service.chat([{ role: 'user', content: 'Hi' }], {
+        provider: 'anthropic',
+      });
 
       expect(result.content).toBe('Claude here!');
     });
@@ -158,10 +155,9 @@ describe('LLMService', () => {
         });
       }
 
-      const result = await service.chat(
-        [{ role: 'user', content: 'Hi' }],
-        { provider: 'nonexistent' as any },
-      );
+      const result = await service.chat([{ role: 'user', content: 'Hi' }], {
+        provider: 'nonexistent' as any,
+      });
 
       expect(result.content).toBe('Fallback response');
     });
@@ -177,9 +173,9 @@ describe('LLMService', () => {
         });
       }
 
-      const result = await service.json<{ name: string; age: number }>(
-        [{ role: 'user', content: 'Give me JSON' }],
-      );
+      const result = await service.json<{ name: string; age: number }>([
+        { role: 'user', content: 'Give me JSON' },
+      ]);
 
       expect(result.name).toBe('John');
       expect(result.age).toBe(30);
@@ -187,10 +183,15 @@ describe('LLMService', () => {
 
     it('should pass schema to provider', async () => {
       const mockProvider = service.getProvider('openai');
-      const schema = { type: 'object', properties: { name: { type: 'string' } } };
+      const schema = {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      };
 
       if (mockProvider) {
-        const jsonSpy = jest.spyOn(mockProvider, 'json').mockResolvedValue({ name: 'Test' });
+        const jsonSpy = jest
+          .spyOn(mockProvider, 'json')
+          .mockResolvedValue({ name: 'Test' });
 
         await service.json([{ role: 'user', content: 'test' }], schema);
 
@@ -224,7 +225,9 @@ describe('LLMService', () => {
     it('should throw if provider does not support embeddings', async () => {
       const anthropicProvider = service.getProvider('anthropic');
       if (anthropicProvider) {
-        jest.spyOn(anthropicProvider, 'supportsEmbeddings').mockReturnValue(false);
+        jest
+          .spyOn(anthropicProvider, 'supportsEmbeddings')
+          .mockReturnValue(false);
       }
 
       await expect(

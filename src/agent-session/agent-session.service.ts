@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAgentSessionDto, UpdateAgentSessionDto } from './dto/agent-session.dto';
+import {
+  CreateAgentSessionDto,
+  UpdateAgentSessionDto,
+} from './dto/agent-session.dto';
 import { AgentSessionStatus } from '@prisma/client';
 
 @Injectable()
@@ -29,7 +32,8 @@ export class AgentSessionService {
     const session = await this.prisma.agentSession.findUnique({
       where: { sessionKey },
     });
-    if (!session) throw new NotFoundException(`Agent session '${sessionKey}' not found`);
+    if (!session)
+      throw new NotFoundException(`Agent session '${sessionKey}' not found`);
     return session;
   }
 
@@ -45,9 +49,11 @@ export class AgentSessionService {
       where: { id: session.id },
       data: {
         ...dto,
-        endedAt: dto.status === AgentSessionStatus.COMPLETED || dto.status === AgentSessionStatus.TERMINATED
-          ? new Date()
-          : undefined,
+        endedAt:
+          dto.status === AgentSessionStatus.COMPLETED ||
+          dto.status === AgentSessionStatus.TERMINATED
+            ? new Date()
+            : undefined,
       },
     });
   }

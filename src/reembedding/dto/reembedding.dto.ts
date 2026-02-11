@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsNumber, IsBoolean, IsEnum, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -12,7 +20,9 @@ export class TriggerReembeddingDto {
   @Max(10000)
   limit?: number;
 
-  @ApiPropertyOptional({ description: 'Only re-embed memories older than this many days' })
+  @ApiPropertyOptional({
+    description: 'Only re-embed memories older than this many days',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -23,7 +33,9 @@ export class TriggerReembeddingDto {
   @IsString()
   userId?: string;
 
-  @ApiPropertyOptional({ description: 'Dry run - compute enriched text but do not update' })
+  @ApiPropertyOptional({
+    description: 'Dry run - compute enriched text but do not update',
+  })
   @IsOptional()
   @IsBoolean()
   dryRun?: boolean;

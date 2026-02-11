@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExtractionService, ExtractionResult, MEMORY_TYPE_PRIORITY } from './extraction.service';
+import {
+  ExtractionService,
+  ExtractionResult,
+  MEMORY_TYPE_PRIORITY,
+} from './extraction.service';
 import { LLMService } from '../llm/llm.service';
 import { MemoryLayer } from '@prisma/client';
 
@@ -45,7 +49,9 @@ describe('ExtractionService', () => {
 
       mockLlmService.json.mockResolvedValue(llmResponse);
 
-      const result = await service.extract('John prefers TypeScript over JavaScript for better type safety');
+      const result = await service.extract(
+        'John prefers TypeScript over JavaScript for better type safety',
+      );
 
       expect(mockLlmService.json).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -60,7 +66,10 @@ describe('ExtractionService', () => {
       expect(result.what).toBe('prefers TypeScript over JavaScript');
       expect(result.topics).toEqual(['preferences', 'programming']);
       expect(result.entities).toHaveLength(2);
-      expect(result.entities[0]).toEqual({ name: 'TypeScript', type: 'product' });
+      expect(result.entities[0]).toEqual({
+        name: 'TypeScript',
+        type: 'product',
+      });
     });
 
     it('should handle null values in LLM response', async () => {
@@ -123,7 +132,9 @@ describe('ExtractionService', () => {
     it('should fallback to basic extraction on LLM failure', async () => {
       mockLlmService.json.mockRejectedValue(new Error('LLM unavailable'));
 
-      const result = await service.extract('John discussed the project deadline');
+      const result = await service.extract(
+        'John discussed the project deadline',
+      );
 
       expect(result.what).toContain('John discussed the project deadline');
       expect(result.who).toBe('John');
@@ -142,7 +153,9 @@ describe('ExtractionService', () => {
     });
 
     it('should extract names as WHO', async () => {
-      const result = await service.extract('Alice and Bob discussed the project');
+      const result = await service.extract(
+        'Alice and Bob discussed the project',
+      );
       expect(result.who).toBe('Alice');
     });
 
@@ -175,29 +188,39 @@ describe('ExtractionService', () => {
     });
 
     it('should extract preferences topics', async () => {
-      const result = await service.extract('I prefer dark mode and always use it');
+      const result = await service.extract(
+        'I prefer dark mode and always use it',
+      );
       expect(result.topics).toContain('preferences');
     });
 
     it('should extract technical topics', async () => {
-      const result = await service.extract('Database server integration with API');
+      const result = await service.extract(
+        'Database server integration with API',
+      );
       expect(result.topics).toContain('technical');
     });
 
     it('should extract multiple topics', async () => {
-      const result = await service.extract('I prefer this API design for the client');
+      const result = await service.extract(
+        'I prefer this API design for the client',
+      );
       expect(result.topics.length).toBeGreaterThan(1);
     });
 
     it('should extract named entities', async () => {
-      const result = await service.extract('Microsoft and Apple are tech companies');
-      const entityNames = result.entities.map(e => e.name);
+      const result = await service.extract(
+        'Microsoft and Apple are tech companies',
+      );
+      const entityNames = result.entities.map((e) => e.name);
       expect(entityNames).toContain('Microsoft');
       expect(entityNames).toContain('Apple');
     });
 
     it('should filter out common words from entities', async () => {
-      const result = await service.extract('The project starts on Monday in January');
+      const result = await service.extract(
+        'The project starts on Monday in January',
+      );
       expect(result.entities).not.toContain('The');
       expect(result.entities).not.toContain('Monday');
       expect(result.entities).not.toContain('January');
@@ -237,7 +260,9 @@ describe('ExtractionService', () => {
         entities: [],
       });
 
-      const result = await service.extract('Test with émojis 🎉 and spëcial chârs');
+      const result = await service.extract(
+        'Test with émojis 🎉 and spëcial chârs',
+      );
       expect(result.what).toContain('émojis');
     });
 
@@ -262,68 +287,128 @@ describe('ExtractionService', () => {
   describe('classifyLayer (P5-003)', () => {
     describe('IDENTITY classification', () => {
       it('should classify preferences as IDENTITY', () => {
-        expect(service.classifyLayer('I prefer dark mode for all applications')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('Beaux always uses vim')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I never deploy on Fridays')).toBe(MemoryLayer.IDENTITY);
+        expect(
+          service.classifyLayer('I prefer dark mode for all applications'),
+        ).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('Beaux always uses vim')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I never deploy on Fridays')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
 
       it('should classify personal facts as IDENTITY', () => {
-        expect(service.classifyLayer('I was born in Vancouver')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('My birthday is January 15th')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I am 35 years old')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I was born in Vancouver')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('My birthday is January 15th')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I am 35 years old')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
 
       it('should classify family/relationship info as IDENTITY', () => {
-        expect(service.classifyLayer('My wife is named Sarah')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I have two daughters')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('My brother works at Google')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('My wife is named Sarah')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I have two daughters')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('My brother works at Google')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
 
       it('should classify work/career info as IDENTITY', () => {
-        expect(service.classifyLayer('I work at Anthropic')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('My job is software engineering')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I am a developer')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I work at Anthropic')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('My job is software engineering')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I am a developer')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
 
       it('should classify hobbies and interests as IDENTITY', () => {
-        expect(service.classifyLayer('My hobby is woodworking')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I am passionate about AI safety')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('My hobby is woodworking')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I am passionate about AI safety')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
 
       it('should classify allergies and health facts as IDENTITY', () => {
-        expect(service.classifyLayer('I am allergic to peanuts')).toBe(MemoryLayer.IDENTITY);
-        expect(service.classifyLayer('I have a gluten intolerance')).toBe(MemoryLayer.IDENTITY);
+        expect(service.classifyLayer('I am allergic to peanuts')).toBe(
+          MemoryLayer.IDENTITY,
+        );
+        expect(service.classifyLayer('I have a gluten intolerance')).toBe(
+          MemoryLayer.IDENTITY,
+        );
       });
     });
 
     describe('PROJECT classification', () => {
       it('should classify project work as PROJECT', () => {
-        expect(service.classifyLayer('Working on the Engram memory project')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Building a new feature for the dashboard')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Developing the API integration')).toBe(MemoryLayer.PROJECT);
+        expect(
+          service.classifyLayer('Working on the Engram memory project'),
+        ).toBe(MemoryLayer.PROJECT);
+        expect(
+          service.classifyLayer('Building a new feature for the dashboard'),
+        ).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Developing the API integration')).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
 
       it('should classify repository/code references as PROJECT', () => {
-        expect(service.classifyLayer('The repo is at github.com/example')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Need to check the main branch')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Reviewing the pull request')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('The repo is at github.com/example')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Need to check the main branch')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Reviewing the pull request')).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
 
       it('should classify deadlines and milestones as PROJECT', () => {
-        expect(service.classifyLayer('Deadline is next Friday')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Sprint ends on Feb 14')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Release scheduled for March')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Deadline is next Friday')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Sprint ends on Feb 14')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Release scheduled for March')).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
 
       it('should classify bugs and issues as PROJECT', () => {
-        expect(service.classifyLayer('Found a bug in the login flow')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Issue #123 needs attention')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('This feature has a ticket')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Found a bug in the login flow')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Issue #123 needs attention')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('This feature has a ticket')).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
 
       it('should classify deployment topics as PROJECT', () => {
-        expect(service.classifyLayer('Need to deploy to production')).toBe(MemoryLayer.PROJECT);
-        expect(service.classifyLayer('Staging environment is ready')).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Need to deploy to production')).toBe(
+          MemoryLayer.PROJECT,
+        );
+        expect(service.classifyLayer('Staging environment is ready')).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
 
       it('should classify based on project/org entities', () => {
@@ -348,20 +433,32 @@ describe('ExtractionService', () => {
           },
           lesson: null,
         };
-        expect(service.classifyLayer('Working on something', extracted)).toBe(MemoryLayer.PROJECT);
+        expect(service.classifyLayer('Working on something', extracted)).toBe(
+          MemoryLayer.PROJECT,
+        );
       });
     });
 
     describe('SESSION classification (default)', () => {
       it('should default to SESSION for transient information', () => {
-        expect(service.classifyLayer('Had a good meeting today')).toBe(MemoryLayer.SESSION);
-        expect(service.classifyLayer('The weather is nice')).toBe(MemoryLayer.SESSION);
-        expect(service.classifyLayer('Grabbed coffee this morning')).toBe(MemoryLayer.SESSION);
+        expect(service.classifyLayer('Had a good meeting today')).toBe(
+          MemoryLayer.SESSION,
+        );
+        expect(service.classifyLayer('The weather is nice')).toBe(
+          MemoryLayer.SESSION,
+        );
+        expect(service.classifyLayer('Grabbed coffee this morning')).toBe(
+          MemoryLayer.SESSION,
+        );
       });
 
       it('should default to SESSION for ambiguous content', () => {
-        expect(service.classifyLayer('Looking at some code')).toBe(MemoryLayer.SESSION);
-        expect(service.classifyLayer('Thinking about next steps')).toBe(MemoryLayer.SESSION);
+        expect(service.classifyLayer('Looking at some code')).toBe(
+          MemoryLayer.SESSION,
+        );
+        expect(service.classifyLayer('Thinking about next steps')).toBe(
+          MemoryLayer.SESSION,
+        );
       });
     });
   });
@@ -376,7 +473,10 @@ describe('ExtractionService', () => {
         why: 'Cross-project context contamination',
         how: null,
         topics: ['mistakes', 'git'],
-        entities: [{ name: 'WhaleHawk', type: 'project' }, { name: 'Engram', type: 'project' }],
+        entities: [
+          { name: 'WhaleHawk', type: 'project' },
+          { name: 'Engram', type: 'project' },
+        ],
         memoryType: 'LESSON',
         typeConfidence: 0.95,
         who_confidence: 0.8,
@@ -386,20 +486,33 @@ describe('ExtractionService', () => {
         why_confidence: 0.8,
         how_confidence: null,
         lessonMistake: 'Pushed WhaleHawk content to the Engram repo',
-        lessonRootCause: 'Cross-project memories injected without namespace filtering',
-        lessonCorrectAction: 'Verify all content relates to target repo before committing',
+        lessonRootCause:
+          'Cross-project memories injected without namespace filtering',
+        lessonCorrectAction:
+          'Verify all content relates to target repo before committing',
         lessonSeverity: 'high',
         lessonSource: 'user_correction',
-        lessonTriggerPatterns: ['committing to git', 'working across multiple projects'],
+        lessonTriggerPatterns: [
+          'committing to git',
+          'working across multiple projects',
+        ],
       });
 
-      const result = await service.extract('No, you pushed WhaleHawk stuff to the Engram repo');
+      const result = await service.extract(
+        'No, you pushed WhaleHawk stuff to the Engram repo',
+      );
 
       expect(result.memoryType).toBe('LESSON');
       expect(result.lesson).not.toBeNull();
-      expect(result.lesson!.lessonMistake).toBe('Pushed WhaleHawk content to the Engram repo');
-      expect(result.lesson!.lessonRootCause).toBe('Cross-project memories injected without namespace filtering');
-      expect(result.lesson!.lessonCorrectAction).toBe('Verify all content relates to target repo before committing');
+      expect(result.lesson!.lessonMistake).toBe(
+        'Pushed WhaleHawk content to the Engram repo',
+      );
+      expect(result.lesson!.lessonRootCause).toBe(
+        'Cross-project memories injected without namespace filtering',
+      );
+      expect(result.lesson!.lessonCorrectAction).toBe(
+        'Verify all content relates to target repo before committing',
+      );
     });
 
     it('should classify explicit lesson text as LESSON', async () => {
@@ -422,13 +535,16 @@ describe('ExtractionService', () => {
         how_confidence: null,
         lessonMistake: 'Committed to the wrong repo',
         lessonRootCause: 'Did not verify current repo context',
-        lessonCorrectAction: 'Always check which repo you are in before committing',
+        lessonCorrectAction:
+          'Always check which repo you are in before committing',
         lessonSeverity: 'medium',
         lessonSource: 'explicit',
         lessonTriggerPatterns: ['git commit', 'checking repo'],
       });
 
-      const result = await service.extract('Remember: always check which repo you\'re in before committing');
+      const result = await service.extract(
+        "Remember: always check which repo you're in before committing",
+      );
 
       expect(result.memoryType).toBe('LESSON');
       expect(result.lesson).not.toBeNull();
@@ -461,7 +577,9 @@ describe('ExtractionService', () => {
         lessonTriggerPatterns: ['deploying', 'database changes', 'migrations'],
       });
 
-      const result = await service.extract('The deploy failed because we forgot to run migrations');
+      const result = await service.extract(
+        'The deploy failed because we forgot to run migrations',
+      );
 
       expect(result.memoryType).toBe('LESSON');
       expect(result.lesson).not.toBeNull();
@@ -530,7 +648,9 @@ describe('ExtractionService', () => {
     it('should classify correction text as LESSON in basic extraction fallback', async () => {
       mockLlmService.json.mockRejectedValue(new Error('LLM unavailable'));
 
-      const result = await service.extract("That's wrong, you made a mistake with the deployment");
+      const result = await service.extract(
+        "That's wrong, you made a mistake with the deployment",
+      );
 
       expect(result.memoryType).toBe('LESSON');
     });

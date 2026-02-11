@@ -30,7 +30,7 @@ import {
 
 /**
  * GraphController - REST API for Semantic Memory Graphs
- * 
+ *
  * Provides endpoints for:
  * - Entity CRUD operations
  * - Relationship CRUD operations
@@ -128,7 +128,13 @@ export class GraphController {
    */
   @Post('entities/search')
   async searchEntities(
-    @Body() body: { userId: string; query: string; type?: string; limit?: number },
+    @Body()
+    body: {
+      userId: string;
+      query: string;
+      type?: string;
+      limit?: number;
+    },
   ) {
     if (!body.userId || !body.query) {
       throw new BadRequestException('userId and query are required');
@@ -238,9 +244,7 @@ export class GraphController {
    * Find path between two entities
    */
   @Post('path')
-  async findPath(
-    @Body() body: { userId: string; from: string; to: string },
-  ) {
+  async findPath(@Body() body: { userId: string; from: string; to: string }) {
     if (!body.userId || !body.from || !body.to) {
       throw new BadRequestException('userId, from, and to are required');
     }
@@ -253,7 +257,12 @@ export class GraphController {
    */
   @Post('find-by-relationship')
   async findByRelationship(
-    @Body() body: { userId: string; relationshipType: string; targetEntity: string },
+    @Body()
+    body: {
+      userId: string;
+      relationshipType: string;
+      targetEntity: string;
+    },
   ) {
     if (!body.userId || !body.relationshipType || !body.targetEntity) {
       throw new BadRequestException(
@@ -276,7 +285,10 @@ export class GraphController {
     @Param('id') id: string,
     @Query('limit') limit?: string,
   ) {
-    return this.graphService.getMemoriesForEntity(id, limit ? parseInt(limit, 10) : 20);
+    return this.graphService.getMemoriesForEntity(
+      id,
+      limit ? parseInt(limit, 10) : 20,
+    );
   }
 
   /**
@@ -287,7 +299,10 @@ export class GraphController {
     @Param('id') id: string,
     @Query('depth') depth?: string,
   ) {
-    return this.graphService.getRelatedEntities(id, depth ? parseInt(depth, 10) : 1);
+    return this.graphService.getRelatedEntities(
+      id,
+      depth ? parseInt(depth, 10) : 1,
+    );
   }
 
   // ==================== Stats & Admin Endpoints ====================
@@ -316,9 +331,7 @@ export class GraphController {
    * Backfill graph data for existing memories
    */
   @Post('backfill')
-  async backfill(
-    @Body() body: { userId: string; limit?: number },
-  ) {
+  async backfill(@Body() body: { userId: string; limit?: number }) {
     if (!body.userId) {
       throw new BadRequestException('userId is required');
     }

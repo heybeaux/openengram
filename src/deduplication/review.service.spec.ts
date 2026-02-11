@@ -97,7 +97,12 @@ describe('ReviewService', () => {
         createdAt: new Date(),
       });
 
-      const result = await service.queuePairForReview('user_123', 'mem_1', 'mem_2', 0.92);
+      const result = await service.queuePairForReview(
+        'user_123',
+        'mem_1',
+        'mem_2',
+        0.92,
+      );
 
       expect(result.id).toBe('cand_1');
       expect(result.similarity).toBe(0.92);
@@ -128,7 +133,12 @@ describe('ReviewService', () => {
         createdAt: new Date(),
       });
 
-      const result = await service.queuePairForReview('user_123', 'mem_1', 'mem_2', 0.92);
+      const result = await service.queuePairForReview(
+        'user_123',
+        'mem_1',
+        'mem_2',
+        0.92,
+      );
 
       expect(result.id).toBe('existing_cand');
       expect(mockPrisma.mergeCandidate.create).not.toHaveBeenCalled();
@@ -149,7 +159,9 @@ describe('ReviewService', () => {
       mockPrisma.mergeCandidate.findFirst.mockResolvedValue(null);
       mockPrisma.mergeCandidate.create.mockResolvedValue({
         id: 'cand_1',
-        safetyFlags: JSON.stringify([{ type: 'protected_keyword', keyword: 'allergy' }]),
+        safetyFlags: JSON.stringify([
+          { type: 'protected_keyword', keyword: 'allergy' },
+        ]),
         status: CandidateStatus.PENDING,
         createdAt: new Date(),
         memoryIds: ['mem_1', 'mem_2'],
@@ -158,7 +170,12 @@ describe('ReviewService', () => {
         suggestedSurvivorId: 'mem_1',
       });
 
-      const result = await service.queuePairForReview('user_123', 'mem_1', 'mem_2', 0.9);
+      const result = await service.queuePairForReview(
+        'user_123',
+        'mem_1',
+        'mem_2',
+        0.9,
+      );
 
       expect(result.safetyFlags.length).toBeGreaterThan(0);
     });
@@ -198,7 +215,9 @@ describe('ReviewService', () => {
       mockPrisma.mergeCandidate.count.mockResolvedValue(0);
       mockPrisma.memory.findMany.mockResolvedValue([]);
 
-      await service.getCandidates('user_123', { status: CandidateStatus.APPROVED });
+      await service.getCandidates('user_123', {
+        status: CandidateStatus.APPROVED,
+      });
 
       expect(mockPrisma.mergeCandidate.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -276,7 +295,11 @@ describe('ReviewService', () => {
       mockLineage.recordMerge.mockResolvedValue({ id: 'event_1' });
       mockPrisma.mergeCandidate.update.mockResolvedValue({});
 
-      await service.approve('cand_1', { strategy: MergeStrategy.KEEP_NEWEST }, 'approver_1');
+      await service.approve(
+        'cand_1',
+        { strategy: MergeStrategy.KEEP_NEWEST },
+        'approver_1',
+      );
 
       expect(mockMerge.merge).toHaveBeenCalledWith(
         ['mem_1', 'mem_2'],
@@ -288,7 +311,9 @@ describe('ReviewService', () => {
     it('should throw when candidate not found', async () => {
       mockPrisma.mergeCandidate.findUnique.mockResolvedValue(null);
 
-      await expect(service.approve('nonexistent', {})).rejects.toThrow('Candidate not found');
+      await expect(service.approve('nonexistent', {})).rejects.toThrow(
+        'Candidate not found',
+      );
     });
 
     it('should throw when candidate not pending', async () => {
@@ -297,7 +322,9 @@ describe('ReviewService', () => {
         status: CandidateStatus.APPROVED,
       });
 
-      await expect(service.approve('cand_1', {})).rejects.toThrow('not pending');
+      await expect(service.approve('cand_1', {})).rejects.toThrow(
+        'not pending',
+      );
     });
   });
 
@@ -310,7 +337,11 @@ describe('ReviewService', () => {
       });
       mockPrisma.mergeCandidate.update.mockResolvedValue({});
 
-      const result = await service.reject('cand_1', { reason: 'Not duplicates' }, 'rejector_1');
+      const result = await service.reject(
+        'cand_1',
+        { reason: 'Not duplicates' },
+        'rejector_1',
+      );
 
       expect(result.success).toBe(true);
       expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith({
@@ -325,9 +356,9 @@ describe('ReviewService', () => {
     it('should throw when candidate not found', async () => {
       mockPrisma.mergeCandidate.findUnique.mockResolvedValue(null);
 
-      await expect(service.reject('nonexistent', { reason: 'Test' })).rejects.toThrow(
-        'Candidate not found',
-      );
+      await expect(
+        service.reject('nonexistent', { reason: 'Test' }),
+      ).rejects.toThrow('Candidate not found');
     });
   });
 
@@ -355,7 +386,9 @@ describe('ReviewService', () => {
     it('should throw when candidate not found', async () => {
       mockPrisma.mergeCandidate.findUnique.mockResolvedValue(null);
 
-      await expect(service.skip('nonexistent')).rejects.toThrow('Candidate not found');
+      await expect(service.skip('nonexistent')).rejects.toThrow(
+        'Candidate not found',
+      );
     });
   });
 
@@ -387,13 +420,31 @@ describe('ReviewService', () => {
         memoryIds: ['mem_1', 'mem_2', 'mem_3'],
         centroidMemoryId: 'mem_1',
         avgSimilarity: 0.93,
-        minSimilarity: 0.90,
+        minSimilarity: 0.9,
       };
 
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { memoryId: 'mem_1', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { memoryId: 'mem_2', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { memoryId: 'mem_3', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          memoryId: 'mem_1',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          memoryId: 'mem_2',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          memoryId: 'mem_3',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       mockPrisma.memory.findMany.mockResolvedValue([
         createMockMemory('mem_1'),

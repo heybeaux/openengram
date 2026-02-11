@@ -1,6 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { MonitoringService, MonitoringMetrics, MonitoringAlert } from './monitoring.service';
+import {
+  MonitoringService,
+  MonitoringMetrics,
+  MonitoringAlert,
+} from './monitoring.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
 
 @ApiTags('Monitoring')

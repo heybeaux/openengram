@@ -15,7 +15,13 @@ import * as os from 'os';
 // Advisory lock key for Dream Cycle (arbitrary unique int)
 const DREAM_CYCLE_LOCK_KEY = 294967; // arbitrary constant for pg_advisory_lock
 
-export type DreamCycleStage = 'dedup' | 'staleness' | 'patterns' | 'clustering' | 'drift' | 'report';
+export type DreamCycleStage =
+  | 'dedup'
+  | 'staleness'
+  | 'patterns'
+  | 'clustering'
+  | 'drift'
+  | 'report';
 
 export interface DreamCycleOptions {
   dryRun?: boolean;
@@ -38,7 +44,14 @@ export interface DreamCycleResult {
   errors: string[];
 }
 
-const ALL_STAGES: DreamCycleStage[] = ['dedup', 'staleness', 'patterns', 'clustering', 'drift', 'report'];
+const ALL_STAGES: DreamCycleStage[] = [
+  'dedup',
+  'staleness',
+  'patterns',
+  'clustering',
+  'drift',
+  'report',
+];
 
 @Injectable()
 export class DreamCycleService {
@@ -63,13 +76,32 @@ export class DreamCycleService {
     @Optional() private ensembleService?: EnsembleService,
     @Optional() private fogIndexService?: FogIndexService,
   ) {
-    this.dedupThreshold = parseFloat(this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85');
-    this.stalenessScoreThreshold = parseFloat(this.config.get('DREAM_STALENESS_SCORE') ?? '0.35');
-    this.stalenessAgeDays = parseInt(this.config.get('DREAM_STALENESS_DAYS') ?? '21', 10);
-    this.maxMergesPerRun = parseInt(this.config.get('DREAM_MAX_MERGES') ?? '200', 10);
-    this.maxArchivalsPerRun = parseInt(this.config.get('DREAM_MAX_ARCHIVALS') ?? '50', 10);
-    this.maxLlmCalls = parseInt(this.config.get('DREAM_MAX_LLM_CALLS') ?? '100', 10);
-    this.patternClusterMinSize = parseInt(this.config.get('DREAM_PATTERN_MIN_CLUSTER') ?? '3', 10);
+    this.dedupThreshold = parseFloat(
+      this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85',
+    );
+    this.stalenessScoreThreshold = parseFloat(
+      this.config.get('DREAM_STALENESS_SCORE') ?? '0.35',
+    );
+    this.stalenessAgeDays = parseInt(
+      this.config.get('DREAM_STALENESS_DAYS') ?? '21',
+      10,
+    );
+    this.maxMergesPerRun = parseInt(
+      this.config.get('DREAM_MAX_MERGES') ?? '200',
+      10,
+    );
+    this.maxArchivalsPerRun = parseInt(
+      this.config.get('DREAM_MAX_ARCHIVALS') ?? '50',
+      10,
+    );
+    this.maxLlmCalls = parseInt(
+      this.config.get('DREAM_MAX_LLM_CALLS') ?? '100',
+      10,
+    );
+    this.patternClusterMinSize = parseInt(
+      this.config.get('DREAM_PATTERN_MIN_CLUSTER') ?? '3',
+      10,
+    );
   }
 
   /**
@@ -77,9 +109,9 @@ export class DreamCycleService {
    * Uses pg_try_advisory_lock so it returns immediately without blocking.
    */
   async acquireLock(): Promise<boolean> {
-    const result = await this.prisma.$queryRawUnsafe<Array<{ acquired: boolean }>>(
-      `SELECT pg_try_advisory_lock(${DREAM_CYCLE_LOCK_KEY}) as acquired`,
-    );
+    const result = await this.prisma.$queryRawUnsafe<
+      Array<{ acquired: boolean }>
+    >(`SELECT pg_try_advisory_lock(${DREAM_CYCLE_LOCK_KEY}) as acquired`);
     return result[0]?.acquired ?? false;
   }
 
@@ -103,7 +135,11 @@ export class DreamCycleService {
     // Acquire advisory lock to prevent concurrent runs
     const lockAcquired = await this.acquireLock();
     if (!lockAcquired) {
-      this.log('Dream Cycle already running — another instance holds the lock. Exiting gracefully.', undefined, 'log');
+      this.log(
+        'Dream Cycle already running — another instance holds the lock. Exiting gracefully.',
+        undefined,
+        'log',
+      );
       // Return a result indicating the run was skipped
       return {
         id: 'skipped',
@@ -140,14 +176,16 @@ export class DreamCycleService {
       return result;
     } catch (err) {
       // Mark run as failed
-      await this.prisma.dreamCycleRun.update({
-        where: { id: runRecord.id },
-        data: {
-          status: 'FAILED',
-          endedAt: new Date(),
-          error: err instanceof Error ? err.message : String(err),
-        },
-      }).catch(() => {}); // best-effort
+      await this.prisma.dreamCycleRun
+        .update({
+          where: { id: runRecord.id },
+          data: {
+            status: 'FAILED',
+            endedAt: new Date(),
+            error: err instanceof Error ? err.message : String(err),
+          },
+        })
+        .catch(() => {}); // best-effort
 
       throw err;
     } finally {
@@ -155,10 +193,14 @@ export class DreamCycleService {
     }
   }
 
-  private async runInternal(options: DreamCycleOptions = {}): Promise<DreamCycleResult> {
+  private async runInternal(
+    options: DreamCycleOptions = {},
+  ): Promise<DreamCycleResult> {
     // Auto-discover users if no userId specified and no DEFAULT_USER_ID configured
     if (!options.userId && !this.config.get('DEFAULT_USER_ID')) {
-      this.log('No userId or DEFAULT_USER_ID configured — auto-discovering users');
+      this.log(
+        'No userId or DEFAULT_USER_ID configured — auto-discovering users',
+      );
       const users = await this.prisma.memory.findMany({
         where: { deletedAt: null },
         select: { userId: true },
@@ -169,24 +211,26 @@ export class DreamCycleService {
         throw new Error('No users found with active memories');
       }
 
-      this.log(`Found ${users.length} distinct users`, { userIds: users.map(u => u.userId) });
+      this.log(`Found ${users.length} distinct users`, {
+        userIds: users.map((u) => u.userId),
+      });
 
       // Run for each user, return the last result (or aggregate)
       let lastResult: DreamCycleResult | undefined;
       for (const user of users) {
         this.log(`Running Dream Cycle for user: ${user.userId}`);
-        lastResult = await this.runInternal({ ...options, userId: user.userId });
+        lastResult = await this.runInternal({
+          ...options,
+          userId: user.userId,
+        });
       }
       return lastResult!;
     }
 
-    const {
-      dryRun = false,
-      stages = ALL_STAGES,
-      maxMemories,
-    } = options;
+    const { dryRun = false, stages = ALL_STAGES, maxMemories } = options;
 
-    const userId = options.userId || this.config.get<string>('DEFAULT_USER_ID') || 'default';
+    const userId =
+      options.userId || this.config.get<string>('DEFAULT_USER_ID') || 'default';
     const startTime = Date.now();
     const stageDetails: Record<string, any> = {};
     const errors: string[] = [];
@@ -216,14 +260,23 @@ export class DreamCycleService {
       },
     });
 
-    this.log('Starting Dream Cycle', { userId, dryRun, stages, reportId: report.id });
+    this.log('Starting Dream Cycle', {
+      userId,
+      dryRun,
+      stages,
+      reportId: report.id,
+    });
 
     try {
       // Stage 1: Semantic dedup
       if (stages.includes('dedup')) {
         this.log('Stage 1: Semantic dedup scan');
         try {
-          const dedupResult = await this.runDedupStage(userId, dryRun, maxMemories);
+          const dedupResult = await this.runDedupStage(
+            userId,
+            dryRun,
+            maxMemories,
+          );
           duplicatesMerged = dedupResult.merged;
           llmCallsUsed += dedupResult.llmCalls;
           stageDetails.dedup = dedupResult;
@@ -289,7 +342,11 @@ export class DreamCycleService {
       }
 
       // Stage 3.6: Drift analysis
-      if (stages.includes('drift') && this.driftDetectionService && this.ensembleService) {
+      if (
+        stages.includes('drift') &&
+        this.driftDetectionService &&
+        this.ensembleService
+      ) {
         this.log('Stage 3.5: Embedding drift analysis');
         try {
           const driftResult = await this.runDriftStage(userId, dryRun);
@@ -319,10 +376,17 @@ export class DreamCycleService {
       }
 
       // Stage 5: Generate context (optional)
-      const generateContextEnabled = this.config.get('DREAM_GENERATE_CONTEXT') === 'true';
-      const contextWritePath = this.config.get<string>('DREAM_CONTEXT_WRITE_PATH');
+      const generateContextEnabled =
+        this.config.get('DREAM_GENERATE_CONTEXT') === 'true';
+      const contextWritePath = this.config.get<string>(
+        'DREAM_CONTEXT_WRITE_PATH',
+      );
       const contextAgentId = this.config.get<string>('DREAM_CONTEXT_AGENT_ID');
-      if (generateContextEnabled && contextAgentId && this.generateContextService) {
+      if (
+        generateContextEnabled &&
+        contextAgentId &&
+        this.generateContextService
+      ) {
         this.log('Stage 5: Generate context');
         try {
           const contextResult = await this.generateContextService.generate({
@@ -354,7 +418,10 @@ export class DreamCycleService {
             tier: fogResult.tier,
             components: fogResult.components,
           };
-          this.log('Stage 6 complete', { score: fogResult.score, tier: fogResult.tier });
+          this.log('Stage 6 complete', {
+            score: fogResult.score,
+            tier: fogResult.tier,
+          });
         } catch (err) {
           const msg = `Fog Index stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
@@ -365,7 +432,11 @@ export class DreamCycleService {
       const durationMs = Date.now() - startTime;
       const totalActive = stageDetails.report?.totalActive ?? 0;
       const avgEffectiveScore = stageDetails.report?.avgEffectiveScore ?? 0;
-      const status = dryRun ? 'DRY_RUN' : errors.length > 0 ? 'COMPLETED' : 'COMPLETED';
+      const status = dryRun
+        ? 'DRY_RUN'
+        : errors.length > 0
+          ? 'COMPLETED'
+          : 'COMPLETED';
 
       // Update report
       await this.prisma.dreamCycleReport.update({
@@ -391,7 +462,8 @@ export class DreamCycleService {
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
-          memoriesProcessed: scoresRefreshed + duplicatesMerged + memoriesArchived,
+          memoriesProcessed:
+            scoresRefreshed + duplicatesMerged + memoriesArchived,
           patternsDetected: patternsCreated,
           memoriesMerged: duplicatesMerged,
         },
@@ -423,7 +495,11 @@ export class DreamCycleService {
       const msg = err instanceof Error ? err.message : String(err);
       await this.prisma.dreamCycleReport.update({
         where: { id: report.id },
-        data: { status: 'FAILED', errors: [...errors, msg], completedAt: new Date() },
+        data: {
+          status: 'FAILED',
+          errors: [...errors, msg],
+          completedAt: new Date(),
+        },
       });
       await this.prisma.consolidationJob.update({
         where: { id: job.id },
@@ -439,7 +515,12 @@ export class DreamCycleService {
     userId: string,
     dryRun: boolean,
     maxMemories?: number,
-  ): Promise<{ merged: number; flagged: number; scanned: number; llmCalls: number }> {
+  ): Promise<{
+    merged: number;
+    flagged: number;
+    scanned: number;
+    llmCalls: number;
+  }> {
     let merged = 0;
     let flagged = 0;
     let llmCalls = 0;
@@ -477,7 +558,9 @@ export class DreamCycleService {
       // Find similar memories using stored embeddings
       let embedding: number[];
       try {
-        const raw = await this.prisma.$queryRawUnsafe<Array<{ embedding: string }>>(
+        const raw = await this.prisma.$queryRawUnsafe<
+          Array<{ embedding: string }>
+        >(
           `SELECT embedding::text FROM memories WHERE id = $1 AND embedding IS NOT NULL`,
           memory.id,
         );
@@ -490,25 +573,29 @@ export class DreamCycleService {
       const similar = await this.embedding.search(userId, embedding, 10);
 
       // Find matches above threshold that are in our active set
-      const memoryIds = new Set(memories.map(m => m.id));
+      const memoryIds = new Set(memories.map((m) => m.id));
       const matches = similar.filter(
-        s => s.id !== memory.id &&
-             memoryIds.has(s.id) &&
-             !processed.has(s.id) &&
-             s.score >= this.dedupThreshold,
+        (s) =>
+          s.id !== memory.id &&
+          memoryIds.has(s.id) &&
+          !processed.has(s.id) &&
+          s.score >= this.dedupThreshold,
       );
 
       if (matches.length === 0) continue;
 
       // Determine auto-merge threshold based on memory types
-      const isProtected = memory.memoryType === 'CONSTRAINT' || memory.memoryType === 'LESSON';
+      const isProtected =
+        memory.memoryType === 'CONSTRAINT' || memory.memoryType === 'LESSON';
       const autoMergeThreshold = isProtected ? 0.98 : 0.95;
 
       for (const match of matches) {
         if (merged >= this.maxMergesPerRun) break;
 
-        const matchMemory = memories.find(m => m.id === match.id)!;
-        const matchIsProtected = matchMemory.memoryType === 'CONSTRAINT' || matchMemory.memoryType === 'LESSON';
+        const matchMemory = memories.find((m) => m.id === match.id)!;
+        const matchIsProtected =
+          matchMemory.memoryType === 'CONSTRAINT' ||
+          matchMemory.memoryType === 'LESSON';
 
         if (match.score >= autoMergeThreshold && !matchIsProtected) {
           // Auto-merge: high confidence
@@ -517,9 +604,15 @@ export class DreamCycleService {
           }
           processed.add(match.id);
           merged++;
-        } else if (match.score >= this.dedupThreshold && llmCalls < this.maxLlmCalls) {
+        } else if (
+          match.score >= this.dedupThreshold &&
+          llmCalls < this.maxLlmCalls
+        ) {
           // LLM-assisted merge decision
-          const shouldMerge = await this.llmMergeDecision(memory.raw, matchMemory.raw);
+          const shouldMerge = await this.llmMergeDecision(
+            memory.raw,
+            matchMemory.raw,
+          );
           llmCalls++;
 
           if (shouldMerge) {
@@ -537,7 +630,10 @@ export class DreamCycleService {
                   memoryIds: [memory.id, match.id],
                   similarity: match.score,
                   suggestedStrategy: 'KEEP_DETAILED',
-                  suggestedSurvivorId: memory.effectiveScore >= matchMemory.effectiveScore ? memory.id : match.id,
+                  suggestedSurvivorId:
+                    memory.effectiveScore >= matchMemory.effectiveScore
+                      ? memory.id
+                      : match.id,
                   status: 'PENDING',
                   reviewNotes: 'Dream Cycle: LLM declined auto-merge',
                 },
@@ -555,15 +651,29 @@ export class DreamCycleService {
   }
 
   private async mergeMemories(
-    survivor: { id: string; raw: string; importanceScore: number; effectiveScore: number },
-    absorbed: { id: string; raw: string; importanceScore: number; effectiveScore: number },
+    survivor: {
+      id: string;
+      raw: string;
+      importanceScore: number;
+      effectiveScore: number;
+    },
+    absorbed: {
+      id: string;
+      raw: string;
+      importanceScore: number;
+      effectiveScore: number;
+    },
   ): Promise<void> {
     // Pick the one with higher effective score as survivor
-    let [surv, abs] = survivor.effectiveScore >= absorbed.effectiveScore
-      ? [survivor, absorbed]
-      : [absorbed, survivor];
+    const [surv, abs] =
+      survivor.effectiveScore >= absorbed.effectiveScore
+        ? [survivor, absorbed]
+        : [absorbed, survivor];
 
-    const survivorMemory = await this.prisma.memory.findUnique({ where: { id: surv.id }, select: { userId: true } });
+    const survivorMemory = await this.prisma.memory.findUnique({
+      where: { id: surv.id },
+      select: { userId: true },
+    });
 
     // Create merge event for rollback
     await this.prisma.memoryMergeEvent.create({
@@ -574,7 +684,10 @@ export class DreamCycleService {
         strategy: 'DREAM_CYCLE_AUTO',
         similarity: 0,
         triggeredBy: 'batch',
-        originalContents: JSON.stringify({ survivor: surv.raw, absorbed: abs.raw }),
+        originalContents: JSON.stringify({
+          survivor: surv.raw,
+          absorbed: abs.raw,
+        }),
         mergedContent: surv.raw,
         canRollback: true,
       },
@@ -597,9 +710,15 @@ export class DreamCycleService {
     });
   }
 
-  private async llmMergeDecision(contentA: string, contentB: string): Promise<boolean> {
+  private async llmMergeDecision(
+    contentA: string,
+    contentB: string,
+  ): Promise<boolean> {
     try {
-      const result = await this.llm.json<{ shouldMerge: boolean; reason: string }>(
+      const result = await this.llm.json<{
+        shouldMerge: boolean;
+        reason: string;
+      }>(
         [
           {
             role: 'system',
@@ -624,7 +743,11 @@ export class DreamCycleService {
   private async runStalenessStage(
     userId: string,
     dryRun: boolean,
-  ): Promise<{ archived: number; scoresRefreshed: number; candidates: number }> {
+  ): Promise<{
+    archived: number;
+    scoresRefreshed: number;
+    candidates: number;
+  }> {
     let archived = 0;
     let scoresRefreshed = 0;
 
@@ -634,12 +757,16 @@ export class DreamCycleService {
     });
 
     const now = new Date();
-    const cutoffDate = new Date(now.getTime() - this.stalenessAgeDays * 24 * 60 * 60 * 1000);
+    const cutoffDate = new Date(
+      now.getTime() - this.stalenessAgeDays * 24 * 60 * 60 * 1000,
+    );
 
     // Refresh scores
     for (const memory of activeMemories) {
       const scoreComponents = this.scorer.computeScore(memory, now);
-      if (Math.abs(scoreComponents.effectiveScore - memory.effectiveScore) > 0.01) {
+      if (
+        Math.abs(scoreComponents.effectiveScore - memory.effectiveScore) > 0.01
+      ) {
         if (!dryRun) {
           await this.prisma.memory.update({
             where: { id: memory.id },
@@ -654,10 +781,11 @@ export class DreamCycleService {
     }
 
     // Find stale memories
-    const staleMemories = activeMemories.filter(m => {
+    const staleMemories = activeMemories.filter((m) => {
       // Protected types are never auto-archived
       if (m.userPinned || m.safetyCritical) return false;
-      if (m.memoryType === 'CONSTRAINT' || m.memoryType === 'LESSON') return false;
+      if (m.memoryType === 'CONSTRAINT' || m.memoryType === 'LESSON')
+        return false;
 
       const score = this.scorer.computeScore(m, now);
       if (score.effectiveScore >= this.stalenessScoreThreshold) return false;
@@ -703,7 +831,11 @@ export class DreamCycleService {
     userId: string,
     dryRun: boolean,
     remainingLlmBudget: number,
-  ): Promise<{ patternsCreated: number; clustersFound: number; llmCalls: number }> {
+  ): Promise<{
+    patternsCreated: number;
+    clustersFound: number;
+    llmCalls: number;
+  }> {
     let patternsCreated = 0;
     let llmCalls = 0;
 
@@ -726,7 +858,10 @@ export class DreamCycleService {
 
       // Fetch the actual memory contents
       const memories = await this.prisma.memory.findMany({
-        where: { id: { in: [detail.canonicalId, ...detail.duplicateIds] }, deletedAt: null },
+        where: {
+          id: { in: [detail.canonicalId, ...detail.duplicateIds] },
+          deletedAt: null,
+        },
         select: { id: true, raw: true },
       });
 
@@ -738,16 +873,21 @@ export class DreamCycleService {
           userId,
           source: 'PATTERN_DETECTED',
           deletedAt: null,
-          patternSourceIds: { hasSome: memories.map(m => m.id) },
+          patternSourceIds: { hasSome: memories.map((m) => m.id) },
         },
       });
 
       if (existingPattern) continue;
 
       // Extract pattern via LLM
-      const memoriesText = memories.map((m, i) => `${i + 1}. ${m.raw}`).join('\n');
+      const memoriesText = memories
+        .map((m, i) => `${i + 1}. ${m.raw}`)
+        .join('\n');
       try {
-        const pattern = await this.llm.json<{ summary: string; confidence: number }>(
+        const pattern = await this.llm.json<{
+          summary: string;
+          confidence: number;
+        }>(
           [
             {
               role: 'system',
@@ -773,38 +913,48 @@ export class DreamCycleService {
                 layer: 'IDENTITY',
                 source: 'PATTERN_DETECTED',
                 memoryType: 'FACT',
-                importanceScore: Math.min(0.9, 0.5 + (memories.length * 0.05)),
-                effectiveScore: Math.min(0.9, 0.5 + (memories.length * 0.05)),
+                importanceScore: Math.min(0.9, 0.5 + memories.length * 0.05),
+                effectiveScore: Math.min(0.9, 0.5 + memories.length * 0.05),
                 confidence: pattern.confidence,
-                patternSourceIds: memories.map(m => m.id),
+                patternSourceIds: memories.map((m) => m.id),
                 lastDreamCycleAt: new Date(),
               },
             });
 
             // Create chain links from source memories
             const patternMemory = await this.prisma.memory.findFirst({
-              where: { userId, raw: pattern.summary, source: 'PATTERN_DETECTED' },
+              where: {
+                userId,
+                raw: pattern.summary,
+                source: 'PATTERN_DETECTED',
+              },
               select: { id: true },
             });
 
             if (patternMemory) {
               for (const mem of memories) {
-                await this.prisma.memoryChainLink.create({
-                  data: {
-                    sourceId: mem.id,
-                    targetId: patternMemory.id,
-                    linkType: 'SUPPORTS',
-                    confidence: pattern.confidence,
-                    createdBy: 'dream-cycle',
-                  },
-                }).catch(() => {}); // Ignore if link already exists
+                await this.prisma.memoryChainLink
+                  .create({
+                    data: {
+                      sourceId: mem.id,
+                      targetId: patternMemory.id,
+                      linkType: 'SUPPORTS',
+                      confidence: pattern.confidence,
+                      createdBy: 'dream-cycle',
+                    },
+                  })
+                  .catch(() => {}); // Ignore if link already exists
               }
             }
           }
           patternsCreated++;
         }
       } catch (err) {
-        this.log(`Pattern extraction failed for cluster`, { error: String(err) }, 'error');
+        this.log(
+          `Pattern extraction failed for cluster`,
+          { error: String(err) },
+          'error',
+        );
       }
     }
 
@@ -818,7 +968,11 @@ export class DreamCycleService {
   private async runDriftStage(
     userId: string,
     dryRun: boolean,
-  ): Promise<{ modelsAnalyzed: number; snapshotsPersisted: number; alerts: string[] }> {
+  ): Promise<{
+    modelsAnalyzed: number;
+    snapshotsPersisted: number;
+    alerts: string[];
+  }> {
     const alerts: string[] = [];
     let snapshotsPersisted = 0;
 
@@ -830,7 +984,11 @@ export class DreamCycleService {
       take: 50,
     });
 
-    if (memories.length === 0 || !this.driftDetectionService || !this.ensembleService) {
+    if (
+      memories.length === 0 ||
+      !this.driftDetectionService ||
+      !this.ensembleService
+    ) {
       return { modelsAnalyzed: 0, snapshotsPersisted: 0, alerts: [] };
     }
 
@@ -843,7 +1001,9 @@ export class DreamCycleService {
       for (const memory of memories) {
         try {
           const result = await this.ensembleService.embedAll(memory.raw);
-          const modelEmbed = result.embeddings.find((e: any) => e.model === model);
+          const modelEmbed = result.embeddings.find(
+            (e: any) => e.model === model,
+          );
           newEmbeddings.push(modelEmbed ? modelEmbed.embedding : []);
         } catch {
           newEmbeddings.push([]);
@@ -862,10 +1022,14 @@ export class DreamCycleService {
       let alertLevel = 'normal';
       if (summary.avgCosineDrift > thresholds.alert) {
         alertLevel = 'critical';
-        alerts.push(`Critical drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`);
+        alerts.push(
+          `Critical drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`,
+        );
       } else if (summary.avgCosineDrift > thresholds.drift) {
         alertLevel = 'warning';
-        alerts.push(`Warning drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`);
+        alerts.push(
+          `Warning drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`,
+        );
       }
 
       if (!dryRun) {
@@ -885,7 +1049,11 @@ export class DreamCycleService {
     return { modelsAnalyzed: models.length, snapshotsPersisted, alerts };
   }
 
-  private log(message: string, data?: any, level: 'log' | 'error' = 'log'): void {
+  private log(
+    message: string,
+    data?: any,
+    level: 'log' | 'error' = 'log',
+  ): void {
     const fn = level === 'error' ? console.error : console.log;
     fn(`[DreamCycle] ${message}`, data ? JSON.stringify(data) : '');
   }

@@ -10,14 +10,21 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HierarchyService, AggregatedSearchResult } from './hierarchy.service';
-import { QueryRouterService, QueryAnalysis, HierarchyLevel } from './query-router.service';
+import {
+  QueryRouterService,
+  QueryAnalysis,
+  HierarchyLevel,
+} from './query-router.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
-import { HierarchySearchDto, HierarchyQueryAnalyzeDto } from './dto/hierarchy.dto';
+import {
+  HierarchySearchDto,
+  HierarchyQueryAnalyzeDto,
+} from './dto/hierarchy.dto';
 
 /**
  * Hierarchy Controller
- * 
+ *
  * Provides endpoints for hierarchical embeddings:
  * - Search across hierarchy levels
  * - Analyze query for routing
@@ -64,9 +71,7 @@ export class HierarchyController {
    * Get hierarchy statistics for the current user
    */
   @Get('stats')
-  async getStats(
-    @UserId() userId: string,
-  ): Promise<{
+  async getStats(@UserId() userId: string): Promise<{
     totalUnits: number;
     byLevel: Record<string, number>;
     lastUpdated: Date | null;
@@ -84,9 +89,7 @@ export class HierarchyController {
    * Get hierarchy units for a specific memory
    */
   @Get('memory/:memoryId')
-  async getUnitsForMemory(
-    @Param('memoryId') memoryId: string,
-  ): Promise<{
+  async getUnitsForMemory(@Param('memoryId') memoryId: string): Promise<{
     memoryId: string;
     units: Array<{
       id: string;
@@ -98,10 +101,10 @@ export class HierarchyController {
     }>;
   }> {
     const units = await this.hierarchyService.getUnitsForMemory(memoryId);
-    
+
     return {
       memoryId,
-      units: units.map(u => ({
+      units: units.map((u) => ({
         id: u.id,
         level: u.level,
         text: u.text,

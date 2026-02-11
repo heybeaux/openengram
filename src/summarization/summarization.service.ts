@@ -52,8 +52,12 @@ export class SummarizationService {
     private llm: LLMService,
     private memoryService: MemoryService,
   ) {
-    this.enabled = this.config.get<string>('SUMMARIZATION_ENABLED', 'true') !== 'false';
-    this.batchSize = parseInt(this.config.get<string>('SUMMARIZATION_BATCH_SIZE', '5'), 10);
+    this.enabled =
+      this.config.get<string>('SUMMARIZATION_ENABLED', 'true') !== 'false';
+    this.batchSize = parseInt(
+      this.config.get<string>('SUMMARIZATION_BATCH_SIZE', '5'),
+      10,
+    );
   }
 
   get isEnabled(): boolean {
@@ -85,17 +89,25 @@ export class SummarizationService {
       const result = await this.llm.json<LLMSummarizationResponse>(
         [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Conversation:\n${conversation}\n\nExtract key information:` },
+          {
+            role: 'user',
+            content: `Conversation:\n${conversation}\n\nExtract key information:`,
+          },
         ],
         undefined,
         { temperature: 0.2 },
       );
 
-      const facts = (result.facts || []).map(f => ({
+      const facts = (result.facts || []).map((f) => ({
         content: f.content,
         category: this.normalizeCategory(f.category),
-        confidence: typeof f.confidence === 'number' ? Math.max(0, Math.min(1, f.confidence)) : 0.7,
-        sourceTurnIndices: Array.isArray(f.sourceTurnIndices) ? f.sourceTurnIndices : [],
+        confidence:
+          typeof f.confidence === 'number'
+            ? Math.max(0, Math.min(1, f.confidence))
+            : 0.7,
+        sourceTurnIndices: Array.isArray(f.sourceTurnIndices)
+          ? f.sourceTurnIndices
+          : [],
       }));
 
       return facts;
@@ -111,13 +123,18 @@ export class SummarizationService {
   async summarizeAndStore(
     userId: string,
     turns: MessageTurnDto[],
-    options?: { sessionId?: string; projectId?: string; userName?: string; minImportance?: number },
+    options?: {
+      sessionId?: string;
+      projectId?: string;
+      userName?: string;
+      minImportance?: number;
+    },
   ): Promise<SummarizeResult> {
     const startTime = Date.now();
     const minImportance = options?.minImportance ?? 0.4;
 
     const facts = await this.summarize(turns, options?.userName);
-    const toStore = facts.filter(f => f.confidence >= minImportance);
+    const toStore = facts.filter((f) => f.confidence >= minImportance);
 
     let created = 0;
     for (const fact of toStore) {
@@ -205,18 +222,30 @@ export class SummarizationService {
   }
 
   private normalizeCategory(category: string): SummaryFact['category'] {
-    const valid: SummaryFact['category'][] = ['fact', 'decision', 'preference', 'action_item'];
-    const normalized = category?.toLowerCase().replace(/\s+/g, '_') as SummaryFact['category'];
+    const valid: SummaryFact['category'][] = [
+      'fact',
+      'decision',
+      'preference',
+      'action_item',
+    ];
+    const normalized = category
+      ?.toLowerCase()
+      .replace(/\s+/g, '_') as SummaryFact['category'];
     return valid.includes(normalized) ? normalized : 'fact';
   }
 
   private categoryToLayer(category: SummaryFact['category']): MemoryLayer {
     switch (category) {
-      case 'preference': return MemoryLayer.IDENTITY;
-      case 'fact': return MemoryLayer.IDENTITY;
-      case 'decision': return MemoryLayer.PROJECT;
-      case 'action_item': return MemoryLayer.PROJECT;
-      default: return MemoryLayer.SESSION;
+      case 'preference':
+        return MemoryLayer.IDENTITY;
+      case 'fact':
+        return MemoryLayer.IDENTITY;
+      case 'decision':
+        return MemoryLayer.PROJECT;
+      case 'action_item':
+        return MemoryLayer.PROJECT;
+      default:
+        return MemoryLayer.SESSION;
     }
   }
 

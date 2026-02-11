@@ -3,9 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LLMService } from '../llm/llm.service';
 import { VectorService } from '../vector/vector.service';
-import { SegmentationService, SentenceUnit, ParagraphUnit } from './segmentation.service';
-import { QueryRouterService, HierarchyLevel, QueryAnalysis } from './query-router.service';
-import { HierarchyLevel as PrismaHierarchyLevel, HierarchyUnit } from '@prisma/client';
+import {
+  SegmentationService,
+  SentenceUnit,
+  ParagraphUnit,
+} from './segmentation.service';
+import {
+  QueryRouterService,
+  HierarchyLevel,
+  QueryAnalysis,
+} from './query-router.service';
+import {
+  HierarchyLevel as PrismaHierarchyLevel,
+  HierarchyUnit,
+} from '@prisma/client';
 import * as crypto from 'crypto';
 
 // Simple UUID v4 generator using crypto
@@ -50,7 +61,7 @@ export interface AggregatedSearchResult {
 
 /**
  * Hierarchy Service
- * 
+ *
  * Main facade for hierarchical embeddings functionality.
  * Handles:
  * - Processing memories into L0/L1 units
@@ -72,10 +83,16 @@ export class HierarchyService {
     private segmentation: SegmentationService,
     private queryRouter: QueryRouterService,
   ) {
-    this.enabled = this.config.get<string>('HIERARCHY_ENABLED', 'true') === 'true';
-    this.pineconeNamespacePrefix = this.config.get<string>('HIERARCHY_NAMESPACE_PREFIX', 'hierarchy');
-    
-    this.logger.log(`Hierarchical embeddings: ${this.enabled ? 'enabled' : 'disabled'}`);
+    this.enabled =
+      this.config.get<string>('HIERARCHY_ENABLED', 'true') === 'true';
+    this.pineconeNamespacePrefix = this.config.get<string>(
+      'HIERARCHY_NAMESPACE_PREFIX',
+      'hierarchy',
+    );
+
+    this.logger.log(
+      `Hierarchical embeddings: ${this.enabled ? 'enabled' : 'disabled'}`,
+    );
   }
 
   /**
@@ -87,7 +104,7 @@ export class HierarchyService {
 
   /**
    * Process a memory into hierarchical units (L0 sentences, L1 paragraphs)
-   * 
+   *
    * @param memoryId - The memory to process
    * @param text - The memory content
    * @param userId - The user who owns this memory
@@ -108,11 +125,11 @@ export class HierarchyService {
     }
 
     const units: ProcessResult['units'] = [];
-    
+
     try {
       // Extract sentences (L0)
       const sentences = this.segmentation.extractSentences(text);
-      
+
       // Extract paragraphs (L1)
       const paragraphs = this.segmentation.extractParagraphs(text);
 
@@ -127,7 +144,7 @@ export class HierarchyService {
           sentence.charStart,
           sentence.charEnd,
         );
-        
+
         if (unit) {
           units.push({
             id: unit.id,
@@ -150,7 +167,7 @@ export class HierarchyService {
           paragraph.charStart,
           paragraph.charEnd,
         );
-        
+
         if (unit) {
           units.push({
             id: unit.id,
@@ -193,7 +210,7 @@ export class HierarchyService {
       // Generate embedding
       const embeddingResult = await this.llm.embed(text);
       const embedding = embeddingResult.embedding;
-      
+
       // Generate unique IDs
       const unitId = `${level.toLowerCase()}_${generateId()}`;
       const pineconeId = `${this.pineconeNamespacePrefix}_${unitId}`;
@@ -239,7 +256,7 @@ export class HierarchyService {
 
   /**
    * Search across hierarchy levels
-   * 
+   *
    * @param query - The search query
    * @param userId - The user to search for
    * @param options - Search options
@@ -254,13 +271,13 @@ export class HierarchyService {
     } = {},
   ): Promise<AggregatedSearchResult> {
     const topK = options.topK || 10;
-    
+
     // Determine which levels to search
     let routing: QueryAnalysis;
     let levels: HierarchyLevel[];
-    
+
     if (options.routing === 'explicit' && options.levels) {
-      levels = options.levels.filter(l => l === 'L0' || l === 'L1'); // MVP: only L0/L1
+      levels = options.levels.filter((l) => l === 'L0' || l === 'L1'); // MVP: only L0/L1
       routing = {
         query,
         suggestedLevels: levels,
@@ -269,7 +286,7 @@ export class HierarchyService {
       };
     } else {
       routing = this.queryRouter.analyze(query);
-      levels = routing.suggestedLevels.filter(l => l === 'L0' || l === 'L1');
+      levels = routing.suggestedLevels.filter((l) => l === 'L0' || l === 'L1');
     }
 
     // Generate query embedding
@@ -278,9 +295,14 @@ export class HierarchyService {
 
     // Search each level
     const allResults: HierarchySearchResult[] = [];
-    
+
     for (const level of levels) {
-      const results = await this.searchLevel(queryEmbedding, userId, level, topK);
+      const results = await this.searchLevel(
+        queryEmbedding,
+        userId,
+        level,
+        topK,
+      );
       allResults.push(...results);
     }
 
@@ -319,7 +341,7 @@ export class HierarchyService {
 
       // Filter to correct level and transform results
       const filtered: HierarchySearchResult[] = [];
-      
+
       for (const result of results) {
         // Check if this is a hierarchy result by looking at the ID prefix
         if (result.id.startsWith(this.pineconeNamespacePrefix)) {
@@ -348,7 +370,9 @@ export class HierarchyService {
    * Deduplicate results across levels
    * Prefer higher-level (L1 > L0) when same source memory
    */
-  private deduplicateResults(results: HierarchySearchResult[]): HierarchySearchResult[] {
+  private deduplicateResults(
+    results: HierarchySearchResult[],
+  ): HierarchySearchResult[] {
     const seen = new Map<string, HierarchySearchResult>();
     const levelPriority: Record<HierarchyLevel, number> = {
       L3: 4,
@@ -360,8 +384,11 @@ export class HierarchyService {
     for (const result of results) {
       const key = result.sourceMemoryId || result.id;
       const existing = seen.get(key);
-      
-      if (!existing || levelPriority[result.level] > levelPriority[existing.level]) {
+
+      if (
+        !existing ||
+        levelPriority[result.level] > levelPriority[existing.level]
+      ) {
         seen.set(key, result);
       }
     }
@@ -401,7 +428,7 @@ export class HierarchyService {
 
     const byLevel: Record<string, number> = {};
     let total = 0;
-    
+
     for (const count of counts) {
       byLevel[count.level] = count._count.id;
       total += count._count.id;
@@ -428,7 +455,10 @@ export class HierarchyService {
       try {
         await this.vector.delete(unit.pineconeId);
       } catch (error) {
-        this.logger.warn(`Failed to delete Pinecone vector ${unit.pineconeId}:`, error);
+        this.logger.warn(
+          `Failed to delete Pinecone vector ${unit.pineconeId}:`,
+          error,
+        );
       }
     }
 
@@ -465,7 +495,7 @@ export class HierarchyService {
       try {
         // Delete existing units first
         await this.deleteUnitsForMemory(memory.id);
-        
+
         // Reprocess
         await this.processMemory(memory.id, memory.raw, userId);
         processed++;

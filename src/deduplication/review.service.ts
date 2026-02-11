@@ -64,7 +64,10 @@ export class ReviewService {
     // Determine suggested strategy and survivor
     const memoryType = memories[0]?.memoryType ?? null;
     const suggestedStrategy = this.mergeService.getDefaultStrategy(memoryType);
-    const suggestedSurvivorId = this.selectSuggestedSurvivor(memories, suggestedStrategy);
+    const suggestedSurvivorId = this.selectSuggestedSurvivor(
+      memories,
+      suggestedStrategy,
+    );
 
     // Check if candidate already exists
     const existing = await this.prisma.mergeCandidate.findFirst({
@@ -98,9 +101,14 @@ export class ReviewService {
   /**
    * Queue a cluster of memories for review
    */
-  async queueClusterForReview(userId: string, cluster: MemoryCluster): Promise<MergeCandidateDto> {
+  async queueClusterForReview(
+    userId: string,
+    cluster: MemoryCluster,
+  ): Promise<MergeCandidateDto> {
     // Check safety for all memories
-    const safetyResults = await this.safetyService.checkMultipleSafety(cluster.memoryIds);
+    const safetyResults = await this.safetyService.checkMultipleSafety(
+      cluster.memoryIds,
+    );
     const safetyFlags = safetyResults.flatMap((r) => r.reasons);
 
     // Fetch memory details
@@ -252,13 +260,18 @@ export class ReviewService {
     }
 
     // Execute the merge
-    const strategy = request.strategy ?? (candidate.suggestedStrategy as MergeStrategy);
+    const strategy =
+      request.strategy ?? (candidate.suggestedStrategy as MergeStrategy);
     const survivorId = request.survivorId ?? candidate.suggestedSurvivorId;
 
-    const mergeResult = await this.mergeService.merge(candidate.memoryIds, strategy, {
-      survivorId,
-      customContent: request.customContent,
-    });
+    const mergeResult = await this.mergeService.merge(
+      candidate.memoryIds,
+      strategy,
+      {
+        survivorId,
+        customContent: request.customContent,
+      },
+    );
 
     // Record merge event
     const mergeEvent = await this.lineageService.recordMerge(
@@ -337,7 +350,10 @@ export class ReviewService {
   /**
    * Skip a candidate (will resurface later)
    */
-  async skip(candidateId: string, skipDays: number = 7): Promise<{ success: boolean; nextReviewAt: Date }> {
+  async skip(
+    candidateId: string,
+    skipDays: number = 7,
+  ): Promise<{ success: boolean; nextReviewAt: Date }> {
     const candidate = await this.prisma.mergeCandidate.findUnique({
       where: { id: candidateId },
     });
@@ -387,16 +403,23 @@ export class ReviewService {
   ): string {
     switch (strategy) {
       case MergeStrategy.KEEP_NEWEST:
-        return memories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0].id;
+        return memories.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+        )[0].id;
       case MergeStrategy.KEEP_OLDEST:
-        return memories.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0].id;
+        return memories.sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+        )[0].id;
       case MergeStrategy.KEEP_IMPORTANCE:
-        return memories.sort((a, b) => b.importanceScore - a.importanceScore)[0].id;
+        return memories.sort((a, b) => b.importanceScore - a.importanceScore)[0]
+          .id;
       case MergeStrategy.KEEP_DETAILED:
       case MergeStrategy.COMBINE_METADATA:
       default:
         return memories.sort(
-          (a, b) => this.mergeService.computeDetailScore(b.raw) - this.mergeService.computeDetailScore(a.raw),
+          (a, b) =>
+            this.mergeService.computeDetailScore(b.raw) -
+            this.mergeService.computeDetailScore(a.raw),
         )[0].id;
     }
   }
@@ -430,7 +453,7 @@ export class ReviewService {
     const safetyFlags: SafetyReasonDto[] =
       typeof candidate.safetyFlags === 'string'
         ? JSON.parse(candidate.safetyFlags)
-        : candidate.safetyFlags ?? [];
+        : (candidate.safetyFlags ?? []);
 
     return {
       id: candidate.id,

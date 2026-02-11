@@ -1,6 +1,6 @@
 /**
  * Ensemble Service Tests
- * 
+ *
  * Comprehensive tests for RRF fusion algorithm, ensemble retrieval,
  * nightly re-embedding, and model management.
  * Updated to use pgvector instead of Pinecone.
@@ -15,9 +15,9 @@ import { DriftDetectionService } from './drift-detection.service';
 import { ModelRegistryService } from './model-registry.service';
 import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  ModelId, 
-  ModelSearchResult, 
+import {
+  ModelId,
+  ModelSearchResult,
   FusedResult,
   ReembedCheckpoint,
   ModelRegistryEntry,
@@ -129,7 +129,7 @@ describe('EnsembleService', () => {
       modelResults.set('minilm', [
         { memoryId: 'mem-2', model: 'minilm', rank: 1, score: 0.92 },
         { memoryId: 'mem-1', model: 'minilm', rank: 2, score: 0.88 },
-        { memoryId: 'mem-4', model: 'minilm', rank: 3, score: 0.70 },
+        { memoryId: 'mem-4', model: 'minilm', rank: 3, score: 0.7 },
       ]);
 
       const results = service.reciprocalRankFusion(modelResults, 60);
@@ -137,11 +137,14 @@ describe('EnsembleService', () => {
       expect(results.length).toBe(4);
 
       // Top 2 should be mem-1 and mem-2 (they appear in both)
-      const topIds = results.slice(0, 2).map(r => r.memoryId).sort();
+      const topIds = results
+        .slice(0, 2)
+        .map((r) => r.memoryId)
+        .sort();
       expect(topIds).toEqual(['mem-1', 'mem-2']);
 
       // Memories appearing in both models should have appearsInModels = 2
-      const mem1 = results.find(r => r.memoryId === 'mem-1');
+      const mem1 = results.find((r) => r.memoryId === 'mem-1');
       expect(mem1?.appearsInModels).toBe(2);
       expect(mem1?.modelScores.size).toBe(2);
     });
@@ -158,11 +161,16 @@ describe('EnsembleService', () => {
       ]);
 
       // Give BGE 2x weight
-      const weights: Record<ModelId, number> = { 'bge-base': 2.0, 'minilm': 1.0, 'nomic': 1.0, 'gte-base': 1.0 };
+      const weights: Record<ModelId, number> = {
+        'bge-base': 2.0,
+        minilm: 1.0,
+        nomic: 1.0,
+        'gte-base': 1.0,
+      };
       const results = service.reciprocalRankFusion(modelResults, 60, weights);
 
-      const mem1 = results.find(r => r.memoryId === 'mem-1');
-      const mem2 = results.find(r => r.memoryId === 'mem-2');
+      const mem1 = results.find((r) => r.memoryId === 'mem-1');
+      const mem2 = results.find((r) => r.memoryId === 'mem-2');
 
       // mem-1 should have 2x the score of mem-2
       expect(mem1?.rrfScore).toBeCloseTo(mem2!.rrfScore * 2, 5);
@@ -205,9 +213,12 @@ describe('EnsembleService', () => {
       ]);
 
       const results = service.reciprocalRankFusion(modelResults, 60);
-      const mem1 = results.find(r => r.memoryId === 'mem-1');
+      const mem1 = results.find((r) => r.memoryId === 'mem-1');
 
-      expect(mem1?.modelScores.get('bge-base')).toEqual({ rank: 1, score: 0.95 });
+      expect(mem1?.modelScores.get('bge-base')).toEqual({
+        rank: 1,
+        score: 0.95,
+      });
       expect(mem1?.modelScores.get('minilm')).toEqual({ rank: 2, score: 0.88 });
     });
 
@@ -216,7 +227,7 @@ describe('EnsembleService', () => {
 
       modelResults.set('bge-base', [
         { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.95 },
-        { memoryId: 'mem-3', model: 'bge-base', rank: 2, score: 0.90 },
+        { memoryId: 'mem-3', model: 'bge-base', rank: 2, score: 0.9 },
       ]);
 
       modelResults.set('minilm', [
@@ -296,11 +307,16 @@ describe('EnsembleService', () => {
         { memoryId: 'mem-2', model: 'minilm', rank: 1, score: 0.95 },
       ]);
 
-      const weights: Record<ModelId, number> = { 'bge-base': 1.0, 'minilm': 0.0, 'nomic': 1.0, 'gte-base': 1.0 };
+      const weights: Record<ModelId, number> = {
+        'bge-base': 1.0,
+        minilm: 0.0,
+        nomic: 1.0,
+        'gte-base': 1.0,
+      };
       const results = service.reciprocalRankFusion(modelResults, 60, weights);
 
-      const mem1 = results.find(r => r.memoryId === 'mem-1');
-      const mem2 = results.find(r => r.memoryId === 'mem-2');
+      const mem1 = results.find((r) => r.memoryId === 'mem-1');
+      const mem2 = results.find((r) => r.memoryId === 'mem-2');
 
       expect(mem1?.rrfScore).toBeGreaterThan(0);
       expect(mem2?.rrfScore).toBe(0);
@@ -340,33 +356,33 @@ describe('EnsembleService', () => {
 
       modelResults.set('nomic', [
         { memoryId: 'mem-1', model: 'nomic', rank: 1, score: 0.92 },
-        { memoryId: 'mem-3', model: 'nomic', rank: 2, score: 0.80 },
+        { memoryId: 'mem-3', model: 'nomic', rank: 2, score: 0.8 },
       ]);
 
       modelResults.set('minilm', [
-        { memoryId: 'mem-1', model: 'minilm', rank: 1, score: 0.90 },
+        { memoryId: 'mem-1', model: 'minilm', rank: 1, score: 0.9 },
         { memoryId: 'mem-2', model: 'minilm', rank: 2, score: 0.82 },
       ]);
 
       const results = service.reciprocalRankFusion(modelResults, 60);
 
       // mem-1 appears in all 3 models at rank 1
-      const mem1 = results.find(r => r.memoryId === 'mem-1');
+      const mem1 = results.find((r) => r.memoryId === 'mem-1');
       expect(mem1?.appearsInModels).toBe(3);
-      
+
       // Base score with weights: bge-base=1.0, nomic=0.8, minilm=1.0
       // RRF score = 1.0*(1/61) + 0.8*(1/61) + 1.0*(1/61) = 2.8/61
       // With consensus boost (full agreement): 2.8/61 * (1 + 0.1 * 1) = 3.08/61
       const baseScore = (1.0 + 0.8 + 1.0) * (1 / 61);
-      const expectedScore = baseScore * (1 + 0.1 * (3/3)); // Full consensus
+      const expectedScore = baseScore * (1 + 0.1 * (3 / 3)); // Full consensus
       expect(mem1?.rrfScore).toBeCloseTo(expectedScore, 5);
 
       // mem-2 appears in 2 models at rank 2
-      const mem2 = results.find(r => r.memoryId === 'mem-2');
+      const mem2 = results.find((r) => r.memoryId === 'mem-2');
       expect(mem2?.appearsInModels).toBe(2);
 
       // mem-3 appears in 1 model
-      const mem3 = results.find(r => r.memoryId === 'mem-3');
+      const mem3 = results.find((r) => r.memoryId === 'mem-3');
       expect(mem3?.appearsInModels).toBe(1);
     });
   });
@@ -391,15 +407,17 @@ describe('EnsembleService', () => {
     it('should call pgvector provider deleteByMemory', async () => {
       // Enable the service for this test
       (service as any).config.enabled = true;
-      
+
       await service.delete('mem-123');
 
-      expect(mockPgVectorProvider.deleteByMemory).toHaveBeenCalledWith('mem-123');
+      expect(mockPgVectorProvider.deleteByMemory).toHaveBeenCalledWith(
+        'mem-123',
+      );
     });
 
     it('should skip when disabled', async () => {
       (service as any).config.enabled = false;
-      
+
       await service.delete('mem-123');
 
       expect(mockPgVectorProvider.deleteByMemory).not.toHaveBeenCalled();
@@ -410,7 +428,7 @@ describe('EnsembleService', () => {
     it('should return embedding counts by model', async () => {
       mockPgVectorProvider.getEmbeddingCountByModel.mockResolvedValue({
         'bge-base': 1000,
-        'minilm': 950,
+        minilm: 950,
       });
 
       const stats = await service.getEmbeddingStats();
@@ -452,7 +470,7 @@ describe('DriftDetectionService', () => {
         'mem-1',
         null,
         [0.1, 0.2, 0.3],
-        'bge-base'
+        'bge-base',
       );
 
       expect(result.cosineDrift).toBe(0);
@@ -465,7 +483,7 @@ describe('DriftDetectionService', () => {
         'mem-1',
         embedding,
         embedding,
-        'bge-base'
+        'bge-base',
       );
 
       expect(result.cosineDrift).toBeCloseTo(0, 5);
@@ -474,13 +492,13 @@ describe('DriftDetectionService', () => {
 
     it('should calculate drift for different embeddings', async () => {
       const old = [1, 0, 0];
-      const newEmb = [0, 1, 0];  // Orthogonal vectors
+      const newEmb = [0, 1, 0]; // Orthogonal vectors
 
       const result = await service.measureDrift(
         'mem-1',
         old,
         newEmb,
-        'bge-base'
+        'bge-base',
       );
 
       // Cosine distance of orthogonal vectors = 1
@@ -490,13 +508,13 @@ describe('DriftDetectionService', () => {
 
     it('should flag high drift embeddings', async () => {
       const old = [0.1, 0.2, 0.3];
-      const newEmb = [0.5, 0.6, 0.7];  // Different direction
+      const newEmb = [0.5, 0.6, 0.7]; // Different direction
 
       const result = await service.measureDrift(
         'mem-1',
         old,
         newEmb,
-        'bge-base'
+        'bge-base',
       );
 
       // Check if flagged based on threshold
@@ -520,7 +538,11 @@ describe('DriftDetectionService', () => {
         { memory_id: 'mem-1', embedding: '[0.1,0.2,0.3]' },
       ]);
 
-      const results = await service.measureBatchDrift(memories, newEmbeddings, 'bge-base');
+      const results = await service.measureBatchDrift(
+        memories,
+        newEmbeddings,
+        'bge-base',
+      );
 
       expect(results.length).toBe(2);
       expect(mockPrismaService.$queryRawUnsafe).toHaveBeenCalled();
@@ -533,7 +555,11 @@ describe('DriftDetectionService', () => {
       // No existing embeddings
       mockPrismaService.$queryRawUnsafe.mockResolvedValue([]);
 
-      const results = await service.measureBatchDrift(memories, newEmbeddings, 'bge-base');
+      const results = await service.measureBatchDrift(
+        memories,
+        newEmbeddings,
+        'bge-base',
+      );
 
       expect(results.length).toBe(1);
       expect(results[0].cosineDrift).toBe(0);
@@ -552,9 +578,30 @@ describe('DriftDetectionService', () => {
 
     it('should calculate summary statistics', () => {
       const analyses = [
-        { memoryId: 'm1', model: 'bge-base' as ModelId, cosineDrift: 0.1, oldEmbeddingVersion: 'v1', newEmbeddingVersion: 'v2', flagged: false },
-        { memoryId: 'm2', model: 'bge-base' as ModelId, cosineDrift: 0.2, oldEmbeddingVersion: 'v1', newEmbeddingVersion: 'v2', flagged: true },
-        { memoryId: 'm3', model: 'bge-base' as ModelId, cosineDrift: 0.3, oldEmbeddingVersion: 'v1', newEmbeddingVersion: 'v2', flagged: true },
+        {
+          memoryId: 'm1',
+          model: 'bge-base' as ModelId,
+          cosineDrift: 0.1,
+          oldEmbeddingVersion: 'v1',
+          newEmbeddingVersion: 'v2',
+          flagged: false,
+        },
+        {
+          memoryId: 'm2',
+          model: 'bge-base' as ModelId,
+          cosineDrift: 0.2,
+          oldEmbeddingVersion: 'v1',
+          newEmbeddingVersion: 'v2',
+          flagged: true,
+        },
+        {
+          memoryId: 'm3',
+          model: 'bge-base' as ModelId,
+          cosineDrift: 0.3,
+          oldEmbeddingVersion: 'v1',
+          newEmbeddingVersion: 'v2',
+          flagged: true,
+        },
       ];
 
       const summary = service.summarizeDrift(analyses);
@@ -567,8 +614,22 @@ describe('DriftDetectionService', () => {
 
     it('should group by model', () => {
       const analyses = [
-        { memoryId: 'm1', model: 'bge-base' as ModelId, cosineDrift: 0.1, oldEmbeddingVersion: 'v1', newEmbeddingVersion: 'v2', flagged: false },
-        { memoryId: 'm2', model: 'minilm' as ModelId, cosineDrift: 0.2, oldEmbeddingVersion: 'v1', newEmbeddingVersion: 'v2', flagged: true },
+        {
+          memoryId: 'm1',
+          model: 'bge-base' as ModelId,
+          cosineDrift: 0.1,
+          oldEmbeddingVersion: 'v1',
+          newEmbeddingVersion: 'v2',
+          flagged: false,
+        },
+        {
+          memoryId: 'm2',
+          model: 'minilm' as ModelId,
+          cosineDrift: 0.2,
+          oldEmbeddingVersion: 'v1',
+          newEmbeddingVersion: 'v2',
+          flagged: true,
+        },
       ];
 
       const summary = service.summarizeDrift(analyses);
@@ -682,7 +743,9 @@ describe('CheckpointService', () => {
 
   describe('delete', () => {
     it('should delete checkpoint', async () => {
-      prisma.ensembleReembedCheckpoint.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.ensembleReembedCheckpoint.deleteMany.mockResolvedValue({
+        count: 1,
+      });
 
       await service.delete('test-job');
 
@@ -719,7 +782,9 @@ describe('CheckpointService', () => {
 
   describe('cleanupStale', () => {
     it('should delete stale checkpoints', async () => {
-      prisma.ensembleReembedCheckpoint.deleteMany.mockResolvedValue({ count: 3 });
+      prisma.ensembleReembedCheckpoint.deleteMany.mockResolvedValue({
+        count: 3,
+      });
 
       const count = await service.cleanupStale();
 
@@ -869,7 +934,7 @@ describe('ModelRegistryService', () => {
           sampleQueries: 2000,
           avgRankContribution: 0.25,
           uniqueHits: 100,
-          correlationWithGoldStandard: 0.90,
+          correlationWithGoldStandard: 0.9,
         },
         promotionThresholds: DEFAULT_PROMOTION_THRESHOLDS,
       } as ModelRegistryEntry);
@@ -885,10 +950,10 @@ describe('ModelRegistryService', () => {
         modelId: 'nomic',
         status: 'shadow',
         qualityMetrics: {
-          sampleQueries: 500,  // Below threshold
+          sampleQueries: 500, // Below threshold
           avgRankContribution: 0.25,
           uniqueHits: 100,
-          correlationWithGoldStandard: 0.90,
+          correlationWithGoldStandard: 0.9,
         },
         promotionThresholds: DEFAULT_PROMOTION_THRESHOLDS,
       } as ModelRegistryEntry);
@@ -896,7 +961,7 @@ describe('ModelRegistryService', () => {
       const result = await service.checkPromotionCriteria('nomic');
 
       expect(result.passed).toBe(false);
-      expect(result.reasons.some(r => r.includes('samples'))).toBe(true);
+      expect(result.reasons.some((r) => r.includes('samples'))).toBe(true);
     });
 
     it('should fail when rank contribution too low', async () => {
@@ -905,9 +970,9 @@ describe('ModelRegistryService', () => {
         status: 'shadow',
         qualityMetrics: {
           sampleQueries: 2000,
-          avgRankContribution: 0.05,  // Below threshold
+          avgRankContribution: 0.05, // Below threshold
           uniqueHits: 100,
-          correlationWithGoldStandard: 0.90,
+          correlationWithGoldStandard: 0.9,
         },
         promotionThresholds: DEFAULT_PROMOTION_THRESHOLDS,
       } as ModelRegistryEntry);
@@ -915,13 +980,15 @@ describe('ModelRegistryService', () => {
       const result = await service.checkPromotionCriteria('nomic');
 
       expect(result.passed).toBe(false);
-      expect(result.reasons.some(r => r.includes('contribution'))).toBe(true);
+      expect(result.reasons.some((r) => r.includes('contribution'))).toBe(true);
     });
   });
 
   describe('promoteModel', () => {
     it('should promote model when criteria met', async () => {
-      service.checkPromotionCriteria = jest.fn().mockResolvedValue({ passed: true, reasons: [] });
+      service.checkPromotionCriteria = jest
+        .fn()
+        .mockResolvedValue({ passed: true, reasons: [] });
       service.updateModelStatus = jest.fn().mockResolvedValue(undefined);
 
       const result = await service.promoteModel('nomic');
@@ -1158,7 +1225,10 @@ describe('PgVectorEnsembleProvider', () => {
         { embedding: '[0.1,0.2,0.3]' },
       ]);
 
-      const embedding = await provider.getExistingEmbedding('mem-1', 'bge-base');
+      const embedding = await provider.getExistingEmbedding(
+        'mem-1',
+        'bge-base',
+      );
 
       expect(embedding).toEqual([0.1, 0.2, 0.3]);
     });
@@ -1166,7 +1236,10 @@ describe('PgVectorEnsembleProvider', () => {
     it('should return null when no embedding exists', async () => {
       prisma.$queryRawUnsafe.mockResolvedValue([]);
 
-      const embedding = await provider.getExistingEmbedding('mem-1', 'bge-base');
+      const embedding = await provider.getExistingEmbedding(
+        'mem-1',
+        'bge-base',
+      );
 
       expect(embedding).toBeNull();
     });
@@ -1198,7 +1271,7 @@ describe('Ensemble Integration Tests', () => {
       const modelResults = new Map<ModelId, ModelSearchResult[]>();
 
       modelResults.set('bge-base', [
-        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.90 },
+        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.9 },
         { memoryId: 'mem-2', model: 'bge-base', rank: 2, score: 0.85 },
       ]);
 
@@ -1219,7 +1292,7 @@ describe('Ensemble Integration Tests', () => {
       expect(results[0].appearsInModels).toBe(3);
 
       // mem-2 appears in 2 models
-      const mem2 = results.find(r => r.memoryId === 'mem-2');
+      const mem2 = results.find((r) => r.memoryId === 'mem-2');
       expect(mem2?.appearsInModels).toBe(2);
     });
   });
@@ -1244,18 +1317,18 @@ describe('Ensemble Integration Tests', () => {
       const modelResults = new Map<ModelId, ModelSearchResult[]>();
 
       modelResults.set('bge-base', [
-        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.90 },
+        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.9 },
       ]);
 
       modelResults.set('minilm', [
-        { memoryId: 'mem-2', model: 'minilm', rank: 1, score: 0.90 },
+        { memoryId: 'mem-2', model: 'minilm', rank: 1, score: 0.9 },
       ]);
 
       // Entity query should boost minilm
       const weights: Record<ModelId, number> = {
         'bge-base': 0.9,
-        'minilm': 1.4,
-        'nomic': 0.8,
+        minilm: 1.4,
+        nomic: 0.8,
         'gte-base': 1.0,
       };
 
@@ -1269,18 +1342,18 @@ describe('Ensemble Integration Tests', () => {
       const modelResults = new Map<ModelId, ModelSearchResult[]>();
 
       modelResults.set('bge-base', [
-        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.90 },
+        { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.9 },
       ]);
 
       modelResults.set('nomic', [
-        { memoryId: 'mem-2', model: 'nomic', rank: 1, score: 0.90 },
+        { memoryId: 'mem-2', model: 'nomic', rank: 1, score: 0.9 },
       ]);
 
       // Conversational query should boost nomic
       const weights: Record<ModelId, number> = {
         'bge-base': 0.9,
-        'nomic': 1.4,
-        'minilm': 0.7,
+        nomic: 1.4,
+        minilm: 0.7,
         'gte-base': 1.0,
       };
 
@@ -1314,7 +1387,7 @@ describe('Ensemble Integration Tests', () => {
       // mem-2 appears in only 1 at rank 1
       modelResults.set('bge-base', [
         { memoryId: 'mem-2', model: 'bge-base', rank: 1, score: 0.95 },
-        { memoryId: 'mem-1', model: 'bge-base', rank: 3, score: 0.80 },
+        { memoryId: 'mem-1', model: 'bge-base', rank: 3, score: 0.8 },
       ]);
 
       modelResults.set('nomic', [
@@ -1360,7 +1433,7 @@ describe('Edge Cases', () => {
     // Duplicate mem-1 in bge-base (shouldn't happen but testing robustness)
     modelResults.set('bge-base', [
       { memoryId: 'mem-1', model: 'bge-base', rank: 1, score: 0.95 },
-      { memoryId: 'mem-1', model: 'bge-base', rank: 2, score: 0.90 },
+      { memoryId: 'mem-1', model: 'bge-base', rank: 2, score: 0.9 },
     ]);
 
     const results = service.reciprocalRankFusion(modelResults, 60);
@@ -1374,7 +1447,7 @@ describe('Edge Cases', () => {
     const modelResults = new Map<ModelId, ModelSearchResult[]>();
 
     modelResults.set('bge-base', [
-      { memoryId: 'mem-1', model: 'bge-base', rank: 100, score: 0.30 },
+      { memoryId: 'mem-1', model: 'bge-base', rank: 100, score: 0.3 },
     ]);
 
     const results = service.reciprocalRankFusion(modelResults, 60);
@@ -1391,7 +1464,12 @@ describe('Edge Cases', () => {
     ]);
 
     // Negative weight (edge case)
-    const weights: Record<ModelId, number> = { 'bge-base': -1.0, 'minilm': 1.0, 'nomic': 1.0, 'gte-base': 1.0 };
+    const weights: Record<ModelId, number> = {
+      'bge-base': -1.0,
+      minilm: 1.0,
+      nomic: 1.0,
+      'gte-base': 1.0,
+    };
     const results = service.reciprocalRankFusion(modelResults, 60, weights);
 
     // Score should be negative

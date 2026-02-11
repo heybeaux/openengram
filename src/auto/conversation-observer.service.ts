@@ -2,7 +2,10 @@ import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { ImportanceDetectorService } from './importance-detector.service';
-import { AutoExtractorService, ExtractorContext } from './auto-extractor.service';
+import {
+  AutoExtractorService,
+  ExtractorContext,
+} from './auto-extractor.service';
 import { SummarizationService } from '../summarization/summarization.service';
 import {
   ObserveDto,
@@ -18,7 +21,7 @@ export interface ObserveContext {
 
 /**
  * ConversationObserver - Main service for auto-mode memory capture
- * 
+ *
  * Observes conversation turns, detects importance signals,
  * extracts memories, and stores them automatically.
  */
@@ -39,8 +42,8 @@ export class ConversationObserverService {
    * @param context - Optional context including user name
    */
   async observe(
-    userId: string, 
-    dto: ObserveDto, 
+    userId: string,
+    dto: ObserveDto,
     context?: ObserveContext,
   ): Promise<ObserveResult> {
     const startTime = Date.now();
@@ -68,11 +71,14 @@ export class ConversationObserverService {
       if (summaryResult) {
         // Batch was triggered — return summary-style result
         return {
-          memories: summaryResult.facts.map(f => ({
+          memories: summaryResult.facts.map((f) => ({
             content: f.content,
             importance: f.confidence,
             signals: [],
-            source: { turnIndex: f.sourceTurnIndices[0] ?? 0, role: 'user' as any },
+            source: {
+              turnIndex: f.sourceTurnIndices[0] ?? 0,
+              role: 'user' as any,
+            },
           })),
           created: summaryResult.created,
           skipped: summaryResult.facts.length - summaryResult.created,
@@ -98,10 +104,14 @@ export class ConversationObserverService {
     const signals = this.importanceDetector.detect(dto.turns);
 
     // 4. Extract memories from conversation with user context
-    const extracted = await this.autoExtractor.extract(dto.turns, signals, extractorContext);
+    const extracted = await this.autoExtractor.extract(
+      dto.turns,
+      signals,
+      extractorContext,
+    );
 
     // 5. Filter by importance threshold
-    const toStore = extracted.filter(m => m.importance >= minImportance);
+    const toStore = extracted.filter((m) => m.importance >= minImportance);
     const skipped = extracted.length - toStore.length;
 
     // 6. Store memories
@@ -131,8 +141,8 @@ export class ConversationObserverService {
       try {
         // Get timestamp from the source turn if available
         const sourceTurn = dto.turns[memory.source.turnIndex];
-        const sourceTimestamp = sourceTurn?.timestamp 
-          ? new Date(sourceTurn.timestamp) 
+        const sourceTimestamp = sourceTurn?.timestamp
+          ? new Date(sourceTurn.timestamp)
           : undefined;
 
         await this.memoryService.remember(userId, {
@@ -162,7 +172,7 @@ export class ConversationObserverService {
    */
   private determineLayer(memory: ExtractedMemory): MemoryLayer {
     const content = memory.content.toLowerCase();
-    const signalTypes = memory.signals.map(s => s.type);
+    const signalTypes = memory.signals.map((s) => s.type);
 
     // Identity layer: Core user facts, preferences, corrections about themselves
     if (
@@ -203,7 +213,8 @@ export class ConversationObserverService {
     aggregateImportance: number;
   } {
     const signals = this.importanceDetector.detect(dto.turns);
-    const aggregateImportance = this.importanceDetector.calculateImportance(signals);
+    const aggregateImportance =
+      this.importanceDetector.calculateImportance(signals);
 
     return {
       signals,

@@ -73,7 +73,9 @@ describe('GraphService', () => {
     service = module.get<GraphService>(GraphService);
     entityService = module.get<EntityService>(EntityService);
     relationshipService = module.get<RelationshipService>(RelationshipService);
-    extractionService = module.get<GraphExtractionService>(GraphExtractionService);
+    extractionService = module.get<GraphExtractionService>(
+      GraphExtractionService,
+    );
     prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
@@ -102,18 +104,27 @@ describe('GraphService', () => {
       const mockEntityWithRels = {
         entity: mockEntity,
         outgoingRelationships: [
-          { id: 'rel-1', type: 'SPOUSE_OF', weight: 1.0, target: { id: 'e2', name: 'Deanna', type: 'PERSON' } },
+          {
+            id: 'rel-1',
+            type: 'SPOUSE_OF',
+            weight: 1.0,
+            target: { id: 'e2', name: 'Deanna', type: 'PERSON' },
+          },
         ],
         incomingRelationships: [],
       };
 
       mockEntityService.findById.mockResolvedValue(mockEntity);
-      mockEntityService.getWithRelationships.mockResolvedValue(mockEntityWithRels);
+      mockEntityService.getWithRelationships.mockResolvedValue(
+        mockEntityWithRels,
+      );
 
       const mockMentions = [
         { memory: { id: 'mem-1', raw: 'Beaux is awesome' } },
       ];
-      mockPrismaService.graphEntityMention.findMany.mockResolvedValue(mockMentions);
+      mockPrismaService.graphEntityMention.findMany.mockResolvedValue(
+        mockMentions,
+      );
 
       const result = await service.getEntityProfile('user-1', 'entity-1');
 
@@ -123,17 +134,28 @@ describe('GraphService', () => {
     });
 
     it('should find entity by name if not found by ID', async () => {
-      const mockEntity = { id: 'entity-1', name: 'Beaux', type: GraphEntityType.PERSON };
+      const mockEntity = {
+        id: 'entity-1',
+        name: 'Beaux',
+        type: GraphEntityType.PERSON,
+      };
 
       mockEntityService.findById.mockResolvedValue(null);
       mockEntityService.findByNameOrAlias.mockResolvedValue(mockEntity);
-      mockEntityService.getWithRelationships.mockResolvedValue({ entity: mockEntity, outgoingRelationships: [], incomingRelationships: [] });
+      mockEntityService.getWithRelationships.mockResolvedValue({
+        entity: mockEntity,
+        outgoingRelationships: [],
+        incomingRelationships: [],
+      });
       mockPrismaService.graphEntityMention.findMany.mockResolvedValue([]);
 
       const result = await service.getEntityProfile('user-1', 'Beaux');
 
       expect(result).not.toBeNull();
-      expect(mockEntityService.findByNameOrAlias).toHaveBeenCalledWith('user-1', 'Beaux');
+      expect(mockEntityService.findByNameOrAlias).toHaveBeenCalledWith(
+        'user-1',
+        'Beaux',
+      );
     });
 
     it('should return null if entity not found', async () => {
@@ -148,8 +170,16 @@ describe('GraphService', () => {
 
   describe('findPath', () => {
     it('should find path between two entities', async () => {
-      const mockEntity1 = { id: 'entity-1', name: 'Beaux', type: GraphEntityType.PERSON };
-      const mockEntity2 = { id: 'entity-2', name: 'Deanna', type: GraphEntityType.PERSON };
+      const mockEntity1 = {
+        id: 'entity-1',
+        name: 'Beaux',
+        type: GraphEntityType.PERSON,
+      };
+      const mockEntity2 = {
+        id: 'entity-2',
+        name: 'Deanna',
+        type: GraphEntityType.PERSON,
+      };
 
       mockEntityService.findByNameOrAlias
         .mockResolvedValueOnce(mockEntity1)
@@ -164,14 +194,17 @@ describe('GraphService', () => {
         .mockResolvedValueOnce(mockEntity1)
         .mockResolvedValueOnce(mockEntity2);
 
-      mockRelationshipService.findById.mockResolvedValue({ id: 'rel-1', type: 'SPOUSE_OF' });
+      mockRelationshipService.findById.mockResolvedValue({
+        id: 'rel-1',
+        type: 'SPOUSE_OF',
+      });
 
       const result = await service.findPath('user-1', 'Beaux', 'Deanna');
 
       expect(result.found).toBe(true);
       expect(result.path).toHaveLength(2);
-      expect(result.path[0].entity!.name).toBe('Beaux');
-      expect(result.path[1].entity!.name).toBe('Deanna');
+      expect(result.path[0].entity.name).toBe('Beaux');
+      expect(result.path[1].entity.name).toBe('Deanna');
     });
 
     it('should return not found if entities not found', async () => {
@@ -205,9 +238,15 @@ describe('GraphService', () => {
         { sourceEntity: { id: 'entity-1', name: 'Beaux' } },
         { sourceEntity: { id: 'entity-3', name: 'Deanna' } },
       ];
-      mockPrismaService.graphRelationship.findMany.mockResolvedValue(mockRelationships);
+      mockPrismaService.graphRelationship.findMany.mockResolvedValue(
+        mockRelationships,
+      );
 
-      const result = await service.findByRelationship('user-1', 'LIVES_IN', 'Powell River');
+      const result = await service.findByRelationship(
+        'user-1',
+        'LIVES_IN',
+        'Powell River',
+      );
 
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe('Beaux');
@@ -217,7 +256,11 @@ describe('GraphService', () => {
     it('should return empty array if target not found', async () => {
       mockEntityService.findByNameOrAlias.mockResolvedValue(null);
 
-      const result = await service.findByRelationship('user-1', 'LIVES_IN', 'Unknown');
+      const result = await service.findByRelationship(
+        'user-1',
+        'LIVES_IN',
+        'Unknown',
+      );
 
       expect(result).toEqual([]);
     });
@@ -225,7 +268,11 @@ describe('GraphService', () => {
 
   describe('searchEntities', () => {
     it('should search entities and return with match type', async () => {
-      const mockExactMatch = { id: 'entity-1', name: 'Beaux', type: GraphEntityType.PERSON };
+      const mockExactMatch = {
+        id: 'entity-1',
+        name: 'Beaux',
+        type: GraphEntityType.PERSON,
+      };
 
       mockEntityService.findByName.mockResolvedValue(mockExactMatch);
       mockEntityService.findByAlias.mockResolvedValue(null);
@@ -239,7 +286,10 @@ describe('GraphService', () => {
 
     it('should include alias matches', async () => {
       mockEntityService.findByName.mockResolvedValue(null);
-      mockEntityService.findByAlias.mockResolvedValue({ id: 'entity-1', name: 'Beaux Walton' });
+      mockEntityService.findByAlias.mockResolvedValue({
+        id: 'entity-1',
+        name: 'Beaux Walton',
+      });
       mockEntityService.list.mockResolvedValue({ entities: [], total: 0 });
 
       const result = await service.searchEntities('user-1', 'BW');
@@ -307,7 +357,9 @@ describe('GraphService', () => {
       mockPrismaService.memory.findMany.mockResolvedValue([
         { id: 'mem-1', raw: 'Test memory' },
       ]);
-      mockExtractionService.processMemory.mockRejectedValue(new Error('Extraction failed'));
+      mockExtractionService.processMemory.mockRejectedValue(
+        new Error('Extraction failed'),
+      );
 
       const result = await service.backfill('user-1');
 

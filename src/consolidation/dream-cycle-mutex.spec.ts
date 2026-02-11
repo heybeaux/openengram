@@ -33,7 +33,9 @@ describe('DreamCycleService - Mutex', () => {
     service = new DreamCycleService(
       mockPrisma,
       { promoteRecurringPatterns: jest.fn() } as any, // consolidation
-      { computeScore: jest.fn().mockReturnValue({ effectiveScore: 0.5 }) } as any, // scorer
+      {
+        computeScore: jest.fn().mockReturnValue({ effectiveScore: 0.5 }),
+      } as any, // scorer
       { search: jest.fn().mockResolvedValue([]) } as any, // embedding
       { json: jest.fn() } as any, // llm
       mockConfig as any, // config
@@ -63,7 +65,9 @@ describe('DreamCycleService - Mutex', () => {
 
       expect(result.status).toBe('SKIPPED');
       expect(result.id).toBe('skipped');
-      expect(result.errors).toContain('Skipped: another Dream Cycle instance is already running');
+      expect(result.errors).toContain(
+        'Skipped: another Dream Cycle instance is already running',
+      );
       // Should NOT have created a run record
       expect(mockPrisma.dreamCycleRun.create).not.toHaveBeenCalled();
     });
@@ -71,10 +75,13 @@ describe('DreamCycleService - Mutex', () => {
     it('should proceed when lock is acquired', async () => {
       // Lock acquired
       mockPrisma.$queryRawUnsafe
-        .mockResolvedValueOnce([{ acquired: true }])  // acquireLock
-        .mockResolvedValueOnce([{}]);                   // releaseLock
+        .mockResolvedValueOnce([{ acquired: true }]) // acquireLock
+        .mockResolvedValueOnce([{}]); // releaseLock
 
-      const result = await service.run({ userId: 'test-user', stages: ['report'] });
+      const result = await service.run({
+        userId: 'test-user',
+        stages: ['report'],
+      });
 
       expect(result.status).not.toBe('SKIPPED');
       expect(mockPrisma.dreamCycleRun.create).toHaveBeenCalledWith(
@@ -93,8 +100,8 @@ describe('DreamCycleService - Mutex', () => {
     it('should release lock and mark run as FAILED on error', async () => {
       // Lock acquired
       mockPrisma.$queryRawUnsafe
-        .mockResolvedValueOnce([{ acquired: true }])  // acquireLock
-        .mockResolvedValueOnce([{}]);                   // releaseLock
+        .mockResolvedValueOnce([{ acquired: true }]) // acquireLock
+        .mockResolvedValueOnce([{}]); // releaseLock
 
       // Make memory.findMany throw to cause a failure in user auto-discovery
       mockPrisma.memory.findMany.mockRejectedValueOnce(new Error('DB down'));

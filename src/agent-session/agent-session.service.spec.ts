@@ -29,16 +29,35 @@ describe('AgentSessionService', () => {
 
   describe('upsert', () => {
     it('should create a new agent session', async () => {
-      const dto = { sessionKey: 'agent:main:subagent:abc', parentKey: 'agent:main', label: 'test' };
-      const expected = { id: 'id1', ...dto, status: 'ACTIVE', createdAt: new Date() };
+      const dto = {
+        sessionKey: 'agent:main:subagent:abc',
+        parentKey: 'agent:main',
+        label: 'test',
+      };
+      const expected = {
+        id: 'id1',
+        ...dto,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+      };
       prisma.agentSession.upsert.mockResolvedValue(expected);
 
       const result = await service.upsert(dto);
       expect(result).toEqual(expected);
       expect(prisma.agentSession.upsert).toHaveBeenCalledWith({
         where: { sessionKey: dto.sessionKey },
-        update: { label: dto.label, taskDescription: undefined, status: 'ACTIVE', endedAt: null },
-        create: { sessionKey: dto.sessionKey, parentKey: dto.parentKey, label: dto.label, taskDescription: undefined },
+        update: {
+          label: dto.label,
+          taskDescription: undefined,
+          status: 'ACTIVE',
+          endedAt: null,
+        },
+        create: {
+          sessionKey: dto.sessionKey,
+          parentKey: dto.parentKey,
+          label: dto.label,
+          taskDescription: undefined,
+        },
       });
     });
   });
@@ -52,19 +71,30 @@ describe('AgentSessionService', () => {
 
     it('should throw NotFoundException when not found', async () => {
       prisma.agentSession.findUnique.mockResolvedValue(null);
-      await expect(service.getByKey('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getByKey('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('updateStatus', () => {
     it('should set endedAt when completing', async () => {
-      prisma.agentSession.findUnique.mockResolvedValue({ id: 'id1', sessionKey: 'agent:main' });
-      prisma.agentSession.update.mockResolvedValue({ id: 'id1', status: 'COMPLETED' });
+      prisma.agentSession.findUnique.mockResolvedValue({
+        id: 'id1',
+        sessionKey: 'agent:main',
+      });
+      prisma.agentSession.update.mockResolvedValue({
+        id: 'id1',
+        status: 'COMPLETED',
+      });
 
       await service.updateStatus('agent:main', { status: 'COMPLETED' });
       expect(prisma.agentSession.update).toHaveBeenCalledWith({
         where: { id: 'id1' },
-        data: expect.objectContaining({ status: 'COMPLETED', endedAt: expect.any(Date) }),
+        data: expect.objectContaining({
+          status: 'COMPLETED',
+          endedAt: expect.any(Date),
+        }),
       });
     });
   });

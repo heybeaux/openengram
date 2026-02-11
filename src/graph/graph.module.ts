@@ -11,10 +11,10 @@ import { GraphService } from './services/graph.service';
 
 /**
  * GraphModule - Semantic Memory Graphs
- * 
+ *
  * Provides entity-relationship knowledge graph capabilities for Engram.
  * Feature-flagged via GRAPH_ENABLED environment variable.
- * 
+ *
  * Components:
  * - EntityService: CRUD for graph entities (nodes)
  * - RelationshipService: CRUD for relationships (edges)
@@ -22,12 +22,7 @@ import { GraphService } from './services/graph.service';
  * - GraphService: High-level graph operations and queries
  */
 @Module({
-  imports: [
-    ConfigModule,
-    PrismaModule,
-    LLMModule,
-    VectorModule,
-  ],
+  imports: [ConfigModule, PrismaModule, LLMModule, VectorModule],
   controllers: [GraphController],
   providers: [
     EntityService,

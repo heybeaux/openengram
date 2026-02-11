@@ -28,10 +28,10 @@ export interface MemoryWithRelations extends Memory {
 
 /**
  * Context Enricher Service
- * 
+ *
  * MVP Implementation: Builds enriched text for memories by prepending
  * contextual prefixes that improve semantic search quality.
- * 
+ *
  * Enrichment categories (MVP):
  * - Temporal: "From [date], [relative time]"
  * - Entity: "About [entity names]"
@@ -50,7 +50,7 @@ export class ContextEnricherService {
 
   /**
    * Enrich a memory with contextual prefixes
-   * 
+   *
    * @param memory - Memory with extraction and entities loaded
    * @returns EnrichmentResult with original and enriched content
    */
@@ -96,7 +96,7 @@ export class ContextEnricherService {
   /**
    * Generate temporal context prefix
    * Format: "From [absolute date], [relative time]."
-   * 
+   *
    * Examples:
    * - "From February 5, 2026, 1 day ago."
    * - "From October 2025, 4 months ago."
@@ -111,7 +111,10 @@ export class ContextEnricherService {
 
       return `[Time: ${absoluteDate}, ${relativeTime}]`;
     } catch (error) {
-      console.warn('[ContextEnricher] Failed to generate temporal context:', error);
+      console.warn(
+        '[ContextEnricher] Failed to generate temporal context:',
+        error,
+      );
       return null;
     }
   }
@@ -119,7 +122,7 @@ export class ContextEnricherService {
   /**
    * Generate entity context prefix
    * Format: "About [entity names]."
-   * 
+   *
    * Examples:
    * - "About Stella, Deanna."
    * - "About Engram, NestJS."
@@ -153,10 +156,12 @@ export class ContextEnricherService {
   /**
    * Generate importance context prefix
    * Format: "[High importance]" or "[Critical importance]"
-   * 
+   *
    * Only added for memories above the importance threshold
    */
-  private generateImportanceContext(memory: MemoryWithRelations): string | null {
+  private generateImportanceContext(
+    memory: MemoryWithRelations,
+  ): string | null {
     // Use effectiveScore (Memory Intelligence v2) or fall back to importanceScore
     const score = memory.effectiveScore ?? memory.importanceScore;
 
@@ -174,7 +179,9 @@ export class ContextEnricherService {
   /**
    * Get a memory with all relations needed for enrichment
    */
-  async getMemoryForEnrichment(memoryId: string): Promise<MemoryWithRelations | null> {
+  async getMemoryForEnrichment(
+    memoryId: string,
+  ): Promise<MemoryWithRelations | null> {
     return this.prisma.memory.findUnique({
       where: { id: memoryId },
       include: {

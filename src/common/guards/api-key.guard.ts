@@ -13,7 +13,7 @@ export class ApiKeyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
+
     // Extract headers
     const apiKey = request.headers['x-am-api-key'];
     const userId = request.headers['x-am-user-id'];

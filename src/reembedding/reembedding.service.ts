@@ -2,10 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
-import { ContextEnricherService, MemoryWithRelations } from './context-enricher.service';
-import { 
-  TriggerReembeddingDto, 
-  ReembeddingJobDto, 
+import {
+  ContextEnricherService,
+  MemoryWithRelations,
+} from './context-enricher.service';
+import {
+  TriggerReembeddingDto,
+  ReembeddingJobDto,
   ReembeddingJobStatus,
   EnrichedMemoryPreviewDto,
 } from './dto/reembedding.dto';
@@ -29,9 +32,9 @@ interface ReembeddingJob {
 
 /**
  * Re-embedding Service
- * 
+ *
  * MVP Implementation: Orchestrates batch re-embedding with context enrichment.
- * 
+ *
  * Features:
  * - Feature flag controlled (REEMBEDDING_ENABLED)
  * - Batch processing with progress tracking
@@ -61,20 +64,26 @@ export class ReembeddingService {
 
   /**
    * Trigger a re-embedding batch job
-   * 
+   *
    * @param dto - Options for the re-embedding run
    * @returns Job status
    */
-  async triggerReembedding(dto: TriggerReembeddingDto): Promise<ReembeddingJobDto> {
+  async triggerReembedding(
+    dto: TriggerReembeddingDto,
+  ): Promise<ReembeddingJobDto> {
     if (!this.isEnabled()) {
-      throw new Error('Re-embedding is disabled. Set REEMBEDDING_ENABLED=true to enable.');
+      throw new Error(
+        'Re-embedding is disabled. Set REEMBEDDING_ENABLED=true to enable.',
+      );
     }
 
     // Prevent concurrent jobs (MVP limitation)
     if (this.currentJob) {
       const current = this.jobs.get(this.currentJob);
       if (current && current.status === ReembeddingJobStatus.RUNNING) {
-        throw new Error(`A re-embedding job is already running: ${this.currentJob}`);
+        throw new Error(
+          `A re-embedding job is already running: ${this.currentJob}`,
+        );
       }
     }
 
@@ -139,7 +148,9 @@ export class ReembeddingService {
   /**
    * Preview enrichment for a single memory (for debugging/testing)
    */
-  async previewEnrichment(memoryId: string): Promise<EnrichedMemoryPreviewDto | null> {
+  async previewEnrichment(
+    memoryId: string,
+  ): Promise<EnrichedMemoryPreviewDto | null> {
     const memory = await this.enricher.getMemoryForEnrichment(memoryId);
     if (!memory) return null;
 
@@ -160,7 +171,7 @@ export class ReembeddingService {
 
   /**
    * Re-embed a single memory
-   * 
+   *
    * @param memoryId - Memory to re-embed
    * @param dryRun - If true, don't actually update the embedding
    * @returns Preview of the enrichment
@@ -180,7 +191,9 @@ export class ReembeddingService {
 
     if (!dryRun) {
       // Generate new embedding from enriched content
-      const embedding = await this.embedding.generate(enrichment.enrichedContent);
+      const embedding = await this.embedding.generate(
+        enrichment.enrichedContent,
+      );
 
       // Store with updated metadata
       await this.embedding.store(memoryId, embedding, {
@@ -193,7 +206,9 @@ export class ReembeddingService {
       // Update embedding version in database
       await this.updateEmbeddingVersion(memoryId, newVersion, enrichment);
 
-      console.log(`[ReembeddingService] Re-embedded memory ${memoryId} (v${newVersion})`);
+      console.log(
+        `[ReembeddingService] Re-embedded memory ${memoryId} (v${newVersion})`,
+      );
     }
 
     return {
@@ -233,7 +248,9 @@ export class ReembeddingService {
       });
 
       job.totalMemories = memories.length;
-      console.log(`[ReembeddingService] Found ${memories.length} memories to process`);
+      console.log(
+        `[ReembeddingService] Found ${memories.length} memories to process`,
+      );
 
       // Process in batches of 10
       const batchSize = 10;
@@ -246,7 +263,10 @@ export class ReembeddingService {
               await this.processMemory(memory, job.options.dryRun ?? false);
               job.successCount++;
             } catch (error) {
-              console.error(`[ReembeddingService] Failed to process memory ${memory.id}:`, error);
+              console.error(
+                `[ReembeddingService] Failed to process memory ${memory.id}:`,
+                error,
+              );
               job.failureCount++;
             }
             job.processedCount++;
@@ -254,10 +274,13 @@ export class ReembeddingService {
         );
 
         // Log progress every 100 memories
-        if (job.processedCount % 100 === 0 || job.processedCount === job.totalMemories) {
+        if (
+          job.processedCount % 100 === 0 ||
+          job.processedCount === job.totalMemories
+        ) {
           console.log(
             `[ReembeddingService] Progress: ${job.processedCount}/${job.totalMemories} ` +
-            `(${job.successCount} success, ${job.failureCount} failed)`,
+              `(${job.successCount} success, ${job.failureCount} failed)`,
           );
         }
       }
@@ -267,7 +290,7 @@ export class ReembeddingService {
 
       console.log(
         `[ReembeddingService] Job ${jobId} completed: ` +
-        `${job.successCount} success, ${job.failureCount} failed`,
+          `${job.successCount} success, ${job.failureCount} failed`,
       );
     } catch (error) {
       job.status = ReembeddingJobStatus.FAILED;
@@ -290,7 +313,9 @@ export class ReembeddingService {
 
     if (dryRun) {
       // Just log what would happen
-      console.debug(`[ReembeddingService] [DRY RUN] Would re-embed ${memory.id} to v${newVersion}`);
+      console.debug(
+        `[ReembeddingService] [DRY RUN] Would re-embed ${memory.id} to v${newVersion}`,
+      );
       return;
     }
 

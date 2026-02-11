@@ -6,7 +6,14 @@ import { RelationshipService } from './relationship.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LLMService } from '../../llm/llm.service';
 import { VectorService } from '../../vector/vector.service';
-import { GraphEntityType, GraphMentionRole, GraphRelationshipType, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
+import {
+  GraphEntityType,
+  GraphMentionRole,
+  GraphRelationshipType,
+  MemoryLayer,
+  MemorySource,
+  SubjectType,
+} from '@prisma/client';
 
 describe('GraphExtractionService', () => {
   let service: GraphExtractionService;
@@ -90,16 +97,36 @@ describe('GraphExtractionService', () => {
         content: JSON.stringify([
           { name: 'Beaux', type: 'PERSON', aliases: [], role: 'SUBJECT' },
           { name: 'Deanna', type: 'PERSON', aliases: ['wife'], role: 'OBJECT' },
-          { name: 'Powell River', type: 'PLACE', aliases: [], role: 'LOCATION' },
+          {
+            name: 'Powell River',
+            type: 'PLACE',
+            aliases: [],
+            role: 'LOCATION',
+          },
         ]),
       });
 
       // Mock relationship extraction response
       mockLLMService.chat.mockResolvedValueOnce({
         content: JSON.stringify([
-          { source: 'Beaux', target: 'Deanna', type: 'SPOUSE_OF', confidence: 0.95 },
-          { source: 'Beaux', target: 'Powell River', type: 'LIVES_IN', confidence: 0.9 },
-          { source: 'Deanna', target: 'Powell River', type: 'LIVES_IN', confidence: 0.85 },
+          {
+            source: 'Beaux',
+            target: 'Deanna',
+            type: 'SPOUSE_OF',
+            confidence: 0.95,
+          },
+          {
+            source: 'Beaux',
+            target: 'Powell River',
+            type: 'LIVES_IN',
+            confidence: 0.9,
+          },
+          {
+            source: 'Deanna',
+            target: 'Powell River',
+            type: 'LIVES_IN',
+            confidence: 0.85,
+          },
         ]),
       });
 
@@ -112,7 +139,9 @@ describe('GraphExtractionService', () => {
       expect(result.relationships).toHaveLength(3);
       expect(result.relationships[0].source).toBe('Beaux');
       expect(result.relationships[0].target).toBe('Deanna');
-      expect(result.relationships[0].type).toBe(GraphRelationshipType.SPOUSE_OF);
+      expect(result.relationships[0].type).toBe(
+        GraphRelationshipType.SPOUSE_OF,
+      );
     });
 
     it('should skip relationship extraction with < 2 entities', async () => {
@@ -158,8 +187,18 @@ describe('GraphExtractionService', () => {
 
       mockLLMService.chat.mockResolvedValueOnce({
         content: JSON.stringify([
-          { source: 'Beaux', target: 'Beaux', type: 'RELATED_TO', confidence: 0.5 }, // Self-ref, should be filtered
-          { source: 'Beaux', target: 'Work', type: 'RELATED_TO', confidence: 0.8 },
+          {
+            source: 'Beaux',
+            target: 'Beaux',
+            type: 'RELATED_TO',
+            confidence: 0.5,
+          }, // Self-ref, should be filtered
+          {
+            source: 'Beaux',
+            target: 'Work',
+            type: 'RELATED_TO',
+            confidence: 0.8,
+          },
         ]),
       });
 
@@ -193,7 +232,12 @@ describe('GraphExtractionService', () => {
 
       mockLLMService.chat.mockResolvedValueOnce({
         content: JSON.stringify([
-          { source: 'Beaux', target: 'Deanna', type: 'SPOUSE_OF', confidence: 0.95 },
+          {
+            source: 'Beaux',
+            target: 'Deanna',
+            type: 'SPOUSE_OF',
+            confidence: 0.95,
+          },
         ]),
       });
 
@@ -201,14 +245,25 @@ describe('GraphExtractionService', () => {
       mockEntityService.findByName.mockResolvedValue(null);
       mockEntityService.findByAlias.mockResolvedValue(null);
       mockPrismaService.graphEntity.findMany.mockResolvedValue([]);
-      
-      const mockEntity1 = { id: 'entity-1', name: 'Beaux', type: GraphEntityType.PERSON };
-      const mockEntity2 = { id: 'entity-2', name: 'Deanna', type: GraphEntityType.PERSON };
+
+      const mockEntity1 = {
+        id: 'entity-1',
+        name: 'Beaux',
+        type: GraphEntityType.PERSON,
+      };
+      const mockEntity2 = {
+        id: 'entity-2',
+        name: 'Deanna',
+        type: GraphEntityType.PERSON,
+      };
       mockEntityService.create.mockResolvedValueOnce(mockEntity1);
       mockEntityService.create.mockResolvedValueOnce(mockEntity2);
 
       // Mock embedding creation
-      mockLLMService.embed.mockResolvedValue({ embedding: [0.1, 0.2], dimensions: 2 });
+      mockLLMService.embed.mockResolvedValue({
+        embedding: [0.1, 0.2],
+        dimensions: 2,
+      });
       mockVectorService.upsert.mockResolvedValue(undefined);
       mockEntityService.setEmbeddingId.mockResolvedValue(undefined);
 
@@ -234,7 +289,12 @@ describe('GraphExtractionService', () => {
       });
 
       // Entity already exists
-      const existingEntity = { id: 'entity-1', name: 'Beaux', type: GraphEntityType.PERSON, aliases: [] };
+      const existingEntity = {
+        id: 'entity-1',
+        name: 'Beaux',
+        type: GraphEntityType.PERSON,
+        aliases: [],
+      };
       mockEntityService.findByName.mockResolvedValue(existingEntity);
       mockEntityService.addAliases.mockResolvedValue(undefined);
       mockEntityService.incrementMentionCount.mockResolvedValue(undefined);
@@ -244,7 +304,9 @@ describe('GraphExtractionService', () => {
 
       expect(result.entitiesUpdated).toBe(1);
       expect(result.entitiesCreated).toBe(0);
-      expect(mockEntityService.addAliases).toHaveBeenCalledWith('entity-1', ['bw']);
+      expect(mockEntityService.addAliases).toHaveBeenCalledWith('entity-1', [
+        'bw',
+      ]);
     });
 
     it('should resolve entity by alias', async () => {
@@ -256,7 +318,11 @@ describe('GraphExtractionService', () => {
 
       // Not found by name, but found by alias
       mockEntityService.findByName.mockResolvedValue(null);
-      const existingEntity = { id: 'entity-1', name: 'Beaux Walton', aliases: ['bw'] };
+      const existingEntity = {
+        id: 'entity-1',
+        name: 'Beaux Walton',
+        aliases: ['bw'],
+      };
       mockEntityService.findByAlias.mockResolvedValue(existingEntity);
       mockEntityService.incrementMentionCount.mockResolvedValue(undefined);
       mockPrismaService.graphEntityMention.upsert.mockResolvedValue(undefined);
@@ -271,9 +337,11 @@ describe('GraphExtractionService', () => {
       const disabledModule: TestingModule = await Test.createTestingModule({
         providers: [
           GraphExtractionService,
-          { 
-            provide: ConfigService, 
-            useValue: { get: (key: string) => key === 'GRAPH_ENABLED' ? 'false' : null }
+          {
+            provide: ConfigService,
+            useValue: {
+              get: (key: string) => (key === 'GRAPH_ENABLED' ? 'false' : null),
+            },
           },
           { provide: LLMService, useValue: mockLLMService },
           { provide: VectorService, useValue: mockVectorService },
@@ -283,7 +351,9 @@ describe('GraphExtractionService', () => {
         ],
       }).compile();
 
-      const disabledService = disabledModule.get<GraphExtractionService>(GraphExtractionService);
+      const disabledService = disabledModule.get<GraphExtractionService>(
+        GraphExtractionService,
+      );
 
       const result = await disabledService.processMemory(mockMemory as any);
 

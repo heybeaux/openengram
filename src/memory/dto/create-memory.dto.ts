@@ -1,6 +1,19 @@
-import { IsString, IsOptional, IsEnum, IsObject, IsNumber, IsArray, IsDate } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsObject,
+  IsNumber,
+  IsArray,
+  IsDate,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { ImportanceHint, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
+import {
+  ImportanceHint,
+  MemoryLayer,
+  MemorySource,
+  SubjectType,
+} from '@prisma/client';
 
 /**
  * Map legacy memoryType values to MemoryLayer enum
@@ -18,7 +31,9 @@ function mapMemoryType(value: string | undefined): MemoryLayer | undefined {
 /**
  * Map numeric importance (0-1) to ImportanceHint enum
  */
-function mapImportanceToHint(value: number | string | undefined): ImportanceHint | undefined {
+function mapImportanceToHint(
+  value: number | string | undefined,
+): ImportanceHint | undefined {
   if (value === undefined || value === null) return undefined;
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return undefined;

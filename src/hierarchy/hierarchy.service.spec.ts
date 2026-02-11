@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { HierarchyService, ProcessResult, AggregatedSearchResult } from './hierarchy.service';
+import {
+  HierarchyService,
+  ProcessResult,
+  AggregatedSearchResult,
+} from './hierarchy.service';
 import { SegmentationService } from './segmentation.service';
 import { QueryRouterService } from './query-router.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -79,7 +83,12 @@ describe('HierarchyService', () => {
           text: 'First sentence. Second sentence.',
           sentences: [
             { text: 'First sentence.', position: 0, charStart: 0, charEnd: 15 },
-            { text: 'Second sentence.', position: 1, charStart: 16, charEnd: 32 },
+            {
+              text: 'Second sentence.',
+              position: 1,
+              charStart: 16,
+              charEnd: 32,
+            },
           ],
           position: 0,
           charStart: 0,
@@ -155,14 +164,14 @@ describe('HierarchyService', () => {
     });
 
     it('should call segmentation service', async () => {
-      await service.processMemory(
-        'mem-123',
-        'Test text.',
-        'user-456',
-      );
+      await service.processMemory('mem-123', 'Test text.', 'user-456');
 
-      expect(mockSegmentation.extractSentences).toHaveBeenCalledWith('Test text.');
-      expect(mockSegmentation.extractParagraphs).toHaveBeenCalledWith('Test text.');
+      expect(mockSegmentation.extractSentences).toHaveBeenCalledWith(
+        'Test text.',
+      );
+      expect(mockSegmentation.extractParagraphs).toHaveBeenCalledWith(
+        'Test text.',
+      );
     });
 
     it('should generate embeddings for each unit', async () => {
@@ -177,21 +186,13 @@ describe('HierarchyService', () => {
     });
 
     it('should store vectors in Pinecone', async () => {
-      await service.processMemory(
-        'mem-123',
-        'Test text.',
-        'user-456',
-      );
+      await service.processMemory('mem-123', 'Test text.', 'user-456');
 
       expect(mockVector.upsert).toHaveBeenCalled();
     });
 
     it('should store units in PostgreSQL', async () => {
-      await service.processMemory(
-        'mem-123',
-        'Test text.',
-        'user-456',
-      );
+      await service.processMemory('mem-123', 'Test text.', 'user-456');
 
       expect(mockPrisma.hierarchyUnit.create).toHaveBeenCalled();
     });
@@ -215,7 +216,11 @@ describe('HierarchyService', () => {
       }).compile();
 
       const disabledService = module.get<HierarchyService>(HierarchyService);
-      const result = await disabledService.processMemory('mem-123', 'Test', 'user-456');
+      const result = await disabledService.processMemory(
+        'mem-123',
+        'Test',
+        'user-456',
+      );
 
       expect(result.unitsCreated).toBe(0);
       expect(result.levels).toEqual([]);

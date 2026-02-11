@@ -10,7 +10,7 @@ import {
 
 /**
  * Pinecone Provider
- * 
+ *
  * Cloud-hosted vector database.
  * Use when you need massive scale (100M+ vectors).
  */
@@ -23,11 +23,11 @@ export class PineconeProvider implements VectorProvider {
 
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>('PINECONE_API_KEY');
-    
+
     if (apiKey) {
       this.client = new Pinecone({ apiKey });
     }
-    
+
     this.indexName = this.config.get<string>('PINECONE_INDEX') || 'engram';
   }
 
@@ -69,11 +69,11 @@ export class PineconeProvider implements VectorProvider {
 
     // Build filter
     const filter: Record<string, any> = { userId: { $eq: options.userId } };
-    
+
     if (options.filter?.layers && options.filter.layers.length > 0) {
       filter.layer = { $in: options.filter.layers };
     }
-    
+
     if (options.filter?.projectId) {
       filter.projectId = { $eq: options.filter.projectId };
     }

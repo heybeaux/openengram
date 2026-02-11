@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsIn, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsIn,
+  Min,
+  Max,
+} from 'class-validator';
 
 /**
  * DTO for hierarchy search requests

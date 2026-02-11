@@ -17,10 +17,10 @@ export interface QueryAnalysis {
 
 /**
  * Query Router Service
- * 
+ *
  * Analyzes queries to determine optimal hierarchy levels to search.
  * Uses pattern matching to detect query intent and route accordingly.
- * 
+ *
  * Level indicators:
  * - L0 (Sentence): Specific facts, quotes, exact values, commands
  * - L1 (Paragraph): Explanations, reasoning, comparisons
@@ -33,7 +33,11 @@ export class QueryRouterService {
    * Pattern definitions for level detection
    * Maps regex patterns to their suggested levels
    */
-  private readonly patterns: Array<{ pattern: RegExp; levels: HierarchyLevel[]; description: string }> = [
+  private readonly patterns: Array<{
+    pattern: RegExp;
+    levels: HierarchyLevel[];
+    description: string;
+  }> = [
     // L0 indicators - specific facts
     {
       pattern: /\b(exact|specific|precisely|quote|verbatim)\b/i,
@@ -122,8 +126,11 @@ export class QueryRouterService {
    * Analyze a query to determine optimal levels to search
    */
   analyze(query: string): QueryAnalysis {
-    const matchedPatterns: Array<{ levels: HierarchyLevel[]; description: string }> = [];
-    
+    const matchedPatterns: Array<{
+      levels: HierarchyLevel[];
+      description: string;
+    }> = [];
+
     for (const { pattern, levels, description } of this.patterns) {
       if (pattern.test(query)) {
         matchedPatterns.push({ levels, description });
@@ -154,10 +161,13 @@ export class QueryRouterService {
       .map(([level]) => level);
 
     // For MVP, filter to only L0 and L1
-    const mvpLevels = sortedLevels.filter(l => l === 'L0' || l === 'L1') as HierarchyLevel[];
-    
+    const mvpLevels = sortedLevels.filter(
+      (l) => l === 'L0' || l === 'L1',
+    ) as HierarchyLevel[];
+
     // If no MVP levels found but we have L2/L3, fall back to L1
-    const finalLevels = mvpLevels.length > 0 ? mvpLevels : ['L1'] as HierarchyLevel[];
+    const finalLevels =
+      mvpLevels.length > 0 ? mvpLevels : (['L1'] as HierarchyLevel[]);
 
     // Calculate confidence based on pattern agreement
     const maxCount = Math.max(...levelCounts.values());
@@ -168,7 +178,7 @@ export class QueryRouterService {
       query,
       suggestedLevels: finalLevels,
       confidence,
-      reasoning: `Pattern matches: ${matchedPatterns.map(p => p.description).join(', ')}`,
+      reasoning: `Pattern matches: ${matchedPatterns.map((p) => p.description).join(', ')}`,
     };
   }
 
@@ -191,7 +201,9 @@ export class QueryRouterService {
   /**
    * Get level weights for result aggregation
    */
-  getLevelWeights(queryType: 'factual' | 'contextual' | 'thematic' | 'balanced'): Record<HierarchyLevel, number> {
+  getLevelWeights(
+    queryType: 'factual' | 'contextual' | 'thematic' | 'balanced',
+  ): Record<HierarchyLevel, number> {
     switch (queryType) {
       case 'factual':
         return { L0: 1.2, L1: 1.0, L2: 0.8, L3: 0.6 };

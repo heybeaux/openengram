@@ -54,7 +54,8 @@ export class EmbeddingService {
         layer: metadata?.layer || MemoryLayer.SESSION,
         projectId: metadata?.projectId || '',
         importance: metadata?.importance || 0.5,
-        createdAt: metadata?.createdAt?.toISOString() || new Date().toISOString(),
+        createdAt:
+          metadata?.createdAt?.toISOString() || new Date().toISOString(),
       },
     });
 

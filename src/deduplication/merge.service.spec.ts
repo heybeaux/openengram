@@ -31,7 +31,10 @@ describe('MergeService', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MergeService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        MergeService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     }).compile();
 
     service = module.get<MergeService>(MergeService);
@@ -40,39 +43,49 @@ describe('MergeService', () => {
 
   describe('getDefaultStrategy', () => {
     it('should return COMBINE_METADATA for CONSTRAINT', () => {
-      expect(service.getDefaultStrategy(MemoryType.CONSTRAINT)).toBe(MergeStrategy.COMBINE_METADATA);
+      expect(service.getDefaultStrategy(MemoryType.CONSTRAINT)).toBe(
+        MergeStrategy.COMBINE_METADATA,
+      );
     });
 
     it('should return KEEP_NEWEST for LESSON', () => {
-      expect(service.getDefaultStrategy(MemoryType.LESSON)).toBe(MergeStrategy.KEEP_NEWEST);
+      expect(service.getDefaultStrategy(MemoryType.LESSON)).toBe(
+        MergeStrategy.KEEP_NEWEST,
+      );
     });
 
     it('should return KEEP_NEWEST for PREFERENCE', () => {
-      expect(service.getDefaultStrategy(MemoryType.PREFERENCE)).toBe(MergeStrategy.KEEP_NEWEST);
+      expect(service.getDefaultStrategy(MemoryType.PREFERENCE)).toBe(
+        MergeStrategy.KEEP_NEWEST,
+      );
     });
 
     it('should return KEEP_DETAILED for FACT', () => {
-      expect(service.getDefaultStrategy(MemoryType.FACT)).toBe(MergeStrategy.KEEP_DETAILED);
+      expect(service.getDefaultStrategy(MemoryType.FACT)).toBe(
+        MergeStrategy.KEEP_DETAILED,
+      );
     });
 
     it('should return KEEP_DETAILED for null', () => {
-      expect(service.getDefaultStrategy(null)).toBe(MergeStrategy.KEEP_DETAILED);
+      expect(service.getDefaultStrategy(null)).toBe(
+        MergeStrategy.KEEP_DETAILED,
+      );
     });
   });
 
   describe('merge', () => {
     it('should throw when less than 2 memories provided', async () => {
-      await expect(service.merge(['mem_1'], MergeStrategy.KEEP_NEWEST)).rejects.toThrow(
-        'Need at least 2 memories to merge',
-      );
+      await expect(
+        service.merge(['mem_1'], MergeStrategy.KEEP_NEWEST),
+      ).rejects.toThrow('Need at least 2 memories to merge');
     });
 
     it('should throw when some memories not found', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([createMockMemory()]);
 
-      await expect(service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST)).rejects.toThrow(
-        'Some memories not found',
-      );
+      await expect(
+        service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST),
+      ).rejects.toThrow('Some memories not found');
     });
   });
 
@@ -90,7 +103,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([older, newer]);
 
-      const result = await service.merge(['mem_older', 'mem_newer'], MergeStrategy.KEEP_NEWEST);
+      const result = await service.merge(
+        ['mem_older', 'mem_newer'],
+        MergeStrategy.KEEP_NEWEST,
+      );
 
       expect(result.survivorId).toBe('mem_newer');
       expect(result.absorbedIds).toContain('mem_older');
@@ -113,7 +129,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([older, newer]);
 
-      const result = await service.merge(['mem_older', 'mem_newer'], MergeStrategy.KEEP_OLDEST);
+      const result = await service.merge(
+        ['mem_older', 'mem_newer'],
+        MergeStrategy.KEEP_OLDEST,
+      );
 
       expect(result.survivorId).toBe('mem_older');
       expect(result.mergedContent).toBe('Original');
@@ -132,7 +151,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([brief, detailed]);
 
-      const result = await service.merge(['mem_brief', 'mem_detailed'], MergeStrategy.KEEP_DETAILED);
+      const result = await service.merge(
+        ['mem_brief', 'mem_detailed'],
+        MergeStrategy.KEEP_DETAILED,
+      );
 
       expect(result.survivorId).toBe('mem_detailed');
     });
@@ -169,9 +191,15 @@ describe('MergeService', () => {
         raw: 'High importance',
         importanceScore: 0.9,
       });
-      mockPrisma.memory.findMany.mockResolvedValue([lowImportance, highImportance]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        lowImportance,
+        highImportance,
+      ]);
 
-      const result = await service.merge(['mem_low', 'mem_high'], MergeStrategy.KEEP_IMPORTANCE);
+      const result = await service.merge(
+        ['mem_low', 'mem_high'],
+        MergeStrategy.KEEP_IMPORTANCE,
+      );
 
       expect(result.survivorId).toBe('mem_high');
     });
@@ -193,7 +221,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.COMBINE_METADATA);
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.COMBINE_METADATA,
+      );
 
       expect(result.survivorId).toBe('mem_2');
       expect(result.mergedMetadata.importanceScore).toBe(0.8);
@@ -207,9 +238,13 @@ describe('MergeService', () => {
       const mem2 = createMockMemory({ id: 'mem_2', raw: 'Content 2' });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST, {
-        survivorId: 'mem_1',
-      });
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+        {
+          survivorId: 'mem_1',
+        },
+      );
 
       expect(result.survivorId).toBe('mem_1');
     });
@@ -219,9 +254,13 @@ describe('MergeService', () => {
       const mem2 = createMockMemory({ id: 'mem_2', raw: 'Content 2' });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST, {
-        customContent: 'Merged custom content',
-      });
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+        {
+          customContent: 'Merged custom content',
+        },
+      );
 
       expect(result.mergedContent).toBe('Merged custom content');
       expect(result.contentChanged).toBe(true);
@@ -240,16 +279,20 @@ describe('MergeService', () => {
 
     it('should score content with numbers higher', () => {
       const noNumbers = service.computeDetailScore('Beaux has children');
-      const withNumbers = service.computeDetailScore('Beaux has 2 children born in 2022');
+      const withNumbers = service.computeDetailScore(
+        'Beaux has 2 children born in 2022',
+      );
 
       expect(withNumbers).toBeGreaterThan(noNumbers);
     });
 
     it('should give points for proper nouns', () => {
       // Content with proper nouns (capitalized words) should get more points
-      const scoreWithProper = service.computeDetailScore('Beaux lives in Powell River');
+      const scoreWithProper = service.computeDetailScore(
+        'Beaux lives in Powell River',
+      );
       const properNounBonus = scoreWithProper > 0; // Any positive score means it works
-      
+
       expect(properNounBonus).toBe(true);
       // The regex /[A-Z][a-z]+/g should find: Beaux, Powell, River = 3 proper nouns = 6 points (capped at 15)
       expect(scoreWithProper).toBeGreaterThan(0);
@@ -257,7 +300,9 @@ describe('MergeService', () => {
 
     it('should score content with connecting words higher', () => {
       const simple = service.computeDetailScore('Fact A. Fact B.');
-      const connected = service.computeDetailScore('Fact A because of reason. Therefore, Fact B.');
+      const connected = service.computeDetailScore(
+        'Fact A because of reason. Therefore, Fact B.',
+      );
 
       expect(connected).toBeGreaterThan(simple);
     });
@@ -282,7 +327,10 @@ describe('MergeService', () => {
       const mem2 = createMockMemory({ id: 'mem_2', importanceScore: 0.9 });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST);
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+      );
 
       expect(result.mergedMetadata.importanceScore).toBe(0.9);
     });
@@ -300,7 +348,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST);
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+      );
 
       expect(result.mergedMetadata.accessCount).toBe(11); // 5+3+2+1
     });
@@ -318,7 +369,10 @@ describe('MergeService', () => {
       });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST);
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+      );
 
       expect(result.mergedMetadata.lastAccessedAt?.getTime()).toBe(
         new Date('2026-02-15').getTime(),
@@ -330,7 +384,10 @@ describe('MergeService', () => {
       const mem2 = createMockMemory({ id: 'mem_2' });
       mockPrisma.memory.findMany.mockResolvedValue([mem1, mem2]);
 
-      const result = await service.merge(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST);
+      const result = await service.merge(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+      );
 
       expect(result.mergedMetadata.originalSources).toContain('mem_1');
       expect(result.mergedMetadata.originalSources).toContain('mem_2');

@@ -64,7 +64,7 @@ const DEFAULT_CONFIG: ExpansionConfig = {
 
 /**
  * Query Expansion Service
- * 
+ *
  * Generates semantic variants of a search query using:
  * - Rule-based expansion (synonyms, patterns, related concepts)
  * - Optional LLM-powered expansion for creative variants
@@ -79,7 +79,9 @@ export class QueryExpansionService {
     private llm: LLMService,
   ) {
     // Initialize with default person expansions
-    for (const [name, expansions] of Object.entries(DEFAULT_PERSON_EXPANSIONS)) {
+    for (const [name, expansions] of Object.entries(
+      DEFAULT_PERSON_EXPANSIONS,
+    )) {
       this.personExpansions.set(name.toLowerCase(), expansions);
     }
   }
@@ -103,17 +105,25 @@ export class QueryExpansionService {
     const timings = { rulesMs: 0, llmMs: 0, totalMs: 0 };
 
     const variants: string[] = [query]; // Always include original
-    const sources: Record<string, 'original' | 'rules' | 'llm'> = { [query]: 'original' };
+    const sources: Record<string, 'original' | 'rules' | 'llm'> = {
+      [query]: 'original',
+    };
     let llmUsed = false;
 
     // 1. Rule-based expansion
-    if (finalConfig.rules.enabled && finalConfig.strategy !== ExpansionStrategy.LLM) {
+    if (
+      finalConfig.rules.enabled &&
+      finalConfig.strategy !== ExpansionStrategy.LLM
+    ) {
       const rulesStart = Date.now();
       const ruleVariants = this.expandWithRules(query, finalConfig);
       timings.rulesMs = Date.now() - rulesStart;
 
       for (const v of ruleVariants) {
-        if (!variants.includes(v) && variants.length < finalConfig.maxVariants) {
+        if (
+          !variants.includes(v) &&
+          variants.length < finalConfig.maxVariants
+        ) {
           variants.push(v);
           sources[v] = 'rules';
         }
@@ -121,12 +131,11 @@ export class QueryExpansionService {
     }
 
     // 2. LLM expansion (if enabled and strategy requires it)
-    const shouldUseLLM = finalConfig.llm.enabled && (
-      finalConfig.strategy === ExpansionStrategy.LLM ||
-      (finalConfig.strategy === ExpansionStrategy.HYBRID && (
-        !finalConfig.llm.fallbackOnly || variants.length < 4
-      ))
-    );
+    const shouldUseLLM =
+      finalConfig.llm.enabled &&
+      (finalConfig.strategy === ExpansionStrategy.LLM ||
+        (finalConfig.strategy === ExpansionStrategy.HYBRID &&
+          (!finalConfig.llm.fallbackOnly || variants.length < 4)));
 
     if (shouldUseLLM && variants.length < finalConfig.maxVariants) {
       const llmStart = Date.now();
@@ -136,14 +145,19 @@ export class QueryExpansionService {
         llmUsed = true;
 
         for (const v of llmVariants) {
-          if (!variants.includes(v) && variants.length < finalConfig.maxVariants) {
+          if (
+            !variants.includes(v) &&
+            variants.length < finalConfig.maxVariants
+          ) {
             variants.push(v);
             sources[v] = 'llm';
           }
         }
       } catch (error) {
-        console.warn('[QueryExpansion] LLM expansion failed, using rules only:', 
-          error instanceof Error ? error.message : 'Unknown error');
+        console.warn(
+          '[QueryExpansion] LLM expansion failed, using rules only:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
         timings.llmMs = Date.now() - llmStart;
       }
     }
@@ -180,7 +194,7 @@ export class QueryExpansionService {
         const match = query.match(rule.pattern);
         if (match) {
           const patternVariants = rule.transform(match, query);
-          patternVariants.forEach(v => variants.add(v));
+          patternVariants.forEach((v) => variants.add(v));
         }
       }
     }
@@ -193,7 +207,10 @@ export class QueryExpansionService {
         if (synonyms) {
           // Add up to 2 synonym variants per word
           for (const synonym of synonyms.slice(0, 2)) {
-            const variant = query.replace(new RegExp(`\\b${word}\\b`, 'gi'), synonym);
+            const variant = query.replace(
+              new RegExp(`\\b${word}\\b`, 'gi'),
+              synonym,
+            );
             variants.add(variant);
           }
         }
@@ -229,7 +246,10 @@ export class QueryExpansionService {
   /**
    * LLM-powered query expansion
    */
-  async expandWithLLM(query: string, config: ExpansionConfig): Promise<string[]> {
+  async expandWithLLM(
+    query: string,
+    config: ExpansionConfig,
+  ): Promise<string[]> {
     const numVariants = Math.min(config.maxVariants - 1, 6); // Leave room for original
 
     const systemPrompt = `You are a semantic search query expansion assistant. Generate alternative search queries that would help find relevant memories in a personal memory system.
@@ -250,33 +270,35 @@ Do not include explanations, just the JSON array.`;
 Example format:
 ["variant 1", "variant 2", "variant 3"]`;
 
-    try {
-      // Use timeout wrapper
-      const timeoutPromise = new Promise<string[]>((_, reject) => {
-        setTimeout(() => reject(new Error('LLM timeout')), config.llm.timeoutMs);
-      });
+    // Use timeout wrapper
+    const timeoutPromise = new Promise<string[]>((_, reject) => {
+      setTimeout(() => reject(new Error('LLM timeout')), config.llm.timeoutMs);
+    });
 
-      const llmPromise = this.llm.json<string[]>(
-        [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        undefined,
-        { temperature: config.llm.temperature },
-      );
+    const llmPromise = this.llm.json<string[]>(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      undefined,
+      { temperature: config.llm.temperature },
+    );
 
-      const variants = await Promise.race([llmPromise, timeoutPromise]);
+    const variants = await Promise.race([llmPromise, timeoutPromise]);
 
-      // Validate response is an array of strings
-      if (Array.isArray(variants) && variants.every(v => typeof v === 'string')) {
-        return variants.filter(v => v.length > 0 && v.length < 100);
-      }
-
-      console.warn('[QueryExpansion] LLM returned invalid format:', typeof variants);
-      return [];
-    } catch (error) {
-      throw error; // Let caller handle
+    // Validate response is an array of strings
+    if (
+      Array.isArray(variants) &&
+      variants.every((v) => typeof v === 'string')
+    ) {
+      return variants.filter((v) => v.length > 0 && v.length < 100);
     }
+
+    console.warn(
+      '[QueryExpansion] LLM returned invalid format:',
+      typeof variants,
+    );
+    return [];
   }
 
   /**

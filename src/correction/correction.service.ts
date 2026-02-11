@@ -32,7 +32,7 @@ export class CorrectionService {
   private readonly logger = new Logger(CorrectionService.name);
 
   // Similarity threshold for candidate contradictions (same topic)
-  private readonly SIMILARITY_THRESHOLD = 0.70;
+  private readonly SIMILARITY_THRESHOLD = 0.7;
   // Max candidates to check with LLM
   private readonly MAX_CANDIDATES = 5;
 
@@ -77,7 +77,9 @@ export class CorrectionService {
       );
 
       if (candidates.length === 0) {
-        this.logger.debug(`[Correction] No similar candidates for memory ${memoryId}`);
+        this.logger.debug(
+          `[Correction] No similar candidates for memory ${memoryId}`,
+        );
         return result;
       }
 
@@ -181,12 +183,21 @@ Which existing memories are contradicted by the new memory?`,
 
     try {
       const response = await this.llm.json<
-        Array<{ index: number; isContradiction: boolean; explanation: string }>
+        Array<{
+          index: number;
+          isContradiction: boolean;
+          explanation: string;
+        }>
       >(messages);
 
       // Map LLM response back to memory IDs
       return (response || [])
-        .filter((r) => r.isContradiction && r.index >= 1 && r.index <= existingMemories.length)
+        .filter(
+          (r) =>
+            r.isContradiction &&
+            r.index >= 1 &&
+            r.index <= existingMemories.length,
+        )
         .map((r) => ({
           existingMemoryId: existingMemories[r.index - 1].id,
           similarity: scoreMap.get(existingMemories[r.index - 1].id) ?? 0,
@@ -194,7 +205,10 @@ Which existing memories are contradicted by the new memory?`,
           explanation: r.explanation,
         }));
     } catch (error) {
-      this.logger.error('[Correction] LLM contradiction detection failed:', error);
+      this.logger.error(
+        '[Correction] LLM contradiction detection failed:',
+        error,
+      );
       return [];
     }
   }
@@ -260,7 +274,9 @@ Which existing memories are contradicted by the new memory?`,
       throw new Error(`Cannot correct deleted memory: ${memoryId}`);
     }
     if (existing.supersededById) {
-      throw new Error(`Memory already superseded by: ${existing.supersededById}`);
+      throw new Error(
+        `Memory already superseded by: ${existing.supersededById}`,
+      );
     }
 
     // 2. Create the correction memory
@@ -278,7 +294,11 @@ Which existing memories are contradicted by the new memory?`,
     });
 
     // 3. Supersede the old memory
-    await this.supersedeMemory(memoryId, correction.id, reason ?? 'manual correction');
+    await this.supersedeMemory(
+      memoryId,
+      correction.id,
+      reason ?? 'manual correction',
+    );
 
     // 4. Generate embedding for the correction (async)
     this.embedding
@@ -291,7 +311,10 @@ Which existing memories are contradicted by the new memory?`,
         }),
       )
       .catch((err) =>
-        this.logger.error(`[Correction] Embedding failed for ${correction.id}:`, err),
+        this.logger.error(
+          `[Correction] Embedding failed for ${correction.id}:`,
+          err,
+        ),
       );
 
     this.logger.log(

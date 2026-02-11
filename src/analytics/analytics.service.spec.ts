@@ -52,9 +52,9 @@ describe('AnalyticsService', () => {
     });
 
     it('should return timeline data with correct granularity', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
 
       const mockData = [
         { timestamp: new Date('2026-02-01'), count: BigInt(5) },
@@ -75,9 +75,9 @@ describe('AnalyticsService', () => {
     });
 
     it('should include cumulative when requested', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
 
       const mockData = [
         { timestamp: new Date('2026-02-01'), count: BigInt(5) },
@@ -108,14 +108,26 @@ describe('AnalyticsService', () => {
     });
 
     it('should calculate type distribution correctly', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
 
       const mockData = [
-        { timestamp: new Date('2026-02-01'), memory_type: 'FACT', count: BigInt(10) },
-        { timestamp: new Date('2026-02-01'), memory_type: 'PREFERENCE', count: BigInt(5) },
-        { timestamp: new Date('2026-02-01'), memory_type: 'LESSON', count: BigInt(2) },
+        {
+          timestamp: new Date('2026-02-01'),
+          memory_type: 'FACT',
+          count: BigInt(10),
+        },
+        {
+          timestamp: new Date('2026-02-01'),
+          memory_type: 'PREFERENCE',
+          count: BigInt(5),
+        },
+        {
+          timestamp: new Date('2026-02-01'),
+          memory_type: 'LESSON',
+          count: BigInt(2),
+        },
       ];
       jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockData);
 
@@ -140,9 +152,9 @@ describe('AnalyticsService', () => {
     });
 
     it('should calculate layer percentages correctly', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
 
       const mockLayerData = [
         { layer: 'IDENTITY', count: BigInt(50) },
@@ -156,28 +168,41 @@ describe('AnalyticsService', () => {
       });
 
       expect(result.total).toBe(100);
-      expect(result.current.find((l) => l.layer === 'IDENTITY')?.percentage).toBe(50);
-      expect(result.current.find((l) => l.layer === 'PROJECT')?.percentage).toBe(30);
-      expect(result.current.find((l) => l.layer === 'SESSION')?.percentage).toBe(20);
+      expect(
+        result.current.find((l) => l.layer === 'IDENTITY')?.percentage,
+      ).toBe(50);
+      expect(
+        result.current.find((l) => l.layer === 'PROJECT')?.percentage,
+      ).toBe(30);
+      expect(
+        result.current.find((l) => l.layer === 'SESSION')?.percentage,
+      ).toBe(20);
     });
 
     it('should include trend data when requested', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
 
       // First call for current distribution
-      const mockLayerData = [
-        { layer: 'IDENTITY', count: BigInt(50) },
-      ];
-      
+      const mockLayerData = [{ layer: 'IDENTITY', count: BigInt(50) }];
+
       // Second call for trend
       const mockTrendData = [
-        { timestamp: new Date('2026-02-01'), layer: 'IDENTITY', count: BigInt(10) },
-        { timestamp: new Date('2026-02-08'), layer: 'IDENTITY', count: BigInt(15) },
+        {
+          timestamp: new Date('2026-02-01'),
+          layer: 'IDENTITY',
+          count: BigInt(10),
+        },
+        {
+          timestamp: new Date('2026-02-08'),
+          layer: 'IDENTITY',
+          count: BigInt(15),
+        },
       ];
 
-      jest.spyOn(prisma, '$queryRaw')
+      jest
+        .spyOn(prisma, '$queryRaw')
         .mockResolvedValueOnce(mockLayerData)
         .mockResolvedValueOnce(mockTrendData);
 
@@ -205,12 +230,13 @@ describe('AnalyticsService', () => {
     });
 
     it('should aggregate all summary stats', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
-        { id: mockUserId } as any,
-      ]);
-      jest.spyOn(prisma.memory, 'count')
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
+      jest
+        .spyOn(prisma.memory, 'count')
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(5)   // today
+        .mockResolvedValueOnce(5) // today
         .mockResolvedValueOnce(25); // this week
       jest.spyOn(prisma.memory, 'aggregate').mockResolvedValue({
         _avg: { importanceScore: 0.75 },

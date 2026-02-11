@@ -92,7 +92,7 @@ describe('expansion-rules', () => {
 
   describe('PATTERN_RULES', () => {
     describe('preference-query pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'preference-query');
+      const rule = PATTERN_RULES.find((r) => r.name === 'preference-query');
 
       it('should exist', () => {
         expect(rule).toBeDefined();
@@ -108,15 +108,15 @@ describe('expansion-rules', () => {
       it('should generate preference variants', () => {
         const match = 'What does Beaux like?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'What does Beaux like?');
-        
+
         expect(variants).toContain('Beaux preferences');
         expect(variants).toContain('Beaux favorites');
-        expect(variants.some(v => v.includes('dislikes'))).toBe(true);
+        expect(variants.some((v) => v.includes('dislikes'))).toBe(true);
       });
     });
 
     describe('tell-about pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'tell-about');
+      const rule = PATTERN_RULES.find((r) => r.name === 'tell-about');
 
       it('should match "Tell me about Stella"', () => {
         const match = 'Tell me about Stella'.match(rule!.pattern);
@@ -127,14 +127,14 @@ describe('expansion-rules', () => {
       it('should generate information variants', () => {
         const match = 'Tell me about Engram'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'Tell me about Engram');
-        
+
         expect(variants).toContain('Engram details');
         expect(variants).toContain('Engram information');
       });
     });
 
     describe('how-to pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'how-to');
+      const rule = PATTERN_RULES.find((r) => r.name === 'how-to');
 
       it('should match "How do I deploy?"', () => {
         const match = 'How do I deploy?'.match(rule!.pattern);
@@ -149,14 +149,14 @@ describe('expansion-rules', () => {
       it('should generate guide variants', () => {
         const match = 'How do I deploy?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'How do I deploy?');
-        
-        expect(variants.some(v => v.includes('guide'))).toBe(true);
-        expect(variants.some(v => v.includes('steps'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('guide'))).toBe(true);
+        expect(variants.some((v) => v.includes('steps'))).toBe(true);
       });
     });
 
     describe('when-query pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'when-query');
+      const rule = PATTERN_RULES.find((r) => r.name === 'when-query');
 
       it('should match "When did we meet?"', () => {
         const match = 'When did we meet?'.match(rule!.pattern);
@@ -166,14 +166,14 @@ describe('expansion-rules', () => {
       it('should generate temporal variants', () => {
         const match = 'When did we meet?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'When did we meet?');
-        
-        expect(variants.some(v => v.includes('date'))).toBe(true);
-        expect(variants.some(v => v.includes('time'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('date'))).toBe(true);
+        expect(variants.some((v) => v.includes('time'))).toBe(true);
       });
     });
 
     describe('why-query pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'why-query');
+      const rule = PATTERN_RULES.find((r) => r.name === 'why-query');
 
       it('should match "Why does this fail?"', () => {
         const match = 'Why does this fail?'.match(rule!.pattern);
@@ -183,14 +183,14 @@ describe('expansion-rules', () => {
       it('should generate reason variants', () => {
         const match = 'Why does this fail?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'Why does this fail?');
-        
-        expect(variants.some(v => v.includes('reason'))).toBe(true);
-        expect(variants.some(v => v.includes('cause'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('reason'))).toBe(true);
+        expect(variants.some((v) => v.includes('cause'))).toBe(true);
       });
     });
 
     describe('where-query pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'where-query');
+      const rule = PATTERN_RULES.find((r) => r.name === 'where-query');
 
       it('should match "Where is the config?"', () => {
         const match = 'Where is the config?'.match(rule!.pattern);
@@ -200,14 +200,14 @@ describe('expansion-rules', () => {
       it('should generate location variants', () => {
         const match = 'Where is the config?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'Where is the config?');
-        
-        expect(variants.some(v => v.includes('location'))).toBe(true);
-        expect(variants.some(v => v.includes('find'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('location'))).toBe(true);
+        expect(variants.some((v) => v.includes('find'))).toBe(true);
       });
     });
 
     describe('what-happened pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'what-happened');
+      const rule = PATTERN_RULES.find((r) => r.name === 'what-happened');
 
       it('should match "What happened with the release?"', () => {
         const match = 'What happened with the release?'.match(rule!.pattern);
@@ -216,15 +216,18 @@ describe('expansion-rules', () => {
 
       it('should generate event variants', () => {
         const match = 'What happened with the release?'.match(rule!.pattern);
-        const variants = rule!.transform(match!, 'What happened with the release?');
-        
-        expect(variants.some(v => v.includes('events'))).toBe(true);
-        expect(variants.some(v => v.includes('update'))).toBe(true);
+        const variants = rule!.transform(
+          match!,
+          'What happened with the release?',
+        );
+
+        expect(variants.some((v) => v.includes('events'))).toBe(true);
+        expect(variants.some((v) => v.includes('update'))).toBe(true);
       });
     });
 
     describe('remember-when pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'remember-when');
+      const rule = PATTERN_RULES.find((r) => r.name === 'remember-when');
 
       it('should match "Remember when we deployed?"', () => {
         const match = 'Remember when we deployed?'.match(rule!.pattern);
@@ -234,14 +237,14 @@ describe('expansion-rules', () => {
       it('should generate memory variants', () => {
         const match = 'Remember when we deployed?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'Remember when we deployed?');
-        
-        expect(variants.some(v => v.includes('memory'))).toBe(true);
-        expect(variants.some(v => v.includes('happened'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('memory'))).toBe(true);
+        expect(variants.some((v) => v.includes('happened'))).toBe(true);
       });
     });
 
     describe('best-practices pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'best-practices');
+      const rule = PATTERN_RULES.find((r) => r.name === 'best-practices');
 
       it('should match "deployment best practices"', () => {
         const match = 'deployment best practices'.match(rule!.pattern);
@@ -251,14 +254,14 @@ describe('expansion-rules', () => {
       it('should generate guideline variants', () => {
         const match = 'deployment best practices'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'deployment best practices');
-        
-        expect(variants.some(v => v.includes('guidelines'))).toBe(true);
-        expect(variants.some(v => v.includes('recommendations'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('guidelines'))).toBe(true);
+        expect(variants.some((v) => v.includes('recommendations'))).toBe(true);
       });
     });
 
     describe('problems-with pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'problems-with');
+      const rule = PATTERN_RULES.find((r) => r.name === 'problems-with');
 
       it('should match "problems with the API"', () => {
         const match = 'problems with the API'.match(rule!.pattern);
@@ -273,14 +276,14 @@ describe('expansion-rules', () => {
       it('should generate problem variants', () => {
         const match = 'problems with the API'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'problems with the API');
-        
-        expect(variants.some(v => v.includes('bugs'))).toBe(true);
-        expect(variants.some(v => v.includes('fix'))).toBe(true);
+
+        expect(variants.some((v) => v.includes('bugs'))).toBe(true);
+        expect(variants.some((v) => v.includes('fix'))).toBe(true);
       });
     });
 
     describe('what-know pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'what-know');
+      const rule = PATTERN_RULES.find((r) => r.name === 'what-know');
 
       it('should match "What do I know about Engram?"', () => {
         const match = 'What do I know about Engram?'.match(rule!.pattern);
@@ -289,15 +292,18 @@ describe('expansion-rules', () => {
 
       it('should generate knowledge variants', () => {
         const match = 'What do I know about Engram?'.match(rule!.pattern);
-        const variants = rule!.transform(match!, 'What do I know about Engram?');
-        
+        const variants = rule!.transform(
+          match!,
+          'What do I know about Engram?',
+        );
+
         expect(variants).toContain('Engram');
-        expect(variants.some(v => v.includes('details'))).toBe(true);
+        expect(variants.some((v) => v.includes('details'))).toBe(true);
       });
     });
 
     describe('what-learn pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'what-learn');
+      const rule = PATTERN_RULES.find((r) => r.name === 'what-learn');
 
       it('should match "What did I learn?"', () => {
         const match = 'What did I learn?'.match(rule!.pattern);
@@ -312,7 +318,7 @@ describe('expansion-rules', () => {
       it('should generate lesson variants', () => {
         const match = 'What did I learn?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'What did I learn?');
-        
+
         expect(variants).toContain('lessons learned');
         expect(variants).toContain('insights');
         expect(variants).toContain('discoveries');
@@ -320,7 +326,7 @@ describe('expansion-rules', () => {
     });
 
     describe('who-is pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'who-is');
+      const rule = PATTERN_RULES.find((r) => r.name === 'who-is');
 
       it('should match "Who is Deanna?"', () => {
         const match = 'Who is Deanna?'.match(rule!.pattern);
@@ -330,14 +336,14 @@ describe('expansion-rules', () => {
       it('should generate person variants', () => {
         const match = 'Who is Deanna?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'Who is Deanna?');
-        
+
         expect(variants).toContain('Deanna');
-        expect(variants.some(v => v.includes('about'))).toBe(true);
+        expect(variants.some((v) => v.includes('about'))).toBe(true);
       });
     });
 
     describe('what-is pattern', () => {
-      const rule = PATTERN_RULES.find(r => r.name === 'what-is');
+      const rule = PATTERN_RULES.find((r) => r.name === 'what-is');
 
       it('should match "What is Engram?"', () => {
         const match = 'What is Engram?'.match(rule!.pattern);
@@ -347,10 +353,10 @@ describe('expansion-rules', () => {
       it('should generate definition variants', () => {
         const match = 'What is Engram?'.match(rule!.pattern);
         const variants = rule!.transform(match!, 'What is Engram?');
-        
+
         expect(variants).toContain('Engram');
-        expect(variants.some(v => v.includes('definition'))).toBe(true);
-        expect(variants.some(v => v.includes('explanation'))).toBe(true);
+        expect(variants.some((v) => v.includes('definition'))).toBe(true);
+        expect(variants.some((v) => v.includes('explanation'))).toBe(true);
       });
     });
   });
@@ -373,7 +379,9 @@ describe('expansion-rules', () => {
     });
 
     it('should handle complex queries', () => {
-      expect(normalizeQuery('What does Beaux like?')).toBe('beaux does like what');
+      expect(normalizeQuery('What does Beaux like?')).toBe(
+        'beaux does like what',
+      );
     });
   });
 

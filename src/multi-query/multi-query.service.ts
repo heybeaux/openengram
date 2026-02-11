@@ -1,9 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MemoryLayer } from '@prisma/client';
-import { EmbeddingService, VectorSearchResult } from '../memory/embedding.service';
-import { QueryExpansionService, QueryExpansionResult } from './query-expansion.service';
-import { ResultFusionService, FusedResult, QuerySearchResult } from './result-fusion.service';
+import {
+  EmbeddingService,
+  VectorSearchResult,
+} from '../memory/embedding.service';
+import {
+  QueryExpansionService,
+  QueryExpansionResult,
+} from './query-expansion.service';
+import {
+  ResultFusionService,
+  FusedResult,
+  QuerySearchResult,
+} from './result-fusion.service';
 import {
   MultiQueryOptionsDto,
   FusionStrategy,
@@ -127,7 +137,7 @@ const DEFAULT_CONFIG: MultiQueryConfig = {
 
 /**
  * Multi-Query Retrieval Service
- * 
+ *
  * Implements multi-query retrieval to improve recall by:
  * 1. Expanding the user query into semantic variants
  * 2. Embedding all variants in parallel (batch)
@@ -153,12 +163,14 @@ export class MultiQueryService {
    */
   isEnabled(): boolean {
     const envEnabled = this.config.get<string>('MULTI_QUERY_ENABLED');
-    return envEnabled === 'true' || envEnabled === '1' || this.globalConfig.enabled;
+    return (
+      envEnabled === 'true' || envEnabled === '1' || this.globalConfig.enabled
+    );
   }
 
   /**
    * Perform multi-query search
-   * 
+   *
    * @param query - Original search query
    * @param userId - User ID for filtering
    * @param options - Search options including multi-query config
@@ -188,7 +200,7 @@ export class MultiQueryService {
     // 1. Expand query into variants
     const expansionStart = Date.now();
     let expansion: QueryExpansionResult;
-    
+
     try {
       expansion = await this.withTimeout(
         this.expansion.expand(query, {
@@ -204,7 +216,12 @@ export class MultiQueryService {
       expansion = await this.expansion.expand(query, {
         strategy: ExpansionStrategy.RULES,
         maxVariants: 3,
-        llm: { enabled: false, fallbackOnly: true, timeoutMs: 500, temperature: 0.3 },
+        llm: {
+          enabled: false,
+          fallbackOnly: true,
+          timeoutMs: 500,
+          temperature: 0.3,
+        },
       });
       degraded = true;
     }
@@ -212,8 +229,13 @@ export class MultiQueryService {
 
     // Check if we should degrade to single query
     const elapsedAfterExpansion = Date.now() - startTime;
-    if (config.latency.degradeGracefully && elapsedAfterExpansion > config.latency.targetMs * 0.5) {
-      console.warn(`[MultiQuery] Over budget after expansion (${elapsedAfterExpansion}ms), limiting variants`);
+    if (
+      config.latency.degradeGracefully &&
+      elapsedAfterExpansion > config.latency.targetMs * 0.5
+    ) {
+      console.warn(
+        `[MultiQuery] Over budget after expansion (${elapsedAfterExpansion}ms), limiting variants`,
+      );
       expansion.variants = expansion.variants.slice(0, 3);
       degraded = true;
     }
@@ -271,7 +293,9 @@ export class MultiQueryService {
     return {
       enabled: true,
       variants: options.includeVariants ? result.expansion.variants : undefined,
-      variantSources: options.includeVariants ? result.expansion.sources : undefined,
+      variantSources: options.includeVariants
+        ? result.expansion.sources
+        : undefined,
       fusionStrategy: options.fusionStrategy ?? FusionStrategy.WEIGHTED,
       timings: options.includeTimings ? result.metrics : undefined,
     };
@@ -290,16 +314,18 @@ export class MultiQueryService {
       explanations[result.memoryId] = {
         memoryId: result.memoryId,
         totalScore: result.score,
-        matchedQueries: result.queryMatches.map(qm => ({
+        matchedQueries: result.queryMatches.map((qm) => ({
           ...qm,
           isOriginal: expansion.sources[qm.query] === 'original',
         })),
         fusionContributions: {
           rrfScore: result.rrfScore,
           frequencyBoost: result.queryCount / expansion.variants.length,
-          weightBoost: result.queryMatches.some(qm => 
-            expansion.sources[qm.query] === 'original'
-          ) ? 1.5 : 1.0,
+          weightBoost: result.queryMatches.some(
+            (qm) => expansion.sources[qm.query] === 'original',
+          )
+            ? 1.5
+            : 1.0,
         },
       };
     }
@@ -314,7 +340,7 @@ export class MultiQueryService {
     // Use Promise.all for parallel embedding
     // The embedding service should handle batching internally if supported
     const embeddings = await Promise.all(
-      variants.map(v => this.embedding.generate(v))
+      variants.map((v) => this.embedding.generate(v)),
     );
     return embeddings;
   }
@@ -335,7 +361,7 @@ export class MultiQueryService {
   ): Promise<QuerySearchResult[]> {
     const searchPromises = embeddings.map(async (embedding, index) => {
       const searchStart = Date.now();
-      
+
       const results = await this.embedding.search(
         userId,
         embedding,
@@ -348,7 +374,7 @@ export class MultiQueryService {
       return {
         query: variants[index],
         queryIndex: index,
-        matches: results.map(r => ({
+        matches: results.map((r) => ({
           id: r.id,
           score: r.score,
           metadata: r.metadata,
@@ -394,7 +420,10 @@ export class MultiQueryService {
   /**
    * Merge partial config into full config
    */
-  private mergeConfig(base: MultiQueryConfig, partial: Partial<MultiQueryConfig>): MultiQueryConfig {
+  private mergeConfig(
+    base: MultiQueryConfig,
+    partial: Partial<MultiQueryConfig>,
+  ): MultiQueryConfig {
     return {
       ...base,
       expansion: {
@@ -437,7 +466,10 @@ export class MultiQueryService {
     }
 
     const strategy = this.config.get<string>('MULTI_QUERY_STRATEGY');
-    if (strategy && Object.values(ExpansionStrategy).includes(strategy as ExpansionStrategy)) {
+    if (
+      strategy &&
+      Object.values(ExpansionStrategy).includes(strategy as ExpansionStrategy)
+    ) {
       config.expansion.strategy = strategy as ExpansionStrategy;
     }
 
@@ -446,18 +478,26 @@ export class MultiQueryService {
       config.expansion.maxVariants = maxVariants;
     }
 
-    const targetLatency = this.config.get<number>('MULTI_QUERY_LATENCY_TARGET_MS');
+    const targetLatency = this.config.get<number>(
+      'MULTI_QUERY_LATENCY_TARGET_MS',
+    );
     if (targetLatency !== undefined) {
       config.latency.targetMs = targetLatency;
     }
 
     const llmEnabled = this.config.get<string>('MULTI_QUERY_LLM_ENABLED');
     if (llmEnabled !== undefined) {
-      config.expansion.llm.enabled = llmEnabled === 'true' || llmEnabled === '1';
+      config.expansion.llm.enabled =
+        llmEnabled === 'true' || llmEnabled === '1';
     }
 
-    const fusionStrategy = this.config.get<string>('MULTI_QUERY_FUSION_STRATEGY');
-    if (fusionStrategy && Object.values(FusionStrategy).includes(fusionStrategy as FusionStrategy)) {
+    const fusionStrategy = this.config.get<string>(
+      'MULTI_QUERY_FUSION_STRATEGY',
+    );
+    if (
+      fusionStrategy &&
+      Object.values(FusionStrategy).includes(fusionStrategy as FusionStrategy)
+    ) {
       config.fusion.strategy = fusionStrategy as FusionStrategy;
     }
 
@@ -471,7 +511,7 @@ export class MultiQueryService {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+        setTimeout(() => reject(new Error('Timeout')), timeoutMs),
       ),
     ]);
   }

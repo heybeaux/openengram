@@ -8,12 +8,12 @@ import { LLMModule } from '../llm/llm.module';
 
 /**
  * Multi-Query Retrieval Module
- * 
+ *
  * Provides multi-query search capabilities to improve recall by:
  * - Expanding queries into semantic variants
  * - Parallel embedding and search
  * - Result fusion with RRF and other strategies
- * 
+ *
  * Usage:
  * Import this module and inject MultiQueryService where needed.
  * The service integrates with existing EmbeddingService for vector ops.
@@ -21,11 +21,7 @@ import { LLMModule } from '../llm/llm.module';
 @Module({
   imports: [MemoryModule, LLMModule],
   controllers: [MultiQueryController],
-  providers: [
-    MultiQueryService,
-    QueryExpansionService,
-    ResultFusionService,
-  ],
+  providers: [MultiQueryService, QueryExpansionService, ResultFusionService],
   exports: [MultiQueryService, QueryExpansionService, ResultFusionService],
 })
 export class MultiQueryModule {}

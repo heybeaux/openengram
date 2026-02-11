@@ -106,11 +106,18 @@ export class LineageService {
       try {
         const memory = await this.prisma.memory.findUnique({
           where: { id: result.survivorId },
-          select: { userId: true, layer: true, importanceScore: true, createdAt: true },
+          select: {
+            userId: true,
+            layer: true,
+            importanceScore: true,
+            createdAt: true,
+          },
         });
 
         if (memory) {
-          const newEmbedding = await this.embedding.generate(result.mergedContent);
+          const newEmbedding = await this.embedding.generate(
+            result.mergedContent,
+          );
           await this.embedding.store(result.survivorId, newEmbedding, {
             userId: memory.userId,
             layer: memory.layer,
@@ -119,7 +126,10 @@ export class LineageService {
           });
         }
       } catch (error) {
-        console.warn(`Failed to re-embed survivor ${result.survivorId}:`, error);
+        console.warn(
+          `Failed to re-embed survivor ${result.survivorId}:`,
+          error,
+        );
       }
     }
 
@@ -151,7 +161,9 @@ export class LineageService {
     }
 
     // Parse original contents
-    const originalContents = JSON.parse(event.originalContents as string) as OriginalContent[];
+    const originalContents = JSON.parse(
+      event.originalContents,
+    ) as OriginalContent[];
 
     // Restore absorbed memories
     for (const original of originalContents) {
@@ -170,7 +182,12 @@ export class LineageService {
       try {
         const memory = await this.prisma.memory.findUnique({
           where: { id: original.memoryId },
-          select: { userId: true, layer: true, importanceScore: true, createdAt: true },
+          select: {
+            userId: true,
+            layer: true,
+            importanceScore: true,
+            createdAt: true,
+          },
         });
 
         if (memory) {
@@ -183,14 +200,20 @@ export class LineageService {
           });
         }
       } catch (error) {
-        console.warn(`Failed to restore vector for ${original.memoryId}:`, error);
+        console.warn(
+          `Failed to restore vector for ${original.memoryId}:`,
+          error,
+        );
       }
     }
 
     // If content was changed, revert survivor
     if (event.contentChanged) {
       // Find survivor's pre-merge content from a previous merge event or use original
-      const previousContent = await this.findPreMergeContent(event.survivorMemoryId, mergeEventId);
+      const previousContent = await this.findPreMergeContent(
+        event.survivorMemoryId,
+        mergeEventId,
+      );
 
       if (previousContent) {
         await this.prisma.memory.update({
@@ -202,7 +225,12 @@ export class LineageService {
         try {
           const memory = await this.prisma.memory.findUnique({
             where: { id: event.survivorMemoryId },
-            select: { userId: true, layer: true, importanceScore: true, createdAt: true },
+            select: {
+              userId: true,
+              layer: true,
+              importanceScore: true,
+              createdAt: true,
+            },
           });
 
           if (memory) {
@@ -215,7 +243,10 @@ export class LineageService {
             });
           }
         } catch (error) {
-          console.warn(`Failed to re-embed survivor ${event.survivorMemoryId}:`, error);
+          console.warn(
+            `Failed to re-embed survivor ${event.survivorMemoryId}:`,
+            error,
+          );
         }
       }
     }

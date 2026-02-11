@@ -12,7 +12,10 @@ interface SafetyPattern {
 
 const SAFETY_PATTERNS: SafetyPattern[] = [
   { pattern: /\ballerg(y|ic|ies)\b/i, indicator: 'allergy' },
-  { pattern: /\bmedication|medicine|prescription|drug\b/i, indicator: 'medication' },
+  {
+    pattern: /\bmedication|medicine|prescription|drug\b/i,
+    indicator: 'medication',
+  },
   { pattern: /\bdiabet(es|ic)\b/i, indicator: 'diabetes' },
   { pattern: /\bepilepsy|seizures?\b/i, indicator: 'seizure' },
   { pattern: /\basthma|inhaler\b/i, indicator: 'asthma' },

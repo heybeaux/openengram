@@ -40,7 +40,11 @@ describe('MemoryPoolService', () => {
   describe('create', () => {
     it('should create a pool', async () => {
       const dto = { name: 'test-pool', userId: 'u1', createdBy: 'agent:main' };
-      prisma.memoryPool.create.mockResolvedValue({ id: 'p1', ...dto, visibility: 'GLOBAL' });
+      prisma.memoryPool.create.mockResolvedValue({
+        id: 'p1',
+        ...dto,
+        visibility: 'GLOBAL',
+      });
 
       const result = await service.create(dto);
       expect(result.name).toBe('test-pool');
@@ -50,14 +54,20 @@ describe('MemoryPoolService', () => {
   describe('getById', () => {
     it('should throw NotFoundException when pool not found', async () => {
       prisma.memoryPool.findUnique.mockResolvedValue(null);
-      await expect(service.getById('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getById('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('grantAccess', () => {
     it('should upsert a grant', async () => {
       prisma.memoryPool.findUnique.mockResolvedValue({ id: 'p1' });
-      prisma.poolGrant.upsert.mockResolvedValue({ id: 'g1', poolId: 'p1', permission: 'READ' });
+      prisma.poolGrant.upsert.mockResolvedValue({
+        id: 'g1',
+        poolId: 'p1',
+        permission: 'READ',
+      });
 
       const result = await service.grantAccess('p1', {
         agentSessionId: 's1',
@@ -71,7 +81,7 @@ describe('MemoryPoolService', () => {
     it('should return global pools for a user', async () => {
       prisma.memoryPool.findMany
         .mockResolvedValueOnce([{ id: 'global-pool' }]) // global pools
-        .mockResolvedValueOnce([]) // private pools
+        .mockResolvedValueOnce([]); // private pools
       prisma.agentSession.findUnique.mockResolvedValue({
         sessionKey: 'agent:main',
         parentKey: null,
@@ -86,7 +96,7 @@ describe('MemoryPoolService', () => {
       prisma.memoryPool.findMany
         .mockResolvedValueOnce([{ id: 'global-pool' }]) // global
         .mockResolvedValueOnce([{ id: 'shared-pool' }]) // shared via grant
-        .mockResolvedValueOnce([]) // private
+        .mockResolvedValueOnce([]); // private
       prisma.agentSession.findUnique.mockResolvedValue({
         sessionKey: 'agent:sub:1',
         parentKey: 'agent:main',
@@ -101,7 +111,7 @@ describe('MemoryPoolService', () => {
     it('should include private pools created by session', async () => {
       prisma.memoryPool.findMany
         .mockResolvedValueOnce([]) // global
-        .mockResolvedValueOnce([{ id: 'private-pool' }]) // private
+        .mockResolvedValueOnce([{ id: 'private-pool' }]); // private
       prisma.agentSession.findUnique.mockResolvedValue({
         sessionKey: 'agent:sub:1',
         parentKey: 'agent:main',

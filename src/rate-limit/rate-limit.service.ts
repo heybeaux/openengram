@@ -21,9 +21,13 @@ export class RateLimitService {
 
   /**
    * Check if a request is allowed under rate limit.
-   * Returns { allowed, retryAfterMs } 
+   * Returns { allowed, retryAfterMs }
    */
-  consume(key: string, limit: number, windowMs: number = 60_000): { allowed: boolean; retryAfterMs: number; remaining: number } {
+  consume(
+    key: string,
+    limit: number,
+    windowMs: number = 60_000,
+  ): { allowed: boolean; retryAfterMs: number; remaining: number } {
     const now = Date.now();
     const bucketKey = `${key}:${limit}`;
     let bucket = this.buckets.get(bucketKey);
@@ -42,7 +46,11 @@ export class RateLimitService {
 
     if (bucket.tokens >= 1) {
       bucket.tokens -= 1;
-      return { allowed: true, retryAfterMs: 0, remaining: Math.floor(bucket.tokens) };
+      return {
+        allowed: true,
+        retryAfterMs: 0,
+        remaining: Math.floor(bucket.tokens),
+      };
     }
 
     // Calculate when next token available

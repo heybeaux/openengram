@@ -189,7 +189,9 @@ describe('BackfillService', () => {
     it('should handle dry run mode', async () => {
       prisma.memory.findMany = jest.fn().mockResolvedValue([mockMemories[0]]);
 
-      const result = await service.backfillUserIdentity('user-123', 'Beaux', { dryRun: true });
+      const result = await service.backfillUserIdentity('user-123', 'Beaux', {
+        dryRun: true,
+      });
 
       expect(result.updated).toBe(1);
       expect(result.dryRun).toBe(true);
@@ -214,7 +216,9 @@ describe('BackfillService', () => {
         },
       };
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithMultiplePatterns]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([memoryWithMultiplePatterns]);
       prisma.memory.update = jest.fn().mockResolvedValue({});
       prisma.memoryExtraction.update = jest.fn().mockResolvedValue({});
 
@@ -224,7 +228,9 @@ describe('BackfillService', () => {
 
       expect(prisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'mem-1' },
-        data: { raw: 'Beaux said Beaux prefers dark mode. Beaux confirmed this.' },
+        data: {
+          raw: 'Beaux said Beaux prefers dark mode. Beaux confirmed this.',
+        },
       });
     });
 
@@ -234,7 +240,9 @@ describe('BackfillService', () => {
         extraction: null,
       };
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithoutExtraction]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([memoryWithoutExtraction]);
       prisma.memory.update = jest.fn().mockResolvedValue({});
 
       const result = await service.backfillUserIdentity('user-123', 'Beaux');
@@ -270,25 +278,29 @@ describe('BackfillService', () => {
         },
       };
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithCompoundWords]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([memoryWithCompoundWords]);
       prisma.memory.update = jest.fn().mockResolvedValue({});
       prisma.memoryExtraction.update = jest.fn().mockResolvedValue({});
 
       const result = await service.backfillUserIdentity('user-123', 'Beaux');
 
       expect(result.updated).toBe(1);
-      
+
       // Should replace standalone "User" but NOT "User-ID" or "userId"
       expect(prisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'mem-compound' },
-        data: { 
+        data: {
           raw: 'The API requires X-AM-User-ID header. Beaux prefers dark mode. Set userId correctly.',
         },
       });
     });
 
     it('should respect batchSize option', async () => {
-      prisma.memory.findMany = jest.fn().mockResolvedValue(mockMemories.slice(0, 2));
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue(mockMemories.slice(0, 2));
 
       await service.backfillUserIdentity('user-123', 'Beaux', { batchSize: 2 });
 

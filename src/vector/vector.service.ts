@@ -11,7 +11,7 @@ import {
 
 /**
  * Vector Storage Service
- * 
+ *
  * Manages vector providers and routes to the configured one.
  * Default: pgvector (local, free)
  * Alternative: Pinecone (cloud, scales to billions)
@@ -31,7 +31,8 @@ export class VectorService {
     this.providers.set('pinecone', pinecone);
 
     // Select provider based on config (default: pgvector)
-    const providerName = this.config.get<string>('VECTOR_PROVIDER') || 'pgvector';
+    const providerName =
+      this.config.get<string>('VECTOR_PROVIDER') || 'pgvector';
     this.provider = this.providers.get(providerName) || pgvector;
 
     // If configured provider isn't available, fall back to pgvector

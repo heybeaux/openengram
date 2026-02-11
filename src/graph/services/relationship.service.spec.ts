@@ -51,7 +51,9 @@ describe('RelationshipService', () => {
         updatedAt: new Date(),
       };
 
-      mockPrismaService.graphRelationship.create.mockResolvedValue(mockRelationship);
+      mockPrismaService.graphRelationship.create.mockResolvedValue(
+        mockRelationship,
+      );
       mockPrismaService.graphRelationship.findUnique.mockResolvedValue(null); // No inverse exists
 
       const result = await service.create({
@@ -63,7 +65,9 @@ describe('RelationshipService', () => {
       });
 
       expect(result).toEqual(mockRelationship);
-      expect(mockPrismaService.graphRelationship.create).toHaveBeenCalledTimes(2); // Original + inverse for symmetric
+      expect(mockPrismaService.graphRelationship.create).toHaveBeenCalledTimes(
+        2,
+      ); // Original + inverse for symmetric
     });
 
     it('should reject self-referential relationships', async () => {
@@ -87,7 +91,9 @@ describe('RelationshipService', () => {
         weight: 1.0,
       };
 
-      mockPrismaService.graphRelationship.create.mockResolvedValue(mockRelationship);
+      mockPrismaService.graphRelationship.create.mockResolvedValue(
+        mockRelationship,
+      );
 
       await service.create({
         userId: 'user-1',
@@ -97,7 +103,9 @@ describe('RelationshipService', () => {
       });
 
       // Only one create call (no inverse for PARENT_OF)
-      expect(mockPrismaService.graphRelationship.create).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.graphRelationship.create).toHaveBeenCalledTimes(
+        1,
+      );
     });
   });
 
@@ -115,7 +123,9 @@ describe('RelationshipService', () => {
       };
 
       mockPrismaService.graphRelationship.findUnique.mockResolvedValue(null);
-      mockPrismaService.graphRelationship.create.mockResolvedValue(mockRelationship);
+      mockPrismaService.graphRelationship.create.mockResolvedValue(
+        mockRelationship,
+      );
 
       const result = await service.upsert({
         userId: 'user-1',
@@ -148,7 +158,9 @@ describe('RelationshipService', () => {
         sourceMemoryIds: ['mem-1', 'mem-2'],
       };
 
-      mockPrismaService.graphRelationship.findUnique.mockResolvedValue(existingRel);
+      mockPrismaService.graphRelationship.findUnique.mockResolvedValue(
+        existingRel,
+      );
       mockPrismaService.graphRelationship.update.mockResolvedValue(updatedRel);
 
       const result = await service.upsert({
@@ -170,7 +182,9 @@ describe('RelationshipService', () => {
       expect(service.isSymmetric(GraphRelationshipType.SPOUSE_OF)).toBe(true);
       expect(service.isSymmetric(GraphRelationshipType.SIBLING_OF)).toBe(true);
       expect(service.isSymmetric(GraphRelationshipType.FRIEND_OF)).toBe(true);
-      expect(service.isSymmetric(GraphRelationshipType.COLLEAGUE_OF)).toBe(true);
+      expect(service.isSymmetric(GraphRelationshipType.COLLEAGUE_OF)).toBe(
+        true,
+      );
       expect(service.isSymmetric(GraphRelationshipType.RELATED_TO)).toBe(true);
     });
 
@@ -193,7 +207,9 @@ describe('RelationshipService', () => {
         },
       ];
 
-      mockPrismaService.graphRelationship.findMany.mockResolvedValue(mockRelationships);
+      mockPrismaService.graphRelationship.findMany.mockResolvedValue(
+        mockRelationships,
+      );
 
       const result = await service.list({ userId: 'user-1' });
 
@@ -225,15 +241,17 @@ describe('RelationshipService', () => {
 
       await service.getForEntity('entity-1', 'both');
 
-      expect(mockPrismaService.graphRelationship.findMany).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { sourceEntityId: 'entity-1' },
-            { targetEntityId: 'entity-1' },
-          ],
+      expect(mockPrismaService.graphRelationship.findMany).toHaveBeenCalledWith(
+        {
+          where: {
+            OR: [
+              { sourceEntityId: 'entity-1' },
+              { targetEntityId: 'entity-1' },
+            ],
+          },
+          include: expect.any(Object),
         },
-        include: expect.any(Object),
-      });
+      );
     });
   });
 
@@ -243,8 +261,28 @@ describe('RelationshipService', () => {
       mockPrismaService.graphEntity.findUnique.mockResolvedValue(mockEntity);
 
       mockPrismaService.$queryRaw.mockResolvedValue([
-        { id: 'entity-1', name: 'Beaux', type: 'PERSON', depth: 0, rel_id: null, source_id: null, target_id: null, rel_type: null, weight: null },
-        { id: 'entity-2', name: 'Deanna', type: 'PERSON', depth: 1, rel_id: 'rel-1', source_id: 'entity-1', target_id: 'entity-2', rel_type: 'SPOUSE_OF', weight: 1.0 },
+        {
+          id: 'entity-1',
+          name: 'Beaux',
+          type: 'PERSON',
+          depth: 0,
+          rel_id: null,
+          source_id: null,
+          target_id: null,
+          rel_type: null,
+          weight: null,
+        },
+        {
+          id: 'entity-2',
+          name: 'Deanna',
+          type: 'PERSON',
+          depth: 1,
+          rel_id: 'rel-1',
+          source_id: 'entity-1',
+          target_id: 'entity-2',
+          rel_type: 'SPOUSE_OF',
+          weight: 1.0,
+        },
       ]);
 
       const result = await service.traverse({

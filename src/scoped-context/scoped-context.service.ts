@@ -2,9 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentSessionService } from '../agent-session/agent-session.service';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
-import { MemoryAccessLogService, MemoryAccessType } from '../memory-access-log/memory-access-log.service';
+import {
+  MemoryAccessLogService,
+  MemoryAccessType,
+} from '../memory-access-log/memory-access-log.service';
 import { EmbeddingService } from '../memory/embedding.service';
-import { ScopedContextRequestDto, ScopedContextResponseDto } from './dto/scoped-context.dto';
+import {
+  ScopedContextRequestDto,
+  ScopedContextResponseDto,
+} from './dto/scoped-context.dto';
 
 interface ScoredMemory {
   id: string;
@@ -22,7 +28,10 @@ interface ScoredMemory {
 }
 
 // In-memory cache for task embeddings (sessionKey -> embedding)
-const taskEmbeddingCache = new Map<string, { embedding: number[]; taskDesc: string }>();
+const taskEmbeddingCache = new Map<
+  string,
+  { embedding: number[]; taskDesc: string }
+>();
 
 @Injectable()
 export class ScopedContextService {
@@ -36,39 +45,59 @@ export class ScopedContextService {
     private readonly embeddingService: EmbeddingService,
   ) {}
 
-  async generateScopedContext(dto: ScopedContextRequestDto): Promise<ScopedContextResponseDto> {
+  async generateScopedContext(
+    dto: ScopedContextRequestDto,
+  ): Promise<ScopedContextResponseDto> {
     const maxTokens = dto.maxTokens ?? 2000;
     const includeGlobal = dto.includeGlobal ?? true;
 
     // 1. Resolve task description
     let taskDescription: string | null = dto.taskDescription ?? null;
     if (!taskDescription) {
-      const session = await this.agentSessionService.findByKey(dto.agentSessionKey);
+      const session = await this.agentSessionService.findByKey(
+        dto.agentSessionKey,
+      );
       taskDescription = session?.taskDescription ?? null;
     }
 
     // 2. Generate task embedding
     let taskEmbedding: number[] | null = null;
     if (taskDescription) {
-      taskEmbedding = await this.getTaskEmbedding(dto.agentSessionKey, taskDescription);
+      taskEmbedding = await this.getTaskEmbedding(
+        dto.agentSessionKey,
+        taskDescription,
+      );
     }
 
     // 3. Resolve accessible pools
     const poolIds = await this.resolvePoolIds(dto);
 
     // 4. Fetch candidate memories from accessible pools
-    const candidates = await this.fetchCandidateMemories(dto.userId, poolIds, dto.excludeTypes);
+    const candidates = await this.fetchCandidateMemories(
+      dto.userId,
+      poolIds,
+      dto.excludeTypes,
+    );
 
     // 5. Score each memory
     const scored = await this.scoreMemories(candidates, taskEmbedding);
 
     // 6. Budget allocation and selection
-    const { critical, taskRelevant, background } = this.selectByBudget(scored, maxTokens);
+    const { critical, taskRelevant, background } = this.selectByBudget(
+      scored,
+      maxTokens,
+    );
 
     // 7. Format as markdown
     const allSelected = [...critical, ...taskRelevant, ...background];
     const totalTokens = allSelected.reduce((sum, m) => sum + m.tokens, 0);
-    const context = this.formatMarkdown(taskDescription, critical, taskRelevant, background, totalTokens);
+    const context = this.formatMarkdown(
+      taskDescription,
+      critical,
+      taskRelevant,
+      background,
+      totalTokens,
+    );
 
     // 8. Log access (fire-and-forget)
     if (allSelected.length > 0) {
@@ -96,7 +125,10 @@ export class ScopedContextService {
   /**
    * Get or generate task embedding, with caching.
    */
-  private async getTaskEmbedding(sessionKey: string, taskDescription: string): Promise<number[]> {
+  private async getTaskEmbedding(
+    sessionKey: string,
+    taskDescription: string,
+  ): Promise<number[]> {
     const cached = taskEmbeddingCache.get(sessionKey);
     if (cached && cached.taskDesc === taskDescription) {
       return cached.embedding;
@@ -104,7 +136,10 @@ export class ScopedContextService {
 
     try {
       const embedding = await this.embeddingService.generate(taskDescription);
-      taskEmbeddingCache.set(sessionKey, { embedding, taskDesc: taskDescription });
+      taskEmbeddingCache.set(sessionKey, {
+        embedding,
+        taskDesc: taskDescription,
+      });
       return embedding;
     } catch (err) {
       this.logger.warn(`Failed to generate task embedding: ${err.message}`);
@@ -115,7 +150,9 @@ export class ScopedContextService {
   /**
    * Resolve which pool IDs this request should query.
    */
-  private async resolvePoolIds(dto: ScopedContextRequestDto): Promise<string[]> {
+  private async resolvePoolIds(
+    dto: ScopedContextRequestDto,
+  ): Promise<string[]> {
     const includeGlobal = dto.includeGlobal ?? true;
 
     // Get pools accessible to this session
@@ -154,7 +191,9 @@ export class ScopedContextService {
           deletedAt: null,
           supersededById: null,
           userHidden: false,
-          ...(excludeTypes?.length ? { memoryType: { notIn: excludeTypes as any } } : {}),
+          ...(excludeTypes?.length
+            ? { memoryType: { notIn: excludeTypes as any } }
+            : {}),
         },
         orderBy: { effectiveScore: 'desc' },
         take: 500,
@@ -162,7 +201,9 @@ export class ScopedContextService {
     }
 
     // Get memory IDs from pool memberships
-    const memberships = await (this.prisma as any).memoryPoolMembership.findMany({
+    const memberships = await (
+      this.prisma as any
+    ).memoryPoolMembership.findMany({
       where: { poolId: { in: poolIds } },
       select: { memoryId: true },
     });
@@ -177,7 +218,9 @@ export class ScopedContextService {
         deletedAt: null,
         supersededById: null,
         userHidden: false,
-        ...(excludeTypes?.length ? { memoryType: { notIn: excludeTypes as any } } : {}),
+        ...(excludeTypes?.length
+          ? { memoryType: { notIn: excludeTypes as any } }
+          : {}),
       },
       orderBy: { effectiveScore: 'desc' },
       take: 500,
@@ -189,7 +232,10 @@ export class ScopedContextService {
    *
    * finalScore = 0.4 * taskSimilarity + 0.3 * effectiveScore + 0.2 * recency + 0.1 * accessFrequency
    */
-  async scoreMemories(candidates: any[], taskEmbedding: number[] | null): Promise<ScoredMemory[]> {
+  async scoreMemories(
+    candidates: any[],
+    taskEmbedding: number[] | null,
+  ): Promise<ScoredMemory[]> {
     const now = Date.now();
 
     // If we have a task embedding, compute cosine similarity via raw SQL for each candidate
@@ -204,9 +250,13 @@ export class ScopedContextService {
     return candidates.map((m) => {
       const taskSimilarity = similarityMap.get(m.id) ?? 0;
       const importanceWeight = m.effectiveScore ?? 0.5;
-      const daysSinceCreated = (now - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceCreated =
+        (now - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24);
       const recencyWeight = Math.exp(-daysSinceCreated / 30); // 30-day half-life
-      const accessWeight = Math.min(1, Math.log(1 + (m.retrievalCount ?? 0)) / 10);
+      const accessWeight = Math.min(
+        1,
+        Math.log(1 + (m.retrievalCount ?? 0)) / 10,
+      );
 
       let finalScore =
         0.4 * taskSimilarity +
@@ -251,7 +301,9 @@ export class ScopedContextService {
     try {
       // Use pgvector's cosine distance operator: 1 - (embedding <=> $vector)
       const vectorStr = `[${taskEmbedding.join(',')}]`;
-      const results = await this.prisma.$queryRawUnsafe<Array<{ id: string; similarity: number }>>(
+      const results = await this.prisma.$queryRawUnsafe<
+        Array<{ id: string; similarity: number }>
+      >(
         `SELECT id, 1 - (embedding <=> $1::vector) as similarity
          FROM memories
          WHERE id = ANY($2) AND embedding IS NOT NULL`,
@@ -280,7 +332,11 @@ export class ScopedContextService {
   selectByBudget(
     scored: ScoredMemory[],
     maxTokens: number,
-  ): { critical: ScoredMemory[]; taskRelevant: ScoredMemory[]; background: ScoredMemory[] } {
+  ): {
+    critical: ScoredMemory[];
+    taskRelevant: ScoredMemory[];
+    background: ScoredMemory[];
+  } {
     const criticalBudget = Math.floor(maxTokens * 0.2);
     const taskBudget = Math.floor(maxTokens * 0.5);
     const globalBudget = Math.floor(maxTokens * 0.2);
@@ -306,11 +362,18 @@ export class ScopedContextService {
 
     // Phase 1: CONSTRAINT/LESSON into critical bucket
     const constraintLessons = scored
-      .filter((m) => !used.has(m.id) && (m.memoryType === 'CONSTRAINT' || m.memoryType === 'LESSON'))
+      .filter(
+        (m) =>
+          !used.has(m.id) &&
+          (m.memoryType === 'CONSTRAINT' || m.memoryType === 'LESSON'),
+      )
       .sort((a, b) => b.finalScore - a.finalScore);
 
     for (const m of constraintLessons) {
-      if (criticalTokens + m.tokens <= criticalBudget + Math.floor(maxTokens * 0.1)) {
+      if (
+        criticalTokens + m.tokens <=
+        criticalBudget + Math.floor(maxTokens * 0.1)
+      ) {
         // Allow 10% overflow for critical
         critical.push(m);
         criticalTokens += m.tokens;
@@ -341,9 +404,13 @@ export class ScopedContextService {
       .filter((m) => !used.has(m.id))
       .sort((a, b) => {
         // Boost identity layer and recent memories
-        const aBoost = (a.layer === 'IDENTITY' ? 0.3 : 0) + (new Date(a.createdAt).getTime() > oneDayAgo ? 0.2 : 0);
-        const bBoost = (b.layer === 'IDENTITY' ? 0.3 : 0) + (new Date(b.createdAt).getTime() > oneDayAgo ? 0.2 : 0);
-        return (b.finalScore + bBoost) - (a.finalScore + aBoost);
+        const aBoost =
+          (a.layer === 'IDENTITY' ? 0.3 : 0) +
+          (new Date(a.createdAt).getTime() > oneDayAgo ? 0.2 : 0);
+        const bBoost =
+          (b.layer === 'IDENTITY' ? 0.3 : 0) +
+          (new Date(b.createdAt).getTime() > oneDayAgo ? 0.2 : 0);
+        return b.finalScore + bBoost - (a.finalScore + aBoost);
       });
 
     for (const m of bgCandidates) {

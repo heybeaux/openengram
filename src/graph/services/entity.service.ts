@@ -10,7 +10,7 @@ import {
 
 /**
  * EntityService - CRUD operations for graph entities
- * 
+ *
  * Handles creation, retrieval, updating, and deletion of entities
  * in the semantic memory graph.
  */
@@ -126,7 +126,9 @@ export class EntityService {
   /**
    * List entities with optional filtering
    */
-  async list(dto: ListEntitiesDto): Promise<{ entities: GraphEntity[]; total: number }> {
+  async list(
+    dto: ListEntitiesDto,
+  ): Promise<{ entities: GraphEntity[]; total: number }> {
     const where: Prisma.GraphEntityWhereInput = {
       userId: dto.userId,
     };
@@ -325,16 +327,17 @@ export class EntityService {
     totalRelationships: number;
     totalMentions: number;
   }> {
-    const [totalEntities, byType, totalRelationships, totalMentions] = await Promise.all([
-      this.prisma.graphEntity.count({ where: { userId } }),
-      this.prisma.graphEntity.groupBy({
-        by: ['type'],
-        where: { userId },
-        _count: { type: true },
-      }),
-      this.prisma.graphRelationship.count({ where: { userId } }),
-      this.prisma.graphEntityMention.count({ where: { userId } }),
-    ]);
+    const [totalEntities, byType, totalRelationships, totalMentions] =
+      await Promise.all([
+        this.prisma.graphEntity.count({ where: { userId } }),
+        this.prisma.graphEntity.groupBy({
+          by: ['type'],
+          where: { userId },
+          _count: { type: true },
+        }),
+        this.prisma.graphRelationship.count({ where: { userId } }),
+        this.prisma.graphEntityMention.count({ where: { userId } }),
+      ]);
 
     return {
       totalEntities,

@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ConversationObserverService } from './conversation-observer.service';
 import { ObserveDto, ObserveResult } from './dto/observe.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
@@ -19,13 +14,13 @@ export class AutoController {
   /**
    * POST /v1/observe
    * Observe conversation turns and auto-extract memories
-   * 
+   *
    * Analyzes conversation for importance signals:
    * - Explicit: "remember this", "important", "never forget"
    * - Corrections: "actually", "no that's wrong", "I meant"
    * - Preferences: "I prefer", "I always", "I never", "I like", "I hate"
    * - Repetition: same concept mentioned multiple times
-   * 
+   *
    * Extracts and stores memories above the importance threshold.
    */
   @Post('observe')

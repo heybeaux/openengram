@@ -1,25 +1,38 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ExtractionService, ExtractionContext, EntityWithType } from './extraction.service';
+import {
+  ExtractionService,
+  ExtractionContext,
+  EntityWithType,
+} from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
-import { Memory, MemoryLayer, MemorySource, Entity, SubjectType } from '@prisma/client';
+import {
+  Memory,
+  MemoryLayer,
+  MemorySource,
+  Entity,
+  SubjectType,
+} from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { CorrectionService } from '../correction/correction.service';
-import { MultiQueryMetadataDto, ResultExplanationDto } from '../multi-query/dto/multi-query.dto';
+import {
+  MultiQueryMetadataDto,
+  ResultExplanationDto,
+} from '../multi-query/dto/multi-query.dto';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
 // Three-tier dedup thresholds (v2)
-const DEDUP_AUTO_MERGE_THRESHOLD = 0.93;   // Auto-merge: combine content, boost confidence
-const DEDUP_REINFORCE_THRESHOLD = 0.85;     // Reinforce: increment counts, update timestamps
-const DEDUP_REVIEW_THRESHOLD = 0.78;        // Flag for review: add to MergeCandidate
+const DEDUP_AUTO_MERGE_THRESHOLD = 0.93; // Auto-merge: combine content, boost confidence
+const DEDUP_REINFORCE_THRESHOLD = 0.85; // Reinforce: increment counts, update timestamps
+const DEDUP_REVIEW_THRESHOLD = 0.78; // Flag for review: add to MergeCandidate
 // Legacy constant kept for related links
 const DEDUP_SIMILARITY_THRESHOLD = DEDUP_AUTO_MERGE_THRESHOLD;
 // Similarity threshold for creating RELATED links (0.65 = moderately related)
@@ -111,7 +124,9 @@ export class MemoryService {
     // Support both 'raw' and 'content' field names for backward compatibility
     const rawContent = dto.raw || (dto as any).content;
     if (!rawContent) {
-      throw new Error('Memory content is required (use "raw" or "content" field)');
+      throw new Error(
+        'Memory content is required (use "raw" or "content" field)',
+      );
     }
 
     // 1. Fetch user info for extraction context
@@ -128,13 +143,22 @@ export class MemoryService {
     if (dedupResult.action !== 'create' && dedupResult.existingMemory) {
       if (dedupResult.action === 'merged') {
         // Auto-merge: combine content, boost confidence
-        await this.autoMergeMemory(dedupResult.existingMemory.id, rawContent, source);
+        await this.autoMergeMemory(
+          dedupResult.existingMemory.id,
+          rawContent,
+          source,
+        );
       } else if (dedupResult.action === 'reinforced') {
         // Reinforce existing memory
-        await this.reinforceMemory(dedupResult.existingMemory.id, dto.context?.sessionId);
+        await this.reinforceMemory(
+          dedupResult.existingMemory.id,
+          dto.context?.sessionId,
+        );
       }
       // For 'queued_review', the MergeCandidate was already created in findDuplicateV2
-      return this.getById(dedupResult.existingMemory.id) as Promise<MemoryWithExtraction>;
+      return this.getById(
+        dedupResult.existingMemory.id,
+      ) as Promise<MemoryWithExtraction>;
     }
 
     // 4. Calculate initial importance score
@@ -147,7 +171,10 @@ export class MemoryService {
     const confidence = SOURCE_CONFIDENCE[source] ?? 1.0;
 
     // 6. Resolve sessionId - auto-create session if needed
-    const sessionId = await this.resolveSessionId(userId, dto.context?.sessionId);
+    const sessionId = await this.resolveSessionId(
+      userId,
+      dto.context?.sessionId,
+    );
 
     // 7a. Determine layer - use smart classification if not explicitly specified
     // P5-003: Intelligent Layer Classification
@@ -156,13 +183,18 @@ export class MemoryService {
       // Run quick extraction to help with classification
       // Note: Full extraction happens async, this is just for layer classification
       layer = this.extraction.classifyLayer(rawContent);
-      console.log('[Memory] Smart layer classification:', { rawPreview: rawContent.substring(0, 50), layer });
+      console.log('[Memory] Smart layer classification:', {
+        rawPreview: rawContent.substring(0, 50),
+        layer,
+      });
     }
 
     // 7b. Determine subject fields
     // Default: memory is about the user (USER subject type)
     const subjectType = dto.subjectType ?? SubjectType.USER;
-    const subjectId = dto.subjectId ?? (subjectType === SubjectType.USER ? userId : dto.agentId);
+    const subjectId =
+      dto.subjectId ??
+      (subjectType === SubjectType.USER ? userId : dto.agentId);
 
     // 7. Create memory record
     const memory = await this.prisma.memory.create({
@@ -187,9 +219,14 @@ export class MemoryService {
 
     // v0.7: Auto-add to global pool and log creation
     if (dto.agentSessionKey) {
-      this.addToGlobalPoolAndLog(memory.id, userId, dto.agentSessionKey).catch((err) => {
-        console.error(`[Memory] Failed to add to global pool / log creation for ${memory.id}:`, err);
-      });
+      this.addToGlobalPoolAndLog(memory.id, userId, dto.agentSessionKey).catch(
+        (err) => {
+          console.error(
+            `[Memory] Failed to add to global pool / log creation for ${memory.id}:`,
+            err,
+          );
+        },
+      );
     }
 
     // 8. Build extraction context
@@ -202,7 +239,12 @@ export class MemoryService {
     };
 
     // 9. Extract structure asynchronously (don't block response)
-    this.extractAndEmbed(memory.id, rawContent, userId, extractionContext).catch((err) => {
+    this.extractAndEmbed(
+      memory.id,
+      rawContent,
+      userId,
+      extractionContext,
+    ).catch((err) => {
       console.error(`Extraction failed for memory ${memory.id}:`, err);
     });
 
@@ -211,7 +253,10 @@ export class MemoryService {
       this.correctionService
         .checkForContradictions(memory.id, userId, rawContent)
         .catch((err) => {
-          console.error(`[Correction] Contradiction check failed for memory ${memory.id}:`, err);
+          console.error(
+            `[Correction] Contradiction check failed for memory ${memory.id}:`,
+            err,
+          );
         });
     }
 
@@ -248,7 +293,9 @@ export class MemoryService {
 
     // Log creation
     if (this.memoryAccessLogService) {
-      this.memoryAccessLogService.logCreated(memoryId, agentSessionKey).catch(() => {});
+      this.memoryAccessLogService
+        .logCreated(memoryId, agentSessionKey)
+        .catch(() => {});
     }
   }
 
@@ -286,20 +333,35 @@ export class MemoryService {
       const existingMemory = await this.prisma.memory.findUnique({
         where: { id: bestMatch.id },
       });
-      if (!existingMemory || existingMemory.deletedAt) return { action: 'create' };
+      if (!existingMemory || existingMemory.deletedAt)
+        return { action: 'create' };
 
       if (bestMatch.score >= DEDUP_AUTO_MERGE_THRESHOLD) {
-        console.log(`[Dedup] Auto-merge: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
-        return { action: 'merged', existingMemory, similarityScore: bestMatch.score };
+        console.log(
+          `[Dedup] Auto-merge: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
+        );
+        return {
+          action: 'merged',
+          existingMemory,
+          similarityScore: bestMatch.score,
+        };
       }
 
       if (bestMatch.score >= DEDUP_REINFORCE_THRESHOLD) {
-        console.log(`[Dedup] Reinforce: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
-        return { action: 'reinforced', existingMemory, similarityScore: bestMatch.score };
+        console.log(
+          `[Dedup] Reinforce: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
+        );
+        return {
+          action: 'reinforced',
+          existingMemory,
+          similarityScore: bestMatch.score,
+        };
       }
 
       if (bestMatch.score >= DEDUP_REVIEW_THRESHOLD) {
-        console.log(`[Dedup] Queue for review: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`);
+        console.log(
+          `[Dedup] Queue for review: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
+        );
         // Create MergeCandidate for review
         try {
           await this.prisma.mergeCandidate.create({
@@ -334,12 +396,17 @@ export class MemoryService {
     newContent: string,
     newSource: MemorySource,
   ): Promise<void> {
-    const existing = await this.prisma.memory.findUnique({ where: { id: existingId } });
+    const existing = await this.prisma.memory.findUnique({
+      where: { id: existingId },
+    });
     if (!existing) return;
 
     // Boost confidence: take the max of existing and new source confidence
     const newConfidence = SOURCE_CONFIDENCE[newSource] ?? 1.0;
-    const boostedConfidence = Math.min(1.0, Math.max(existing.confidence, newConfidence) + 0.05);
+    const boostedConfidence = Math.min(
+      1.0,
+      Math.max(existing.confidence, newConfidence) + 0.05,
+    );
 
     await this.prisma.memory.update({
       where: { id: existingId },
@@ -355,7 +422,10 @@ export class MemoryService {
   /**
    * Reinforce an existing memory (boost importance, track sessions)
    */
-  private async reinforceMemory(memoryId: string, sessionId?: string): Promise<void> {
+  private async reinforceMemory(
+    memoryId: string,
+    sessionId?: string,
+  ): Promise<void> {
     const updateData: any = {
       usedCount: { increment: 1 },
       lastUsedAt: new Date(),
@@ -368,7 +438,9 @@ export class MemoryService {
     });
 
     // Cap importance at 1.0
-    const memory = await this.prisma.memory.findUnique({ where: { id: memoryId } });
+    const memory = await this.prisma.memory.findUnique({
+      where: { id: memoryId },
+    });
     if (memory && memory.importanceScore > 1.0) {
       await this.prisma.memory.update({
         where: { id: memoryId },
@@ -415,15 +487,21 @@ export class MemoryService {
     let poolIds: string[] | undefined;
     if (dto.agentSessionKey && this.memoryPoolService) {
       try {
-        poolIds = await this.memoryPoolService.getAccessiblePoolIds(dto.agentSessionKey, userId);
+        poolIds = await this.memoryPoolService.getAccessiblePoolIds(
+          dto.agentSessionKey,
+          userId,
+        );
       } catch (err) {
-        console.warn('[Recall] Failed to resolve pool IDs, proceeding without pool filter:', err);
+        console.warn(
+          '[Recall] Failed to resolve pool IDs, proceeding without pool filter:',
+          err,
+        );
       }
     }
 
     // Check if multi-query is enabled and should be used
     const useMultiQuery = this.shouldUseMultiQuery(dto);
-    
+
     if (useMultiQuery) {
       return this.recallWithMultiQuery(userId, dto, startTime, poolIds);
     }
@@ -464,7 +542,8 @@ export class MemoryService {
       const temporalMemories = await this.prisma.memory.findMany({
         where: {
           userId,
-          deletedAt: null, supersededById: null,
+          deletedAt: null,
+          supersededById: null,
           createdAt: {
             gte: parsed.temporalFilter!.start,
             lte: parsed.temporalFilter!.end,
@@ -478,7 +557,11 @@ export class MemoryService {
         take: 200, // Cap to avoid loading thousands
       });
 
-      console.log('[Recall] Temporal path: found', temporalMemories.length, 'memories in range');
+      console.log(
+        '[Recall] Temporal path: found',
+        temporalMemories.length,
+        'memories in range',
+      );
 
       // 3b. Also get vector similarity scores for the semantic query
       // (search broadly to get scores for as many memories as possible)
@@ -500,7 +583,8 @@ export class MemoryService {
             memory.createdAt,
             parsed.temporalFilter,
           );
-          const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+          const importanceScore =
+            memory.effectiveScore ?? memory.importanceScore;
 
           const blendedScore = this.temporalParser.blendScores(
             semanticScore,
@@ -516,7 +600,6 @@ export class MemoryService {
         })
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
         .slice(0, limit);
-
     } else {
       // =====================================================================
       // STANDARD PATH: Vector similarity is the PRIMARY filter.
@@ -540,7 +623,8 @@ export class MemoryService {
       const memories = await this.prisma.memory.findMany({
         where: {
           id: { in: memoryIds },
-          deletedAt: null, supersededById: null,
+          deletedAt: null,
+          supersededById: null,
           ...subjectTypeFilter,
         },
         include: {
@@ -552,7 +636,8 @@ export class MemoryService {
       scoredMemories = memories
         .map((memory) => {
           const semanticScore = scoreMap.get(memory.id) ?? 0;
-          const importanceScore = memory.effectiveScore ?? memory.importanceScore;
+          const importanceScore =
+            memory.effectiveScore ?? memory.importanceScore;
           const blendedScore = this.temporalParser.blendScores(
             semanticScore,
             0.5, // Neutral temporal
@@ -571,11 +656,11 @@ export class MemoryService {
     // 6. Optionally include reasoning chains
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
-      result = await this.attachChains(scoredMemories) as MemoryWithScore[];
+      result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
     }
 
     // 9. Update retrieval counts
-    const resultIds = result.map(m => m.id);
+    const resultIds = result.map((m) => m.id);
     if (resultIds.length > 0) {
       await this.prisma.memory.updateMany({
         where: { id: { in: resultIds } },
@@ -587,7 +672,9 @@ export class MemoryService {
 
       // v0.7: Log recalled memories (fire-and-forget)
       if (dto.agentSessionKey && this.memoryAccessLogService) {
-        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.query).catch(() => {});
+        this.memoryAccessLogService
+          .logRecalled(resultIds, dto.agentSessionKey, dto.query)
+          .catch(() => {});
       }
     }
 
@@ -638,7 +725,9 @@ export class MemoryService {
 
     if (hasTemporalIntent) {
       // For temporal queries, fall back to standard recall
-      console.log('[Recall] Temporal intent detected, falling back to standard search');
+      console.log(
+        '[Recall] Temporal intent detected, falling back to standard search',
+      );
       // Reset multi-query option and recursively call recall
       const dtoWithoutMultiQuery = { ...dto, multiQuery: { enabled: false } };
       return this.recall(userId, dtoWithoutMultiQuery);
@@ -658,13 +747,14 @@ export class MemoryService {
     );
 
     // 3. Fetch full memory records for the fused results
-    const memoryIds = multiQueryResult.results.map(r => r.memoryId);
+    const memoryIds = multiQueryResult.results.map((r) => r.memoryId);
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
 
     const memories = await this.prisma.memory.findMany({
       where: {
         id: { in: memoryIds },
-        deletedAt: null, supersededById: null,
+        deletedAt: null,
+        supersededById: null,
         ...subjectTypeFilter,
       },
       include: {
@@ -674,7 +764,7 @@ export class MemoryService {
 
     // 4. Create score map from multi-query results
     const scoreMap = new Map(
-      multiQueryResult.results.map(r => [r.memoryId, r.score])
+      multiQueryResult.results.map((r) => [r.memoryId, r.score]),
     );
 
     // 5. Score and rank memories using multi-query scores
@@ -682,7 +772,7 @@ export class MemoryService {
       .map((memory) => {
         const multiQueryScore = scoreMap.get(memory.id) ?? 0;
         const importanceScore = memory.effectiveScore ?? memory.importanceScore;
-        
+
         // Blend multi-query score with importance (weighted towards multi-query)
         const blendedScore = multiQueryScore * 0.8 + importanceScore * 0.2;
 
@@ -696,11 +786,11 @@ export class MemoryService {
     // 6. Optionally include reasoning chains
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
-      result = await this.attachChains(scoredMemories) as MemoryWithScore[];
+      result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
     }
 
     // 7. Update retrieval counts
-    const resultIds = result.map(m => m.id);
+    const resultIds = result.map((m) => m.id);
     if (resultIds.length > 0) {
       await this.prisma.memory.updateMany({
         where: { id: { in: resultIds } },
@@ -712,7 +802,9 @@ export class MemoryService {
 
       // v0.7: Log recalled memories (fire-and-forget)
       if (dto.agentSessionKey && this.memoryAccessLogService) {
-        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.query).catch(() => {});
+        this.memoryAccessLogService
+          .logRecalled(resultIds, dto.agentSessionKey, dto.query)
+          .catch(() => {});
       }
     }
 
@@ -742,24 +834,34 @@ export class MemoryService {
   /**
    * Load context for session start
    * Returns formatted string ready for system prompt injection
-   * 
+   *
    * Memory Intelligence v2: Priority-based retrieval
    * - Layer determines WHERE: IDENTITY (800 tokens), PROJECT (600), SESSION (400)
    * - Type determines PRIORITY: CONSTRAINT (1) > PREFERENCE/TASK (2) > FACT (3) > EVENT (4)
    * - CONSTRAINTS have a protected reserve (200 tokens in IDENTITY)
    */
-  async loadContext(userId: string, dto: LoadContextDto): Promise<ContextResult> {
-    const layers: ContextResult['layers'] = { identity: 0, project: 0, session: 0 };
+  async loadContext(
+    userId: string,
+    dto: LoadContextDto,
+  ): Promise<ContextResult> {
+    const layers: ContextResult['layers'] = {
+      identity: 0,
+      project: 0,
+      session: 0,
+    };
     const memories: Memory[] = [];
     const evictions: Array<{ id: string; reason: string }> = [];
 
     // Layer budgets (in tokens, roughly 4 chars/token)
     const LAYER_BUDGETS = {
       identity: dto.maxTokens ? Math.floor(dto.maxTokens * 0.44) : 800, // ~44%
-      project: dto.maxTokens ? Math.floor(dto.maxTokens * 0.33) : 600,  // ~33%
-      session: dto.maxTokens ? Math.floor(dto.maxTokens * 0.22) : 400,  // ~22%
+      project: dto.maxTokens ? Math.floor(dto.maxTokens * 0.33) : 600, // ~33%
+      session: dto.maxTokens ? Math.floor(dto.maxTokens * 0.22) : 400, // ~22%
     };
-    const CONSTRAINT_RESERVE = Math.min(200, Math.floor(LAYER_BUDGETS.identity * 0.25));
+    const CONSTRAINT_RESERVE = Math.min(
+      200,
+      Math.floor(LAYER_BUDGETS.identity * 0.25),
+    );
 
     // 1. Load IDENTITY layer with effectiveScore-based selection
     const identityCandidates = await this.prisma.memory.findMany({
@@ -767,27 +869,31 @@ export class MemoryService {
         userId,
         layer: MemoryLayer.IDENTITY,
         subjectType: SubjectType.USER,
-        deletedAt: null, supersededById: null,
+        deletedAt: null,
+        supersededById: null,
         userHidden: false, // Memory Intelligence: respect user hiding
       },
       orderBy: [
         { effectiveScore: 'desc' }, // Memory Intelligence v2: unified score (includes safety floor, decay, boosts)
-        { confidence: 'desc' },     // Quality v2: prefer higher-confidence memories
-        { priority: 'asc' },        // Tie-breaker: lower = higher priority (1=CONSTRAINT first)
-        { userPinned: 'desc' },     // Then pinned items
-        { createdAt: 'desc' },      // Finally recency
+        { confidence: 'desc' }, // Quality v2: prefer higher-confidence memories
+        { priority: 'asc' }, // Tie-breaker: lower = higher priority (1=CONSTRAINT first)
+        { userPinned: 'desc' }, // Then pinned items
+        { createdAt: 'desc' }, // Finally recency
       ],
       take: 200, // Get enough candidates to select from
     });
-    
-    const { selected: identityMemories, evicted: identityEvicted } = this.selectMemoriesForBudget(
-      identityCandidates,
-      LAYER_BUDGETS.identity,
-      CONSTRAINT_RESERVE,
-    );
+
+    const { selected: identityMemories, evicted: identityEvicted } =
+      this.selectMemoriesForBudget(
+        identityCandidates,
+        LAYER_BUDGETS.identity,
+        CONSTRAINT_RESERVE,
+      );
     memories.push(...identityMemories);
     layers.identity = identityMemories.length;
-    evictions.push(...identityEvicted.map(m => ({ id: m.id, reason: 'identity_budget' })));
+    evictions.push(
+      ...identityEvicted.map((m) => ({ id: m.id, reason: 'identity_budget' })),
+    );
 
     // 2. Load PROJECT layer if specified
     if (dto.projectId) {
@@ -796,7 +902,8 @@ export class MemoryService {
           userId,
           projectId: dto.projectId,
           layer: MemoryLayer.PROJECT,
-          deletedAt: null, supersededById: null,
+          deletedAt: null,
+          supersededById: null,
           userHidden: false,
         },
         orderBy: [
@@ -808,15 +915,18 @@ export class MemoryService {
         ],
         take: 100,
       });
-      
-      const { selected: projectMemories, evicted: projectEvicted } = this.selectMemoriesForBudget(
-        projectCandidates,
-        LAYER_BUDGETS.project,
-        0, // No CONSTRAINT reserve for PROJECT layer
-      );
+
+      const { selected: projectMemories, evicted: projectEvicted } =
+        this.selectMemoriesForBudget(
+          projectCandidates,
+          LAYER_BUDGETS.project,
+          0, // No CONSTRAINT reserve for PROJECT layer
+        );
       memories.push(...projectMemories);
       layers.project = projectMemories.length;
-      evictions.push(...projectEvicted.map(m => ({ id: m.id, reason: 'project_budget' })));
+      evictions.push(
+        ...projectEvicted.map((m) => ({ id: m.id, reason: 'project_budget' })),
+      );
     }
 
     // 3. Load SESSION layer (recent memories)
@@ -824,7 +934,8 @@ export class MemoryService {
       where: {
         userId,
         layer: MemoryLayer.SESSION,
-        deletedAt: null, supersededById: null,
+        deletedAt: null,
+        supersededById: null,
         userHidden: false,
         createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
       },
@@ -836,15 +947,14 @@ export class MemoryService {
       ],
       take: 100,
     });
-    
-    const { selected: sessionMemories, evicted: sessionEvicted } = this.selectMemoriesForBudget(
-      sessionCandidates,
-      LAYER_BUDGETS.session,
-      0,
-    );
+
+    const { selected: sessionMemories, evicted: sessionEvicted } =
+      this.selectMemoriesForBudget(sessionCandidates, LAYER_BUDGETS.session, 0);
     memories.push(...sessionMemories);
     layers.session = sessionMemories.length;
-    evictions.push(...sessionEvicted.map(m => ({ id: m.id, reason: 'session_budget' })));
+    evictions.push(
+      ...sessionEvicted.map((m) => ({ id: m.id, reason: 'session_budget' })),
+    );
 
     // 4. Load agent self-memories if agentId is specified
     if (dto.agentId) {
@@ -852,7 +962,8 @@ export class MemoryService {
         where: {
           agentId: dto.agentId,
           subjectType: SubjectType.AGENT,
-          deletedAt: null, supersededById: null,
+          deletedAt: null,
+          supersededById: null,
           userHidden: false,
         },
         orderBy: [
@@ -874,10 +985,13 @@ export class MemoryService {
       console.log('[Memory] Context evictions:', {
         userId,
         totalEvicted: evictions.length,
-        byReason: evictions.reduce((acc, e) => {
-          acc[e.reason] = (acc[e.reason] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
+        byReason: evictions.reduce(
+          (acc, e) => {
+            acc[e.reason] = (acc[e.reason] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        ),
       });
     }
 
@@ -901,12 +1015,12 @@ export class MemoryService {
     const selected: Memory[] = [];
     const evicted: Memory[] = [];
     let usedTokens = 0;
-    
+
     // Rough token estimation: ~4 characters per token
     const estimateTokens = (m: Memory) => Math.ceil(m.raw.length / 4);
 
     // Phase 0: Safety-critical memories ALWAYS get included (never evicted)
-    const safetyCritical = candidates.filter(m => m.safetyCritical);
+    const safetyCritical = candidates.filter((m) => m.safetyCritical);
     for (const memory of safetyCritical) {
       const tokens = estimateTokens(memory);
       selected.push(memory);
@@ -914,12 +1028,17 @@ export class MemoryService {
     }
 
     // Phase 1: Add CONSTRAINTS (priority 1) up to reserve
-    const constraints = candidates.filter(m => m.priority === 1 && !m.safetyCritical);
+    const constraints = candidates.filter(
+      (m) => m.priority === 1 && !m.safetyCritical,
+    );
     let constraintTokens = 0;
-    
+
     for (const memory of constraints) {
       const tokens = estimateTokens(memory);
-      if (constraintTokens + tokens <= constraintReserve || constraintReserve === 0) {
+      if (
+        constraintTokens + tokens <= constraintReserve ||
+        constraintReserve === 0
+      ) {
         selected.push(memory);
         constraintTokens += tokens;
         usedTokens += tokens;
@@ -935,7 +1054,7 @@ export class MemoryService {
     // Phase 2: Fill remaining budget by effectiveScore order (already sorted)
     for (const memory of candidates) {
       if (selected.includes(memory)) continue;
-      
+
       const tokens = estimateTokens(memory);
       if (usedTokens + tokens <= budget) {
         selected.push(memory);
@@ -983,10 +1102,10 @@ export class MemoryService {
 
   /**
    * Update an existing memory (P5-001)
-   * 
+   *
    * Allows editing raw content, layer, importance, and extraction fields.
    * If raw content changes, the memory is re-embedded for accurate search.
-   * 
+   *
    * @throws Error if memory not found or user doesn't own it
    */
   async update(
@@ -997,7 +1116,10 @@ export class MemoryService {
     // 1. Fetch memory and verify ownership
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
-      include: { extraction: true, user: { select: { id: true, externalId: true } } },
+      include: {
+        extraction: true,
+        user: { select: { id: true, externalId: true } },
+      },
     });
 
     if (!memory) {
@@ -1020,7 +1142,9 @@ export class MemoryService {
       ...(dto.raw && { raw: dto.raw }),
       ...(dto.layer && { layer: dto.layer }),
       ...(dto.importanceHint && { importanceHint: dto.importanceHint }),
-      ...(dto.importanceScore !== undefined && { importanceScore: dto.importanceScore }),
+      ...(dto.importanceScore !== undefined && {
+        importanceScore: dto.importanceScore,
+      }),
     };
 
     // Recalculate importance if hint changed but score not explicitly set
@@ -1040,20 +1164,29 @@ export class MemoryService {
     // 4. Update extraction fields if provided
     if (dto.extraction && memory.extraction) {
       const extractionUpdate: any = {};
-      
-      if (dto.extraction.who !== undefined) extractionUpdate.who = dto.extraction.who;
-      if (dto.extraction.what !== undefined) extractionUpdate.what = dto.extraction.what;
-      if (dto.extraction.where !== undefined) extractionUpdate.whereCtx = dto.extraction.where;
-      if (dto.extraction.why !== undefined) extractionUpdate.why = dto.extraction.why;
-      if (dto.extraction.how !== undefined) extractionUpdate.how = dto.extraction.how;
-      if (dto.extraction.topics !== undefined) extractionUpdate.topics = dto.extraction.topics;
-      
+
+      if (dto.extraction.who !== undefined)
+        extractionUpdate.who = dto.extraction.who;
+      if (dto.extraction.what !== undefined)
+        extractionUpdate.what = dto.extraction.what;
+      if (dto.extraction.where !== undefined)
+        extractionUpdate.whereCtx = dto.extraction.where;
+      if (dto.extraction.why !== undefined)
+        extractionUpdate.why = dto.extraction.why;
+      if (dto.extraction.how !== undefined)
+        extractionUpdate.how = dto.extraction.how;
+      if (dto.extraction.topics !== undefined)
+        extractionUpdate.topics = dto.extraction.topics;
+
       // Handle 'when' field - parse if string provided
       if (dto.extraction.when !== undefined) {
         if (dto.extraction.when === null) {
           extractionUpdate.when = null;
         } else {
-          extractionUpdate.when = parseFlexibleDate(dto.extraction.when, new Date());
+          extractionUpdate.when = parseFlexibleDate(
+            dto.extraction.when,
+            new Date(),
+          );
         }
       }
 
@@ -1068,7 +1201,7 @@ export class MemoryService {
     // 5. Re-embed if content changed
     if (contentChanged && dto.raw) {
       console.log(`[Memory] Content changed, re-embedding: ${memoryId}`);
-      
+
       // Generate new embedding
       const embedding = await this.embedding.generate(dto.raw);
       await this.embedding.store(memoryId, embedding, {
@@ -1085,45 +1218,50 @@ export class MemoryService {
         userId,
         userName: memory.user?.externalId,
       };
-      this.extraction.extract(dto.raw, context).then(async (extracted) => {
-        await this.prisma.memoryExtraction.update({
-          where: { memoryId },
-          data: {
-            who: extracted.who,
-            what: extracted.what,
-            when: parseFlexibleDate(extracted.when, new Date()),
-            whereCtx: extracted.where,
-            why: extracted.why,
-            how: extracted.how,
-            topics: extracted.topics,
-            extractedAt: new Date(),
-            // Memory Intelligence: update classification
-            memoryType: extracted.memoryType,
-            typeConfidence: extracted.typeConfidence,
-            // Field-level confidence scores
-            whoConfidence: extracted.confidence.whoConfidence,
-            whatConfidence: extracted.confidence.whatConfidence,
-            whenConfidence: extracted.confidence.whenConfidence,
-            whereConfidence: extracted.confidence.whereConfidence,
-            whyConfidence: extracted.confidence.whyConfidence,
-            howConfidence: extracted.confidence.howConfidence,
-          },
-        });
-        // Memory Intelligence: Update memory record with type and priority
-        if (extracted.memoryType) {
-          const priority = this.extraction.getPriorityForType(extracted.memoryType);
-          await this.prisma.memory.update({
-            where: { id: memoryId },
+      this.extraction
+        .extract(dto.raw, context)
+        .then(async (extracted) => {
+          await this.prisma.memoryExtraction.update({
+            where: { memoryId },
             data: {
+              who: extracted.who,
+              what: extracted.what,
+              when: parseFlexibleDate(extracted.when, new Date()),
+              whereCtx: extracted.where,
+              why: extracted.why,
+              how: extracted.how,
+              topics: extracted.topics,
+              extractedAt: new Date(),
+              // Memory Intelligence: update classification
               memoryType: extracted.memoryType,
               typeConfidence: extracted.typeConfidence,
-              priority,
+              // Field-level confidence scores
+              whoConfidence: extracted.confidence.whoConfidence,
+              whatConfidence: extracted.confidence.whatConfidence,
+              whenConfidence: extracted.confidence.whenConfidence,
+              whereConfidence: extracted.confidence.whereConfidence,
+              whyConfidence: extracted.confidence.whyConfidence,
+              howConfidence: extracted.confidence.howConfidence,
             },
           });
-        }
-      }).catch((err) => {
-        console.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
-      });
+          // Memory Intelligence: Update memory record with type and priority
+          if (extracted.memoryType) {
+            const priority = this.extraction.getPriorityForType(
+              extracted.memoryType,
+            );
+            await this.prisma.memory.update({
+              where: { id: memoryId },
+              data: {
+                memoryType: extracted.memoryType,
+                typeConfidence: extracted.typeConfidence,
+                priority,
+              },
+            });
+          }
+        })
+        .catch((err) => {
+          console.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
+        });
     }
 
     // 6. Return updated memory with extraction
@@ -1132,12 +1270,12 @@ export class MemoryService {
 
   /**
    * Correct a memory with contradiction tracking (P5-001)
-   * 
+   *
    * Creates a new "correction" memory that supersedes the original.
    * - Original memory is marked as superseded (preserved for history)
    * - New correction memory is created with CORRECTION source
    * - CONTRADICTS link is created between them
-   * 
+   *
    * @returns The new correction memory
    */
   async correctMemory(
@@ -1164,12 +1302,17 @@ export class MemoryService {
     }
 
     if (original.supersededById) {
-      throw new Error(`Memory already superseded by: ${original.supersededById}`);
+      throw new Error(
+        `Memory already superseded by: ${original.supersededById}`,
+      );
     }
 
     // 2. Calculate importance for correction (at least as important as original)
     const correctionImportance = dto.importanceHint
-      ? this.importance.calculate({ hint: dto.importanceHint, layer: dto.layer ?? original.layer })
+      ? this.importance.calculate({
+          hint: dto.importanceHint,
+          layer: dto.layer ?? original.layer,
+        })
       : Math.min(1.0, original.importanceScore + 0.1); // Slightly boost importance
 
     // 3. Create the correction memory
@@ -1179,7 +1322,8 @@ export class MemoryService {
         raw: dto.correctedContent,
         layer: dto.layer ?? original.layer,
         source: MemorySource.CORRECTION,
-        importanceHint: dto.importanceHint ?? original.importanceHint ?? undefined,
+        importanceHint:
+          dto.importanceHint ?? original.importanceHint ?? undefined,
         importanceScore: correctionImportance,
         projectId: original.projectId,
         sessionId: original.sessionId,
@@ -1211,11 +1355,21 @@ export class MemoryService {
       userId,
       userName: original.user?.externalId,
     };
-    this.extractAndEmbed(correction.id, dto.correctedContent, userId, context).catch((err) => {
-      console.error(`[Memory] Extraction failed for correction ${correction.id}:`, err);
+    this.extractAndEmbed(
+      correction.id,
+      dto.correctedContent,
+      userId,
+      context,
+    ).catch((err) => {
+      console.error(
+        `[Memory] Extraction failed for correction ${correction.id}:`,
+        err,
+      );
     });
 
-    console.log(`[Memory] Created correction: ${correction.id} supersedes ${memoryId}`);
+    console.log(
+      `[Memory] Created correction: ${correction.id} supersedes ${memoryId}`,
+    );
 
     return correction;
   }
@@ -1236,13 +1390,13 @@ export class MemoryService {
     // Build list of user IDs to fetch
     const userIds = [userId];
     let agentUserId: string | null = null;
-    
+
     if (includeAgent) {
       // Find the agent user (externalId = 'rook') in the same agent
       const currentUser = await this.prisma.user.findUnique({
         where: { id: userId },
       });
-      
+
       if (currentUser) {
         const agentUser = await this.prisma.user.findFirst({
           where: {
@@ -1251,7 +1405,7 @@ export class MemoryService {
             deletedAt: null,
           },
         });
-        
+
         if (agentUser) {
           userIds.push(agentUser.id);
           agentUserId = agentUser.id;
@@ -1278,13 +1432,10 @@ export class MemoryService {
     });
 
     // Fetch chain links between these memories
-    const memoryIds = memories.map(m => m.id);
+    const memoryIds = memories.map((m) => m.id);
     const chainLinks = await this.prisma.memoryChainLink.findMany({
       where: {
-        OR: [
-          { sourceId: { in: memoryIds } },
-          { targetId: { in: memoryIds } },
-        ],
+        OR: [{ sourceId: { in: memoryIds } }, { targetId: { in: memoryIds } }],
       },
     });
 
@@ -1304,7 +1455,7 @@ export class MemoryService {
     }
 
     // Transform to graph nodes
-    const nodes = memories.map(m => ({
+    const nodes = memories.map((m) => ({
       id: m.id,
       raw: m.raw,
       layer: m.layer,
@@ -1318,42 +1469,49 @@ export class MemoryService {
       userPinned: m.userPinned,
       confidence: m.confidence,
       createdAt: m.createdAt.toISOString(),
-      extraction: m.extraction ? {
-        who: m.extraction.who,
-        what: m.extraction.what,
-        when: m.extraction.when?.toISOString(),
-        where: m.extraction.whereCtx,
-        why: m.extraction.why,
-        how: m.extraction.how,
-        topics: m.extraction.topics,
-        memoryType: m.extraction.memoryType, // Type classification
-        // Field-level confidence scores
-        whoConfidence: m.extraction.whoConfidence,
-        whatConfidence: m.extraction.whatConfidence,
-        whenConfidence: m.extraction.whenConfidence,
-        whereConfidence: m.extraction.whereConfidence,
-        whyConfidence: m.extraction.whyConfidence,
-        howConfidence: m.extraction.howConfidence,
-      } : null,
-      entities: m.entities.map(me => ({
+      extraction: m.extraction
+        ? {
+            who: m.extraction.who,
+            what: m.extraction.what,
+            when: m.extraction.when?.toISOString(),
+            where: m.extraction.whereCtx,
+            why: m.extraction.why,
+            how: m.extraction.how,
+            topics: m.extraction.topics,
+            memoryType: m.extraction.memoryType, // Type classification
+            // Field-level confidence scores
+            whoConfidence: m.extraction.whoConfidence,
+            whatConfidence: m.extraction.whatConfidence,
+            whenConfidence: m.extraction.whenConfidence,
+            whereConfidence: m.extraction.whereConfidence,
+            whyConfidence: m.extraction.whyConfidence,
+            howConfidence: m.extraction.howConfidence,
+          }
+        : null,
+      entities: m.entities.map((me) => ({
         id: me.entity.id,
         name: me.entity.name,
         type: me.entity.type,
       })),
       // Determine primary entity type for coloring
-      primaryEntityType: m.entities.length > 0 
-        ? m.entities[0].entity.type.toLowerCase()
-        : 'other',
+      primaryEntityType:
+        m.entities.length > 0
+          ? m.entities[0].entity.type.toLowerCase()
+          : 'other',
     }));
-    
+
     // Calculate stats for merged view
-    const humanCount = nodes.filter(n => n.memorySource === 'human').length;
-    const agentCount = nodes.filter(n => n.memorySource === 'agent').length;
+    const humanCount = nodes.filter((n) => n.memorySource === 'human').length;
+    const agentCount = nodes.filter((n) => n.memorySource === 'agent').length;
 
     // Transform to graph edges
     const edges = chainLinks
-      .filter(link => memoryIds.includes(link.sourceId) && memoryIds.includes(link.targetId))
-      .map(link => ({
+      .filter(
+        (link) =>
+          memoryIds.includes(link.sourceId) &&
+          memoryIds.includes(link.targetId),
+      )
+      .map((link) => ({
         id: link.id,
         source: link.sourceId,
         target: link.targetId,
@@ -1383,7 +1541,9 @@ export class MemoryService {
         promotedFrom: memoryId, // Self-reference to track lineage
       },
     });
-    console.log(`[LESSON→CONSTRAINT] Auto-promoted critical lesson: ${memoryId}`);
+    console.log(
+      `[LESSON→CONSTRAINT] Auto-promoted critical lesson: ${memoryId}`,
+    );
   }
 
   // =========================================================================
@@ -1401,15 +1561,18 @@ export class MemoryService {
     if (dto.subjectType) {
       filter.subjectType = dto.subjectType;
     }
-    
+
     // If agentId is provided, filter to that agent's memories
     if (dto.agentId) {
       filter.agentId = dto.agentId;
     }
-    
+
     // Handle includeUserMemories and includeAgentMemories flags
     // These are convenience flags for common use cases
-    if (dto.includeUserMemories === false && dto.includeAgentMemories === false) {
+    if (
+      dto.includeUserMemories === false &&
+      dto.includeAgentMemories === false
+    ) {
       // Neither included - return empty result by filtering to impossible value
       filter.subjectType = 'IMPOSSIBLE' as any;
     } else if (dto.includeUserMemories === false) {
@@ -1420,7 +1583,7 @@ export class MemoryService {
       filter.subjectType = SubjectType.USER;
     }
     // If both are true (default), no subjectType filter needed - return all
-    
+
     return filter;
   }
 
@@ -1462,13 +1625,13 @@ export class MemoryService {
   }
 
   private async extractAndEmbed(
-    memoryId: string, 
-    raw: string, 
+    memoryId: string,
+    raw: string,
     userId: string,
     context?: ExtractionContext,
   ): Promise<void> {
     const inputPreview = raw.length > 80 ? raw.substring(0, 80) + '...' : raw;
-    
+
     console.log('[Memory] extractAndEmbed starting:', {
       memoryId,
       inputPreview,
@@ -1490,26 +1653,31 @@ export class MemoryService {
       topicCount: extracted.topics.length,
       topics: extracted.topics,
       entityCount: extracted.entities.length,
-      entities: extracted.entities.map(e => ({ name: e.name, type: e.type })),
+      entities: extracted.entities.map((e) => ({ name: e.name, type: e.type })),
     });
 
     // 2. Build source metadata for rawJson
-    const sourceMetadata = context ? {
-      source: {
-        timestamp: context.timestamp?.toISOString(),
-        turnIndex: context.turnIndex,
-        conversationId: context.conversationId,
-        userName: context.userName,
-      },
-    } : undefined;
+    const sourceMetadata = context
+      ? {
+          source: {
+            timestamp: context.timestamp?.toISOString(),
+            turnIndex: context.turnIndex,
+            conversationId: context.conversationId,
+            userName: context.userName,
+          },
+        }
+      : undefined;
 
     // 3. Save extraction with source metadata
     // Use parseFlexibleDate for robust handling of:
     // - ISO dates: "2026-02-01"
     // - Relative: "yesterday", "last week", "2 days ago"
     // - Natural language: "February 1st, 2026"
-    const parsedWhen = parseFlexibleDate(extracted.when, context?.timestamp ?? new Date());
-    
+    const parsedWhen = parseFlexibleDate(
+      extracted.when,
+      context?.timestamp ?? new Date(),
+    );
+
     if (extracted.when && !parsedWhen) {
       console.warn('[Memory] Could not parse date:', {
         memoryId,
@@ -1521,7 +1689,9 @@ export class MemoryService {
     // Merge source metadata with lesson fields for rawJson storage
     const rawJsonData = {
       ...sourceMetadata,
-      ...(extracted.lesson ? { lesson: JSON.parse(JSON.stringify(extracted.lesson)) } : {}),
+      ...(extracted.lesson
+        ? { lesson: JSON.parse(JSON.stringify(extracted.lesson)) }
+        : {}),
     };
 
     await this.prisma.memoryExtraction.create({
@@ -1534,7 +1704,10 @@ export class MemoryService {
         why: extracted.why,
         how: extracted.how,
         topics: extracted.topics,
-        rawJson: Object.keys(rawJsonData).length > 0 ? (rawJsonData as any) : undefined,
+        rawJson:
+          Object.keys(rawJsonData).length > 0
+            ? (rawJsonData as any)
+            : undefined,
         // Memory Intelligence: classification from LLM
         memoryType: extracted.memoryType,
         typeConfidence: extracted.typeConfidence,
@@ -1547,7 +1720,7 @@ export class MemoryService {
         howConfidence: extracted.confidence.howConfidence,
       },
     });
-    console.log('[Memory] MemoryExtraction saved for:', memoryId, { 
+    console.log('[Memory] MemoryExtraction saved for:', memoryId, {
       parsedWhen: parsedWhen?.toISOString() ?? null,
       memoryType: extracted.memoryType,
       typeConfidence: extracted.typeConfidence,
@@ -1565,10 +1738,17 @@ export class MemoryService {
           priority,
         },
       });
-      console.log('[Memory] Memory Intelligence updated:', { memoryId, memoryType: extracted.memoryType, priority });
+      console.log('[Memory] Memory Intelligence updated:', {
+        memoryId,
+        memoryType: extracted.memoryType,
+        priority,
+      });
 
       // LESSON auto-promotion: critical lessons become constraints
-      if (extracted.memoryType === 'LESSON' && extracted.lesson?.lessonSeverity === 'critical') {
+      if (
+        extracted.memoryType === 'LESSON' &&
+        extracted.lesson?.lessonSeverity === 'critical'
+      ) {
         await this.promoteToConstraint(memoryId);
       }
     }
@@ -1578,7 +1758,7 @@ export class MemoryService {
       console.log('[Memory] Storing entities:', {
         memoryId,
         count: extracted.entities.length,
-        entities: extracted.entities.map(e => `${e.name}:${e.type}`),
+        entities: extracted.entities.map((e) => `${e.name}:${e.type}`),
       });
       await this.storeEntities(userId, memoryId, extracted.entities);
       console.log('[Memory] Entities stored successfully for:', memoryId);
@@ -1601,18 +1781,26 @@ export class MemoryService {
       // 7. Link to related memories
       await this.linkRelatedMemories(memoryId, embedding, userId);
     } catch (embedError) {
-      console.warn(`[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`, embedError instanceof Error ? embedError.message : embedError);
+      console.warn(
+        `[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`,
+        embedError instanceof Error ? embedError.message : embedError,
+      );
       // Memory is saved without embedding; the EmbeddingRetryService will pick it up
     }
-    
+
     console.log('[Memory] extractAndEmbed complete:', memoryId);
 
     // 8. Process hierarchical embeddings (async, non-blocking)
     // This creates L0 (sentence) and L1 (paragraph) level embeddings
     if (this.hierarchyService?.isEnabled()) {
-      this.hierarchyService.processMemory(memoryId, raw, userId).catch((err) => {
-        console.error(`[Memory] Hierarchy processing failed for ${memoryId}:`, err);
-      });
+      this.hierarchyService
+        .processMemory(memoryId, raw, userId)
+        .catch((err) => {
+          console.error(
+            `[Memory] Hierarchy processing failed for ${memoryId}:`,
+            err,
+          );
+        });
     }
   }
 
@@ -1628,7 +1816,7 @@ export class MemoryService {
       try {
         // Find or create entity
         const normalizedName = entity.name.toLowerCase().trim();
-        
+
         const existingEntity = await this.prisma.entity.findUnique({
           where: {
             userId_normalizedName_type: {
@@ -1640,7 +1828,7 @@ export class MemoryService {
         });
 
         let entityId: string;
-        
+
         if (existingEntity) {
           entityId = existingEntity.id;
         } else {
@@ -1680,16 +1868,19 @@ export class MemoryService {
     try {
       // Search for similar memories
       const similar = await this.embedding.search(userId, embedding, 10);
-      
+
       // Filter to related but not duplicates, excluding self
       const related = similar.filter(
-        m => m.id !== memoryId && 
-             m.score >= RELATED_SIMILARITY_THRESHOLD && 
-             m.score < DEDUP_SIMILARITY_THRESHOLD
+        (m) =>
+          m.id !== memoryId &&
+          m.score >= RELATED_SIMILARITY_THRESHOLD &&
+          m.score < DEDUP_SIMILARITY_THRESHOLD,
       );
 
       if (related.length > 0) {
-        console.debug(`[linkRelatedMemories] Memory ${memoryId}: found ${related.length} linkable memories (scores: ${related.map(r => r.score.toFixed(3)).join(', ')})`);
+        console.debug(
+          `[linkRelatedMemories] Memory ${memoryId}: found ${related.length} linkable memories (scores: ${related.map((r) => r.score.toFixed(3)).join(', ')})`,
+        );
       }
 
       let linksCreated = 0;
@@ -1717,15 +1908,22 @@ export class MemoryService {
           linksCreated++;
         } catch (error) {
           // Ignore constraint violations (link may already exist)
-          console.debug(`[linkRelatedMemories] Link skipped (may exist): ${memoryId} -> ${match.id}`);
+          console.debug(
+            `[linkRelatedMemories] Link skipped (may exist): ${memoryId} -> ${match.id}`,
+          );
         }
       }
-      
+
       if (linksCreated > 0) {
-        console.debug(`[linkRelatedMemories] Memory ${memoryId}: created ${linksCreated} links`);
+        console.debug(
+          `[linkRelatedMemories] Memory ${memoryId}: created ${linksCreated} links`,
+        );
       }
     } catch (error) {
-      console.error('[linkRelatedMemories] Failed to link related memories:', error);
+      console.error(
+        '[linkRelatedMemories] Failed to link related memories:',
+        error,
+      );
     }
   }
 

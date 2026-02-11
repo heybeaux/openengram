@@ -161,7 +161,8 @@ export class MergeService {
    */
   private mergeKeepNewest(memories: MergeableMemory[]): MergeResult {
     const sorted = [...memories].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
     const survivor = sorted[0];
@@ -182,7 +183,8 @@ export class MergeService {
    */
   private mergeKeepOldest(memories: MergeableMemory[]): MergeResult {
     const sorted = [...memories].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
 
     const survivor = sorted[0];
@@ -226,7 +228,9 @@ export class MergeService {
    * Keep the memory with highest importance score
    */
   private mergeKeepImportance(memories: MergeableMemory[]): MergeResult {
-    const sorted = [...memories].sort((a, b) => b.importanceScore - a.importanceScore);
+    const sorted = [...memories].sort(
+      (a, b) => b.importanceScore - a.importanceScore,
+    );
 
     const survivor = sorted[0];
     const absorbed = sorted.slice(1);
@@ -247,12 +251,16 @@ export class MergeService {
   private mergeCombineMetadata(memories: MergeableMemory[]): MergeResult {
     // Find most detailed content
     const contentWinner = memories.reduce((best, current) =>
-      this.computeDetailScore(current.raw) > this.computeDetailScore(best.raw) ? current : best,
+      this.computeDetailScore(current.raw) > this.computeDetailScore(best.raw)
+        ? current
+        : best,
     );
 
     return {
       survivorId: contentWinner.id,
-      absorbedIds: memories.filter((m) => m.id !== contentWinner.id).map((m) => m.id),
+      absorbedIds: memories
+        .filter((m) => m.id !== contentWinner.id)
+        .map((m) => m.id),
       mergedContent: contentWinner.raw,
       mergedMetadata: this.mergeMetadata(memories),
       strategy: MergeStrategy.COMBINE_METADATA,
@@ -275,7 +283,9 @@ export class MergeService {
     score += Math.min(words.size / 50, 1) * 20;
 
     // Has specific dates/numbers (max 15 points)
-    const hasNumbers = /\d{4}|\d+\s*(years?|months?|days?|weeks?)/.test(content);
+    const hasNumbers = /\d{4}|\d+\s*(years?|months?|days?|weeks?)/.test(
+      content,
+    );
     if (hasNumbers) score += 15;
 
     // Has proper nouns (rough heuristic, max 15 points)
@@ -287,8 +297,18 @@ export class MergeService {
     score += Math.min(punctuation.length * 2, 10);
 
     // Has connecting words (indicates explanation, max 10 points)
-    const connectors = ['because', 'therefore', 'since', 'when', 'where', 'who', 'which'];
-    const hasConnectors = connectors.some((c) => content.toLowerCase().includes(c));
+    const connectors = [
+      'because',
+      'therefore',
+      'since',
+      'when',
+      'where',
+      'who',
+      'which',
+    ];
+    const hasConnectors = connectors.some((c) =>
+      content.toLowerCase().includes(c),
+    );
     if (hasConnectors) score += 10;
 
     return score;
@@ -302,14 +322,19 @@ export class MergeService {
     const importanceScore = Math.max(...memories.map((m) => m.importanceScore));
 
     // Sum access counts
-    const accessCount = memories.reduce((sum, m) => sum + (m.retrievalCount ?? 0) + (m.usedCount ?? 0), 0);
+    const accessCount = memories.reduce(
+      (sum, m) => sum + (m.retrievalCount ?? 0) + (m.usedCount ?? 0),
+      0,
+    );
 
     // Most recent access
     const accessDates = memories
       .map((m) => m.lastRetrievedAt ?? m.lastUsedAt)
       .filter((d): d is Date => d !== null);
     const lastAccessedAt =
-      accessDates.length > 0 ? new Date(Math.max(...accessDates.map((d) => d.getTime()))) : null;
+      accessDates.length > 0
+        ? new Date(Math.max(...accessDates.map((d) => d.getTime())))
+        : null;
 
     return {
       importanceScore,

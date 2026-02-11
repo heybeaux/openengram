@@ -32,7 +32,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect anaphylaxis', () => {
         const result = detector.detectSafetyCritical(
-          'I carry an epipen due to anaphylaxis risk'
+          'I carry an epipen due to anaphylaxis risk',
         );
 
         expect(result.isSafety).toBe(true);
@@ -42,7 +42,9 @@ describe('SafetyDetectorService', () => {
 
     describe('medication detection', () => {
       it('should detect "my medication is"', () => {
-        const result = detector.detectSafetyCritical('My medication is Lisinopril');
+        const result = detector.detectSafetyCritical(
+          'My medication is Lisinopril',
+        );
 
         expect(result.isSafety).toBe(true);
         expect(result.indicators).toContain('medication');
@@ -50,7 +52,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect "prescription drugs"', () => {
         const result = detector.detectSafetyCritical(
-          'I take prescription drugs for anxiety'
+          'I take prescription drugs for anxiety',
         );
 
         expect(result.isSafety).toBe(true);
@@ -58,7 +60,9 @@ describe('SafetyDetectorService', () => {
       });
 
       it('should detect insulin', () => {
-        const result = detector.detectSafetyCritical('I need insulin twice daily');
+        const result = detector.detectSafetyCritical(
+          'I need insulin twice daily',
+        );
 
         expect(result.isSafety).toBe(true);
         expect(result.indicators).toContain('medication');
@@ -66,7 +70,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect blood thinners', () => {
         const result = detector.detectSafetyCritical(
-          'I take blood thinner medication'
+          'I take blood thinner medication',
         );
 
         expect(result.isSafety).toBe(true);
@@ -98,7 +102,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect seizures', () => {
         const result = detector.detectSafetyCritical(
-          'I sometimes have seizures'
+          'I sometimes have seizures',
         );
 
         expect(result.isSafety).toBe(true);
@@ -120,7 +124,9 @@ describe('SafetyDetectorService', () => {
       });
 
       it('should detect heart condition', () => {
-        const result = detector.detectSafetyCritical('I have a heart condition');
+        const result = detector.detectSafetyCritical(
+          'I have a heart condition',
+        );
 
         expect(result.isSafety).toBe(true);
         expect(result.indicators).toContain('medical');
@@ -137,7 +143,7 @@ describe('SafetyDetectorService', () => {
     describe('emergency information detection', () => {
       it('should detect emergency contact', () => {
         const result = detector.detectSafetyCritical(
-          'My emergency contact is John at 555-1234'
+          'My emergency contact is John at 555-1234',
         );
 
         expect(result.isSafety).toBe(true);
@@ -145,7 +151,9 @@ describe('SafetyDetectorService', () => {
       });
 
       it('should detect blood type', () => {
-        const result = detector.detectSafetyCritical('My blood type is O negative');
+        const result = detector.detectSafetyCritical(
+          'My blood type is O negative',
+        );
 
         expect(result.isSafety).toBe(true);
         expect(result.indicators).toContain('medical');
@@ -160,7 +168,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect do not resuscitate', () => {
         const result = detector.detectSafetyCritical(
-          'Do not resuscitate if cardiac arrest occurs'
+          'Do not resuscitate if cardiac arrest occurs',
         );
 
         expect(result.isSafety).toBe(true);
@@ -171,7 +179,7 @@ describe('SafetyDetectorService', () => {
     describe('critical severity detection', () => {
       it('should detect life-threatening', () => {
         const result = detector.detectSafetyCritical(
-          'I have a life-threatening allergy'
+          'I have a life-threatening allergy',
         );
 
         expect(result.isSafety).toBe(true);
@@ -180,7 +188,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect deathly', () => {
         const result = detector.detectSafetyCritical(
-          "I'm deathly afraid of needles"
+          "I'm deathly afraid of needles",
         );
 
         expect(result.isSafety).toBe(true);
@@ -189,7 +197,7 @@ describe('SafetyDetectorService', () => {
 
       it('should detect fatal', () => {
         const result = detector.detectSafetyCritical(
-          'Could be fatal if exposed to shellfish'
+          'Could be fatal if exposed to shellfish',
         );
 
         expect(result.isSafety).toBe(true);
@@ -200,7 +208,7 @@ describe('SafetyDetectorService', () => {
     describe('non-safety text', () => {
       it('should return false for normal text', () => {
         const result = detector.detectSafetyCritical(
-          'I like to go hiking on weekends'
+          'I like to go hiking on weekends',
         );
 
         expect(result.isSafety).toBe(false);
@@ -209,7 +217,7 @@ describe('SafetyDetectorService', () => {
 
       it('should return false for work-related text', () => {
         const result = detector.detectSafetyCritical(
-          'I prefer working in the morning'
+          'I prefer working in the morning',
         );
 
         expect(result.isSafety).toBe(false);
@@ -218,7 +226,7 @@ describe('SafetyDetectorService', () => {
 
       it('should return false for preference text', () => {
         const result = detector.detectSafetyCritical(
-          'I always drink my coffee black'
+          'I always drink my coffee black',
         );
 
         expect(result.isSafety).toBe(false);
@@ -229,7 +237,7 @@ describe('SafetyDetectorService', () => {
     describe('case insensitivity', () => {
       it('should detect ALLERGY in uppercase', () => {
         const result = detector.detectSafetyCritical(
-          'I HAVE AN ALLERGY TO SHELLFISH'
+          'I HAVE AN ALLERGY TO SHELLFISH',
         );
 
         expect(result.isSafety).toBe(true);
@@ -237,7 +245,9 @@ describe('SafetyDetectorService', () => {
       });
 
       it('should detect MeDiCaTiOn in mixed case', () => {
-        const result = detector.detectSafetyCritical('My MeDiCaTiOn is important');
+        const result = detector.detectSafetyCritical(
+          'My MeDiCaTiOn is important',
+        );
 
         expect(result.isSafety).toBe(true);
         expect(result.indicators).toContain('medication');
@@ -247,7 +257,7 @@ describe('SafetyDetectorService', () => {
     describe('multiple indicators', () => {
       it('should detect multiple safety indicators', () => {
         const result = detector.detectSafetyCritical(
-          "I'm diabetic and allergic to penicillin. My emergency contact is my wife."
+          "I'm diabetic and allergic to penicillin. My emergency contact is my wife.",
         );
 
         expect(result.isSafety).toBe(true);
@@ -259,12 +269,12 @@ describe('SafetyDetectorService', () => {
 
       it('should not duplicate indicators', () => {
         const result = detector.detectSafetyCritical(
-          "I'm allergic to peanuts and have many food allergies including allergy to shellfish"
+          "I'm allergic to peanuts and have many food allergies including allergy to shellfish",
         );
 
         expect(result.isSafety).toBe(true);
         const allergyCount = result.indicators.filter(
-          (i) => i === 'allergy'
+          (i) => i === 'allergy',
         ).length;
         expect(allergyCount).toBe(1);
       });
@@ -275,7 +285,9 @@ describe('SafetyDetectorService', () => {
     it('should allow adding custom patterns', () => {
       detector.addPattern(/\bcustom danger\b/i, 'custom');
 
-      const result = detector.detectSafetyCritical('This is a custom danger zone');
+      const result = detector.detectSafetyCritical(
+        'This is a custom danger zone',
+      );
 
       expect(result.isSafety).toBe(true);
       expect(result.indicators).toContain('custom');

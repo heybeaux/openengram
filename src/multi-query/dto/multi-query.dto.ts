@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsEnum, ValidateNested, IsObject, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsEnum,
+  ValidateNested,
+  IsObject,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -6,19 +16,19 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * Fusion strategy for combining results from multiple queries
  */
 export enum FusionStrategy {
-  RRF = 'rrf',             // Reciprocal Rank Fusion (default)
+  RRF = 'rrf', // Reciprocal Rank Fusion (default)
   FREQUENCY = 'frequency', // Frequency-based boost
-  WEIGHTED = 'weighted',   // Weighted RRF with query source weights
-  MAX_SCORE = 'max',       // Use maximum similarity score
+  WEIGHTED = 'weighted', // Weighted RRF with query source weights
+  MAX_SCORE = 'max', // Use maximum similarity score
 }
 
 /**
  * Expansion strategy for generating query variants
  */
 export enum ExpansionStrategy {
-  RULES = 'rules',         // Rule-based only (synonyms, patterns)
-  LLM = 'llm',             // LLM-powered only
-  HYBRID = 'hybrid',       // Combine rules + LLM
+  RULES = 'rules', // Rule-based only (synonyms, patterns)
+  LLM = 'llm', // LLM-powered only
+  HYBRID = 'hybrid', // Combine rules + LLM
 }
 
 /**
@@ -30,24 +40,37 @@ export class MultiQueryOptionsDto {
   @IsBoolean()
   enabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'Preset configuration', enum: ['fast', 'balanced', 'comprehensive'] })
+  @ApiPropertyOptional({
+    description: 'Preset configuration',
+    enum: ['fast', 'balanced', 'comprehensive'],
+  })
   @IsOptional()
   @IsString()
   preset?: 'fast' | 'balanced' | 'comprehensive';
 
-  @ApiPropertyOptional({ description: 'Maximum number of query variants', minimum: 2, maximum: 15 })
+  @ApiPropertyOptional({
+    description: 'Maximum number of query variants',
+    minimum: 2,
+    maximum: 15,
+  })
   @IsOptional()
   @IsNumber()
   @Min(2)
   @Max(15)
   maxVariants?: number;
 
-  @ApiPropertyOptional({ description: 'Fusion strategy for combining results', enum: FusionStrategy })
+  @ApiPropertyOptional({
+    description: 'Fusion strategy for combining results',
+    enum: FusionStrategy,
+  })
   @IsOptional()
   @IsEnum(FusionStrategy)
   fusionStrategy?: FusionStrategy;
 
-  @ApiPropertyOptional({ description: 'Expansion strategy for generating variants', enum: ExpansionStrategy })
+  @ApiPropertyOptional({
+    description: 'Expansion strategy for generating variants',
+    enum: ExpansionStrategy,
+  })
   @IsOptional()
   @IsEnum(ExpansionStrategy)
   expansionStrategy?: ExpansionStrategy;
@@ -57,7 +80,9 @@ export class MultiQueryOptionsDto {
   @IsBoolean()
   includeVariants?: boolean;
 
-  @ApiPropertyOptional({ description: 'Include detailed timing breakdown in response' })
+  @ApiPropertyOptional({
+    description: 'Include detailed timing breakdown in response',
+  })
   @IsOptional()
   @IsBoolean()
   includeTimings?: boolean;
@@ -67,7 +92,11 @@ export class MultiQueryOptionsDto {
   @IsBoolean()
   includeExplanations?: boolean;
 
-  @ApiPropertyOptional({ description: 'Target latency in milliseconds', minimum: 100, maximum: 5000 })
+  @ApiPropertyOptional({
+    description: 'Target latency in milliseconds',
+    minimum: 100,
+    maximum: 5000,
+  })
   @IsOptional()
   @IsNumber()
   @Min(100)
@@ -83,7 +112,10 @@ export class ExpandQueryDto {
   @IsString()
   query: string;
 
-  @ApiPropertyOptional({ description: 'Expansion strategy', enum: ExpansionStrategy })
+  @ApiPropertyOptional({
+    description: 'Expansion strategy',
+    enum: ExpansionStrategy,
+  })
   @IsOptional()
   @IsEnum(ExpansionStrategy)
   strategy?: ExpansionStrategy;
@@ -106,7 +138,7 @@ export class QueryMatchDto {
   @ApiProperty({ description: 'Query text' })
   query: string;
 
-  @ApiProperty({ description: 'Rank in this query\'s results' })
+  @ApiProperty({ description: "Rank in this query's results" })
   rank: number;
 
   @ApiProperty({ description: 'Similarity score from this query' })
@@ -143,7 +175,10 @@ export class ResultExplanationDto {
   @ApiProperty({ description: 'Final combined score' })
   totalScore: number;
 
-  @ApiProperty({ description: 'Details of which queries matched', type: [QueryMatchDto] })
+  @ApiProperty({
+    description: 'Details of which queries matched',
+    type: [QueryMatchDto],
+  })
   matchedQueries: QueryMatchDto[];
 
   @ApiProperty({ description: 'Contribution breakdown' })

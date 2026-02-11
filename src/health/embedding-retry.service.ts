@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 import { EmbeddingService } from '../memory/embedding.service';
@@ -6,7 +11,7 @@ import { EmbeddingService } from '../memory/embedding.service';
 /**
  * Background service that retries embedding generation for memories
  * that were created without embeddings (due to engram-embed being down).
- * 
+ *
  * Runs every 5 minutes. Only attempts if engram-embed is available.
  */
 @Injectable()
@@ -51,7 +56,13 @@ export class EmbeddingRetryService implements OnModuleInit, OnModuleDestroy {
       },
       orderBy: { createdAt: 'desc' },
       take: this.batchSize,
-      select: { id: true, raw: true, userId: true, layer: true, importanceScore: true },
+      select: {
+        id: true,
+        raw: true,
+        userId: true,
+        layer: true,
+        importanceScore: true,
+      },
     });
 
     if (pending.length === 0) return;
@@ -63,11 +74,15 @@ export class EmbeddingRetryService implements OnModuleInit, OnModuleDestroy {
     for (const memory of pending) {
       try {
         const embedding = await this.embeddingService.generate(memory.raw);
-        const embeddingId = await this.embeddingService.store(memory.id, embedding, {
-          userId: memory.userId,
-          layer: memory.layer,
-          importance: memory.importanceScore,
-        });
+        const embeddingId = await this.embeddingService.store(
+          memory.id,
+          embedding,
+          {
+            userId: memory.userId,
+            layer: memory.layer,
+            importance: memory.importanceScore,
+          },
+        );
 
         await this.prisma.memory.update({
           where: { id: memory.id },
@@ -78,14 +93,18 @@ export class EmbeddingRetryService implements OnModuleInit, OnModuleDestroy {
       } catch (err) {
         failed++;
         if (failed >= 3) {
-          this.logger.warn(`Embedding retry: ${failed} failures, stopping batch`);
+          this.logger.warn(
+            `Embedding retry: ${failed} failures, stopping batch`,
+          );
           break;
         }
       }
     }
 
     if (success > 0) {
-      this.logger.log(`Embedding retry complete: ${success} succeeded, ${failed} failed`);
+      this.logger.log(
+        `Embedding retry complete: ${success} succeeded, ${failed} failed`,
+      );
     }
   }
 }

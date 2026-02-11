@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
-import { MessageTurnDto, MessageRole, ImportanceSignal, ExtractedMemory } from './dto/observe.dto';
+import {
+  MessageTurnDto,
+  MessageRole,
+  ImportanceSignal,
+  ExtractedMemory,
+} from './dto/observe.dto';
 
 /**
  * Build extraction prompt with optional user context
  */
 const buildExtractionPrompt = (userName?: string): string => {
   const userRef = userName || 'User';
-  
+
   return `You are analyzing a conversation to extract memorable facts. Focus on information that would be valuable to remember for future conversations.
 
 ${userName ? `IMPORTANT: The user's name is "${userName}". Use their actual name in extracted facts, not generic terms like "User" or "the user".` : ''}
@@ -82,9 +87,17 @@ export class AutoExtractorService {
       );
 
       // Convert to ExtractedMemory format
-      return this.processExtractions(result.facts || [], turns, signals, context?.userName);
+      return this.processExtractions(
+        result.facts || [],
+        turns,
+        signals,
+        context?.userName,
+      );
     } catch (error) {
-      console.error('LLM extraction failed, falling back to signal-based extraction:', error);
+      console.error(
+        'LLM extraction failed, falling back to signal-based extraction:',
+        error,
+      );
       return this.signalBasedExtraction(turns, signals, context?.userName);
     }
   }
@@ -105,7 +118,10 @@ export class AutoExtractorService {
     if (signals.length === 0) return '';
 
     return signals
-      .map(s => `- Turn ${s.turnIndex}: ${s.type} signal ("${s.trigger}") - "${s.content}"`)
+      .map(
+        (s) =>
+          `- Turn ${s.turnIndex}: ${s.type} signal ("${s.trigger}") - "${s.content}"`,
+      )
       .join('\n');
   }
 
@@ -118,17 +134,19 @@ export class AutoExtractorService {
     signals: ImportanceSignal[],
     userName?: string,
   ): ExtractedMemory[] {
-    return facts.map(fact => {
+    return facts.map((fact) => {
       const turnIndex = Math.min(Math.max(fact.turnIndex, 0), turns.length - 1);
       const turn = turns[turnIndex];
-      const relevantSignals = signals.filter(s => s.turnIndex === turnIndex);
+      const relevantSignals = signals.filter((s) => s.turnIndex === turnIndex);
 
       // Calculate importance based on signals
       let importance = 0.5; // Base importance for LLM-extracted facts
 
       // Boost for signal matches
       if (relevantSignals.length > 0) {
-        const maxSignalConfidence = Math.max(...relevantSignals.map(s => s.confidence));
+        const maxSignalConfidence = Math.max(
+          ...relevantSignals.map((s) => s.confidence),
+        );
         importance = Math.max(importance, maxSignalConfidence);
       }
 
@@ -224,8 +242,12 @@ export class AutoExtractorService {
     const unique: ExtractedMemory[] = [];
 
     for (const memory of memories) {
-      const isDuplicate = unique.some(existing => 
-        this.similarity(existing.content.toLowerCase(), memory.content.toLowerCase()) > 0.8
+      const isDuplicate = unique.some(
+        (existing) =>
+          this.similarity(
+            existing.content.toLowerCase(),
+            memory.content.toLowerCase(),
+          ) > 0.8,
       );
 
       if (!isDuplicate) {
@@ -243,7 +265,7 @@ export class AutoExtractorService {
     const wordsA = new Set(a.split(/\s+/));
     const wordsB = new Set(b.split(/\s+/));
 
-    const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+    const intersection = new Set([...wordsA].filter((x) => wordsB.has(x)));
     const union = new Set([...wordsA, ...wordsB]);
 
     return intersection.size / union.size;

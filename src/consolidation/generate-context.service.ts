@@ -27,7 +27,12 @@ export interface GenerateContextResult {
   latencyMs: number;
 }
 
-type CategoryKey = 'userIdentity' | 'currentProject' | 'activeProjects' | 'keyLessons' | 'recentContext';
+type CategoryKey =
+  | 'userIdentity'
+  | 'currentProject'
+  | 'activeProjects'
+  | 'keyLessons'
+  | 'recentContext';
 
 interface CategorizedMemory {
   id: string;
@@ -47,7 +52,9 @@ export class GenerateContextService {
 
   constructor(private prisma: PrismaService) {}
 
-  async generate(options: GenerateContextOptions): Promise<GenerateContextResult> {
+  async generate(
+    options: GenerateContextOptions,
+  ): Promise<GenerateContextResult> {
     const startTime = Date.now();
     const maxTokens = options.maxTokens ?? 2000;
     const dryRun = options.dryRun ?? false;
@@ -62,10 +69,7 @@ export class GenerateContextService {
         deletedAt: null,
         archivedReason: null,
       },
-      orderBy: [
-        { effectiveScore: 'desc' },
-        { confidence: 'desc' },
-      ],
+      orderBy: [{ effectiveScore: 'desc' }, { confidence: 'desc' }],
       select: {
         id: true,
         raw: true,
@@ -87,7 +91,9 @@ export class GenerateContextService {
     const memoryClusterMap = new Map<string, string>();
     const clusterLabelMap = new Map<string, string>();
     try {
-      const clusterAssignments = await this.prisma.$queryRawUnsafe<Array<{ id: string; cluster_id: string }>>(
+      const clusterAssignments = await this.prisma.$queryRawUnsafe<
+        Array<{ id: string; cluster_id: string }>
+      >(
         `SELECT id, cluster_id FROM memories WHERE agent_id = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
         options.agentId,
       );
@@ -95,9 +101,13 @@ export class GenerateContextService {
         memoryClusterMap.set(row.id, row.cluster_id);
       }
 
-      const clusterIds = [...new Set(clusterAssignments.map(r => r.cluster_id))];
+      const clusterIds = [
+        ...new Set(clusterAssignments.map((r) => r.cluster_id)),
+      ];
       if (clusterIds.length > 0) {
-        const clusters = await this.prisma.$queryRawUnsafe<Array<{ id: string; label: string }>>(
+        const clusters = await this.prisma.$queryRawUnsafe<
+          Array<{ id: string; label: string }>
+        >(
           `SELECT id, label FROM memory_clusters WHERE id = ANY($1::text[])`,
           clusterIds,
         );
@@ -112,7 +122,7 @@ export class GenerateContextService {
     const totalMemories = memories.length;
 
     // === Task 1: Pre-filter stale/superseded memories ===
-    const filtered = memories.filter(m => {
+    const filtered = memories.filter((m) => {
       if (m.effectiveScore < 0.3) return false;
       if (m.supersededById != null) return false;
       if (m.consolidatedInto != null) return false;
@@ -120,24 +130,35 @@ export class GenerateContextService {
       return true;
     });
     const memoriesFiltered = totalMemories - filtered.length;
-    this.logger.log(`Pre-filter: excluded ${memoriesFiltered} stale/superseded memories`);
+    this.logger.log(
+      `Pre-filter: excluded ${memoriesFiltered} stale/superseded memories`,
+    );
 
     // === Task 5: Detect current project from last 24h high-score PROJECT memories ===
     const recentProjectMemories = filtered.filter(
-      m => m.layer === 'PROJECT' && m.createdAt >= oneDayAgo && m.effectiveScore >= 0.5,
+      (m) =>
+        m.layer === 'PROJECT' &&
+        m.createdAt >= oneDayAgo &&
+        m.effectiveScore >= 0.5,
     );
     const projectCounts = new Map<string, number>();
     for (const m of recentProjectMemories) {
       // Extract project name from raw text (first significant noun phrase or keyword)
       const text = m.raw.toLowerCase();
       // Simple heuristic: look for known project patterns
-      const projectPatterns = text.match(/(?:working on|building|project[:\s]+|developing)\s+([a-z][\w\s-]+)/i);
-      const projectName = projectPatterns ? projectPatterns[1].trim() : text.slice(0, 50);
+      const projectPatterns = text.match(
+        /(?:working on|building|project[:\s]+|developing)\s+([a-z][\w\s-]+)/i,
+      );
+      const projectName = projectPatterns
+        ? projectPatterns[1].trim()
+        : text.slice(0, 50);
       projectCounts.set(projectName, (projectCounts.get(projectName) || 0) + 1);
     }
     let currentProjectName: string | null = null;
     if (projectCounts.size > 0) {
-      currentProjectName = Array.from(projectCounts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+      currentProjectName = Array.from(projectCounts.entries()).sort(
+        (a, b) => b[1] - a[1],
+      )[0][0];
     }
 
     // === Task 2: Recent-first categorization ===
@@ -176,7 +197,11 @@ export class GenerateContextService {
     for (const m of remainingMemories) {
       let category: CategoryKey;
 
-      if (m.memoryType === 'LESSON' || m.memoryType === 'CONSTRAINT' || m.safetyCritical) {
+      if (
+        m.memoryType === 'LESSON' ||
+        m.memoryType === 'CONSTRAINT' ||
+        m.safetyCritical
+      ) {
         category = 'keyLessons';
       } else if (m.layer === 'PROJECT' || m.memoryType === 'TASK') {
         category = 'activeProjects';
@@ -206,10 +231,10 @@ export class GenerateContextService {
 
     // === Task 3: Rebalanced budget allocation ===
     const budgets: Record<CategoryKey, number> = {
-      recentContext: Math.floor(maxTokens * 0.30),
-      activeProjects: Math.floor(maxTokens * 0.20),
-      userIdentity: Math.floor(maxTokens * 0.20),
-      keyLessons: Math.floor(maxTokens * 0.20),
+      recentContext: Math.floor(maxTokens * 0.3),
+      activeProjects: Math.floor(maxTokens * 0.2),
+      userIdentity: Math.floor(maxTokens * 0.2),
+      keyLessons: Math.floor(maxTokens * 0.2),
       currentProject: 0, // carved out from activeProjects below
     };
     // 10% buffer is unused allocation
@@ -231,7 +256,11 @@ export class GenerateContextService {
 
     for (const m of categorized) {
       // Split activeProjects into currentProject vs activeProjects
-      if (m.category === 'activeProjects' && currentProjectName && m.raw.toLowerCase().includes(currentProjectName)) {
+      if (
+        m.category === 'activeProjects' &&
+        currentProjectName &&
+        m.raw.toLowerCase().includes(currentProjectName)
+      ) {
         groups.currentProject.push(m);
       } else {
         groups[m.category].push(m);
@@ -241,8 +270,11 @@ export class GenerateContextService {
     // Also pull current project memories from recentContext
     if (currentProjectName) {
       const moved: CategorizedMemory[] = [];
-      groups.recentContext = groups.recentContext.filter(m => {
-        if ((m.layer === 'PROJECT' || m.memoryType === 'TASK') && m.raw.toLowerCase().includes(currentProjectName!)) {
+      groups.recentContext = groups.recentContext.filter((m) => {
+        if (
+          (m.layer === 'PROJECT' || m.memoryType === 'TASK') &&
+          m.raw.toLowerCase().includes(currentProjectName)
+        ) {
           moved.push(m);
           return false;
         }
@@ -262,10 +294,20 @@ export class GenerateContextService {
     };
     const allSelectedTexts: string[] = [];
     const counts: Record<CategoryKey, number> = {
-      userIdentity: 0, currentProject: 0, activeProjects: 0, keyLessons: 0, recentContext: 0,
+      userIdentity: 0,
+      currentProject: 0,
+      activeProjects: 0,
+      keyLessons: 0,
+      recentContext: 0,
     };
 
-    const processingOrder: CategoryKey[] = ['keyLessons', 'currentProject', 'recentContext', 'activeProjects', 'userIdentity'];
+    const processingOrder: CategoryKey[] = [
+      'keyLessons',
+      'currentProject',
+      'recentContext',
+      'activeProjects',
+      'userIdentity',
+    ];
 
     for (const cat of processingOrder) {
       let tokensBudget = budgets[cat];
@@ -292,10 +334,16 @@ export class GenerateContextService {
     const sections: string[] = [];
     sections.push(`# Memory Context (via Engram)`);
     sections.push('');
-    sections.push(`*${totalIncluded} memories loaded, ${Math.round(totalTokens)} tokens*`);
+    sections.push(
+      `*${totalIncluded} memories loaded, ${Math.round(totalTokens)} tokens*`,
+    );
     sections.push('');
-    sections.push('> **Note:** Focus on memories relevant to the current project.');
-    sections.push('> Cross-project memories are included for reference but should not');
+    sections.push(
+      '> **Note:** Focus on memories relevant to the current project.',
+    );
+    sections.push(
+      '> Cross-project memories are included for reference but should not',
+    );
     sections.push('> influence actions on the current project.');
 
     // Section definitions with current project first if present
@@ -405,16 +453,21 @@ export class GenerateContextService {
       const otherWords = new Set(normalizedOther.split(/\s+/).filter(Boolean));
 
       // Jaccard similarity check (threshold lowered from 0.9 to 0.7)
-      const intersection = Array.from(words).filter(w => otherWords.has(w));
-      const unionSet = new Set(Array.from(words).concat(Array.from(otherWords)));
+      const intersection = Array.from(words).filter((w) => otherWords.has(w));
+      const unionSet = new Set(
+        Array.from(words).concat(Array.from(otherWords)),
+      );
       const similarity = intersection.length / unionSet.size;
       if (similarity > 0.7) return true;
 
       // Substring containment check: if 80%+ of one text's words are in the other
       const smallerWords = words.size <= otherWords.size ? words : otherWords;
       const largerWords = words.size <= otherWords.size ? otherWords : words;
-      const contained = Array.from(smallerWords).filter(w => largerWords.has(w));
-      if (smallerWords.size > 0 && contained.length / smallerWords.size >= 0.8) return true;
+      const contained = Array.from(smallerWords).filter((w) =>
+        largerWords.has(w),
+      );
+      if (smallerWords.size > 0 && contained.length / smallerWords.size >= 0.8)
+        return true;
     }
     return false;
   }

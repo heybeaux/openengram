@@ -68,12 +68,16 @@ export enum SafetyReasonType {
  * Request to trigger batch deduplication scan
  */
 export class TriggerScanDto {
-  @ApiPropertyOptional({ description: 'Run in dry-run mode (no actual merges)' })
+  @ApiPropertyOptional({
+    description: 'Run in dry-run mode (no actual merges)',
+  })
   @IsOptional()
   @IsBoolean()
   dryRun?: boolean;
 
-  @ApiPropertyOptional({ description: 'Minimum similarity threshold (0.0-1.0)' })
+  @ApiPropertyOptional({
+    description: 'Minimum similarity threshold (0.0-1.0)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

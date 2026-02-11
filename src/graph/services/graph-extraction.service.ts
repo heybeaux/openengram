@@ -96,7 +96,7 @@ const ENTITY_NAMESPACE = 'entities';
 
 /**
  * GraphExtractionService - LLM-based entity and relationship extraction
- * 
+ *
  * Processes memory content to extract entities and relationships,
  * performing entity resolution and storing results in the graph.
  */
@@ -115,8 +115,9 @@ export class GraphExtractionService {
     private readonly relationshipService: RelationshipService,
   ) {
     this.enabled = this.config.get<string>('GRAPH_ENABLED') === 'true';
-    this.extractionTimeoutMs = this.config.get<number>('GRAPH_EXTRACTION_TIMEOUT_MS') || 30000;
-    
+    this.extractionTimeoutMs =
+      this.config.get<number>('GRAPH_EXTRACTION_TIMEOUT_MS') || 30000;
+
     if (this.enabled) {
       this.logger.log('Graph extraction service enabled');
     }
@@ -167,10 +168,13 @@ export class GraphExtractionService {
     const prompt = ENTITY_EXTRACTION_PROMPT.replace('{content}', content);
 
     try {
-      const response = await this.llm.chat([{ role: 'user', content: prompt }], {
-        temperature: 0,
-        maxTokens: 1024,
-      });
+      const response = await this.llm.chat(
+        [{ role: 'user', content: prompt }],
+        {
+          temperature: 0,
+          maxTokens: 1024,
+        },
+      );
 
       const jsonMatch = response.content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
@@ -204,20 +208,28 @@ export class GraphExtractionService {
     content: string,
     entities: ExtractedEntity[],
   ): Promise<ExtractedRelationship[]> {
-    const entityList = entities.map((e) => `- ${e.name} (${e.type})`).join('\n');
-    const prompt = RELATIONSHIP_EXTRACTION_PROMPT
-      .replace('{entities}', entityList)
-      .replace('{content}', content);
+    const entityList = entities
+      .map((e) => `- ${e.name} (${e.type})`)
+      .join('\n');
+    const prompt = RELATIONSHIP_EXTRACTION_PROMPT.replace(
+      '{entities}',
+      entityList,
+    ).replace('{content}', content);
 
     try {
-      const response = await this.llm.chat([{ role: 'user', content: prompt }], {
-        temperature: 0,
-        maxTokens: 1024,
-      });
+      const response = await this.llm.chat(
+        [{ role: 'user', content: prompt }],
+        {
+          temperature: 0,
+          maxTokens: 1024,
+        },
+      );
 
       const jsonMatch = response.content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
-        this.logger.warn('No JSON array found in relationship extraction response');
+        this.logger.warn(
+          'No JSON array found in relationship extraction response',
+        );
         return [];
       }
 
@@ -272,7 +284,9 @@ export class GraphExtractionService {
     };
 
     if (!this.enabled) {
-      this.logger.debug('Graph extraction disabled, skipping memory processing');
+      this.logger.debug(
+        'Graph extraction disabled, skipping memory processing',
+      );
       return result;
     }
 
@@ -288,11 +302,15 @@ export class GraphExtractionService {
 
       // Resolve entities (create or update existing)
       const resolvedEntities = new Map<string, GraphEntity>();
-      
+
       for (const extracted of extraction.entities) {
-        const resolved = await this.resolveEntity(memory.userId, extracted, memory.id);
+        const resolved = await this.resolveEntity(
+          memory.userId,
+          extracted,
+          memory.id,
+        );
         resolvedEntities.set(extracted.name.toLowerCase(), resolved.entity);
-        
+
         if (resolved.created) {
           result.entitiesCreated++;
         } else {
@@ -300,7 +318,12 @@ export class GraphExtractionService {
         }
 
         // Create mention
-        await this.createMention(resolved.entity.id, memory.id, memory.userId, extracted.role);
+        await this.createMention(
+          resolved.entity.id,
+          memory.id,
+          memory.userId,
+          extracted.role,
+        );
         result.mentionsCreated++;
       }
 
@@ -333,12 +356,14 @@ export class GraphExtractionService {
       result.processingTimeMs = Date.now() - startTime;
       this.logger.log(
         `Processed memory ${memory.id}: ${result.entitiesCreated} entities, ` +
-        `${result.relationshipsCreated} relationships in ${result.processingTimeMs}ms`,
+          `${result.relationshipsCreated} relationships in ${result.processingTimeMs}ms`,
       );
 
       return result;
     } catch (error) {
-      this.logger.error(`Failed to process memory ${memory.id}: ${error.message}`);
+      this.logger.error(
+        `Failed to process memory ${memory.id}: ${error.message}`,
+      );
       result.processingTimeMs = Date.now() - startTime;
       return result;
     }
@@ -353,7 +378,11 @@ export class GraphExtractionService {
     memoryId: string,
   ): Promise<{ entity: GraphEntity; created: boolean }> {
     // 1. Try exact name match
-    let entity = await this.entityService.findByName(userId, extracted.name, extracted.type);
+    let entity = await this.entityService.findByName(
+      userId,
+      extracted.name,
+      extracted.type,
+    );
     if (entity) {
       // Add any new aliases
       if (extracted.aliases.length > 0) {
@@ -364,14 +393,22 @@ export class GraphExtractionService {
     }
 
     // 2. Try alias match
-    entity = await this.entityService.findByAlias(userId, extracted.name, extracted.type);
+    entity = await this.entityService.findByAlias(
+      userId,
+      extracted.name,
+      extracted.type,
+    );
     if (entity) {
       await this.entityService.incrementMentionCount(entity.id);
       return { entity, created: false };
     }
 
     // 3. Try fuzzy/semantic match using similarity heuristics
-    const candidates = await this.findSimilarEntities(userId, extracted.name, extracted.type);
+    const candidates = await this.findSimilarEntities(
+      userId,
+      extracted.name,
+      extracted.type,
+    );
     for (const candidate of candidates) {
       if (this.isSimilarName(candidate.name, extracted.name)) {
         // Add as alias
@@ -553,7 +590,9 @@ export class GraphExtractionService {
    */
   private parseEntityType(type: string): GraphEntityType {
     const normalized = type.toUpperCase();
-    if (Object.values(GraphEntityType).includes(normalized as GraphEntityType)) {
+    if (
+      Object.values(GraphEntityType).includes(normalized as GraphEntityType)
+    ) {
       return normalized as GraphEntityType;
     }
     return GraphEntityType.UNKNOWN;
@@ -564,7 +603,11 @@ export class GraphExtractionService {
    */
   private parseRelationshipType(type: string): GraphRelationshipType {
     const normalized = type.toUpperCase();
-    if (Object.values(GraphRelationshipType).includes(normalized as GraphRelationshipType)) {
+    if (
+      Object.values(GraphRelationshipType).includes(
+        normalized as GraphRelationshipType,
+      )
+    ) {
       return normalized as GraphRelationshipType;
     }
     return GraphRelationshipType.RELATED_TO;
@@ -576,7 +619,9 @@ export class GraphExtractionService {
   private parseMentionRole(role?: string): GraphMentionRole {
     if (!role) return GraphMentionRole.REFERENCE;
     const normalized = role.toUpperCase();
-    if (Object.values(GraphMentionRole).includes(normalized as GraphMentionRole)) {
+    if (
+      Object.values(GraphMentionRole).includes(normalized as GraphMentionRole)
+    ) {
       return normalized as GraphMentionRole;
     }
     return GraphMentionRole.REFERENCE;

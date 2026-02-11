@@ -23,14 +23,20 @@ export class EmbedHealthService {
   private lastLoggedStatus: 'up' | 'down' | null = null;
 
   constructor(private configService: ConfigService) {
-    this.embedUrl = this.configService.get<string>('LOCAL_EMBED_URL', 'http://127.0.0.1:8080');
+    this.embedUrl = this.configService.get<string>(
+      'LOCAL_EMBED_URL',
+      'http://127.0.0.1:8080',
+    );
   }
 
   /**
    * Get embed health status (cached for 30s)
    */
   async getStatus(): Promise<EmbedHealthStatus> {
-    if (this.cachedStatus && Date.now() - this.cachedStatus.lastChecked.getTime() < this.cacheTtlMs) {
+    if (
+      this.cachedStatus &&
+      Date.now() - this.cachedStatus.lastChecked.getTime() < this.cacheTtlMs
+    ) {
       return this.cachedStatus;
     }
     return this.refresh();
@@ -77,7 +83,7 @@ export class EmbedHealthService {
         status: isUp ? 'up' : 'down',
         latencyMs: isUp ? latencyMs : null,
         lastChecked: new Date(),
-        lastUp: isUp ? new Date() : this.cachedStatus?.lastUp ?? null,
+        lastUp: isUp ? new Date() : (this.cachedStatus?.lastUp ?? null),
       };
     } catch {
       status = {
@@ -91,7 +97,9 @@ export class EmbedHealthService {
     // Log state changes only once
     if (this.lastLoggedStatus !== status.status) {
       if (status.status === 'down') {
-        this.logger.warn('engram-embed is DOWN — memories will be created without embeddings');
+        this.logger.warn(
+          'engram-embed is DOWN — memories will be created without embeddings',
+        );
       } else {
         this.logger.log('engram-embed is UP');
       }

@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryType } from '@prisma/client';
-import { SafetyCheckResultDto, SafetyReasonDto, SafetyReasonType } from './dto/deduplication.dto';
+import {
+  SafetyCheckResultDto,
+  SafetyReasonDto,
+  SafetyReasonType,
+} from './dto/deduplication.dto';
 
 /**
  * Safety configuration for deduplication
@@ -107,7 +111,10 @@ export class SafetyService {
     const reasons: SafetyReasonDto[] = [];
 
     // Check protected types
-    if (memory.memoryType && this.config.protectedTypes.includes(memory.memoryType)) {
+    if (
+      memory.memoryType &&
+      this.config.protectedTypes.includes(memory.memoryType)
+    ) {
       reasons.push({
         type: SafetyReasonType.PROTECTED_TYPE,
         memoryType: memory.memoryType,
@@ -135,7 +142,10 @@ export class SafetyService {
     }
 
     // Check if requires review (LESSON, etc.)
-    if (memory.memoryType && this.config.alwaysReviewTypes.includes(memory.memoryType)) {
+    if (
+      memory.memoryType &&
+      this.config.alwaysReviewTypes.includes(memory.memoryType)
+    ) {
       reasons.push({
         type: SafetyReasonType.REQUIRES_REVIEW,
         memoryType: memory.memoryType,
@@ -161,7 +171,9 @@ export class SafetyService {
     }
 
     const isProtected = reasons.some(
-      (r) => r.type === SafetyReasonType.PROTECTED_TYPE || r.type === SafetyReasonType.PROTECTED_KEYWORD,
+      (r) =>
+        r.type === SafetyReasonType.PROTECTED_TYPE ||
+        r.type === SafetyReasonType.PROTECTED_KEYWORD,
     );
 
     const requiresReview = reasons.some(
@@ -183,14 +195,19 @@ export class SafetyService {
   /**
    * Check safety for multiple memories at once
    */
-  async checkMultipleSafety(memoryIds: string[]): Promise<SafetyCheckResultDto[]> {
+  async checkMultipleSafety(
+    memoryIds: string[],
+  ): Promise<SafetyCheckResultDto[]> {
     return Promise.all(memoryIds.map((id) => this.checkMemorySafety(id)));
   }
 
   /**
    * Check if a pair of memories can be auto-merged
    */
-  async canAutoMergePair(memoryIdA: string, memoryIdB: string): Promise<{
+  async canAutoMergePair(
+    memoryIdA: string,
+    memoryIdB: string,
+  ): Promise<{
     canAutoMerge: boolean;
     reasons: SafetyReasonDto[];
   }> {
@@ -208,7 +225,10 @@ export class SafetyService {
   /**
    * Check if content contains protected keywords
    */
-  containsProtectedKeywords(content: string): { contains: boolean; keywords: string[] } {
+  containsProtectedKeywords(content: string): {
+    contains: boolean;
+    keywords: string[];
+  } {
     const contentLower = content.toLowerCase();
     const foundKeywords: string[] = [];
 

@@ -26,7 +26,9 @@ describe('MonitoringService', () => {
 
       const metrics = await service.getMetrics();
       expect(metrics.embeddingFailures.countLastHour).toBe(3);
-      expect(metrics.embeddingFailures.byModel['text-embedding-3-small']).toBe(2);
+      expect(metrics.embeddingFailures.byModel['text-embedding-3-small']).toBe(
+        2,
+      );
       expect(metrics.embeddingFailures.byModel['nomic-embed-text']).toBe(1);
     });
   });
@@ -69,7 +71,9 @@ describe('MonitoringService', () => {
       const metrics = await service.getMetrics();
       expect(metrics.dreamCycle.lastStatus).toBe('COMPLETED');
       expect(metrics.dreamCycle.lastDurationMs).toBe(45000);
-      expect(metrics.dreamCycle.lastSuccessfulRun).toBe('2026-02-10T05:00:00.000Z');
+      expect(metrics.dreamCycle.lastSuccessfulRun).toBe(
+        '2026-02-10T05:00:00.000Z',
+      );
     });
   });
 

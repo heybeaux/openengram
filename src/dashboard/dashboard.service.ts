@@ -58,7 +58,7 @@ export class DashboardService {
       where: { agentId, deletedAt: null },
       select: { id: true },
     });
-    const userIds = users.map(u => u.id);
+    const userIds = users.map((u) => u.id);
 
     // Total memories
     const totalMemories = await this.prisma.memory.count({
@@ -82,9 +82,13 @@ export class DashboardService {
       },
     });
 
-    const memoryTrend = memoriesPreviousWeek === 0 
-      ? memoriesLastWeek 
-      : Math.round(((memoriesLastWeek - memoriesPreviousWeek) / memoriesPreviousWeek) * 100);
+    const memoryTrend =
+      memoriesPreviousWeek === 0
+        ? memoriesLastWeek
+        : Math.round(
+            ((memoriesLastWeek - memoriesPreviousWeek) / memoriesPreviousWeek) *
+              100,
+          );
 
     // Total users
     const totalUsers = users.length;
@@ -106,9 +110,12 @@ export class DashboardService {
       },
     });
 
-    const userTrend = usersPreviousWeek === 0 
-      ? usersLastWeek 
-      : Math.round(((usersLastWeek - usersPreviousWeek) / usersPreviousWeek) * 100);
+    const userTrend =
+      usersPreviousWeek === 0
+        ? usersLastWeek
+        : Math.round(
+            ((usersLastWeek - usersPreviousWeek) / usersPreviousWeek) * 100,
+          );
 
     // Health score: % of memories that have extractions
     const memoriesWithExtraction = await this.prisma.memoryExtraction.count({
@@ -116,9 +123,10 @@ export class DashboardService {
         memory: { userId: { in: userIds }, deletedAt: null },
       },
     });
-    const healthScore = totalMemories === 0 
-      ? 100 
-      : Math.round((memoriesWithExtraction / totalMemories) * 100);
+    const healthScore =
+      totalMemories === 0
+        ? 100
+        : Math.round((memoriesWithExtraction / totalMemories) * 100);
 
     // Memory by layer
     const layerCounts = await this.prisma.memory.groupBy({
@@ -127,13 +135,14 @@ export class DashboardService {
       _count: { id: true },
     });
 
-    const memoryByLayer = Object.values(MemoryLayer).map(layer => {
-      const found = layerCounts.find(lc => lc.layer === layer);
+    const memoryByLayer = Object.values(MemoryLayer).map((layer) => {
+      const found = layerCounts.find((lc) => lc.layer === layer);
       const count = found?._count?.id ?? 0;
       return {
         layer,
         count,
-        percentage: totalMemories === 0 ? 0 : Math.round((count / totalMemories) * 100),
+        percentage:
+          totalMemories === 0 ? 0 : Math.round((count / totalMemories) * 100),
       };
     });
 
@@ -148,7 +157,7 @@ export class DashboardService {
       select: { id: true, createdAt: true, source: true },
     });
 
-    const recentActivity = recentMemories.map(m => ({
+    const recentActivity = recentMemories.map((m) => ({
       id: m.id,
       action: `Memory created (${m.source})`,
       time: m.createdAt.toISOString(),
@@ -169,22 +178,23 @@ export class DashboardService {
   /**
    * List memories with pagination and filters
    */
-  async listMemories(agentId: string, dto: ListMemoriesDto): Promise<MemoriesListResponse> {
+  async listMemories(
+    agentId: string,
+    dto: ListMemoriesDto,
+  ): Promise<MemoriesListResponse> {
     const page = Number(dto.page) || 1;
     const limit = Number(dto.limit) || 25;
     const { layer, userId } = dto;
     const skip = (page - 1) * limit;
 
     // Get user IDs for this agent
-    const userFilter = userId 
-      ? { id: userId }
-      : { agentId, deletedAt: null };
-    
+    const userFilter = userId ? { id: userId } : { agentId, deletedAt: null };
+
     const users = await this.prisma.user.findMany({
       where: userFilter as any,
       select: { id: true },
     });
-    const userIds = users.map(u => u.id);
+    const userIds = users.map((u) => u.id);
 
     const where: any = {
       userId: { in: userIds },
@@ -241,11 +251,12 @@ export class DashboardService {
     });
 
     return {
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u.id,
         externalId: u.externalId,
         memoryCount: u._count.memories,
-        lastActive: u.memories[0]?.createdAt?.toISOString() ?? u.createdAt.toISOString(),
+        lastActive:
+          u.memories[0]?.createdAt?.toISOString() ?? u.createdAt.toISOString(),
         createdAt: u.createdAt.toISOString(),
       })),
     };
@@ -290,7 +301,9 @@ export class DashboardService {
       externalId: user.externalId,
       memoryCount: totalCount,
       memoriesByLayer,
-      lastActive: user.memories[0]?.createdAt?.toISOString() ?? user.createdAt.toISOString(),
+      lastActive:
+        user.memories[0]?.createdAt?.toISOString() ??
+        user.createdAt.toISOString(),
       createdAt: user.createdAt.toISOString(),
     };
   }
@@ -298,7 +311,10 @@ export class DashboardService {
   /**
    * Generate placeholder API request data for last 7 days
    */
-  private generatePlaceholderApiRequests(): Array<{ day: string; requests: number }> {
+  private generatePlaceholderApiRequests(): Array<{
+    day: string;
+    requests: number;
+  }> {
     const result: Array<{ day: string; requests: number }> = [];
     const now = new Date();
 
@@ -341,7 +357,7 @@ export class DashboardService {
       const memoryCount = await this.prisma.memory.count({
         where: { userId, deletedAt: null },
       });
-      
+
       if (memoryCount > 0) {
         // Soft delete by reassigning to a "deleted" placeholder or just leave orphaned
         // For now, we'll allow deletion and orphan the memories
@@ -386,17 +402,21 @@ export class DashboardService {
           createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
       }),
-      this.prisma.memory.count({ where: { safetyCritical: true, deletedAt: null } }),
+      this.prisma.memory.count({
+        where: { safetyCritical: true, deletedAt: null },
+      }),
       this.prisma.memory.count({ where: { consolidated: true } }),
     ]);
 
-    const extractionRate = totalMemories > 0
-      ? Math.round((extractionsWithWhat / totalMemories) * 100)
-      : 100;
+    const extractionRate =
+      totalMemories > 0
+        ? Math.round((extractionsWithWhat / totalMemories) * 100)
+        : 100;
 
-    const whoExtractionRate = totalMemories > 0
-      ? Math.round((extractionsWithWho / totalMemories) * 100)
-      : 100;
+    const whoExtractionRate =
+      totalMemories > 0
+        ? Math.round((extractionsWithWho / totalMemories) * 100)
+        : 100;
 
     // Determine overall status
     let status: 'healthy' | 'degraded' | 'unhealthy';
@@ -430,8 +450,10 @@ export class DashboardService {
         totalMemories,
         extractionRate,
         whoExtractionRate,
-        entitiesPerMemory: totalMemories > 0 ? +(totalEntities / totalMemories).toFixed(2) : 0,
-        linksPerMemory: totalMemories > 0 ? +(totalLinks / totalMemories).toFixed(2) : 0,
+        entitiesPerMemory:
+          totalMemories > 0 ? +(totalEntities / totalMemories).toFixed(2) : 0,
+        linksPerMemory:
+          totalMemories > 0 ? +(totalLinks / totalMemories).toFixed(2) : 0,
         memoriesLast24h,
         safetyCriticalCount,
         consolidatedCount,

@@ -2,7 +2,9 @@
  * Prompt templates for agent self-reflection
  */
 
-export const AGENT_REFLECTION_SYSTEM_PROMPT = (agentName?: string) => `You are analyzing a conversation to help an AI agent (${agentName || 'the assistant'}) learn about itself.
+export const AGENT_REFLECTION_SYSTEM_PROMPT = (
+  agentName?: string,
+) => `You are analyzing a conversation to help an AI agent (${agentName || 'the assistant'}) learn about itself.
 
 Your task is to extract SELF-KNOWLEDGE - things the agent should remember about ITSELF, not about the user.
 
@@ -48,7 +50,9 @@ Rules:
 - Maximum 5 insights per reflection
 - If nothing worth remembering, return {"insights": []}`;
 
-export const AGENT_REFLECTION_USER_PROMPT = (turns: { role: string; content: string }[]) => {
+export const AGENT_REFLECTION_USER_PROMPT = (
+  turns: { role: string; content: string }[],
+) => {
   const formattedTurns = turns
     .map((t) => `[${t.role.toUpperCase()}]: ${t.content}`)
     .join('\n\n');
@@ -65,7 +69,11 @@ What should the agent remember about itself based on this conversation?`;
 /**
  * Categories for organizing agent self-memories
  */
-export type ReflectionCategory = 'identity' | 'lessons' | 'preferences' | 'workingStyle';
+export type ReflectionCategory =
+  | 'identity'
+  | 'lessons'
+  | 'preferences'
+  | 'workingStyle';
 
 export interface ReflectionInsight {
   content: string;

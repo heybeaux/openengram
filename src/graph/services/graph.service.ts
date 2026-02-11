@@ -6,12 +6,15 @@ import { EntityService } from './entity.service';
 import { RelationshipService } from './relationship.service';
 import { GraphExtractionService } from './graph-extraction.service';
 import { EntityWithRelationships } from '../dto/entity.dto';
-import { GraphTraversalResult, TraverseGraphDto } from '../dto/relationship.dto';
+import {
+  GraphTraversalResult,
+  TraverseGraphDto,
+} from '../dto/relationship.dto';
 import { MemoryProcessingResult } from '../dto/extraction.dto';
 
 /**
  * GraphService - High-level graph operations
- * 
+ *
  * Provides a unified interface for graph queries, entity profiles,
  * path finding, and integration with memory retrieval.
  */
@@ -57,13 +60,18 @@ export class GraphService {
     // Try to find by ID first, then by name
     let entity = await this.entityService.findById(entityNameOrId);
     if (!entity) {
-      entity = await this.entityService.findByNameOrAlias(userId, entityNameOrId);
+      entity = await this.entityService.findByNameOrAlias(
+        userId,
+        entityNameOrId,
+      );
     }
     if (!entity) {
       return null;
     }
 
-    const entityWithRels = await this.entityService.getWithRelationships(entity.id);
+    const entityWithRels = await this.entityService.getWithRelationships(
+      entity.id,
+    );
 
     // Get recent memories mentioning this entity
     const mentions = await this.prisma.graphEntityMention.findMany({
@@ -103,7 +111,11 @@ export class GraphService {
       return { found: false, path: [] };
     }
 
-    const pathResult = await this.relationshipService.findPath(userId, from.id, to.id);
+    const pathResult = await this.relationshipService.findPath(
+      userId,
+      from.id,
+      to.id,
+    );
 
     if (pathResult.length === 0) {
       return { found: false, path: [] };
@@ -135,7 +147,10 @@ export class GraphService {
     relationshipType: string,
     targetEntityName: string,
   ): Promise<GraphEntity[]> {
-    const target = await this.entityService.findByNameOrAlias(userId, targetEntityName);
+    const target = await this.entityService.findByNameOrAlias(
+      userId,
+      targetEntityName,
+    );
     if (!target) {
       return [];
     }
@@ -190,7 +205,10 @@ export class GraphService {
   /**
    * Get all memories mentioning an entity
    */
-  async getMemoriesForEntity(entityId: string, limit: number = 20): Promise<Memory[]> {
+  async getMemoriesForEntity(
+    entityId: string,
+    limit: number = 20,
+  ): Promise<Memory[]> {
     const mentions = await this.prisma.graphEntityMention.findMany({
       where: { entityId },
       orderBy: { createdAt: 'desc' },
@@ -214,20 +232,32 @@ export class GraphService {
       type?: GraphEntityType;
       limit?: number;
     },
-  ): Promise<Array<GraphEntity & { matchType: 'exact' | 'alias' | 'description' }>> {
+  ): Promise<
+    Array<GraphEntity & { matchType: 'exact' | 'alias' | 'description' }>
+  > {
     const limit = options?.limit || 10;
-    const results: Array<GraphEntity & { matchType: 'exact' | 'alias' | 'description' }> = [];
+    const results: Array<
+      GraphEntity & { matchType: 'exact' | 'alias' | 'description' }
+    > = [];
     const seen = new Set<string>();
 
     // 1. Exact name match
-    const exactMatch = await this.entityService.findByName(userId, query, options?.type);
+    const exactMatch = await this.entityService.findByName(
+      userId,
+      query,
+      options?.type,
+    );
     if (exactMatch) {
       results.push({ ...exactMatch, matchType: 'exact' });
       seen.add(exactMatch.id);
     }
 
     // 2. Alias match
-    const aliasMatch = await this.entityService.findByAlias(userId, query, options?.type);
+    const aliasMatch = await this.entityService.findByAlias(
+      userId,
+      query,
+      options?.type,
+    );
     if (aliasMatch && !seen.has(aliasMatch.id)) {
       results.push({ ...aliasMatch, matchType: 'alias' });
       seen.add(aliasMatch.id);
@@ -310,12 +340,16 @@ export class GraphService {
           skipped++;
         }
       } catch (error) {
-        this.logger.warn(`Failed to process memory ${memory.id}: ${error.message}`);
+        this.logger.warn(
+          `Failed to process memory ${memory.id}: ${error.message}`,
+        );
         skipped++;
       }
     }
 
-    this.logger.log(`Backfill complete: ${processed} processed, ${skipped} skipped`);
+    this.logger.log(
+      `Backfill complete: ${processed} processed, ${skipped} skipped`,
+    );
     return { processed, skipped };
   }
 }

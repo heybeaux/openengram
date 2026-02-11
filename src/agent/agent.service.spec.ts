@@ -114,10 +114,14 @@ describe('AgentService', () => {
         recentTurns: [
           { role: 'user', content: 'What is your name?' },
           { role: 'assistant', content: 'I am Rook, an AI assistant.' },
-          { role: 'user', content: 'You marked the task complete but it wasnt.' },
+          {
+            role: 'user',
+            content: 'You marked the task complete but it wasnt.',
+          },
           {
             role: 'assistant',
-            content: 'I apologize. I should verify data before marking tasks complete.',
+            content:
+              'I apologize. I should verify data before marking tasks complete.',
           },
         ],
         agentName: 'Rook',
@@ -207,9 +211,24 @@ describe('AgentService', () => {
     it('should respect maxMemories limit', async () => {
       mockLLM.json.mockResolvedValue({
         insights: [
-          { content: 'Insight 1', category: 'identity', importance: 0.9, reasoning: '' },
-          { content: 'Insight 2', category: 'identity', importance: 0.9, reasoning: '' },
-          { content: 'Insight 3', category: 'identity', importance: 0.9, reasoning: '' },
+          {
+            content: 'Insight 1',
+            category: 'identity',
+            importance: 0.9,
+            reasoning: '',
+          },
+          {
+            content: 'Insight 2',
+            category: 'identity',
+            importance: 0.9,
+            reasoning: '',
+          },
+          {
+            content: 'Insight 3',
+            category: 'identity',
+            importance: 0.9,
+            reasoning: '',
+          },
         ],
       });
 
@@ -272,7 +291,9 @@ describe('AgentService', () => {
     it('should filter by layer when specified', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([]);
 
-      await service.getAgentMemories(mockAgentId, { layer: MemoryLayer.IDENTITY });
+      await service.getAgentMemories(mockAgentId, {
+        layer: MemoryLayer.IDENTITY,
+      });
 
       expect(mockPrisma.memory.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -310,7 +331,9 @@ describe('AgentService', () => {
       const result = await service.getAgentContext(mockAgentId, 100); // Very low token limit
 
       // Should truncate based on token limit
-      expect(result.context.split('\n').length).toBeLessThan(manyMemories.length + 2);
+      expect(result.context.split('\n').length).toBeLessThan(
+        manyMemories.length + 2,
+      );
     });
   });
 });

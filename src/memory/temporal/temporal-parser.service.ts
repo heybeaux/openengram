@@ -6,16 +6,16 @@ import { Injectable } from '@nestjs/common';
 export interface TemporalFilter {
   start: Date;
   end: Date;
-  expression: string;     // Original temporal phrase matched
-  confidence: number;     // How confident we are in the parse (0-1)
+  expression: string; // Original temporal phrase matched
+  confidence: number; // How confident we are in the parse (0-1)
 }
 
 /**
  * Result of parsing a query for temporal intent
  */
 export interface ParsedQuery {
-  semanticQuery: string;       // Query with temporal parts stripped (for embedding search)
-  temporalFilter: TemporalFilter | null;  // Time range filter (if temporal intent detected)
+  semanticQuery: string; // Query with temporal parts stripped (for embedding search)
+  temporalFilter: TemporalFilter | null; // Time range filter (if temporal intent detected)
 }
 
 interface TemporalPattern {
@@ -25,9 +25,9 @@ interface TemporalPattern {
 
 /**
  * Parses temporal expressions from recall queries and resolves them to date ranges.
- * 
+ *
  * This is the core of P6-006: Temporal Memory Context.
- * 
+ *
  * Examples:
  *   "What did we discuss yesterday?" → filter to yesterday, search "What did we discuss"
  *   "Show me last week's decisions" → filter to last 7 days, search "decisions"
@@ -35,16 +35,19 @@ interface TemporalPattern {
  */
 @Injectable()
 export class TemporalParserService {
-
   /**
    * Parse a query for temporal intent
-   * 
+   *
    * @param query - The recall query from the user/agent
    * @param now - Current timestamp (injectable for testing)
    * @param timezone - IANA timezone string (e.g., 'America/Vancouver')
    * @returns ParsedQuery with semantic query + optional temporal filter
    */
-  parse(query: string, now: Date = new Date(), timezone: string = 'UTC'): ParsedQuery {
+  parse(
+    query: string,
+    now: Date = new Date(),
+    timezone: string = 'UTC',
+  ): ParsedQuery {
     // Try fast pattern matching
     const result = this.patternMatch(query, now);
     if (result) {
@@ -63,12 +66,15 @@ export class TemporalParserService {
 
   /**
    * Calculate temporal relevance score for a memory given a temporal filter.
-   * 
+   *
    * @param memoryDate - When the memory was created
    * @param filter - The temporal filter from query parsing
    * @returns Score 0.0-1.0 indicating temporal relevance
    */
-  calculateTemporalRelevance(memoryDate: Date, filter: TemporalFilter | null): number {
+  calculateTemporalRelevance(
+    memoryDate: Date,
+    filter: TemporalFilter | null,
+  ): number {
     if (!filter) return 0.5; // Neutral when no temporal intent
 
     const memoryMs = memoryDate.getTime();
@@ -81,9 +87,8 @@ export class TemporalParserService {
     }
 
     // Calculate distance from the nearest edge of the range
-    const distanceMs = memoryMs < startMs
-      ? startMs - memoryMs
-      : memoryMs - endMs;
+    const distanceMs =
+      memoryMs < startMs ? startMs - memoryMs : memoryMs - endMs;
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
     const ONE_WEEK = 7 * ONE_DAY;
@@ -97,7 +102,7 @@ export class TemporalParserService {
     if (distanceMs <= ONE_WEEK) {
       // Linear decay from 0.5 to 0.1 over the week
       const weekFraction = distanceMs / ONE_WEEK;
-      return 0.5 - (weekFraction * 0.4);
+      return 0.5 - weekFraction * 0.4;
     }
 
     // Distant: more than a week away
@@ -106,7 +111,7 @@ export class TemporalParserService {
 
   /**
    * Blend semantic similarity with temporal relevance and importance.
-   * 
+   *
    * @param semanticScore - Vector similarity score (0-1)
    * @param temporalScore - Temporal relevance score (0-1)
    * @param importanceScore - effectiveScore from the memory (0-1)
@@ -121,10 +126,12 @@ export class TemporalParserService {
   ): number {
     if (hasTemporalIntent) {
       // When temporal intent detected, give time significant weight
-      return (semanticScore * 0.45) + (temporalScore * 0.35) + (importanceScore * 0.20);
+      return (
+        semanticScore * 0.45 + temporalScore * 0.35 + importanceScore * 0.2
+      );
     } else {
       // No temporal intent — standard weighting
-      return (semanticScore * 0.65) + (importanceScore * 0.35);
+      return semanticScore * 0.65 + importanceScore * 0.35;
     }
   }
 
@@ -140,7 +147,10 @@ export class TemporalParserService {
       if (match) {
         const filter = resolve(match, now);
         // Strip the temporal expression from the query for embedding search
-        const semanticQuery = query.replace(match[0], '').replace(/\s+/g, ' ').trim();
+        const semanticQuery = query
+          .replace(match[0], '')
+          .replace(/\s+/g, ' ')
+          .trim();
         return {
           semanticQuery: semanticQuery || query, // Fallback to original if stripping leaves nothing
           temporalFilter: filter,
@@ -225,7 +235,11 @@ export class TemporalParserService {
   // Date Range Builders
   // ===========================================================================
 
-  private dayRange(now: Date, offsetDays: number, expression: string): TemporalFilter {
+  private dayRange(
+    now: Date,
+    offsetDays: number,
+    expression: string,
+  ): TemporalFilter {
     const target = new Date(now);
     target.setDate(target.getDate() + offsetDays);
 
@@ -238,7 +252,11 @@ export class TemporalParserService {
     return { start, end, expression, confidence: 0.9 };
   }
 
-  private lastNDays(now: Date, days: number, expression: string): TemporalFilter {
+  private lastNDays(
+    now: Date,
+    days: number,
+    expression: string,
+  ): TemporalFilter {
     const start = new Date(now);
     start.setDate(start.getDate() - days);
     start.setHours(0, 0, 0, 0);
@@ -261,13 +279,21 @@ export class TemporalParserService {
     return { start, end: now, expression, confidence: 0.85 };
   }
 
-  private hoursAgo(now: Date, hours: number, expression: string): TemporalFilter {
-    const start = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+  private hoursAgo(
+    now: Date,
+    hours: number,
+    expression: string,
+  ): TemporalFilter {
+    const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
     return { start, end: now, expression, confidence: 0.9 };
   }
 
-  private minutesAgo(now: Date, minutes: number, expression: string): TemporalFilter {
-    const start = new Date(now.getTime() - (minutes * 60 * 1000));
+  private minutesAgo(
+    now: Date,
+    minutes: number,
+    expression: string,
+  ): TemporalFilter {
+    const start = new Date(now.getTime() - minutes * 60 * 1000);
     return { start, end: now, expression, confidence: 0.9 };
   }
 }

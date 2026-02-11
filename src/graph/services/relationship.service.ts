@@ -1,6 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GraphRelationship, GraphRelationshipType, Prisma } from '@prisma/client';
+import {
+  GraphRelationship,
+  GraphRelationshipType,
+  Prisma,
+} from '@prisma/client';
 import {
   CreateRelationshipDto,
   UpdateRelationshipDto,
@@ -22,7 +31,7 @@ const SYMMETRIC_RELATIONSHIPS: GraphRelationshipType[] = [
 
 /**
  * RelationshipService - CRUD operations for graph relationships
- * 
+ *
  * Handles creation, retrieval, updating, and deletion of relationships
  * (edges) between entities in the semantic memory graph.
  */
@@ -38,7 +47,9 @@ export class RelationshipService {
   async create(dto: CreateRelationshipDto): Promise<GraphRelationship> {
     // Prevent self-loops
     if (dto.sourceEntityId === dto.targetEntityId) {
-      throw new BadRequestException('Cannot create self-referential relationship');
+      throw new BadRequestException(
+        'Cannot create self-referential relationship',
+      );
     }
 
     this.logger.debug(
@@ -71,10 +82,14 @@ export class RelationshipService {
   /**
    * Create or update a relationship (upsert)
    */
-  async upsert(dto: CreateRelationshipDto): Promise<{ relationship: GraphRelationship; created: boolean }> {
+  async upsert(
+    dto: CreateRelationshipDto,
+  ): Promise<{ relationship: GraphRelationship; created: boolean }> {
     // Prevent self-loops
     if (dto.sourceEntityId === dto.targetEntityId) {
-      throw new BadRequestException('Cannot create self-referential relationship');
+      throw new BadRequestException(
+        'Cannot create self-referential relationship',
+      );
     }
 
     const existing = await this.prisma.graphRelationship.findUnique({
@@ -91,7 +106,7 @@ export class RelationshipService {
     if (existing) {
       // Update existing: blend weight, add memory IDs
       const newMemoryIds = dto.sourceMemoryIds || [];
-      const existingIds = existing.sourceMemoryIds as string[];
+      const existingIds = existing.sourceMemoryIds;
       const combinedIds = [...new Set([...existingIds, ...newMemoryIds])];
 
       // Running average for weight
@@ -142,7 +157,7 @@ export class RelationshipService {
           label: original.label,
           weight: original.weight,
           properties: original.properties as Record<string, any>,
-          sourceMemoryIds: original.sourceMemoryIds as string[],
+          sourceMemoryIds: original.sourceMemoryIds,
           isInferred: true,
         },
       });
@@ -227,10 +242,7 @@ export class RelationshipService {
     } else if (direction === 'incoming') {
       where.targetEntityId = entityId;
     } else {
-      where.OR = [
-        { sourceEntityId: entityId },
-        { targetEntityId: entityId },
-      ];
+      where.OR = [{ sourceEntityId: entityId }, { targetEntityId: entityId }];
     }
 
     return this.prisma.graphRelationship.findMany({
@@ -245,7 +257,10 @@ export class RelationshipService {
   /**
    * Update a relationship
    */
-  async update(id: string, dto: UpdateRelationshipDto): Promise<GraphRelationship> {
+  async update(
+    id: string,
+    dto: UpdateRelationshipDto,
+  ): Promise<GraphRelationship> {
     await this.findByIdOrFail(id);
 
     const data: Prisma.GraphRelationshipUpdateInput = {};
@@ -265,7 +280,7 @@ export class RelationshipService {
    */
   async addMemoryId(id: string, memoryId: string): Promise<GraphRelationship> {
     const relationship = await this.findByIdOrFail(id);
-    const existingIds = relationship.sourceMemoryIds as string[];
+    const existingIds = relationship.sourceMemoryIds;
 
     if (existingIds.includes(memoryId)) {
       return relationship;
@@ -307,9 +322,10 @@ export class RelationshipService {
     }
 
     // Build the type filter for the query
-    const typeFilter = relationshipTypes && relationshipTypes.length > 0
-      ? `AND r.type = ANY(ARRAY[${relationshipTypes.map(t => `'${t}'`).join(',')}]::\"GraphRelationshipType\"[])`
-      : '';
+    const typeFilter =
+      relationshipTypes && relationshipTypes.length > 0
+        ? `AND r.type = ANY(ARRAY[${relationshipTypes.map((t) => `'${t}'`).join(',')}]::"GraphRelationshipType"[])`
+        : '';
 
     // Execute recursive CTE query
     const result = await this.prisma.$queryRaw<

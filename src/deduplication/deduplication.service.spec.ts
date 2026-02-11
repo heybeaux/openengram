@@ -144,7 +144,11 @@ describe('DeduplicationService', () => {
 
     it('should return none when disabled', async () => {
       mockConfig.get.mockReturnValue('false');
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('none');
     });
 
@@ -152,19 +156,34 @@ describe('DeduplicationService', () => {
       mockConfig.get.mockReturnValue('true');
       mockSimilarity.findSimilarForContent.mockResolvedValue([]);
 
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('none');
     });
 
     it('should queue for review when similarity is between thresholds', async () => {
       mockConfig.get.mockReturnValue('true');
       mockSimilarity.findSimilarForContent.mockResolvedValue([
-        { memoryId: 'mem_existing', similarity: 0.90, content: 'Similar content' },
+        {
+          memoryId: 'mem_existing',
+          similarity: 0.9,
+          content: 'Similar content',
+        },
       ]);
       mockReview.wasRejected.mockResolvedValue(false);
-      mockSafety.canAutoMergePair.mockResolvedValue({ canAutoMerge: true, reasons: [] });
+      mockSafety.canAutoMergePair.mockResolvedValue({
+        canAutoMerge: true,
+        reasons: [],
+      });
 
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('queued_for_review');
       expect(mockReview.queuePairForReview).toHaveBeenCalled();
     });
@@ -172,21 +191,39 @@ describe('DeduplicationService', () => {
     it('should auto-merge when similarity exceeds auto-merge threshold', async () => {
       mockConfig.get.mockReturnValue('true');
       mockSimilarity.findSimilarForContent.mockResolvedValue([
-        { memoryId: 'mem_existing', similarity: 0.98, content: 'Nearly identical' },
+        {
+          memoryId: 'mem_existing',
+          similarity: 0.98,
+          content: 'Nearly identical',
+        },
       ]);
       mockReview.wasRejected.mockResolvedValue(false);
-      mockSafety.canAutoMergePair.mockResolvedValue({ canAutoMerge: true, reasons: [] });
+      mockSafety.canAutoMergePair.mockResolvedValue({
+        canAutoMerge: true,
+        reasons: [],
+      });
       mockMerge.merge.mockResolvedValue({
         survivorId: 'mem_existing',
         absorbedIds: [memoryId],
         mergedContent: 'Nearly identical',
-        mergedMetadata: { importanceScore: 0.5, accessCount: 1, lastAccessedAt: null, tags: [], sources: [], originalSources: [] },
+        mergedMetadata: {
+          importanceScore: 0.5,
+          accessCount: 1,
+          lastAccessedAt: null,
+          tags: [],
+          sources: [],
+          originalSources: [],
+        },
         strategy: MergeStrategy.KEEP_DETAILED,
         contentChanged: false,
       });
       mockLineage.recordMerge.mockResolvedValue({ id: 'event_1' });
 
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('auto_merged');
       expect(mockMerge.merge).toHaveBeenCalled();
     });
@@ -194,7 +231,11 @@ describe('DeduplicationService', () => {
     it('should queue for review when safety prevents auto-merge', async () => {
       mockConfig.get.mockReturnValue('true');
       mockSimilarity.findSimilarForContent.mockResolvedValue([
-        { memoryId: 'mem_existing', similarity: 0.98, content: 'Protected content' },
+        {
+          memoryId: 'mem_existing',
+          similarity: 0.98,
+          content: 'Protected content',
+        },
       ]);
       mockReview.wasRejected.mockResolvedValue(false);
       mockSafety.canAutoMergePair.mockResolvedValue({
@@ -202,7 +243,11 @@ describe('DeduplicationService', () => {
         reasons: [{ type: 'protected_keyword', keyword: 'allergy' }],
       });
 
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('queued_for_review');
     });
 
@@ -213,7 +258,11 @@ describe('DeduplicationService', () => {
       ]);
       mockReview.wasRejected.mockResolvedValue(true);
 
-      const result = await service.checkForDuplicates(memoryId, userId, content);
+      const result = await service.checkForDuplicates(
+        memoryId,
+        userId,
+        content,
+      );
       expect(result.action).toBe('none');
     });
   });
@@ -223,7 +272,9 @@ describe('DeduplicationService', () => {
 
     it('should throw when deduplication is disabled', async () => {
       mockConfig.get.mockReturnValue('false');
-      await expect(service.runBatchDedup(userId)).rejects.toThrow('Deduplication is disabled');
+      await expect(service.runBatchDedup(userId)).rejects.toThrow(
+        'Deduplication is disabled',
+      );
     });
 
     it('should complete batch dedup with dry run', async () => {
@@ -232,11 +283,29 @@ describe('DeduplicationService', () => {
         { memoryIdA: 'mem_1', memoryIdB: 'mem_2', similarity: 0.95 },
       ]);
       mockSimilarity.clusterSimilarMemories.mockReturnValue([
-        { id: 'cluster_1', memoryIds: ['mem_1', 'mem_2'], centroidMemoryId: 'mem_1', avgSimilarity: 0.95, minSimilarity: 0.95 },
+        {
+          id: 'cluster_1',
+          memoryIds: ['mem_1', 'mem_2'],
+          centroidMemoryId: 'mem_1',
+          avgSimilarity: 0.95,
+          minSimilarity: 0.95,
+        },
       ]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { memoryId: 'mem_1', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { memoryId: 'mem_2', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          memoryId: 'mem_1',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          memoryId: 'mem_2',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       mockPrisma.dedupBatchRun.create.mockResolvedValue({ id: 'run_1' });
 
@@ -254,17 +323,42 @@ describe('DeduplicationService', () => {
         { memoryIdA: 'mem_1', memoryIdB: 'mem_2', similarity: 0.98 },
       ]);
       mockSimilarity.clusterSimilarMemories.mockReturnValue([
-        { id: 'cluster_1', memoryIds: ['mem_1', 'mem_2'], centroidMemoryId: 'mem_1', avgSimilarity: 0.98, minSimilarity: 0.98 },
+        {
+          id: 'cluster_1',
+          memoryIds: ['mem_1', 'mem_2'],
+          centroidMemoryId: 'mem_1',
+          avgSimilarity: 0.98,
+          minSimilarity: 0.98,
+        },
       ]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { memoryId: 'mem_1', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { memoryId: 'mem_2', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          memoryId: 'mem_1',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          memoryId: 'mem_2',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       mockMerge.merge.mockResolvedValue({
         survivorId: 'mem_1',
         absorbedIds: ['mem_2'],
         mergedContent: 'Merged content',
-        mergedMetadata: { importanceScore: 0.5, accessCount: 0, lastAccessedAt: null, tags: [], sources: [], originalSources: [] },
+        mergedMetadata: {
+          importanceScore: 0.5,
+          accessCount: 0,
+          lastAccessedAt: null,
+          tags: [],
+          sources: [],
+          originalSources: [],
+        },
         strategy: MergeStrategy.KEEP_DETAILED,
         contentChanged: false,
       });
@@ -283,11 +377,29 @@ describe('DeduplicationService', () => {
         { memoryIdA: 'mem_1', memoryIdB: 'mem_2', similarity: 0.95 },
       ]);
       mockSimilarity.clusterSimilarMemories.mockReturnValue([
-        { id: 'cluster_1', memoryIds: ['mem_1', 'mem_2'], centroidMemoryId: 'mem_1', avgSimilarity: 0.95, minSimilarity: 0.95 },
+        {
+          id: 'cluster_1',
+          memoryIds: ['mem_1', 'mem_2'],
+          centroidMemoryId: 'mem_1',
+          avgSimilarity: 0.95,
+          minSimilarity: 0.95,
+        },
       ]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { memoryId: 'mem_1', isProtected: true, canAutoMerge: false, requiresReview: true, reasons: [{ type: 'protected_type', memoryType: 'CONSTRAINT' }] },
-        { memoryId: 'mem_2', isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          memoryId: 'mem_1',
+          isProtected: true,
+          canAutoMerge: false,
+          requiresReview: true,
+          reasons: [{ type: 'protected_type', memoryType: 'CONSTRAINT' }],
+        },
+        {
+          memoryId: 'mem_2',
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       mockPrisma.dedupBatchRun.create.mockResolvedValue({ id: 'run_1' });
 
@@ -303,7 +415,10 @@ describe('DeduplicationService', () => {
       mockConfig.get.mockReturnValue('false');
       await expect(
         service.manualMerge(
-          { memoryIds: ['mem_1', 'mem_2'], strategy: MergeStrategy.KEEP_NEWEST },
+          {
+            memoryIds: ['mem_1', 'mem_2'],
+            strategy: MergeStrategy.KEEP_NEWEST,
+          },
           'user_123',
         ),
       ).rejects.toThrow('Deduplication is disabled');
@@ -315,7 +430,14 @@ describe('DeduplicationService', () => {
         survivorId: 'mem_1',
         absorbedIds: ['mem_2'],
         mergedContent: 'Merged content',
-        mergedMetadata: { importanceScore: 0.5, accessCount: 0, lastAccessedAt: null, tags: [], sources: [], originalSources: [] },
+        mergedMetadata: {
+          importanceScore: 0.5,
+          accessCount: 0,
+          lastAccessedAt: null,
+          tags: [],
+          sources: [],
+          originalSources: [],
+        },
         strategy: MergeStrategy.KEEP_NEWEST,
         contentChanged: false,
       });
@@ -329,7 +451,11 @@ describe('DeduplicationService', () => {
 
       expect(result.success).toBe(true);
       expect(result.mergeEventId).toBe('event_1');
-      expect(mockMerge.merge).toHaveBeenCalledWith(['mem_1', 'mem_2'], MergeStrategy.KEEP_NEWEST, {});
+      expect(mockMerge.merge).toHaveBeenCalledWith(
+        ['mem_1', 'mem_2'],
+        MergeStrategy.KEEP_NEWEST,
+        {},
+      );
     });
 
     it('should use custom survivor when specified', async () => {
@@ -338,14 +464,25 @@ describe('DeduplicationService', () => {
         survivorId: 'mem_2',
         absorbedIds: ['mem_1'],
         mergedContent: 'Custom survivor content',
-        mergedMetadata: { importanceScore: 0.5, accessCount: 0, lastAccessedAt: null, tags: [], sources: [], originalSources: [] },
+        mergedMetadata: {
+          importanceScore: 0.5,
+          accessCount: 0,
+          lastAccessedAt: null,
+          tags: [],
+          sources: [],
+          originalSources: [],
+        },
         strategy: MergeStrategy.KEEP_DETAILED,
         contentChanged: false,
       });
       mockLineage.recordMerge.mockResolvedValue({ id: 'event_2' });
 
       const result = await service.manualMerge(
-        { memoryIds: ['mem_1', 'mem_2'], strategy: MergeStrategy.KEEP_DETAILED, survivorId: 'mem_2' },
+        {
+          memoryIds: ['mem_1', 'mem_2'],
+          strategy: MergeStrategy.KEEP_DETAILED,
+          survivorId: 'mem_2',
+        },
         'user_123',
       );
 
@@ -370,11 +507,13 @@ describe('DeduplicationService', () => {
 
   describe('getStats', () => {
     it('should return aggregated statistics', async () => {
-      mockPrisma.memory.count.mockResolvedValueOnce(100).mockResolvedValueOnce(20);
+      mockPrisma.memory.count
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(20);
       mockPrisma.mergeCandidate.count.mockResolvedValue(5);
       mockPrisma.memoryMergeEvent.count
         .mockResolvedValueOnce(15) // merges this week
-        .mockResolvedValueOnce(1)  // rollbacks
+        .mockResolvedValueOnce(1) // rollbacks
         .mockResolvedValueOnce(3); // auto merged today
 
       const result = await service.getStats('user_123');
@@ -427,7 +566,9 @@ describe('DeduplicationService', () => {
         lastBatchRunAt: null,
       });
 
-      const result = await service.updateConfig('user_123', { autoMergeThreshold: 0.97 });
+      const result = await service.updateConfig('user_123', {
+        autoMergeThreshold: 0.97,
+      });
 
       expect(result.autoMergeThreshold).toBe(0.97);
       expect(mockPrisma.dedupConfig.upsert).toHaveBeenCalled();

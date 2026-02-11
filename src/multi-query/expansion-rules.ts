@@ -1,103 +1,103 @@
 /**
  * Synonym Dictionary
- * 
+ *
  * Maps words to their semantic equivalents for rule-based query expansion.
  * Organized by concept category for maintainability.
  */
 export const SYNONYM_GROUPS: Record<string, string[]> = {
   // Preference verbs
-  'like': ['prefer', 'enjoy', 'love', 'favor', 'appreciate'],
-  'dislike': ['hate', 'avoid', 'despise', 'reject', 'oppose'],
-  'prefer': ['like', 'favor', 'choose', 'want', 'desire'],
-  'enjoy': ['like', 'love', 'appreciate', 'relish', 'savor'],
-  'love': ['adore', 'cherish', 'treasure', 'enjoy'],
-  'hate': ['despise', 'loathe', 'detest', 'dislike'],
-  'want': ['desire', 'wish', 'need', 'would like'],
-  
+  like: ['prefer', 'enjoy', 'love', 'favor', 'appreciate'],
+  dislike: ['hate', 'avoid', 'despise', 'reject', 'oppose'],
+  prefer: ['like', 'favor', 'choose', 'want', 'desire'],
+  enjoy: ['like', 'love', 'appreciate', 'relish', 'savor'],
+  love: ['adore', 'cherish', 'treasure', 'enjoy'],
+  hate: ['despise', 'loathe', 'detest', 'dislike'],
+  want: ['desire', 'wish', 'need', 'would like'],
+
   // Learning verbs
-  'learn': ['discover', 'realize', 'understand', 'find out', 'figure out'],
-  'understand': ['comprehend', 'grasp', 'get', 'follow', 'see'],
-  'remember': ['recall', 'recollect', 'think of', 'bring to mind'],
-  'forget': ['overlook', 'miss', 'neglect'],
-  'know': ['understand', 'realize', 'aware of', 'familiar with'],
-  
+  learn: ['discover', 'realize', 'understand', 'find out', 'figure out'],
+  understand: ['comprehend', 'grasp', 'get', 'follow', 'see'],
+  remember: ['recall', 'recollect', 'think of', 'bring to mind'],
+  forget: ['overlook', 'miss', 'neglect'],
+  know: ['understand', 'realize', 'aware of', 'familiar with'],
+
   // Action verbs
-  'do': ['perform', 'execute', 'accomplish', 'complete', 'carry out'],
-  'make': ['create', 'build', 'construct', 'develop', 'produce'],
-  'use': ['utilize', 'employ', 'apply', 'leverage'],
-  'get': ['obtain', 'acquire', 'receive', 'fetch', 'retrieve'],
-  'give': ['provide', 'supply', 'offer', 'deliver'],
-  'take': ['grab', 'seize', 'accept', 'receive'],
-  'put': ['place', 'set', 'position', 'store'],
-  'go': ['travel', 'move', 'proceed', 'head'],
-  'come': ['arrive', 'approach', 'reach', 'show up'],
-  'start': ['begin', 'initiate', 'launch', 'kick off'],
-  'stop': ['end', 'finish', 'halt', 'cease'],
-  'try': ['attempt', 'test', 'experiment with'],
-  'help': ['assist', 'support', 'aid'],
-  
+  do: ['perform', 'execute', 'accomplish', 'complete', 'carry out'],
+  make: ['create', 'build', 'construct', 'develop', 'produce'],
+  use: ['utilize', 'employ', 'apply', 'leverage'],
+  get: ['obtain', 'acquire', 'receive', 'fetch', 'retrieve'],
+  give: ['provide', 'supply', 'offer', 'deliver'],
+  take: ['grab', 'seize', 'accept', 'receive'],
+  put: ['place', 'set', 'position', 'store'],
+  go: ['travel', 'move', 'proceed', 'head'],
+  come: ['arrive', 'approach', 'reach', 'show up'],
+  start: ['begin', 'initiate', 'launch', 'kick off'],
+  stop: ['end', 'finish', 'halt', 'cease'],
+  try: ['attempt', 'test', 'experiment with'],
+  help: ['assist', 'support', 'aid'],
+
   // Communication verbs
-  'say': ['tell', 'mention', 'state', 'express', 'declare'],
-  'ask': ['inquire', 'question', 'query', 'request'],
-  'tell': ['inform', 'notify', 'advise', 'let know'],
-  'write': ['compose', 'draft', 'author', 'document'],
-  'read': ['review', 'scan', 'study', 'examine'],
-  'talk': ['discuss', 'speak', 'communicate', 'converse'],
-  
+  say: ['tell', 'mention', 'state', 'express', 'declare'],
+  ask: ['inquire', 'question', 'query', 'request'],
+  tell: ['inform', 'notify', 'advise', 'let know'],
+  write: ['compose', 'draft', 'author', 'document'],
+  read: ['review', 'scan', 'study', 'examine'],
+  talk: ['discuss', 'speak', 'communicate', 'converse'],
+
   // Temporal words
-  'today': ['now', 'currently', 'at present', 'right now'],
-  'yesterday': ['recently', 'the other day', 'previously'],
-  'tomorrow': ['upcoming', 'next day', 'soon'],
-  'soon': ['shortly', 'before long', 'presently'],
-  'later': ['afterward', 'subsequently', 'following'],
-  'before': ['prior to', 'earlier', 'previously'],
-  'after': ['following', 'subsequent to', 'later than'],
-  'always': ['constantly', 'continuously', 'perpetually'],
-  'never': ['not ever', 'at no time', 'not once'],
-  'often': ['frequently', 'regularly', 'commonly'],
-  'sometimes': ['occasionally', 'now and then', 'periodically'],
-  
+  today: ['now', 'currently', 'at present', 'right now'],
+  yesterday: ['recently', 'the other day', 'previously'],
+  tomorrow: ['upcoming', 'next day', 'soon'],
+  soon: ['shortly', 'before long', 'presently'],
+  later: ['afterward', 'subsequently', 'following'],
+  before: ['prior to', 'earlier', 'previously'],
+  after: ['following', 'subsequent to', 'later than'],
+  always: ['constantly', 'continuously', 'perpetually'],
+  never: ['not ever', 'at no time', 'not once'],
+  often: ['frequently', 'regularly', 'commonly'],
+  sometimes: ['occasionally', 'now and then', 'periodically'],
+
   // People words
-  'friend': ['buddy', 'companion', 'colleague', 'associate', 'pal'],
-  'family': ['relatives', 'loved ones', 'household', 'kin'],
-  'child': ['kid', 'offspring', 'youngster', 'little one'],
-  'children': ['kids', 'offspring', 'youngsters'],
-  'parent': ['mom', 'dad', 'mother', 'father'],
-  'person': ['individual', 'someone', 'human', 'people'],
-  'wife': ['spouse', 'partner'],
-  'husband': ['spouse', 'partner'],
-  
+  friend: ['buddy', 'companion', 'colleague', 'associate', 'pal'],
+  family: ['relatives', 'loved ones', 'household', 'kin'],
+  child: ['kid', 'offspring', 'youngster', 'little one'],
+  children: ['kids', 'offspring', 'youngsters'],
+  parent: ['mom', 'dad', 'mother', 'father'],
+  person: ['individual', 'someone', 'human', 'people'],
+  wife: ['spouse', 'partner'],
+  husband: ['spouse', 'partner'],
+
   // Work words
-  'project': ['task', 'work', 'assignment', 'initiative'],
-  'meeting': ['call', 'sync', 'standup', 'discussion', 'session'],
-  'deploy': ['release', 'ship', 'launch', 'publish', 'roll out'],
-  'build': ['create', 'develop', 'construct', 'implement'],
-  'fix': ['repair', 'resolve', 'patch', 'correct', 'mend'],
-  'bug': ['issue', 'problem', 'defect', 'error', 'glitch'],
-  'feature': ['functionality', 'capability', 'enhancement'],
-  'test': ['verify', 'validate', 'check', 'examine'],
-  'code': ['program', 'software', 'implementation'],
-  'work': ['job', 'task', 'project', 'assignment'],
-  
+  project: ['task', 'work', 'assignment', 'initiative'],
+  meeting: ['call', 'sync', 'standup', 'discussion', 'session'],
+  deploy: ['release', 'ship', 'launch', 'publish', 'roll out'],
+  build: ['create', 'develop', 'construct', 'implement'],
+  fix: ['repair', 'resolve', 'patch', 'correct', 'mend'],
+  bug: ['issue', 'problem', 'defect', 'error', 'glitch'],
+  feature: ['functionality', 'capability', 'enhancement'],
+  test: ['verify', 'validate', 'check', 'examine'],
+  code: ['program', 'software', 'implementation'],
+  work: ['job', 'task', 'project', 'assignment'],
+
   // Importance words
-  'important': ['crucial', 'critical', 'vital', 'essential', 'key'],
-  'urgent': ['pressing', 'immediate', 'critical', 'time-sensitive'],
-  'good': ['great', 'excellent', 'fine', 'nice', 'positive'],
-  'bad': ['poor', 'terrible', 'awful', 'negative', 'problematic'],
-  'best': ['optimal', 'ideal', 'top', 'finest', 'greatest'],
-  'worst': ['poorest', 'lowest', 'most terrible'],
-  
+  important: ['crucial', 'critical', 'vital', 'essential', 'key'],
+  urgent: ['pressing', 'immediate', 'critical', 'time-sensitive'],
+  good: ['great', 'excellent', 'fine', 'nice', 'positive'],
+  bad: ['poor', 'terrible', 'awful', 'negative', 'problematic'],
+  best: ['optimal', 'ideal', 'top', 'finest', 'greatest'],
+  worst: ['poorest', 'lowest', 'most terrible'],
+
   // Quantity words
-  'many': ['numerous', 'several', 'multiple', 'lots of'],
-  'few': ['some', 'a couple of', 'a handful of'],
-  'all': ['every', 'entire', 'whole', 'complete', 'total'],
-  'none': ['no', 'zero', 'nothing', 'not any'],
-  
+  many: ['numerous', 'several', 'multiple', 'lots of'],
+  few: ['some', 'a couple of', 'a handful of'],
+  all: ['every', 'entire', 'whole', 'complete', 'total'],
+  none: ['no', 'zero', 'nothing', 'not any'],
+
   // Location/Position
-  'here': ['this place', 'this location'],
-  'there': ['that place', 'that location'],
-  'near': ['close to', 'nearby', 'adjacent to'],
-  'far': ['distant', 'remote', 'away from'],
+  here: ['this place', 'this location'],
+  there: ['that place', 'that location'],
+  near: ['close to', 'nearby', 'adjacent to'],
+  far: ['distant', 'remote', 'away from'],
 };
 
 /**
@@ -105,28 +105,28 @@ export const SYNONYM_GROUPS: Record<string, string[]> = {
  * Maps a word to semantically related concepts
  */
 export const RELATED_CONCEPTS: Record<string, string[]> = {
-  'like': ['preference', 'favorite', 'interest', 'hobby', 'passion'],
-  'dislike': ['avoidance', 'aversion', 'pet peeve'],
-  'work': ['job', 'career', 'profession', 'occupation', 'employment'],
-  'health': ['fitness', 'wellness', 'medical', 'exercise', 'nutrition'],
-  'food': ['meal', 'diet', 'eating', 'cooking', 'restaurant', 'recipe'],
-  'travel': ['trip', 'vacation', 'journey', 'destination', 'flight', 'hotel'],
-  'money': ['finance', 'budget', 'cost', 'price', 'payment', 'expense'],
-  'home': ['house', 'apartment', 'residence', 'living space', 'property'],
-  'family': ['relatives', 'children', 'spouse', 'parents', 'siblings'],
-  'friend': ['friendship', 'relationship', 'social', 'companion'],
-  'learn': ['education', 'study', 'knowledge', 'skill', 'training'],
-  'memory': ['remember', 'recall', 'past', 'history', 'experience'],
-  'future': ['plan', 'goal', 'upcoming', 'tomorrow', 'next'],
-  'code': ['programming', 'development', 'software', 'engineering'],
-  'deploy': ['release', 'production', 'launch', 'shipping'],
-  'meeting': ['call', 'sync', 'standup', 'discussion', 'agenda'],
-  'project': ['initiative', 'effort', 'work', 'task', 'assignment'],
-  'problem': ['issue', 'challenge', 'difficulty', 'obstacle', 'bug'],
-  'solution': ['fix', 'answer', 'resolution', 'workaround'],
-  'idea': ['thought', 'concept', 'suggestion', 'proposal'],
-  'decision': ['choice', 'determination', 'resolution'],
-  'lesson': ['insight', 'learning', 'takeaway', 'realization'],
+  like: ['preference', 'favorite', 'interest', 'hobby', 'passion'],
+  dislike: ['avoidance', 'aversion', 'pet peeve'],
+  work: ['job', 'career', 'profession', 'occupation', 'employment'],
+  health: ['fitness', 'wellness', 'medical', 'exercise', 'nutrition'],
+  food: ['meal', 'diet', 'eating', 'cooking', 'restaurant', 'recipe'],
+  travel: ['trip', 'vacation', 'journey', 'destination', 'flight', 'hotel'],
+  money: ['finance', 'budget', 'cost', 'price', 'payment', 'expense'],
+  home: ['house', 'apartment', 'residence', 'living space', 'property'],
+  family: ['relatives', 'children', 'spouse', 'parents', 'siblings'],
+  friend: ['friendship', 'relationship', 'social', 'companion'],
+  learn: ['education', 'study', 'knowledge', 'skill', 'training'],
+  memory: ['remember', 'recall', 'past', 'history', 'experience'],
+  future: ['plan', 'goal', 'upcoming', 'tomorrow', 'next'],
+  code: ['programming', 'development', 'software', 'engineering'],
+  deploy: ['release', 'production', 'launch', 'shipping'],
+  meeting: ['call', 'sync', 'standup', 'discussion', 'agenda'],
+  project: ['initiative', 'effort', 'work', 'task', 'assignment'],
+  problem: ['issue', 'challenge', 'difficulty', 'obstacle', 'bug'],
+  solution: ['fix', 'answer', 'resolution', 'workaround'],
+  idea: ['thought', 'concept', 'suggestion', 'proposal'],
+  decision: ['choice', 'determination', 'resolution'],
+  lesson: ['insight', 'learning', 'takeaway', 'realization'],
 };
 
 /**
@@ -135,9 +135,9 @@ export const RELATED_CONCEPTS: Record<string, string[]> = {
  */
 export const DEFAULT_PERSON_EXPANSIONS: Record<string, string[]> = {
   // Common pronoun expansions (for user references)
-  'i': ['user', 'me', 'myself'],
-  'my': ['user', 'personal', 'own'],
-  'me': ['user', 'myself', 'I'],
+  i: ['user', 'me', 'myself'],
+  my: ['user', 'personal', 'own'],
+  me: ['user', 'myself', 'I'],
 };
 
 /**

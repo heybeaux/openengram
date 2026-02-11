@@ -58,10 +58,12 @@ export class AnalyticsService {
 
     // Raw SQL for time-series aggregation
     // Note: date_trunc requires literal interval, use Prisma.raw for the interval
-    const intervalLiteral = interval === 'hour' ? 'hour' : interval === 'week' ? 'week' : 'day';
+    const intervalLiteral =
+      interval === 'hour' ? 'hour' : interval === 'week' ? 'week' : 'day';
     const result = await this.prisma.$queryRawUnsafe<
       Array<{ timestamp: Date; count: bigint }>
-    >(`
+    >(
+      `
       SELECT 
         date_trunc('${intervalLiteral}', created_at) AS timestamp,
         COUNT(*) AS count
@@ -72,7 +74,11 @@ export class AnalyticsService {
         AND created_at <= $3
       GROUP BY date_trunc('${intervalLiteral}', created_at)
       ORDER BY timestamp ASC
-    `, userIds, start, end);
+    `,
+      userIds,
+      start,
+      end,
+    );
 
     // Convert to response format
     let runningTotal = 0;
@@ -135,7 +141,8 @@ export class AnalyticsService {
     const intervalLiteral = interval;
     const result = await this.prisma.$queryRawUnsafe<
       Array<{ timestamp: Date; memory_type: MemoryType | null; count: bigint }>
-    >(`
+    >(
+      `
       SELECT 
         date_trunc('${intervalLiteral}', created_at) AS timestamp,
         memory_type,
@@ -147,7 +154,11 @@ export class AnalyticsService {
         AND created_at <= $3
       GROUP BY date_trunc('${intervalLiteral}', created_at), memory_type
       ORDER BY timestamp ASC, memory_type
-    `, userIds, start, end);
+    `,
+      userIds,
+      start,
+      end,
+    );
 
     // Group by timestamp
     const byTimestamp = new Map<string, TypeBreakdownPoint>();
@@ -282,7 +293,8 @@ export class AnalyticsService {
 
       const trendResult = await this.prisma.$queryRawUnsafe<
         Array<{ timestamp: Date; layer: MemoryLayer; count: bigint }>
-      >(`
+      >(
+        `
         SELECT 
           date_trunc('${intervalLiteral}', created_at) AS timestamp,
           layer,
@@ -294,7 +306,11 @@ export class AnalyticsService {
           AND created_at <= $3
         GROUP BY date_trunc('${intervalLiteral}', created_at), layer
         ORDER BY timestamp ASC
-      `, userIds, start, end);
+      `,
+        userIds,
+        start,
+        end,
+      );
 
       const byTimestamp = new Map<string, LayerTrendPoint>();
       for (const row of trendResult) {
@@ -382,9 +398,7 @@ export class AnalyticsService {
     // Timeline (last 7 days)
     const timeline = await this.getTimeline(agentId, {
       granularity: 'day',
-      start: new Date(
-        now.getTime() - 7 * 24 * 60 * 60 * 1000,
-      ).toISOString(),
+      start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
       end: now.toISOString(),
     });
 
@@ -403,7 +417,8 @@ export class AnalyticsService {
       if (row.memoryType) {
         typeDistribution[row.memoryType] = {
           count: row._count,
-          percentage: totalMemories > 0 ? (row._count / totalMemories) * 100 : 0,
+          percentage:
+            totalMemories > 0 ? (row._count / totalMemories) * 100 : 0,
         };
       }
     }

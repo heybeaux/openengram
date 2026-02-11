@@ -9,7 +9,7 @@ import {
 
 /**
  * pgvector Provider
- * 
+ *
  * Uses PostgreSQL's pgvector extension for vector storage.
  * Default provider - no external dependencies, runs locally.
  */
@@ -24,18 +24,23 @@ export class PgVectorProvider implements VectorProvider {
 
   async upsert(record: VectorRecord): Promise<void> {
     const embeddingStr = `[${record.embedding.join(',')}]`;
-    
+
     // Write to inline column for backward compat
-    const updated = await this.prisma.$executeRawUnsafe(`
+    const updated = await this.prisma.$executeRawUnsafe(
+      `
       UPDATE memories 
       SET embedding = $1::vector
       WHERE id = $2
-    `, embeddingStr, record.id);
+    `,
+      embeddingStr,
+      record.id,
+    );
 
     // Only write to memory_embeddings if this ID is a real memory
     // (HierarchyService passes pinecone-style IDs like "hierarchy_l0_xxx" which aren't memory IDs)
     if (updated > 0) {
-      await this.prisma.$executeRawUnsafe(`
+      await this.prisma.$executeRawUnsafe(
+        `
         INSERT INTO memory_embeddings (id, memory_id, model_id, dimensions, embedding, created_at, updated_at)
         VALUES (
           concat('cl', substr(md5(random()::text), 1, 23)),
@@ -48,7 +53,12 @@ export class PgVectorProvider implements VectorProvider {
         )
         ON CONFLICT (memory_id, model_id)
         DO UPDATE SET embedding = $1::vector, updated_at = NOW()
-      `, embeddingStr, record.id, this.searchModel, record.embedding.length);
+      `,
+        embeddingStr,
+        record.id,
+        this.searchModel,
+        record.embedding.length,
+      );
     }
   }
 
@@ -71,7 +81,9 @@ export class PgVectorProvider implements VectorProvider {
     let paramIndex = 4;
 
     if (options.filter?.layers && options.filter.layers.length > 0) {
-      const layerPlaceholders = options.filter.layers.map((_, i) => `$${paramIndex + i}`).join(', ');
+      const layerPlaceholders = options.filter.layers
+        .map((_, i) => `$${paramIndex + i}`)
+        .join(', ');
       memoryWhereClause += ` AND m.layer IN (${layerPlaceholders})`;
       params.push(...options.filter.layers);
       paramIndex += options.filter.layers.length;
@@ -86,19 +98,24 @@ export class PgVectorProvider implements VectorProvider {
     // Pool filtering: JOIN on memory_pool_memberships to restrict results
     let poolJoinClause = '';
     if (options.filter?.poolIds && options.filter.poolIds.length > 0) {
-      const poolPlaceholders = options.filter.poolIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      const poolPlaceholders = options.filter.poolIds
+        .map((_, i) => `$${paramIndex + i}`)
+        .join(', ');
       poolJoinClause = `JOIN memory_pool_memberships mpm ON mpm.memory_id = m.id AND mpm.pool_id IN (${poolPlaceholders})`;
       params.push(...options.filter.poolIds);
       paramIndex += options.filter.poolIds.length;
     }
 
     // DEBUG: log search params
-    console.log(`[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`);
+    console.log(
+      `[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`,
+    );
 
     // Search ensemble embeddings first, fall back to inline column
     const results = await this.prisma.$queryRawUnsafe<
       Array<{ id: string; score: number }>
-    >(`
+    >(
+      `
       (
         SELECT 
           m.id,
@@ -130,9 +147,14 @@ export class PgVectorProvider implements VectorProvider {
       )
       ORDER BY score DESC
       LIMIT ${limit}
-    `, ...params);
+    `,
+      ...params,
+    );
 
-    console.log(`[PgVector] search results: ${results.length}`, results.slice(0, 3));
+    console.log(
+      `[PgVector] search results: ${results.length}`,
+      results.slice(0, 3),
+    );
 
     return results.map((r) => ({
       id: r.id,

@@ -519,7 +519,7 @@ describe('Memory API (e2e)', () => {
         .post('/v1/memories')
         .set('X-AM-API-Key', testApiKey)
         .set('X-AM-User-ID', testUserId)
-        .send({ 
+        .send({
           raw: 'Original content to update',
           layer: 'SESSION',
         });
@@ -618,7 +618,7 @@ describe('Memory API (e2e)', () => {
 
       expect(response.body.raw).toBe('Corrected fact');
       expect(response.body.source).toBe('CORRECTION');
-      
+
       // Verify original is now superseded
       const original = await prisma.memory.findUnique({
         where: { id: memoryId },

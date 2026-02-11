@@ -15,7 +15,13 @@ export interface FogIndexResult {
   computedAt: string;
 }
 
-export type FogTier = 'Crystal' | 'Clear' | 'Haze' | 'Mist' | 'Fog' | 'Dense Fog';
+export type FogTier =
+  | 'Crystal'
+  | 'Clear'
+  | 'Haze'
+  | 'Mist'
+  | 'Fog'
+  | 'Dense Fog';
 
 const TIERS: Array<{ min: number; name: FogTier }> = [
   { min: 90, name: 'Crystal' },
@@ -39,7 +45,7 @@ export class FogIndexService {
 
   async compute(userId?: string): Promise<FogIndexResult> {
     // Resolve userId: use provided, or find first user with memories
-    const resolvedUserId = userId ?? await this.resolveDefaultUserId();
+    const resolvedUserId = userId ?? (await this.resolveDefaultUserId());
     if (!resolvedUserId) {
       return this.emptyResult();
     }
@@ -54,11 +60,14 @@ export class FogIndexService {
     ]);
 
     const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
-    const weightedScore = totalWeight > 0
-      ? components.reduce((sum, c) => sum + c.score * c.weight, 0) / totalWeight
-      : 0;
+    const weightedScore =
+      totalWeight > 0
+        ? components.reduce((sum, c) => sum + c.score * c.weight, 0) /
+          totalWeight
+        : 0;
 
-    const score = Math.round(Math.max(0, Math.min(100, weightedScore)) * 10) / 10;
+    const score =
+      Math.round(Math.max(0, Math.min(100, weightedScore)) * 10) / 10;
 
     return {
       score,
@@ -82,7 +91,9 @@ export class FogIndexService {
     return result;
   }
 
-  async getHistory(limit = 30): Promise<Array<{ score: number; tier: string; computedAt: string }>> {
+  async getHistory(
+    limit = 30,
+  ): Promise<Array<{ score: number; tier: string; computedAt: string }>> {
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{ score: number; tier: string; computed_at: Date }>
     >(
@@ -91,7 +102,7 @@ export class FogIndexService {
       limit,
     );
 
-    return rows.map(r => ({
+    return rows.map((r) => ({
       score: Number(r.score),
       tier: r.tier,
       computedAt: r.computed_at.toISOString(),
@@ -109,7 +120,12 @@ export class FogIndexService {
     });
 
     if (total === 0) {
-      return { name: 'Memory Freshness', score: 50, weight: 25, details: 'No memories' };
+      return {
+        name: 'Memory Freshness',
+        score: 50,
+        weight: 25,
+        details: 'No memories',
+      };
     }
 
     const accessed = await this.prisma.memory.count({
@@ -143,7 +159,12 @@ export class FogIndexService {
     });
 
     if (total === 0) {
-      return { name: 'Embedding Coverage', score: 50, weight: 20, details: 'No memories' };
+      return {
+        name: 'Embedding Coverage',
+        score: 50,
+        weight: 20,
+        details: 'No memories',
+      };
     }
 
     // Count memories with at least one embedding (legacy embeddingId or ensemble)
@@ -178,7 +199,12 @@ export class FogIndexService {
     });
 
     if (total === 0) {
-      return { name: 'Dedup Health', score: 100, weight: 15, details: 'No memories' };
+      return {
+        name: 'Dedup Health',
+        score: 100,
+        weight: 15,
+        details: 'No memories',
+      };
     }
 
     // Count pending merge candidates as a proxy for duplicates
@@ -188,7 +214,7 @@ export class FogIndexService {
 
     // Score: 100 if 0 pending, drops as duplicates increase
     // Each pending candidate reduces score by ~5 points, capped at 0
-    const score = Math.max(0, 100 - (pendingDups * 5));
+    const score = Math.max(0, 100 - pendingDups * 5);
 
     return {
       name: 'Dedup Health',
@@ -214,8 +240,10 @@ export class FogIndexService {
       };
     }
 
-    const hoursSince = (Date.now() - lastReport.completedAt.getTime()) / (1000 * 60 * 60);
-    const wasSuccessful = lastReport.status === 'COMPLETED' || lastReport.status === 'DRY_RUN';
+    const hoursSince =
+      (Date.now() - lastReport.completedAt.getTime()) / (1000 * 60 * 60);
+    const wasSuccessful =
+      lastReport.status === 'COMPLETED' || lastReport.status === 'DRY_RUN';
 
     // Score: 100 if ran < 24h ago, degrades over days
     // Halved if last run failed
@@ -223,7 +251,8 @@ export class FogIndexService {
     if (hoursSince <= 24) score = 100;
     else if (hoursSince <= 48) score = 85;
     else if (hoursSince <= 72) score = 70;
-    else if (hoursSince <= 168) score = 50; // 1 week
+    else if (hoursSince <= 168)
+      score = 50; // 1 week
     else score = Math.max(0, 50 - (hoursSince - 168) / 24);
 
     if (!wasSuccessful) score *= 0.5;
@@ -246,7 +275,12 @@ export class FogIndexService {
     });
 
     if (total === 0) {
-      return { name: 'Memory Vitality', score: 50, weight: 10, details: 'No memories' };
+      return {
+        name: 'Memory Vitality',
+        score: 50,
+        weight: 10,
+        details: 'No memories',
+      };
     }
 
     // Count memories archived/deleted in last 30 days
@@ -268,7 +302,7 @@ export class FogIndexService {
 
     const decayPct = ((decayed + lowScore) / (total + decayed)) * 100;
     // Score: 100 if <5% decay, drops linearly
-    const score = Math.max(0, 100 - (decayPct * 2.5));
+    const score = Math.max(0, 100 - decayPct * 2.5);
 
     return {
       name: 'Memory Vitality',
@@ -285,7 +319,12 @@ export class FogIndexService {
     });
 
     if (total === 0) {
-      return { name: 'Coverage Breadth', score: 0, weight: 10, details: 'No memories' };
+      return {
+        name: 'Coverage Breadth',
+        score: 0,
+        weight: 10,
+        details: 'No memories',
+      };
     }
 
     // Check how many memory types are represented
@@ -295,8 +334,15 @@ export class FogIndexService {
       _count: true,
     });
 
-    const expectedTypes = ['CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT', 'LESSON'];
-    const coveredTypes = typeCounts.filter(t => t.memoryType !== null).length;
+    const expectedTypes = [
+      'CONSTRAINT',
+      'PREFERENCE',
+      'FACT',
+      'TASK',
+      'EVENT',
+      'LESSON',
+    ];
+    const coveredTypes = typeCounts.filter((t) => t.memoryType !== null).length;
     const typeCoverage = (coveredTypes / expectedTypes.length) * 100;
 
     // Also check layer distribution

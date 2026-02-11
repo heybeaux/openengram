@@ -10,7 +10,13 @@ import {
   HttpStatus,
   Headers,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiHeader } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { DeduplicationService } from './deduplication.service';
 import { ReviewService } from './review.service';
 import { LineageService } from './lineage.service';
@@ -62,13 +68,19 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Trigger batch deduplication scan' })
   @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ScanResponseDto })
-  @ApiResponse({ status: 400, description: 'Deduplication disabled or job already running' })
+  @ApiResponse({
+    status: 400,
+    description: 'Deduplication disabled or job already running',
+  })
   async scan(
     @Headers('x-user-id') userId: string,
     @Body() dto: TriggerScanDto,
   ): Promise<ScanResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
@@ -95,7 +107,10 @@ export class DeduplicationController {
   getScanStatus(@Param('scanId') scanId: string): ScanResponseDto {
     const job = this.dedupService.getJobStatus(scanId);
     if (!job) {
-      throw new HttpException(`Scan not found: ${scanId}`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Scan not found: ${scanId}`,
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     return {
@@ -127,7 +142,10 @@ export class DeduplicationController {
     @Query() query: ListCandidatesQueryDto,
   ): Promise<ListCandidatesResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.reviewService.getCandidates(query.userId || userId, {
@@ -148,7 +166,10 @@ export class DeduplicationController {
   async getCandidate(@Param('candidateId') candidateId: string) {
     const candidate = await this.reviewService.getCandidate(candidateId);
     if (!candidate) {
-      throw new HttpException(`Candidate not found: ${candidateId}`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Candidate not found: ${candidateId}`,
+        HttpStatus.NOT_FOUND,
+      );
     }
     return candidate;
   }
@@ -158,7 +179,11 @@ export class DeduplicationController {
    */
   @Post('review/:candidateId/approve')
   @ApiOperation({ summary: 'Approve merge candidate' })
-  @ApiHeader({ name: 'x-approver-id', required: false, description: 'Approver ID' })
+  @ApiHeader({
+    name: 'x-approver-id',
+    required: false,
+    description: 'Approver ID',
+  })
   @ApiResponse({ status: 200, type: ApproveResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   @ApiResponse({ status: 404, description: 'Candidate not found' })
@@ -185,7 +210,11 @@ export class DeduplicationController {
    */
   @Post('review/:candidateId/reject')
   @ApiOperation({ summary: 'Reject merge candidate' })
-  @ApiHeader({ name: 'x-approver-id', required: false, description: 'Rejector ID' })
+  @ApiHeader({
+    name: 'x-approver-id',
+    required: false,
+    description: 'Rejector ID',
+  })
   @ApiResponse({ status: 200, type: RejectResponseDto })
   @ApiResponse({ status: 404, description: 'Candidate not found' })
   async reject(
@@ -211,7 +240,12 @@ export class DeduplicationController {
    */
   @Post('review/:candidateId/skip')
   @ApiOperation({ summary: 'Skip merge candidate' })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Days to skip (default 7)' })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Days to skip (default 7)',
+  })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'Candidate not found' })
   async skip(
@@ -241,7 +275,11 @@ export class DeduplicationController {
   @Post('merge')
   @ApiOperation({ summary: 'Manually merge memories' })
   @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
-  @ApiHeader({ name: 'x-approver-id', required: false, description: 'Approver ID' })
+  @ApiHeader({
+    name: 'x-approver-id',
+    required: false,
+    description: 'Approver ID',
+  })
   @ApiResponse({ status: 200, type: MergeResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   async merge(
@@ -250,7 +288,10 @@ export class DeduplicationController {
     @Headers('x-approver-id') approverId?: string,
   ): Promise<MergeResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     try {
@@ -271,7 +312,9 @@ export class DeduplicationController {
   @ApiResponse({ status: 200, type: RollbackResponseDto })
   @ApiResponse({ status: 400, description: 'Cannot rollback' })
   @ApiResponse({ status: 404, description: 'Merge event not found' })
-  async rollback(@Param('mergeEventId') mergeEventId: string): Promise<RollbackResponseDto> {
+  async rollback(
+    @Param('mergeEventId') mergeEventId: string,
+  ): Promise<RollbackResponseDto> {
     try {
       return await this.dedupService.rollback(mergeEventId);
     } catch (error) {
@@ -306,7 +349,10 @@ export class DeduplicationController {
     @Query('survivorId') survivorId?: string,
   ): Promise<{ events: MergeEventDto[]; total: number }> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.lineageService.getMergeHistory(userId, {
@@ -323,10 +369,15 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Get merge event details' })
   @ApiResponse({ status: 200, type: MergeEventDto })
   @ApiResponse({ status: 404, description: 'Merge event not found' })
-  async getMergeEvent(@Param('mergeEventId') mergeEventId: string): Promise<MergeEventDto> {
+  async getMergeEvent(
+    @Param('mergeEventId') mergeEventId: string,
+  ): Promise<MergeEventDto> {
     const event = await this.lineageService.getMergeEvent(mergeEventId);
     if (!event) {
-      throw new HttpException(`Merge event not found: ${mergeEventId}`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Merge event not found: ${mergeEventId}`,
+        HttpStatus.NOT_FOUND,
+      );
     }
     return event;
   }
@@ -365,7 +416,10 @@ export class DeduplicationController {
     @Query('minSimilarity') minSimilarity?: number,
   ): Promise<SimilarMemoryDto[]> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.dedupService.findSimilar(memoryId, userId, {
@@ -385,9 +439,14 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Get deduplication configuration' })
   @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
-  async getConfig(@Headers('x-user-id') userId: string): Promise<ConfigResponseDto> {
+  async getConfig(
+    @Headers('x-user-id') userId: string,
+  ): Promise<ConfigResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.dedupService.getConfig(userId);
@@ -405,7 +464,10 @@ export class DeduplicationController {
     @Body() dto: UpdateConfigDto,
   ): Promise<ConfigResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.dedupService.updateConfig(userId, dto);
@@ -422,9 +484,14 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Get deduplication statistics' })
   @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: StatsResponseDto })
-  async getStats(@Headers('x-user-id') userId: string): Promise<StatsResponseDto> {
+  async getStats(
+    @Headers('x-user-id') userId: string,
+  ): Promise<StatsResponseDto> {
     if (!userId) {
-      throw new HttpException('x-user-id header required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'x-user-id header required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.dedupService.getStats(userId);

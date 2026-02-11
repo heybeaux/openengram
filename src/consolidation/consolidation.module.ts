@@ -11,7 +11,11 @@ import { FogIndexModule } from '../fog-index/fog-index.module';
 @Module({
   imports: [MemoryModule, LLMModule, ClusteringModule, FogIndexModule],
   controllers: [ConsolidationController],
-  providers: [DreamCycleService, GenerateContextService, ImportanceScorerService],
+  providers: [
+    DreamCycleService,
+    GenerateContextService,
+    ImportanceScorerService,
+  ],
   exports: [DreamCycleService, GenerateContextService],
 })
 export class ConsolidationModule {}

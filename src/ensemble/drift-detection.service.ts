@@ -1,6 +1,6 @@
 /**
  * Drift Detection Service
- * 
+ *
  * Detects embedding drift between old and new embeddings.
  * Uses pgvector to fetch existing embeddings for comparison.
  * High drift may indicate model changes or content issues.
@@ -14,7 +14,7 @@ import { ModelId, DriftAnalysis, DriftSummary } from './ensemble.types';
 @Injectable()
 export class DriftDetectionService {
   private readonly logger = new Logger(DriftDetectionService.name);
-  
+
   // Thresholds for drift detection
   private readonly DRIFT_THRESHOLD: number;
   private readonly ALERT_THRESHOLD: number;
@@ -23,8 +23,14 @@ export class DriftDetectionService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.DRIFT_THRESHOLD = this.config.get<number>('ENSEMBLE_DRIFT_THRESHOLD', 0.15);
-    this.ALERT_THRESHOLD = this.config.get<number>('ENSEMBLE_DRIFT_ALERT', 0.25);
+    this.DRIFT_THRESHOLD = this.config.get<number>(
+      'ENSEMBLE_DRIFT_THRESHOLD',
+      0.15,
+    );
+    this.ALERT_THRESHOLD = this.config.get<number>(
+      'ENSEMBLE_DRIFT_ALERT',
+      0.25,
+    );
   }
 
   /**
@@ -35,7 +41,7 @@ export class DriftDetectionService {
     oldEmbedding: number[] | null,
     newEmbedding: number[],
     model: ModelId,
-    oldVersion?: string
+    oldVersion?: string,
   ): Promise<DriftAnalysis> {
     // If no old embedding, can't measure drift
     if (!oldEmbedding || oldEmbedding.length === 0) {
@@ -55,7 +61,7 @@ export class DriftDetectionService {
     // Alert on high drift
     if (cosineDrift > this.ALERT_THRESHOLD) {
       this.logger.warn(
-        `High embedding drift detected: memory=${memoryId}, model=${model}, drift=${cosineDrift.toFixed(4)}`
+        `High embedding drift detected: memory=${memoryId}, model=${model}, drift=${cosineDrift.toFixed(4)}`,
       );
     }
 
@@ -76,11 +82,14 @@ export class DriftDetectionService {
   async measureBatchDrift(
     memories: Array<{ id: string; raw: string }>,
     newEmbeddings: number[][],
-    model: ModelId
+    model: ModelId,
   ): Promise<DriftAnalysis[]> {
     // Fetch existing embeddings for these memories
-    const memoryIds = memories.map(m => m.id);
-    const existingEmbeddings = await this.fetchExistingEmbeddings(memoryIds, model);
+    const memoryIds = memories.map((m) => m.id);
+    const existingEmbeddings = await this.fetchExistingEmbeddings(
+      memoryIds,
+      model,
+    );
 
     const analyses: DriftAnalysis[] = [];
 
@@ -112,7 +121,7 @@ export class DriftDetectionService {
 
       if (cosineDrift > this.ALERT_THRESHOLD) {
         this.logger.warn(
-          `High embedding drift: memory=${memory.id}, model=${model}, drift=${cosineDrift.toFixed(4)}`
+          `High embedding drift: memory=${memory.id}, model=${model}, drift=${cosineDrift.toFixed(4)}`,
         );
       }
 
@@ -134,7 +143,7 @@ export class DriftDetectionService {
    */
   private async fetchExistingEmbeddings(
     memoryIds: string[],
-    model: ModelId
+    model: ModelId,
   ): Promise<Map<string, number[]>> {
     const result = new Map<string, number[]>();
 
@@ -154,7 +163,7 @@ export class DriftDetectionService {
           AND embedding IS NOT NULL
         `,
         memoryIds,
-        model
+        model,
       );
 
       for (const row of rows) {
@@ -165,7 +174,10 @@ export class DriftDetectionService {
         }
       }
     } catch (error) {
-      this.logger.error('Failed to fetch existing embeddings for drift detection', error);
+      this.logger.error(
+        'Failed to fetch existing embeddings for drift detection',
+        error,
+      );
     }
 
     return result;
@@ -182,27 +194,33 @@ export class DriftDetectionService {
         maxCosineDrift: 0,
         memoriesWithHighDrift: 0,
         driftThreshold: this.DRIFT_THRESHOLD,
-        byModel: {} as Record<ModelId, { avg: number; max: number; flagged: number }>,
+        byModel: {} as Record<
+          ModelId,
+          { avg: number; max: number; flagged: number }
+        >,
       };
     }
 
-    const drifts = analyses.map(a => a.cosineDrift);
+    const drifts = analyses.map((a) => a.cosineDrift);
     const avgDrift = this.average(drifts);
     const maxDrift = Math.max(...drifts);
-    const flaggedCount = analyses.filter(a => a.flagged).length;
+    const flaggedCount = analyses.filter((a) => a.flagged).length;
 
     // Group by model
-    const byModel = {} as Record<ModelId, { avg: number; max: number; flagged: number }>;
-    const models = new Set(analyses.map(a => a.model));
+    const byModel = {} as Record<
+      ModelId,
+      { avg: number; max: number; flagged: number }
+    >;
+    const models = new Set(analyses.map((a) => a.model));
 
     for (const model of models) {
-      const modelAnalyses = analyses.filter(a => a.model === model);
-      const modelDrifts = modelAnalyses.map(a => a.cosineDrift);
+      const modelAnalyses = analyses.filter((a) => a.model === model);
+      const modelDrifts = modelAnalyses.map((a) => a.cosineDrift);
 
       byModel[model] = {
         avg: this.average(modelDrifts),
         max: Math.max(...modelDrifts),
-        flagged: modelAnalyses.filter(a => a.flagged).length,
+        flagged: modelAnalyses.filter((a) => a.flagged).length,
       };
     }
 

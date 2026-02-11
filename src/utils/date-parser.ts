@@ -6,7 +6,7 @@
 /**
  * Parse a date string from LLM extraction into a Date object
  * Returns null for invalid or unparseable dates
- * 
+ *
  * @param dateStr - The date string to parse (ISO, relative, or natural language)
  * @param referenceDate - Reference date for relative calculations (defaults to now)
  */
@@ -19,7 +19,7 @@ export function parseFlexibleDate(
   }
 
   const normalized = dateStr.trim().toLowerCase();
-  
+
   if (!normalized) {
     return null;
   }
@@ -81,13 +81,13 @@ function parseRelativeDate(dateStr: string, ref: Date): Date | null {
   if (dateStr === 'today' || dateStr === 'now') {
     return today;
   }
-  
+
   if (dateStr === 'yesterday') {
     const d = new Date(today);
     d.setDate(d.getDate() - 1);
     return d;
   }
-  
+
   if (dateStr === 'tomorrow') {
     const d = new Date(today);
     d.setDate(d.getDate() + 1);
@@ -103,7 +103,9 @@ function parseRelativeDate(dateStr: string, ref: Date): Date | null {
   }
 
   // "a day/week/month ago"
-  const aAgoMatch = dateStr.match(/^(?:a|an|one)\s+(day|week|month|year)\s+ago$/);
+  const aAgoMatch = dateStr.match(
+    /^(?:a|an|one)\s+(day|week|month|year)\s+ago$/,
+  );
   if (aAgoMatch) {
     const unit = aAgoMatch[1];
     return subtractFromDate(today, 1, unit);
@@ -124,7 +126,9 @@ function parseRelativeDate(dateStr: string, ref: Date): Date | null {
   }
 
   // "last Monday/Tuesday/etc."
-  const lastDayMatch = dateStr.match(/^last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+  const lastDayMatch = dateStr.match(
+    /^last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
+  );
   if (lastDayMatch) {
     const targetDay = getDayNumber(lastDayMatch[1]);
     if (targetDay !== null) {
@@ -133,7 +137,9 @@ function parseRelativeDate(dateStr: string, ref: Date): Date | null {
   }
 
   // "on Monday/Tuesday/etc." (interpret as most recent)
-  const onDayMatch = dateStr.match(/^(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+  const onDayMatch = dateStr.match(
+    /^(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
+  );
   if (onDayMatch) {
     const targetDay = getDayNumber(onDayMatch[1]);
     if (targetDay !== null) {
@@ -150,49 +156,73 @@ function parseRelativeDate(dateStr: string, ref: Date): Date | null {
 function parseNaturalLanguageDate(dateStr: string): Date | null {
   // Month names mapping
   const months: Record<string, number> = {
-    january: 0, jan: 0,
-    february: 1, feb: 1,
-    march: 2, mar: 2,
-    april: 3, apr: 3,
+    january: 0,
+    jan: 0,
+    february: 1,
+    feb: 1,
+    march: 2,
+    mar: 2,
+    april: 3,
+    apr: 3,
     may: 4,
-    june: 5, jun: 5,
-    july: 6, jul: 6,
-    august: 7, aug: 7,
-    september: 8, sep: 8, sept: 8,
-    october: 9, oct: 9,
-    november: 10, nov: 10,
-    december: 11, dec: 11,
+    june: 5,
+    jun: 5,
+    july: 6,
+    jul: 6,
+    august: 7,
+    aug: 7,
+    september: 8,
+    sep: 8,
+    sept: 8,
+    october: 9,
+    oct: 9,
+    november: 10,
+    nov: 10,
+    december: 11,
+    dec: 11,
   };
 
   // "February 1st, 2026" or "February 1, 2026" or "Feb 1st 2026"
   const fullMatch = dateStr.match(
-    /^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(\d{4})$/
+    /^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(\d{4})$/,
   );
   if (fullMatch) {
     const month = months[fullMatch[1]];
     const day = parseInt(fullMatch[2], 10);
     const year = parseInt(fullMatch[3], 10);
-    if (month !== undefined && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+    if (
+      month !== undefined &&
+      day >= 1 &&
+      day <= 31 &&
+      year >= 1900 &&
+      year <= 2100
+    ) {
       return new Date(year, month, day);
     }
   }
 
   // "1 February 2026" or "1st February, 2026"
   const dayFirstMatch = dateStr.match(
-    /^(\d{1,2})(?:st|nd|rd|th)?\s+(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)[,\s]+(\d{4})$/
+    /^(\d{1,2})(?:st|nd|rd|th)?\s+(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)[,\s]+(\d{4})$/,
   );
   if (dayFirstMatch) {
     const day = parseInt(dayFirstMatch[1], 10);
     const month = months[dayFirstMatch[2]];
     const year = parseInt(dayFirstMatch[3], 10);
-    if (month !== undefined && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+    if (
+      month !== undefined &&
+      day >= 1 &&
+      day <= 31 &&
+      year >= 1900 &&
+      year <= 2100
+    ) {
       return new Date(year, month, day);
     }
   }
 
   // "February 2026" (first of month)
   const monthYearMatch = dateStr.match(
-    /^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{4})$/
+    /^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{4})$/,
   );
   if (monthYearMatch) {
     const month = months[monthYearMatch[1]];
@@ -216,7 +246,7 @@ function parseMonthDayYear(dateStr: string): Date | null {
     const first = parseInt(slashMatch[1], 10);
     const second = parseInt(slashMatch[2], 10);
     const year = parseInt(slashMatch[3], 10);
-    
+
     // Assume MM/DD/YYYY format
     if (first >= 1 && first <= 12 && second >= 1 && second <= 31) {
       return new Date(year, first - 1, second);
@@ -229,7 +259,7 @@ function parseMonthDayYear(dateStr: string): Date | null {
     const first = parseInt(dashMatch[1], 10);
     const second = parseInt(dashMatch[2], 10);
     const year = parseInt(dashMatch[3], 10);
-    
+
     if (first >= 1 && first <= 12 && second >= 1 && second <= 31) {
       return new Date(year, first - 1, second);
     }
@@ -243,7 +273,7 @@ function parseMonthDayYear(dateStr: string): Date | null {
  */
 function subtractFromDate(date: Date, amount: number, unit: string): Date {
   const result = new Date(date);
-  
+
   switch (unit) {
     case 'day':
       result.setDate(result.getDate() - amount);
@@ -258,7 +288,7 @@ function subtractFromDate(date: Date, amount: number, unit: string): Date {
       result.setFullYear(result.getFullYear() - amount);
       break;
   }
-  
+
   return result;
 }
 
@@ -267,13 +297,14 @@ function subtractFromDate(date: Date, amount: number, unit: string): Date {
  */
 function getStartOfPeriod(date: Date, unit: string): Date {
   const result = new Date(date);
-  
+
   switch (unit) {
-    case 'week':
+    case 'week': {
       // Start of week (Sunday)
       const day = result.getDay();
       result.setDate(result.getDate() - day);
       break;
+    }
     case 'month':
       result.setDate(1);
       break;
@@ -281,7 +312,7 @@ function getStartOfPeriod(date: Date, unit: string): Date {
       result.setMonth(0, 1);
       break;
   }
-  
+
   return result;
 }
 

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { QueryRouterService, HierarchyLevel, QueryAnalysis } from './query-router.service';
+import {
+  QueryRouterService,
+  HierarchyLevel,
+  QueryAnalysis,
+} from './query-router.service';
 
 describe('QueryRouterService', () => {
   let service: QueryRouterService;
@@ -22,7 +26,7 @@ describe('QueryRouterService', () => {
           'Quote what was mentioned',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L0');
         });
@@ -36,7 +40,7 @@ describe('QueryRouterService', () => {
           'What error code did you see?',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L0');
         });
@@ -49,7 +53,7 @@ describe('QueryRouterService', () => {
           'What did they tell you?',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L0');
         });
@@ -64,7 +68,7 @@ describe('QueryRouterService', () => {
           'What is the reasoning behind this?',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L1');
         });
@@ -77,7 +81,7 @@ describe('QueryRouterService', () => {
           'How does X relate to Y?',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L1');
         });
@@ -90,7 +94,7 @@ describe('QueryRouterService', () => {
           'What is the process for review?',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L1');
         });
@@ -105,7 +109,7 @@ describe('QueryRouterService', () => {
           'deployment notes',
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.suggestedLevels).toContain('L0');
           expect(result.suggestedLevels).toContain('L1');
@@ -126,7 +130,7 @@ describe('QueryRouterService', () => {
         expect(result).toHaveProperty('suggestedLevels');
         expect(result).toHaveProperty('confidence');
         expect(result).toHaveProperty('reasoning');
-        
+
         expect(result.query).toBe('test query');
         expect(Array.isArray(result.suggestedLevels)).toBe(true);
         expect(typeof result.confidence).toBe('number');
@@ -141,7 +145,7 @@ describe('QueryRouterService', () => {
           'what is the specific error code?',
         ];
 
-        testQueries.forEach(query => {
+        testQueries.forEach((query) => {
           const result = service.analyze(query);
           expect(result.confidence).toBeGreaterThanOrEqual(0);
           expect(result.confidence).toBeLessThanOrEqual(1);
@@ -155,9 +159,9 @@ describe('QueryRouterService', () => {
           'what does Beaux usually prefer', // L3 indicator
         ];
 
-        queries.forEach(query => {
+        queries.forEach((query) => {
           const result = service.analyze(query);
-          result.suggestedLevels.forEach(level => {
+          result.suggestedLevels.forEach((level) => {
             expect(['L0', 'L1']).toContain(level);
           });
         });
@@ -228,7 +232,8 @@ describe('QueryRouterService', () => {
     });
 
     it('should handle query with multiple level indicators', () => {
-      const query = 'What exactly did we discuss in the meeting about our usual preferences?';
+      const query =
+        'What exactly did we discuss in the meeting about our usual preferences?';
       const result = service.analyze(query);
       // Should find multiple indicators and include multiple levels
       expect(result.suggestedLevels.length).toBeGreaterThanOrEqual(1);

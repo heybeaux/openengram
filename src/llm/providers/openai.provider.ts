@@ -14,7 +14,7 @@ import {
  */
 export class OpenAIProvider implements LLMProvider {
   readonly name = 'openai';
-  
+
   private apiKey: string;
   private baseUrl: string;
   private defaultModel: string;
@@ -116,7 +116,9 @@ export class OpenAIProvider implements LLMProvider {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`OpenAI Embedding API error: ${response.status} - ${error}`);
+      throw new Error(
+        `OpenAI Embedding API error: ${response.status} - ${error}`,
+      );
     }
 
     const data = await response.json();

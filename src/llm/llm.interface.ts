@@ -1,6 +1,6 @@
 /**
  * LLM Provider Interface
- * 
+ *
  * Abstracts LLM operations so users can bring their own model:
  * - OpenAI (GPT-4, GPT-4o-mini, etc.)
  * - Anthropic (Claude 3.5 Sonnet, Claude 3 Haiku, etc.)
@@ -51,7 +51,10 @@ export interface LLMProvider {
   /**
    * Generate a chat completion
    */
-  chat(messages: LLMMessage[], options?: Partial<LLMConfig>): Promise<LLMResponse>;
+  chat(
+    messages: LLMMessage[],
+    options?: Partial<LLMConfig>,
+  ): Promise<LLMResponse>;
 
   /**
    * Generate a structured JSON response

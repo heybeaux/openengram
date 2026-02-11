@@ -146,7 +146,9 @@ describe('ImportanceService', () => {
 
     it('should return score with 2 decimal places', () => {
       const result = service.calculate({ hint: ImportanceHint.MEDIUM });
-      expect(result.toString().split('.')[1]?.length || 0).toBeLessThanOrEqual(2);
+      expect(result.toString().split('.')[1]?.length || 0).toBeLessThanOrEqual(
+        2,
+      );
     });
   });
 

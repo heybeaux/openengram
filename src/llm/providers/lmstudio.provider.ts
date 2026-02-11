@@ -82,13 +82,13 @@ export class LMStudioProvider implements LLMProvider {
     try {
       // Try to extract JSON from response
       let content = response.content.trim();
-      
+
       // Handle markdown code blocks
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         content = jsonMatch[1];
       }
-      
+
       return JSON.parse(content) as T;
     } catch (e) {
       throw new Error(`Failed to parse JSON response: ${response.content}`);
@@ -112,7 +112,7 @@ export class LMStudioProvider implements LLMProvider {
       const error = await response.text();
       throw new Error(
         `LM Studio Embedding API error: ${response.status} - ${error}. ` +
-        'Make sure an embedding model is loaded in LM Studio.',
+          'Make sure an embedding model is loaded in LM Studio.',
       );
     }
 

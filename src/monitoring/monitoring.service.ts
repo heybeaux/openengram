@@ -37,7 +37,11 @@ export class MonitoringService {
 
   // In-memory counters (reset hourly by snapshot)
   private embeddingFailures: Array<{ model: string; timestamp: Date }> = [];
-  private apiErrors5xx: Array<{ timestamp: Date; statusCode: number; path: string }> = [];
+  private apiErrors5xx: Array<{
+    timestamp: Date;
+    statusCode: number;
+    path: string;
+  }> = [];
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -76,7 +80,9 @@ export class MonitoringService {
     // Memory count
     let currentCount = 0;
     try {
-      currentCount = await this.prisma.memory.count({ where: { deletedAt: null } });
+      currentCount = await this.prisma.memory.count({
+        where: { deletedAt: null },
+      });
     } catch (e) {
       this.logger.warn('Failed to count memories', e);
     }
@@ -108,9 +114,10 @@ export class MonitoringService {
       });
       if (lastRun) {
         dreamCycle = {
-          lastSuccessfulRun: lastRun.status === 'COMPLETED'
-            ? lastRun.completedAt?.toISOString() ?? null
-            : null,
+          lastSuccessfulRun:
+            lastRun.status === 'COMPLETED'
+              ? (lastRun.completedAt?.toISOString() ?? null)
+              : null,
           lastDurationMs: lastRun.durationMs,
           lastStatus: lastRun.status,
         };
@@ -132,7 +139,8 @@ export class MonitoringService {
       memoryCount: {
         current: currentCount,
         previousSnapshot,
-        delta: previousSnapshot !== null ? currentCount - previousSnapshot : null,
+        delta:
+          previousSnapshot !== null ? currentCount - previousSnapshot : null,
       },
       apiErrors: {
         count5xxLastHour: recent5xx.length,
@@ -161,7 +169,10 @@ export class MonitoringService {
     }
 
     // Alert: Memory count dropped by > 100 in last snapshot interval
-    if (metrics.memoryCount.delta !== null && metrics.memoryCount.delta < -100) {
+    if (
+      metrics.memoryCount.delta !== null &&
+      metrics.memoryCount.delta < -100
+    ) {
       alerts.push({
         level: 'critical',
         type: 'memory_count_drop',

@@ -41,7 +41,10 @@ describe('ClusteringController', () => {
 
       const result = await controller.run({ userId: 'user1' });
       expect(result).toEqual(expected);
-      expect(service.run).toHaveBeenCalledWith({ userId: 'user1', dryRun: undefined });
+      expect(service.run).toHaveBeenCalledWith({
+        userId: 'user1',
+        dryRun: undefined,
+      });
     });
 
     it('should pass dryRun from query param', async () => {
@@ -54,7 +57,14 @@ describe('ClusteringController', () => {
   describe('GET /clusters', () => {
     it('should return cluster list', async () => {
       service.listClusters.mockResolvedValue([
-        { id: 'c1', label: 'Test', description: null, memberCount: 5, createdAt: new Date(), updatedAt: new Date() },
+        {
+          id: 'c1',
+          label: 'Test',
+          description: null,
+          memberCount: 5,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ]);
 
       const result = await controller.listClusters();
@@ -65,7 +75,9 @@ describe('ClusteringController', () => {
   describe('GET /clusters/:id', () => {
     it('should throw NotFoundException for missing cluster', async () => {
       service.getCluster.mockResolvedValue(null);
-      await expect(controller.getCluster('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(controller.getCluster('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MemoryAccessLogService, MemoryAccessType } from './memory-access-log.service';
+import {
+  MemoryAccessLogService,
+  MemoryAccessType,
+} from './memory-access-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('MemoryAccessLogService', () => {
@@ -103,9 +106,21 @@ describe('MemoryAccessLogService', () => {
       prisma.memoryAccessLog.createMany.mockResolvedValue({ count: 3 });
 
       await service.writeBatchLogEntries([
-        { memoryId: 'mem-1', agentSessionKey: 'agent:main', accessType: MemoryAccessType.RECALLED },
-        { memoryId: 'mem-2', agentSessionKey: 'agent:main', accessType: MemoryAccessType.RECALLED },
-        { memoryId: 'mem-3', agentSessionKey: 'agent:main', accessType: MemoryAccessType.RECALLED },
+        {
+          memoryId: 'mem-1',
+          agentSessionKey: 'agent:main',
+          accessType: MemoryAccessType.RECALLED,
+        },
+        {
+          memoryId: 'mem-2',
+          agentSessionKey: 'agent:main',
+          accessType: MemoryAccessType.RECALLED,
+        },
+        {
+          memoryId: 'mem-3',
+          agentSessionKey: 'agent:main',
+          accessType: MemoryAccessType.RECALLED,
+        },
       ]);
 
       expect(prisma.memoryAccessLog.createMany).toHaveBeenCalledWith({
@@ -204,7 +219,11 @@ describe('MemoryAccessLogService', () => {
       prisma.agentSession.findUnique.mockResolvedValue({ id: 'session-id-1' });
       prisma.memoryAccessLog.createMany.mockResolvedValue({ count: 2 });
 
-      await service.logRecalled(['mem-1', 'mem-2'], 'agent:main', 'search query');
+      await service.logRecalled(
+        ['mem-1', 'mem-2'],
+        'agent:main',
+        'search query',
+      );
 
       await new Promise((r) => setTimeout(r, 50));
       expect(prisma.memoryAccessLog.createMany).toHaveBeenCalled();

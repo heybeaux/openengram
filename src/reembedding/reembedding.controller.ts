@@ -18,9 +18,9 @@ import {
 
 /**
  * Re-embedding Controller
- * 
+ *
  * API endpoints for triggering and monitoring re-embedding jobs.
- * 
+ *
  * Endpoints:
  * - POST /v1/reembedding/run - Trigger a batch re-embedding job
  * - GET /v1/reembedding/status - Get current job status
@@ -40,7 +40,10 @@ export class ReembeddingController {
   @Post('run')
   @ApiOperation({ summary: 'Trigger batch re-embedding' })
   @ApiResponse({ status: 200, type: ReembeddingJobDto })
-  @ApiResponse({ status: 400, description: 'Re-embedding disabled or job already running' })
+  @ApiResponse({
+    status: 400,
+    description: 'Re-embedding disabled or job already running',
+  })
   async triggerReembedding(
     @Body() dto: TriggerReembeddingDto,
   ): Promise<ReembeddingJobDto> {
@@ -48,7 +51,9 @@ export class ReembeddingController {
       return await this.reembeddingService.triggerReembedding(dto);
     } catch (error) {
       throw new HttpException(
-        error instanceof Error ? error.message : 'Failed to trigger re-embedding',
+        error instanceof Error
+          ? error.message
+          : 'Failed to trigger re-embedding',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -64,7 +69,10 @@ export class ReembeddingController {
   getCurrentStatus(): ReembeddingJobDto {
     const status = this.reembeddingService.getCurrentJobStatus();
     if (!status) {
-      throw new HttpException('No active re-embedding job', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'No active re-embedding job',
+        HttpStatus.NOT_FOUND,
+      );
     }
     return status;
   }
@@ -107,7 +115,10 @@ export class ReembeddingController {
   ): Promise<EnrichedMemoryPreviewDto> {
     const preview = await this.reembeddingService.previewEnrichment(memoryId);
     if (!preview) {
-      throw new HttpException(`Memory not found: ${memoryId}`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Memory not found: ${memoryId}`,
+        HttpStatus.NOT_FOUND,
+      );
     }
     return preview;
   }
@@ -138,7 +149,10 @@ export class ReembeddingController {
         dryRun === 'true',
       );
       if (!result) {
-        throw new HttpException(`Memory not found: ${memoryId}`, HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          `Memory not found: ${memoryId}`,
+          HttpStatus.NOT_FOUND,
+        );
       }
       return result;
     } catch (error) {

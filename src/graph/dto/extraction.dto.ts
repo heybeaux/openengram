@@ -1,4 +1,8 @@
-import { GraphEntityType, GraphRelationshipType, GraphMentionRole } from '@prisma/client';
+import {
+  GraphEntityType,
+  GraphRelationshipType,
+  GraphMentionRole,
+} from '@prisma/client';
 
 /**
  * Entity extracted from text by LLM

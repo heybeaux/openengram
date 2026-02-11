@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
  * Model Registry Service
- * 
+ *
  * Manages the ensemble model registry including:
  * - Active and shadow model tracking
  * - Model weights and configuration
@@ -27,7 +27,7 @@ import {
 @Injectable()
 export class ModelRegistryService implements OnModuleInit {
   private readonly logger = new Logger(ModelRegistryService.name);
-  
+
   // In-memory cache of model configs
   private modelCache: Map<ModelId, ModelRegistryEntry> = new Map();
 
@@ -82,7 +82,9 @@ export class ModelRegistryService implements OnModuleInit {
       }
     }
 
-    this.logger.log(`Model registry initialized with ${this.modelCache.size} models`);
+    this.logger.log(
+      `Model registry initialized with ${this.modelCache.size} models`,
+    );
   }
 
   /**
@@ -94,7 +96,7 @@ export class ModelRegistryService implements OnModuleInit {
       select: { modelId: true },
     });
 
-    return models.map(m => m.modelId as ModelId);
+    return models.map((m) => m.modelId as ModelId);
   }
 
   /**
@@ -106,7 +108,7 @@ export class ModelRegistryService implements OnModuleInit {
       select: { modelId: true },
     });
 
-    return models.map(m => m.modelId as ModelId);
+    return models.map((m) => m.modelId as ModelId);
   }
 
   /**
@@ -137,7 +139,7 @@ export class ModelRegistryService implements OnModuleInit {
       orderBy: { addedAt: 'asc' },
     });
 
-    return models.map(m => this.dbToEntry(m));
+    return models.map((m) => this.dbToEntry(m));
   }
 
   /**
@@ -149,14 +151,24 @@ export class ModelRegistryService implements OnModuleInit {
     weight?: number;
     promotionThresholds?: PromotionThresholds;
   }): Promise<ModelRegistryEntry> {
-    const { modelId, status = 'shadow', weight = 1.0, promotionThresholds } = config;
+    const {
+      modelId,
+      status = 'shadow',
+      weight = 1.0,
+      promotionThresholds,
+    } = config;
 
     const model = await this.prisma.ensembleModelConfig.create({
       data: {
         modelId,
-        status: status.toUpperCase() as 'ACTIVE' | 'SHADOW' | 'DEPRECATED' | 'DISABLED',
+        status: status.toUpperCase() as
+          | 'ACTIVE'
+          | 'SHADOW'
+          | 'DEPRECATED'
+          | 'DISABLED',
         weight,
-        promotionThresholds: (promotionThresholds ?? DEFAULT_PROMOTION_THRESHOLDS) as any,
+        promotionThresholds: (promotionThresholds ??
+          DEFAULT_PROMOTION_THRESHOLDS) as any,
         qualityMetrics: {
           sampleQueries: 0,
           avgRankContribution: 0,
@@ -177,7 +189,10 @@ export class ModelRegistryService implements OnModuleInit {
   /**
    * Update model status
    */
-  async updateModelStatus(modelId: ModelId, status: ModelStatus): Promise<void> {
+  async updateModelStatus(
+    modelId: ModelId,
+    status: ModelStatus,
+  ): Promise<void> {
     const updateData: any = {
       status: status.toUpperCase(),
     };
@@ -227,7 +242,7 @@ export class ModelRegistryService implements OnModuleInit {
    */
   async updateQualityMetrics(
     modelId: ModelId,
-    metrics: Partial<ModelQualityMetrics>
+    metrics: Partial<ModelQualityMetrics>,
   ): Promise<void> {
     const existing = await this.getModelConfig(modelId);
     if (!existing) return;
@@ -266,19 +281,25 @@ export class ModelRegistryService implements OnModuleInit {
 
     if (qualityMetrics.sampleQueries < promotionThresholds.minSampleQueries) {
       reasons.push(
-        `Insufficient samples: ${qualityMetrics.sampleQueries} < ${promotionThresholds.minSampleQueries}`
+        `Insufficient samples: ${qualityMetrics.sampleQueries} < ${promotionThresholds.minSampleQueries}`,
       );
     }
 
-    if (qualityMetrics.avgRankContribution < promotionThresholds.minRankContribution) {
+    if (
+      qualityMetrics.avgRankContribution <
+      promotionThresholds.minRankContribution
+    ) {
       reasons.push(
-        `Low rank contribution: ${qualityMetrics.avgRankContribution.toFixed(3)} < ${promotionThresholds.minRankContribution}`
+        `Low rank contribution: ${qualityMetrics.avgRankContribution.toFixed(3)} < ${promotionThresholds.minRankContribution}`,
       );
     }
 
-    if (qualityMetrics.correlationWithGoldStandard < promotionThresholds.minCorrelation) {
+    if (
+      qualityMetrics.correlationWithGoldStandard <
+      promotionThresholds.minCorrelation
+    ) {
       reasons.push(
-        `Low correlation: ${qualityMetrics.correlationWithGoldStandard.toFixed(3)} < ${promotionThresholds.minCorrelation}`
+        `Low correlation: ${qualityMetrics.correlationWithGoldStandard.toFixed(3)} < ${promotionThresholds.minCorrelation}`,
       );
     }
 
@@ -291,7 +312,9 @@ export class ModelRegistryService implements OnModuleInit {
   /**
    * Promote model from shadow to active
    */
-  async promoteModel(modelId: ModelId): Promise<{ success: boolean; error?: string }> {
+  async promoteModel(
+    modelId: ModelId,
+  ): Promise<{ success: boolean; error?: string }> {
     const criteria = await this.checkPromotionCriteria(modelId);
 
     if (!criteria.passed) {
@@ -327,7 +350,7 @@ export class ModelRegistryService implements OnModuleInit {
    */
   async getQueryTypeWeights(
     modelId: ModelId,
-    queryType: QueryType
+    queryType: QueryType,
   ): Promise<number> {
     const config = await this.getModelConfig(modelId);
     if (!config) return 1.0;
@@ -354,14 +377,18 @@ export class ModelRegistryService implements OnModuleInit {
       promotedAt: model.promotedAt ?? undefined,
       deprecatedAt: model.deprecatedAt ?? undefined,
       weight: model.weight,
-      queryTypeWeights: model.queryTypeWeights as Record<QueryType, number> | undefined,
+      queryTypeWeights: model.queryTypeWeights as
+        | Record<QueryType, number>
+        | undefined,
       qualityMetrics: (model.qualityMetrics as ModelQualityMetrics) ?? {
         sampleQueries: 0,
         avgRankContribution: 0,
         uniqueHits: 0,
         correlationWithGoldStandard: 0,
       },
-      promotionThresholds: (model.promotionThresholds as PromotionThresholds) ?? DEFAULT_PROMOTION_THRESHOLDS,
+      promotionThresholds:
+        (model.promotionThresholds as PromotionThresholds) ??
+        DEFAULT_PROMOTION_THRESHOLDS,
     };
   }
 }

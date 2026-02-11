@@ -61,7 +61,9 @@ describe('MemoryService', () => {
         create: jest.fn(),
       },
       user: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'user-456', externalId: 'TestUser' }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'user-456', externalId: 'TestUser' }),
       },
       entity: {
         findUnique: jest.fn(),
@@ -86,7 +88,16 @@ describe('MemoryService', () => {
         topics: [],
         entities: [],
         memoryType: null,
-        typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
+        typeConfidence: null,
+        confidence: {
+          whoConfidence: null,
+          whatConfidence: null,
+          whenConfidence: null,
+          whereConfidence: null,
+          whyConfidence: null,
+          howConfidence: null,
+        },
+        lesson: null,
       }),
       getPriorityForType: jest.fn().mockReturnValue(3),
       classifyLayer: jest.fn().mockReturnValue('SESSION'),
@@ -113,7 +124,11 @@ describe('MemoryService', () => {
         temporalFilter: null,
         semanticQuery: 'test query',
       }),
-      blendScores: jest.fn().mockImplementation((semantic, temporal, importance) => semantic + importance),
+      blendScores: jest
+        .fn()
+        .mockImplementation(
+          (semantic, temporal, importance) => semantic + importance,
+        ),
       computeTemporalScore: jest.fn().mockReturnValue(0.5),
     } as any;
 
@@ -156,7 +171,16 @@ describe('MemoryService', () => {
         topics: [],
         entities: [],
         memoryType: null,
-        typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
+        typeConfidence: null,
+        confidence: {
+          whoConfidence: null,
+          whatConfidence: null,
+          whenConfidence: null,
+          whereConfidence: null,
+          whyConfidence: null,
+          howConfidence: null,
+        },
+        lesson: null,
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.store.mockResolvedValue('embed-123');
@@ -237,7 +261,16 @@ describe('MemoryService', () => {
           topics: [],
           entities: [],
           memoryType: null,
-          typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
+          typeConfidence: null,
+          confidence: {
+            whoConfidence: null,
+            whatConfidence: null,
+            whenConfidence: null,
+            whereConfidence: null,
+            whyConfidence: null,
+            howConfidence: null,
+          },
+          lesson: null,
         });
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2]);
@@ -295,7 +328,11 @@ describe('MemoryService', () => {
 
       await service.rememberAll('user-456', {
         memories: [
-          { raw: 'Memory 1', layer: MemoryLayer.IDENTITY, importanceHint: ImportanceHint.CRITICAL },
+          {
+            raw: 'Memory 1',
+            layer: MemoryLayer.IDENTITY,
+            importanceHint: ImportanceHint.CRITICAL,
+          },
         ],
         context: { projectId: 'project-123' },
       });
@@ -399,13 +436,28 @@ describe('MemoryService', () => {
   describe('loadContext', () => {
     it('should load memories from all layers', async () => {
       const identityMemories = [
-        { ...mockMemory, id: 'id-1', layer: MemoryLayer.IDENTITY, raw: 'Identity fact' },
+        {
+          ...mockMemory,
+          id: 'id-1',
+          layer: MemoryLayer.IDENTITY,
+          raw: 'Identity fact',
+        },
       ];
       const projectMemories = [
-        { ...mockMemory, id: 'proj-1', layer: MemoryLayer.PROJECT, raw: 'Project info' },
+        {
+          ...mockMemory,
+          id: 'proj-1',
+          layer: MemoryLayer.PROJECT,
+          raw: 'Project info',
+        },
       ];
       const sessionMemories = [
-        { ...mockMemory, id: 'sess-1', layer: MemoryLayer.SESSION, raw: 'Session info' },
+        {
+          ...mockMemory,
+          id: 'sess-1',
+          layer: MemoryLayer.SESSION,
+          raw: 'Session info',
+        },
       ];
 
       mockPrisma.memory.findMany
@@ -425,7 +477,9 @@ describe('MemoryService', () => {
 
     it('should format context with layer headers', async () => {
       mockPrisma.memory.findMany
-        .mockResolvedValueOnce([{ ...mockMemory, layer: MemoryLayer.IDENTITY, raw: 'User is John' }])
+        .mockResolvedValueOnce([
+          { ...mockMemory, layer: MemoryLayer.IDENTITY, raw: 'User is John' },
+        ])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 

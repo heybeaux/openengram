@@ -17,7 +17,12 @@ import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 
 @Module({
-  imports: [LLMModule, forwardRef(() => HierarchyModule), MemoryPoolModule, MemoryAccessLogModule],
+  imports: [
+    LLMModule,
+    forwardRef(() => HierarchyModule),
+    MemoryPoolModule,
+    MemoryAccessLogModule,
+  ],
   controllers: [MemoryController],
   providers: [
     MemoryService,
@@ -32,6 +37,14 @@ import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.mo
     ResultFusionService,
     ContextualRecallService,
   ],
-  exports: [MemoryService, BackfillService, ConsolidationService, EmbeddingService, TemporalParserService, MultiQueryService, ContextualRecallService],
+  exports: [
+    MemoryService,
+    BackfillService,
+    ConsolidationService,
+    EmbeddingService,
+    TemporalParserService,
+    MultiQueryService,
+    ContextualRecallService,
+  ],
 })
 export class MemoryModule {}

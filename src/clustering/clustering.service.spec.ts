@@ -95,7 +95,11 @@ describe('ClusteringService', () => {
           { memory_id: 'm3', distance: 0.14 },
         ]);
 
-      const result = await service.run({ userId: 'user1', dryRun: true, minPoints: 3 });
+      const result = await service.run({
+        userId: 'user1',
+        dryRun: true,
+        minPoints: 3,
+      });
 
       expect(result.dryRun).toBe(true);
       expect(result.clustersCreated).toBe(1);
@@ -109,7 +113,14 @@ describe('ClusteringService', () => {
   describe('listClusters', () => {
     it('should return formatted cluster list', async () => {
       (prisma.$queryRawUnsafe as jest.Mock).mockResolvedValueOnce([
-        { id: 'c1', label: 'Test Cluster', description: 'A test', member_count: 5, created_at: new Date(), updated_at: new Date() },
+        {
+          id: 'c1',
+          label: 'Test Cluster',
+          description: 'A test',
+          member_count: 5,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
       ]);
 
       const clusters = await service.listClusters();
@@ -131,11 +142,30 @@ describe('ClusteringService', () => {
     it('should return cluster with members', async () => {
       (prisma.$queryRawUnsafe as jest.Mock)
         .mockResolvedValueOnce([
-          { id: 'c1', label: 'Test', description: null, member_count: 2, created_at: new Date(), updated_at: new Date() },
+          {
+            id: 'c1',
+            label: 'Test',
+            description: null,
+            member_count: 2,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
         ])
         .mockResolvedValueOnce([
-          { id: 'm1', raw: 'Memory 1', effective_score: 0.8, memory_type: 'FACT', created_at: new Date() },
-          { id: 'm2', raw: 'Memory 2', effective_score: 0.6, memory_type: 'FACT', created_at: new Date() },
+          {
+            id: 'm1',
+            raw: 'Memory 1',
+            effective_score: 0.8,
+            memory_type: 'FACT',
+            created_at: new Date(),
+          },
+          {
+            id: 'm2',
+            raw: 'Memory 2',
+            effective_score: 0.6,
+            memory_type: 'FACT',
+            created_at: new Date(),
+          },
         ]);
 
       const result = await service.getCluster('c1');

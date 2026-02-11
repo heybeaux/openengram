@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ContextEnricherService, MemoryWithRelations } from './context-enricher.service';
+import {
+  ContextEnricherService,
+  MemoryWithRelations,
+} from './context-enricher.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
 
@@ -39,7 +42,9 @@ describe('ContextEnricherService', () => {
   });
 
   describe('enrich', () => {
-    const createMockMemory = (overrides: Partial<MemoryWithRelations> = {}): MemoryWithRelations => ({
+    const createMockMemory = (
+      overrides: Partial<MemoryWithRelations> = {},
+    ): MemoryWithRelations => ({
       id: 'mem_123',
       userId: 'user_123',
       raw: 'Test memory content',
@@ -138,7 +143,9 @@ describe('ContextEnricherService', () => {
       const result = await service.enrich(memory);
 
       expect(result.enrichedContent).toContain('[About: Stella, Kindergarten]');
-      expect(result.metadata.entityContext).toBe('[About: Stella, Kindergarten]');
+      expect(result.metadata.entityContext).toBe(
+        '[About: Stella, Kindergarten]',
+      );
     });
 
     it('should fetch entities when not preloaded', async () => {
@@ -268,11 +275,11 @@ describe('ContextEnricherService', () => {
       // Check order: temporal, entity, importance
       const lines = result.enrichedContent.split('\n');
       const prefixLine = lines[0];
-      
+
       expect(prefixLine).toContain('[Time:');
       expect(prefixLine).toContain('[About: Beaux]');
       expect(prefixLine).toContain('[High importance]');
-      
+
       // Original content should be after prefix
       expect(result.enrichedContent).toContain('Test memory content');
     });

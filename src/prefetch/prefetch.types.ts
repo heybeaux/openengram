@@ -1,6 +1,6 @@
 /**
  * Predictive Pre-fetch Type Definitions
- * 
+ *
  * Defines types for topic detection, caching, and metrics
  */
 
@@ -11,22 +11,48 @@
 /**
  * Topic identifiers - hierarchical topic taxonomy
  */
-export type TopicId = 
+export type TopicId =
   // Personal
-  | 'family' | 'family/immediate' | 'family/extended' | 'family/pets'
-  | 'health' | 'health/physical' | 'health/mental' | 'health/medical'
-  | 'preferences' | 'preferences/likes' | 'preferences/dislikes'
-  | 'identity' | 'identity/values' | 'identity/background'
+  | 'family'
+  | 'family/immediate'
+  | 'family/extended'
+  | 'family/pets'
+  | 'health'
+  | 'health/physical'
+  | 'health/mental'
+  | 'health/medical'
+  | 'preferences'
+  | 'preferences/likes'
+  | 'preferences/dislikes'
+  | 'identity'
+  | 'identity/values'
+  | 'identity/background'
   // Professional
-  | 'work' | 'work/role' | 'work/colleagues' | 'work/org'
-  | 'projects' | 'projects/active' | 'projects/completed'
-  | 'technical' | 'technical/skills' | 'technical/tools'
+  | 'work'
+  | 'work/role'
+  | 'work/colleagues'
+  | 'work/org'
+  | 'projects'
+  | 'projects/active'
+  | 'projects/completed'
+  | 'technical'
+  | 'technical/skills'
+  | 'technical/tools'
   // Temporal
-  | 'schedule' | 'schedule/today' | 'schedule/week' | 'schedule/upcoming'
-  | 'history' | 'history/recent' | 'history/archive'
-  | 'events' | 'events/meetings' | 'events/deadlines'
+  | 'schedule'
+  | 'schedule/today'
+  | 'schedule/week'
+  | 'schedule/upcoming'
+  | 'history'
+  | 'history/recent'
+  | 'history/archive'
+  | 'events'
+  | 'events/meetings'
+  | 'events/deadlines'
   // Meta
-  | 'agent' | 'agent/self' | 'agent/learnings'
+  | 'agent'
+  | 'agent/self'
+  | 'agent/learnings'
   | 'conversation'
   // Custom user-defined topics
   | `custom/${string}`;
@@ -238,12 +264,15 @@ export interface PrecisionRecallMetrics {
   precision: number;
   recall: number;
   f1Score: number;
-  byTopic: Record<string, {
-    precision: number;
-    recall: number;
-    f1Score: number;
-    sampleSize: number;
-  }>;
+  byTopic: Record<
+    string,
+    {
+      precision: number;
+      recall: number;
+      f1Score: number;
+      sampleSize: number;
+    }
+  >;
 }
 
 /**

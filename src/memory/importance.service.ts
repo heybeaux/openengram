@@ -13,7 +13,7 @@ export interface ImportanceInput {
 
 /**
  * Calculates importance scores for memories
- * 
+ *
  * Based on design doc formula:
  * importance = (
  *     explicit_boost
@@ -76,9 +76,7 @@ export class ImportanceService {
     }
 
     // 6. Apply layer weight
-    const layerWeight = input.layer 
-      ? this.layerWeights[input.layer] 
-      : 1.0;
+    const layerWeight = input.layer ? this.layerWeights[input.layer] : 1.0;
     score *= layerWeight;
 
     // Normalize to 0-1 range

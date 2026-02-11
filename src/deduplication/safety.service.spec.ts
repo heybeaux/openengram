@@ -18,7 +18,10 @@ describe('SafetyService', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SafetyService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SafetyService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     }).compile();
 
     service = module.get<SafetyService>(SafetyService);
@@ -60,7 +63,11 @@ describe('SafetyService', () => {
 
       expect(result.isProtected).toBe(true);
       expect(result.canAutoMerge).toBe(false);
-      expect(result.reasons.some((r) => r.type === SafetyReasonType.PROTECTED_KEYWORD)).toBe(true);
+      expect(
+        result.reasons.some(
+          (r) => r.type === SafetyReasonType.PROTECTED_KEYWORD,
+        ),
+      ).toBe(true);
     });
 
     it('should detect medication keywords', async () => {
@@ -93,7 +100,9 @@ describe('SafetyService', () => {
 
       expect(result.requiresReview).toBe(true);
       expect(result.canAutoMerge).toBe(false);
-      expect(result.reasons.some((r) => r.type === SafetyReasonType.HIGH_IMPORTANCE)).toBe(true);
+      expect(
+        result.reasons.some((r) => r.type === SafetyReasonType.HIGH_IMPORTANCE),
+      ).toBe(true);
     });
 
     it('should flag LESSON type for review', async () => {
@@ -109,7 +118,9 @@ describe('SafetyService', () => {
       const result = await service.checkMemorySafety('mem_1');
 
       expect(result.requiresReview).toBe(true);
-      expect(result.reasons.some((r) => r.type === SafetyReasonType.REQUIRES_REVIEW)).toBe(true);
+      expect(
+        result.reasons.some((r) => r.type === SafetyReasonType.REQUIRES_REVIEW),
+      ).toBe(true);
     });
 
     it('should flag recently accessed memories', async () => {
@@ -124,7 +135,11 @@ describe('SafetyService', () => {
 
       const result = await service.checkMemorySafety('mem_1');
 
-      expect(result.reasons.some((r) => r.type === SafetyReasonType.RECENTLY_ACCESSED)).toBe(true);
+      expect(
+        result.reasons.some(
+          (r) => r.type === SafetyReasonType.RECENTLY_ACCESSED,
+        ),
+      ).toBe(true);
     });
 
     it('should flag user-pinned memories', async () => {
@@ -140,7 +155,9 @@ describe('SafetyService', () => {
       const result = await service.checkMemorySafety('mem_1');
 
       expect(result.requiresReview).toBe(true);
-      expect(result.reasons.some((r) => r.type === SafetyReasonType.MANUALLY_EDITED)).toBe(true);
+      expect(
+        result.reasons.some((r) => r.type === SafetyReasonType.MANUALLY_EDITED),
+      ).toBe(true);
     });
 
     it('should allow auto-merge for regular FACT memories', async () => {
@@ -164,7 +181,9 @@ describe('SafetyService', () => {
     it('should throw for non-existent memory', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue(null);
 
-      await expect(service.checkMemorySafety('mem_nonexistent')).rejects.toThrow('Memory not found');
+      await expect(
+        service.checkMemorySafety('mem_nonexistent'),
+      ).rejects.toThrow('Memory not found');
     });
   });
 
@@ -262,7 +281,9 @@ describe('SafetyService', () => {
     });
 
     it('should return false for safe content', () => {
-      const result = service.containsProtectedKeywords('The weather is nice today');
+      const result = service.containsProtectedKeywords(
+        'The weather is nice today',
+      );
 
       expect(result.contains).toBe(false);
       expect(result.keywords.length).toBe(0);
@@ -314,8 +335,12 @@ describe('SafetyService', () => {
     it('should return current configuration', () => {
       const config = service.getConfig();
 
-      expect(config.protectedTypes).toEqual(DEFAULT_SAFETY_CONFIG.protectedTypes);
-      expect(config.protectedKeywords).toEqual(DEFAULT_SAFETY_CONFIG.protectedKeywords);
+      expect(config.protectedTypes).toEqual(
+        DEFAULT_SAFETY_CONFIG.protectedTypes,
+      );
+      expect(config.protectedKeywords).toEqual(
+        DEFAULT_SAFETY_CONFIG.protectedKeywords,
+      );
     });
   });
 });

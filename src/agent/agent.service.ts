@@ -14,7 +14,7 @@ import { ReflectDto, ReflectionResultDto } from './dto/reflect.dto';
 
 /**
  * Service for agent self-memory operations
- * 
+ *
  * Enables agents to create memories about themselves through reflection
  * on recent conversations.
  */
@@ -28,7 +28,7 @@ export class AgentService {
 
   /**
    * Perform agent self-reflection on recent conversation turns
-   * 
+   *
    * Analyzes the conversation to extract self-knowledge and creates
    * memories with subjectType=AGENT.
    */
@@ -69,19 +69,31 @@ export class AgentService {
 
     // 3. Create memories for each insight
     const createdMemoryIds: string[] = [];
-    const categories = { identity: 0, lessons: 0, preferences: 0, workingStyle: 0 };
+    const categories = {
+      identity: 0,
+      lessons: 0,
+      preferences: 0,
+      workingStyle: 0,
+    };
 
     for (const insight of filteredInsights) {
       try {
         // Check for duplicate (semantic dedup)
         const isDuplicate = await this.checkDuplicate(agentId, insight.content);
         if (isDuplicate) {
-          console.log('[AgentService] Skipping duplicate insight:', insight.content.substring(0, 50));
+          console.log(
+            '[AgentService] Skipping duplicate insight:',
+            insight.content.substring(0, 50),
+          );
           continue;
         }
 
         // Create the memory
-        const memory = await this.createAgentMemory(agentId, insight, dto.agentName);
+        const memory = await this.createAgentMemory(
+          agentId,
+          insight,
+          dto.agentName,
+        );
         createdMemoryIds.push(memory.id);
         categories[insight.category]++;
 
@@ -124,10 +136,7 @@ export class AgentService {
       include: {
         extraction: true,
       },
-      orderBy: [
-        { importanceScore: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ importanceScore: 'desc' }, { createdAt: 'desc' }],
       take: options.limit ?? 100,
     });
   }
@@ -146,13 +155,13 @@ export class AgentService {
 
     if (memories.length > 0) {
       lines.push('## Agent Self-Knowledge');
-      
+
       for (const memory of memories) {
         const line = `- ${memory.raw}`;
         const tokens = line.split(/\s+/).length;
-        
+
         if (estimatedTokens + tokens > maxTokens) break;
-        
+
         lines.push(line);
         estimatedTokens += tokens;
       }
@@ -190,11 +199,11 @@ export class AgentService {
 
       // Normalize keys to lowercase (LLM may return uppercase)
       const result: ReflectionResponse = { insights: [] };
-      
+
       const insightsKey = Object.keys(rawResult).find(
         (k) => k.toLowerCase() === 'insights',
       );
-      
+
       if (insightsKey && Array.isArray(rawResult[insightsKey])) {
         result.insights = rawResult[insightsKey].map((item: any) => {
           // Normalize each insight's keys
@@ -208,8 +217,10 @@ export class AgentService {
           for (const [key, value] of Object.entries(item)) {
             const lowerKey = key.toLowerCase();
             if (lowerKey === 'content') normalized.content = String(value);
-            if (lowerKey === 'category') normalized.category = this.normalizeCategory(String(value));
-            if (lowerKey === 'importance') normalized.importance = Number(value) || 0.5;
+            if (lowerKey === 'category')
+              normalized.category = this.normalizeCategory(String(value));
+            if (lowerKey === 'importance')
+              normalized.importance = Number(value) || 0.5;
             if (lowerKey === 'reasoning') normalized.reasoning = String(value);
           }
 
@@ -229,12 +240,13 @@ export class AgentService {
    */
   private normalizeCategory(category: string): ReflectionCategory {
     const lower = category.toLowerCase().replace(/[_-]/g, '');
-    
+
     if (lower === 'identity') return 'identity';
     if (lower === 'lessons' || lower === 'lessonslearned') return 'lessons';
-    if (lower === 'preferences' || lower === 'userpreferences') return 'preferences';
+    if (lower === 'preferences' || lower === 'userpreferences')
+      return 'preferences';
     if (lower === 'workingstyle' || lower === 'style') return 'workingStyle';
-    
+
     return 'workingStyle'; // Default fallback
   }
 
@@ -244,16 +256,16 @@ export class AgentService {
   private async checkDuplicate(
     agentId: string,
     content: string,
-    threshold: number = 0.90,
+    threshold: number = 0.9,
   ): Promise<boolean> {
     try {
       // Generate embedding for comparison
       const embedding = await this.embedding.generate(content);
-      
+
       // Search for similar memories using agentId as userId (workaround)
       // Since agent memories use agentId in the userId field
       const similar = await this.embedding.search(agentId, embedding, 3);
-      
+
       return similar.some((m) => m.score >= threshold);
     } catch (error) {
       console.error('[AgentService] Duplicate check failed:', error);
@@ -308,7 +320,7 @@ export class AgentService {
     try {
       const embedding = await this.embedding.generate(insight.content);
       const embeddingId = await this.embedding.store(memory.id, embedding);
-      
+
       await this.prisma.memory.update({
         where: { id: memory.id },
         data: { embeddingId },
@@ -341,7 +353,9 @@ export class AgentService {
   /**
    * Count insights by category
    */
-  private countCategories(insights: ReflectionInsight[]): Record<string, number> {
+  private countCategories(
+    insights: ReflectionInsight[],
+  ): Record<string, number> {
     const counts: Record<string, number> = {
       identity: 0,
       lessons: 0,

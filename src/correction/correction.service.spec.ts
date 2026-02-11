@@ -60,7 +60,11 @@ describe('CorrectionService', () => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([]);
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.contradictions).toHaveLength(0);
       expect(result.superseded).toHaveLength(0);
@@ -72,7 +76,11 @@ describe('CorrectionService', () => {
         { id: 'mem-old', score: 0.5 }, // Below 0.70 threshold
       ]);
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.contradictions).toHaveLength(0);
       expect(mockLLM.json).not.toHaveBeenCalled();
@@ -90,17 +98,23 @@ describe('CorrectionService', () => {
       };
 
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
-      mockEmbedding.search.mockResolvedValue([
-        { id: 'mem-old', score: 0.85 },
-      ]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-old', score: 0.85 }]);
       mockPrisma.memory.findMany.mockResolvedValue([existingMemory]);
       mockLLM.json.mockResolvedValue([
-        { index: 1, isContradiction: true, explanation: 'Chocolate preference changed' },
+        {
+          index: 1,
+          isContradiction: true,
+          explanation: 'Chocolate preference changed',
+        },
       ]);
       mockPrisma.memory.update.mockResolvedValue({});
       mockPrisma.memoryChainLink.create.mockResolvedValue({});
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.contradictions).toHaveLength(1);
       expect(result.contradictions[0].isContradiction).toBe(true);
@@ -129,13 +143,15 @@ describe('CorrectionService', () => {
 
     it('should skip already-superseded memories', async () => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
-      mockEmbedding.search.mockResolvedValue([
-        { id: 'mem-old', score: 0.85 },
-      ]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-old', score: 0.85 }]);
       // Memory already superseded — filtered out by findMany query
       mockPrisma.memory.findMany.mockResolvedValue([]);
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.contradictions).toHaveLength(0);
       expect(mockLLM.json).not.toHaveBeenCalled();
@@ -143,15 +159,23 @@ describe('CorrectionService', () => {
 
     it('should not block on LLM errors', async () => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
-      mockEmbedding.search.mockResolvedValue([
-        { id: 'mem-old', score: 0.85 },
-      ]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-old', score: 0.85 }]);
       mockPrisma.memory.findMany.mockResolvedValue([
-        { id: 'mem-old', userId, raw: 'old content', deletedAt: null, supersededById: null },
+        {
+          id: 'mem-old',
+          userId,
+          raw: 'old content',
+          deletedAt: null,
+          supersededById: null,
+        },
       ]);
       mockLLM.json.mockRejectedValue(new Error('LLM timeout'));
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       // Should gracefully return empty, not throw
       expect(result.contradictions).toHaveLength(0);
@@ -162,24 +186,40 @@ describe('CorrectionService', () => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: newMemoryId, score: 1.0 }, // The memory itself
-        { id: 'mem-old', score: 0.5 },   // Below threshold
+        { id: 'mem-old', score: 0.5 }, // Below threshold
       ]);
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.contradictions).toHaveLength(0);
     });
 
     it('should handle multiple contradictions', async () => {
       const memories = [
-        { id: 'mem-1', userId, raw: 'I prefer white chocolate', deletedAt: null, supersededById: null },
-        { id: 'mem-2', userId, raw: 'I like white chocolate the most', deletedAt: null, supersededById: null },
+        {
+          id: 'mem-1',
+          userId,
+          raw: 'I prefer white chocolate',
+          deletedAt: null,
+          supersededById: null,
+        },
+        {
+          id: 'mem-2',
+          userId,
+          raw: 'I like white chocolate the most',
+          deletedAt: null,
+          supersededById: null,
+        },
       ];
 
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: 'mem-1', score: 0.85 },
-        { id: 'mem-2', score: 0.80 },
+        { id: 'mem-2', score: 0.8 },
       ]);
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockLLM.json.mockResolvedValue([
@@ -189,7 +229,11 @@ describe('CorrectionService', () => {
       mockPrisma.memory.update.mockResolvedValue({});
       mockPrisma.memoryChainLink.create.mockResolvedValue({});
 
-      const result = await service.checkForContradictions(newMemoryId, userId, newContent);
+      const result = await service.checkForContradictions(
+        newMemoryId,
+        userId,
+        newContent,
+      );
 
       expect(result.superseded).toHaveLength(2);
       expect(result.superseded).toContain('mem-1');
@@ -224,7 +268,12 @@ describe('CorrectionService', () => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2]);
       mockEmbedding.store.mockResolvedValue('emb-1');
 
-      const result = await service.manualCorrect('user-1', 'mem-old', 'Corrected fact', 'was wrong');
+      const result = await service.manualCorrect(
+        'user-1',
+        'mem-old',
+        'Corrected fact',
+        'was wrong',
+      );
 
       expect(result.correctionId).toBe('mem-correction');
       expect(result.supersededId).toBe('mem-old');

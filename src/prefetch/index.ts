@@ -1,6 +1,6 @@
 /**
  * Prefetch Module Exports
- * 
+ *
  * Predictive pre-fetching for the Engram memory system
  */
 
@@ -20,8 +20,14 @@ export {
 } from './topic-taxonomy';
 
 // Services
-export { TopicDetectionService, DEFAULT_DETECTION_CONFIG } from './topic-detection.service';
-export { PrefetchCacheService, DEFAULT_CACHE_CONFIG } from './prefetch-cache.service';
+export {
+  TopicDetectionService,
+  DEFAULT_DETECTION_CONFIG,
+} from './topic-detection.service';
+export {
+  PrefetchCacheService,
+  DEFAULT_CACHE_CONFIG,
+} from './prefetch-cache.service';
 export { PrefetchMetricsService } from './prefetch-metrics.service';
 export { PrefetchService, DEFAULT_PREFETCH_CONFIG } from './prefetch.service';
 

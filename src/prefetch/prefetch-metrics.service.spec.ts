@@ -19,15 +19,8 @@ describe('PrefetchMetricsService', () => {
 
   describe('recordPrefetch', () => {
     it('should record a prefetch operation', () => {
-      service.recordPrefetch(
-        'pf-1',
-        'user-1',
-        'family',
-        'mem-1',
-        0.8,
-        0.9,
-      );
-      
+      service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-1', 0.8, 0.9);
+
       const metrics = service.getMetrics();
       expect(metrics.totalPrefetches).toBe(1);
     });
@@ -36,7 +29,7 @@ describe('PrefetchMetricsService', () => {
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-1', 0.8, 0.9);
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-2', 0.8, 0.85);
       service.recordPrefetch('pf-2', 'user-1', 'work', 'mem-3', 0.7, 0.8);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.totalPrefetches).toBe(3);
     });
@@ -46,7 +39,7 @@ describe('PrefetchMetricsService', () => {
     it('should mark prefetched memory as accessed', () => {
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-1', 0.8, 0.9);
       service.recordAccess('pf-1', 'mem-1');
-      
+
       const metrics = service.getMetrics();
       expect(metrics.totalAccesses).toBe(1);
     });
@@ -54,11 +47,11 @@ describe('PrefetchMetricsService', () => {
     it('should calculate access latency', () => {
       const startTime = Date.now();
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-1', 0.8, 0.9);
-      
+
       // Small delay
       const delay = 10;
       service.recordAccess('pf-1', 'mem-1');
-      
+
       // Access was recorded
       expect(service.getMetrics().totalAccesses).toBe(1);
     });
@@ -68,7 +61,7 @@ describe('PrefetchMetricsService', () => {
     it('should track cache hits', () => {
       service.recordCacheResult(true);
       service.recordCacheResult(true);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.cacheHitRate).toBe(1);
     });
@@ -76,7 +69,7 @@ describe('PrefetchMetricsService', () => {
     it('should track cache misses', () => {
       service.recordCacheResult(false);
       service.recordCacheResult(false);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.cacheHitRate).toBe(0);
     });
@@ -86,7 +79,7 @@ describe('PrefetchMetricsService', () => {
       service.recordCacheResult(true);
       service.recordCacheResult(false);
       service.recordCacheResult(false);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.cacheHitRate).toBe(0.5);
     });
@@ -97,7 +90,7 @@ describe('PrefetchMetricsService', () => {
       service.recordDetectionLatency(5);
       service.recordDetectionLatency(10);
       service.recordDetectionLatency(15);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.topicDetectionLatencyMs).toBe(10); // Average
     });
@@ -105,7 +98,7 @@ describe('PrefetchMetricsService', () => {
     it('should record prefetch latency', () => {
       service.recordPrefetchLatency(50);
       service.recordPrefetchLatency(100);
-      
+
       // Prefetch latency not directly exposed in metrics but tracked internally
       expect(true).toBe(true); // Just verify no errors
     });
@@ -114,7 +107,7 @@ describe('PrefetchMetricsService', () => {
       service.recordLookupLatency(1);
       service.recordLookupLatency(3);
       service.recordLookupLatency(5);
-      
+
       const metrics = service.getMetrics();
       expect(metrics.avgLatencyMs).toBe(3); // Average
     });
@@ -124,7 +117,7 @@ describe('PrefetchMetricsService', () => {
       for (let i = 1; i <= 10; i++) {
         service.recordLookupLatency(i * 10); // 10, 20, 30, ..., 100
       }
-      
+
       const metrics = service.getMetrics();
       // p50 with 10 values at index 5 (0-indexed) = 60
       expect(metrics.p50LatencyMs).toBe(60);
@@ -135,10 +128,10 @@ describe('PrefetchMetricsService', () => {
   describe('memory pressure', () => {
     it('should track memory pressure level', () => {
       expect(service.getMetrics().memoryPressureLevel).toBe('normal');
-      
+
       service.setMemoryPressure('warning');
       expect(service.getMetrics().memoryPressureLevel).toBe('warning');
-      
+
       service.setMemoryPressure('critical');
       expect(service.getMetrics().memoryPressureLevel).toBe('critical');
     });
@@ -151,11 +144,11 @@ describe('PrefetchMetricsService', () => {
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-2', 0.8, 0.85);
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-3', 0.8, 0.8);
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-4', 0.8, 0.75);
-      
+
       // Access 2 of them
       service.recordAccess('pf-1', 'mem-1');
       service.recordAccess('pf-1', 'mem-2');
-      
+
       // Wait for feedback to complete (or trigger manually)
       // In production this would wait for timeout
       // For testing, we can check metrics which uses totalAccesses
@@ -168,13 +161,13 @@ describe('PrefetchMetricsService', () => {
       // Prefetch for family
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-1', 0.8, 0.9);
       service.recordPrefetch('pf-1', 'user-1', 'family', 'mem-2', 0.8, 0.85);
-      
+
       // Prefetch for work
       service.recordPrefetch('pf-2', 'user-1', 'work', 'mem-3', 0.7, 0.8);
-      
+
       // Access family memory
       service.recordAccess('pf-1', 'mem-1');
-      
+
       // Topic metrics would be calculated after feedback completes
       const familyMetrics = service.getTopicMetrics('family');
       // Initial state before feedback completes
@@ -189,7 +182,7 @@ describe('PrefetchMetricsService', () => {
 
     it('should calculate F1 score', () => {
       const pr = service.calculatePrecisionRecall();
-      
+
       // With no data, should be zero
       expect(pr.f1Score).toBe(0);
     });
@@ -204,9 +197,16 @@ describe('PrefetchMetricsService', () => {
     it('should filter by minimum samples', () => {
       // Add less than minSamples
       for (let i = 0; i < 10; i++) {
-        service.recordPrefetch(`pf-${i}`, 'user-1', 'family', `mem-${i}`, 0.8, 0.9);
+        service.recordPrefetch(
+          `pf-${i}`,
+          'user-1',
+          'family',
+          `mem-${i}`,
+          0.8,
+          0.9,
+        );
       }
-      
+
       const feedback = service.getFeedbackForLearning(50);
       expect(feedback.size).toBe(0); // Not enough samples
     });
@@ -218,9 +218,9 @@ describe('PrefetchMetricsService', () => {
       service.recordAccess('pf-1', 'mem-1');
       service.recordCacheResult(true);
       service.recordDetectionLatency(10);
-      
+
       service.reset();
-      
+
       const metrics = service.getMetrics();
       expect(metrics.totalPrefetches).toBe(0);
       expect(metrics.totalAccesses).toBe(0);
@@ -231,7 +231,7 @@ describe('PrefetchMetricsService', () => {
   describe('getMetrics', () => {
     it('should return all metrics', () => {
       const metrics = service.getMetrics();
-      
+
       expect(metrics).toHaveProperty('cacheHitRate');
       expect(metrics).toHaveProperty('prefetchHitRate');
       expect(metrics).toHaveProperty('avgLatencyMs');
@@ -247,7 +247,7 @@ describe('PrefetchMetricsService', () => {
 
     it('should handle empty state gracefully', () => {
       const metrics = service.getMetrics();
-      
+
       expect(metrics.cacheHitRate).toBe(0);
       expect(metrics.prefetchHitRate).toBe(0);
       expect(metrics.avgLatencyMs).toBe(0);
@@ -257,7 +257,7 @@ describe('PrefetchMetricsService', () => {
   describe('getTopicMetrics', () => {
     it('should return topic-specific metrics', () => {
       const metrics = service.getTopicMetrics('family');
-      
+
       expect(metrics).toHaveProperty('precision');
       expect(metrics).toHaveProperty('sampleSize');
       expect(metrics).toHaveProperty('avgScore');

@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateMemoryPoolDto, GrantPoolAccessDto, AddMemoryToPoolDto } from './dto/memory-pool.dto';
+import {
+  CreateMemoryPoolDto,
+  GrantPoolAccessDto,
+  AddMemoryToPoolDto,
+} from './dto/memory-pool.dto';
 
 @Injectable()
 export class MemoryPoolService {
@@ -37,7 +41,10 @@ export class MemoryPoolService {
       where: {
         poolId_agentSessionId: { poolId, agentSessionId: dto.agentSessionId },
       },
-      update: { permission: dto.permission ?? 'READ', grantedBy: dto.grantedBy },
+      update: {
+        permission: dto.permission ?? 'READ',
+        grantedBy: dto.grantedBy,
+      },
       create: {
         poolId,
         agentSessionId: dto.agentSessionId,
@@ -82,7 +89,10 @@ export class MemoryPoolService {
    * 3. All PRIVATE pools created by this session
    * 4. If session has a parentKey, include parent's GLOBAL pools
    */
-  async getAccessiblePoolIds(sessionKey: string, userId: string): Promise<string[]> {
+  async getAccessiblePoolIds(
+    sessionKey: string,
+    userId: string,
+  ): Promise<string[]> {
     // 1. Global pools
     const globalPools = await this.prisma.memoryPool.findMany({
       where: { userId, visibility: 'GLOBAL', archivedAt: null },
@@ -99,21 +109,27 @@ export class MemoryPoolService {
     const grantedPoolIds = agentSession?.poolGrants.map((g) => g.poolId) ?? [];
 
     // Filter to only SHARED pools for this user
-    const sharedPools = grantedPoolIds.length > 0
-      ? await this.prisma.memoryPool.findMany({
-          where: {
-            id: { in: grantedPoolIds },
-            userId,
-            visibility: 'SHARED',
-            archivedAt: null,
-          },
-          select: { id: true },
-        })
-      : [];
+    const sharedPools =
+      grantedPoolIds.length > 0
+        ? await this.prisma.memoryPool.findMany({
+            where: {
+              id: { in: grantedPoolIds },
+              userId,
+              visibility: 'SHARED',
+              archivedAt: null,
+            },
+            select: { id: true },
+          })
+        : [];
 
     // 3. Private pools created by this session
     const privatePools = await this.prisma.memoryPool.findMany({
-      where: { userId, visibility: 'PRIVATE', createdBy: sessionKey, archivedAt: null },
+      where: {
+        userId,
+        visibility: 'PRIVATE',
+        createdBy: sessionKey,
+        archivedAt: null,
+      },
       select: { id: true },
     });
 

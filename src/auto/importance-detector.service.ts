@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { MessageTurnDto, MessageRole, ImportanceSignal } from './dto/observe.dto';
+import {
+  MessageTurnDto,
+  MessageRole,
+  ImportanceSignal,
+} from './dto/observe.dto';
 
 /**
  * Detects importance signals in conversation turns
- * 
+ *
  * Signals detected:
  * - Explicit: "remember this", "important", "never forget"
  * - Corrections: "actually", "no that's wrong", "I meant"
@@ -77,31 +81,37 @@ export class ImportanceDetectorService {
     // Check each turn for explicit, correction, and preference signals
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i];
-      
+
       // Check explicit patterns
-      signals.push(...this.matchPatterns(
-        turn.content,
-        i,
-        this.explicitPatterns,
-        'explicit',
-      ));
+      signals.push(
+        ...this.matchPatterns(
+          turn.content,
+          i,
+          this.explicitPatterns,
+          'explicit',
+        ),
+      );
 
       // Check correction patterns
-      signals.push(...this.matchPatterns(
-        turn.content,
-        i,
-        this.correctionPatterns,
-        'correction',
-      ));
+      signals.push(
+        ...this.matchPatterns(
+          turn.content,
+          i,
+          this.correctionPatterns,
+          'correction',
+        ),
+      );
 
       // Check preference patterns (only from user)
       if (turn.role === MessageRole.USER) {
-        signals.push(...this.matchPatterns(
-          turn.content,
-          i,
-          this.preferencePatterns,
-          'preference',
-        ));
+        signals.push(
+          ...this.matchPatterns(
+            turn.content,
+            i,
+            this.preferencePatterns,
+            'preference',
+          ),
+        );
       }
     }
 
@@ -142,7 +152,11 @@ export class ImportanceDetectorService {
   /**
    * Extract context around the matched pattern
    */
-  private extractContext(content: string, matchIndex: number, matchLength: number): string {
+  private extractContext(
+    content: string,
+    matchIndex: number,
+    matchLength: number,
+  ): string {
     // Get the sentence containing the match
     const sentences = content.split(/[.!?]+/);
     let charCount = 0;
@@ -205,13 +219,16 @@ export class ImportanceDetectorService {
    */
   private detectRepetition(turns: MessageTurnDto[]): ImportanceSignal[] {
     const signals: ImportanceSignal[] = [];
-    
+
     // Guard against undefined turns
     if (!turns || !Array.isArray(turns)) {
       return signals;
     }
-    
-    const conceptCounts = new Map<string, { count: number; indices: number[] }>();
+
+    const conceptCounts = new Map<
+      string,
+      { count: number; indices: number[] }
+    >();
 
     // Extract key concepts from each turn
     for (let i = 0; i < turns.length; i++) {
@@ -256,20 +273,49 @@ export class ImportanceDetectorService {
     // Extract quoted phrases
     const quoted = content.match(/"[^"]+"|'[^']+'/g);
     if (quoted) {
-      concepts.push(...quoted.map(q => q.slice(1, -1)));
+      concepts.push(...quoted.map((q) => q.slice(1, -1)));
     }
 
     // Extract capitalized phrases (potential entities)
     const capitalized = content.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g);
     if (capitalized) {
       const commonWords = new Set([
-        'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
-        'Also', 'Please', 'Thanks', 'However', 'Therefore', 'Thus',
+        'The',
+        'This',
+        'That',
+        'I',
+        'We',
+        'They',
+        'It',
+        'He',
+        'She',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+        'Also',
+        'Please',
+        'Thanks',
+        'However',
+        'Therefore',
+        'Thus',
       ]);
-      concepts.push(...capitalized.filter(c => !commonWords.has(c)));
+      concepts.push(...capitalized.filter((c) => !commonWords.has(c)));
     }
 
     // Extract technical terms (e.g., API_KEY, userId, dark-mode)

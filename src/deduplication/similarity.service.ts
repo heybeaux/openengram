@@ -158,7 +158,11 @@ export class SimilarityService {
     const queryEmbedding = await this.embedding.generate(content);
 
     // Search for similar vectors
-    const results = await this.embedding.search(userId, queryEmbedding, topK + excludeIds.length);
+    const results = await this.embedding.search(
+      userId,
+      queryEmbedding,
+      topK + excludeIds.length,
+    );
 
     // Filter out excluded IDs and below threshold
     const similarIds = results
@@ -258,7 +262,10 @@ export class SimilarityService {
   /**
    * Cluster similar memories using union-find
    */
-  clusterSimilarMemories(pairs: PairwiseSimilarity[], threshold: number = 0.85): MemoryCluster[] {
+  clusterSimilarMemories(
+    pairs: PairwiseSimilarity[],
+    threshold: number = 0.85,
+  ): MemoryCluster[] {
     // Union-Find data structure
     const parent = new Map<string, string>();
 
@@ -304,10 +311,12 @@ export class SimilarityService {
       );
 
       const similarities = clusterPairs.map((p) => p.similarity);
-      const avgSimilarity = similarities.length > 0
-        ? similarities.reduce((a, b) => a + b, 0) / similarities.length
-        : 0;
-      const minSimilarity = similarities.length > 0 ? Math.min(...similarities) : 0;
+      const avgSimilarity =
+        similarities.length > 0
+          ? similarities.reduce((a, b) => a + b, 0) / similarities.length
+          : 0;
+      const minSimilarity =
+        similarities.length > 0 ? Math.min(...similarities) : 0;
 
       // Select centroid (memory with highest average similarity to others)
       const centroid = this.selectCentroid(members, clusterPairs);
@@ -327,19 +336,29 @@ export class SimilarityService {
   /**
    * Select the centroid memory (most representative) from a cluster
    */
-  private selectCentroid(memoryIds: string[], pairs: PairwiseSimilarity[]): string {
+  private selectCentroid(
+    memoryIds: string[],
+    pairs: PairwiseSimilarity[],
+  ): string {
     const avgSimilarities = new Map<string, number>();
 
     for (const id of memoryIds) {
-      const relatedPairs = pairs.filter((p) => p.memoryIdA === id || p.memoryIdB === id);
+      const relatedPairs = pairs.filter(
+        (p) => p.memoryIdA === id || p.memoryIdB === id,
+      );
       const similarities = relatedPairs.map((p) => p.similarity);
-      const avg = similarities.length > 0
-        ? similarities.reduce((a, b) => a + b, 0) / similarities.length
-        : 0;
+      const avg =
+        similarities.length > 0
+          ? similarities.reduce((a, b) => a + b, 0) / similarities.length
+          : 0;
       avgSimilarities.set(id, avg);
     }
 
     // Return memory with highest average similarity
-    return Array.from(avgSimilarities.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? memoryIds[0];
+    return (
+      Array.from(avgSimilarities.entries()).sort(
+        (a, b) => b[1] - a[1],
+      )[0]?.[0] ?? memoryIds[0]
+    );
   }
 }

@@ -26,7 +26,9 @@ export class HealthController {
 
     try {
       const dbStart = Date.now();
-      memoryCount = await this.prisma.memory.count({ where: { deletedAt: null } });
+      memoryCount = await this.prisma.memory.count({
+        where: { deletedAt: null },
+      });
       dbLatencyMs = Date.now() - dbStart;
       dbStatus = 'up';
     } catch {
@@ -37,7 +39,8 @@ export class HealthController {
     const embedStatus = await this.embedHealth.getStatus();
 
     // 3. Last Dream Cycle run
-    let lastDreamCycle: { completedAt: Date | null; status: string } | null = null;
+    let lastDreamCycle: { completedAt: Date | null; status: string } | null =
+      null;
     try {
       const report = await this.prisma.dreamCycleReport.findFirst({
         orderBy: { startedAt: 'desc' },
@@ -49,7 +52,12 @@ export class HealthController {
     }
 
     // Determine overall status
-    const overallStatus = dbStatus === 'down' ? 'unhealthy' : embedStatus.status === 'down' ? 'degraded' : 'healthy';
+    const overallStatus =
+      dbStatus === 'down'
+        ? 'unhealthy'
+        : embedStatus.status === 'down'
+          ? 'degraded'
+          : 'healthy';
 
     // 4. Monitoring alerts
     let monitoringAlerts: any[] = [];
@@ -60,13 +68,18 @@ export class HealthController {
     }
 
     // Degrade status if there are critical alerts
-    const hasCriticalAlerts = monitoringAlerts.some((a: any) => a.level === 'critical');
+    const hasCriticalAlerts = monitoringAlerts.some(
+      (a: any) => a.level === 'critical',
+    );
     if (hasCriticalAlerts && overallStatus === 'healthy') {
       // Don't override unhealthy, but flag degraded
     }
 
     const body = {
-      status: hasCriticalAlerts && overallStatus === 'healthy' ? 'degraded' : overallStatus,
+      status:
+        hasCriticalAlerts && overallStatus === 'healthy'
+          ? 'degraded'
+          : overallStatus,
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       dependencies: {
         database: {

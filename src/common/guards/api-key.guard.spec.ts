@@ -11,7 +11,9 @@ describe('ApiKeyGuard', () => {
   const mockAgent = {
     id: 'agent-123',
     name: 'Test Agent',
-    apiKeyHash: createHash('sha256').update('sk-test-key-12345678').digest('hex'),
+    apiKeyHash: createHash('sha256')
+      .update('sk-test-key-12345678')
+      .digest('hex'),
     apiKeyHint: '5678',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -27,7 +29,9 @@ describe('ApiKeyGuard', () => {
     deletedAt: null,
   };
 
-  function createMockContext(headers: Record<string, string | undefined>): ExecutionContext {
+  function createMockContext(
+    headers: Record<string, string | undefined>,
+  ): ExecutionContext {
     const request = {
       headers: {
         'x-am-api-key': headers['x-am-api-key'],
@@ -264,9 +268,13 @@ describe('ApiKeyGuard', () => {
         'x-am-user-id': 'external-user-123',
       });
 
-      mockPrisma.agent.findUnique.mockRejectedValue(new Error('DB connection failed'));
+      mockPrisma.agent.findUnique.mockRejectedValue(
+        new Error('DB connection failed'),
+      );
 
-      await expect(guard.canActivate(context)).rejects.toThrow('DB connection failed');
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'DB connection failed',
+      );
     });
   });
 });

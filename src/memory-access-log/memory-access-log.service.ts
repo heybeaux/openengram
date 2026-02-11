@@ -87,7 +87,11 @@ export class MemoryAccessLogService {
   /**
    * Log a memory creation event. Fire-and-forget.
    */
-  async logCreated(memoryId: string, agentSessionKey: string, context?: string): Promise<void> {
+  async logCreated(
+    memoryId: string,
+    agentSessionKey: string,
+    context?: string,
+  ): Promise<void> {
     this.logAccessFireAndForget({
       memoryId,
       agentSessionKey,
@@ -137,7 +141,11 @@ export class MemoryAccessLogService {
   /**
    * Log a memory update event. Fire-and-forget.
    */
-  async logUpdated(memoryId: string, agentSessionKey: string, context?: string): Promise<void> {
+  async logUpdated(
+    memoryId: string,
+    agentSessionKey: string,
+    context?: string,
+  ): Promise<void> {
     this.logAccessFireAndForget({
       memoryId,
       agentSessionKey,
@@ -250,7 +258,9 @@ export class MemoryAccessLogService {
       at: log.createdAt,
     }));
 
-    const uniqueSessions = new Set(logs.map((l: any) => l.agentSession.sessionKey)).size;
+    const uniqueSessions = new Set(
+      logs.map((l: any) => l.agentSession.sessionKey),
+    ).size;
 
     return {
       memoryId,
@@ -303,7 +313,9 @@ export class MemoryAccessLogService {
     // Calculate duration
     let duration: string | null = null;
     if (session.endedAt) {
-      const ms = new Date(session.endedAt).getTime() - new Date(session.createdAt).getTime();
+      const ms =
+        new Date(session.endedAt).getTime() -
+        new Date(session.createdAt).getTime();
       const minutes = Math.round(ms / 60000);
       duration = `PT${minutes}M`;
     }

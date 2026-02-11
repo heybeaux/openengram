@@ -324,7 +324,9 @@ describe('Pool-Filtered Recall (e2e)', () => {
       await (prisma as any).memoryPoolMembership.deleteMany({
         where: { poolId: privatePool.id },
       });
-      await (prisma as any).memoryPool.delete({ where: { id: privatePool.id } });
+      await (prisma as any).memoryPool.delete({
+        where: { id: privatePool.id },
+      });
     }, 15000);
   });
 });

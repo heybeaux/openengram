@@ -6,15 +6,15 @@ import { MemoryModule } from '../memory/memory.module';
 
 /**
  * Re-embedding Module
- * 
+ *
  * MVP Implementation of Contextual Re-embedding for Engram.
- * 
+ *
  * Features:
  * - Context enrichment (temporal, entity, importance)
  * - Batch re-embedding with progress tracking
  * - Embedding versioning
  * - Feature flag controlled (REEMBEDDING_ENABLED)
- * 
+ *
  * Endpoints:
  * - POST /v1/reembedding/run - Trigger batch re-embedding
  * - GET /v1/reembedding/status - Get current job status
@@ -23,10 +23,7 @@ import { MemoryModule } from '../memory/memory.module';
 @Module({
   imports: [MemoryModule],
   controllers: [ReembeddingController],
-  providers: [
-    ReembeddingService,
-    ContextEnricherService,
-  ],
+  providers: [ReembeddingService, ContextEnricherService],
   exports: [ReembeddingService, ContextEnricherService],
 })
 export class ReembeddingModule {}

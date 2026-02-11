@@ -51,7 +51,9 @@ describe('QueryExpansionService', () => {
         });
 
         expect(result.variants).toContain('What does Beaux like?');
-        expect(result.variants.some(v => v.toLowerCase().includes('preference'))).toBe(true);
+        expect(
+          result.variants.some((v) => v.toLowerCase().includes('preference')),
+        ).toBe(true);
         expect(result.llmUsed).toBe(false);
       });
 
@@ -61,7 +63,11 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        expect(result.variants.some(v => v.includes('details') || v.includes('information'))).toBe(true);
+        expect(
+          result.variants.some(
+            (v) => v.includes('details') || v.includes('information'),
+          ),
+        ).toBe(true);
       });
 
       it('should apply synonym substitution for "like"', async () => {
@@ -71,8 +77,9 @@ describe('QueryExpansionService', () => {
         });
 
         // Should have synonyms like "prefer", "enjoy", "love"
-        const hasSubstitution = result.variants.some(v => 
-          v.includes('prefer') || v.includes('enjoy') || v.includes('love')
+        const hasSubstitution = result.variants.some(
+          (v) =>
+            v.includes('prefer') || v.includes('enjoy') || v.includes('love'),
         );
         expect(hasSubstitution).toBe(true);
       });
@@ -83,8 +90,11 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        const hasSubstitution = result.variants.some(v => 
-          v.includes('discover') || v.includes('realize') || v.includes('understand')
+        const hasSubstitution = result.variants.some(
+          (v) =>
+            v.includes('discover') ||
+            v.includes('realize') ||
+            v.includes('understand'),
         );
         expect(hasSubstitution).toBe(true);
       });
@@ -95,8 +105,9 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        const hasExpansion = result.variants.some(v => 
-          v.includes('guide') || v.includes('steps') || v.includes('process')
+        const hasExpansion = result.variants.some(
+          (v) =>
+            v.includes('guide') || v.includes('steps') || v.includes('process'),
         );
         expect(hasExpansion).toBe(true);
       });
@@ -107,8 +118,11 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        const hasExpansion = result.variants.some(v => 
-          v.includes('reason') || v.includes('cause') || v.includes('explanation')
+        const hasExpansion = result.variants.some(
+          (v) =>
+            v.includes('reason') ||
+            v.includes('cause') ||
+            v.includes('explanation'),
         );
         expect(hasExpansion).toBe(true);
       });
@@ -119,8 +133,11 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        const hasExpansion = result.variants.some(v => 
-          v.includes('guidelines') || v.includes('recommendations') || v.includes('tips')
+        const hasExpansion = result.variants.some(
+          (v) =>
+            v.includes('guidelines') ||
+            v.includes('recommendations') ||
+            v.includes('tips'),
         );
         expect(hasExpansion).toBe(true);
       });
@@ -131,8 +148,9 @@ describe('QueryExpansionService', () => {
           maxVariants: 10,
         });
 
-        const hasExpansion = result.variants.some(v => 
-          v.includes('bugs') || v.includes('errors') || v.includes('fix')
+        const hasExpansion = result.variants.some(
+          (v) =>
+            v.includes('bugs') || v.includes('errors') || v.includes('fix'),
         );
         expect(hasExpansion).toBe(true);
       });
@@ -219,9 +237,12 @@ describe('QueryExpansionService', () => {
       });
 
       it('should handle LLM timeout gracefully', async () => {
-        mockLLM.json.mockImplementation(() => new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 100)
-        ));
+        mockLLM.json.mockImplementation(
+          () =>
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), 100),
+            ),
+        );
 
         const result = await service.expand('test query', {
           strategy: ExpansionStrategy.LLM,
@@ -277,8 +298,8 @@ describe('QueryExpansionService', () => {
       it('should filter out empty or too-long variants from LLM', async () => {
         mockLLM.json.mockResolvedValue([
           'good variant',
-          '',  // Empty
-          'a'.repeat(150),  // Too long
+          '', // Empty
+          'a'.repeat(150), // Too long
           'another good variant',
         ]);
 
@@ -295,8 +316,8 @@ describe('QueryExpansionService', () => {
 
         expect(result.variants).toContain('good variant');
         expect(result.variants).toContain('another good variant');
-        expect(result.variants.some(v => v === '')).toBe(false);
-        expect(result.variants.some(v => v.length > 100)).toBe(false);
+        expect(result.variants.some((v) => v === '')).toBe(false);
+        expect(result.variants.some((v) => v.length > 100)).toBe(false);
       });
     });
 
@@ -316,7 +337,9 @@ describe('QueryExpansionService', () => {
         });
 
         // Should have rule variants
-        expect(result.variants.some(v => v.includes('preferences'))).toBe(true);
+        expect(result.variants.some((v) => v.includes('preferences'))).toBe(
+          true,
+        );
         // Should track both sources
         expect(Object.values(result.sources).includes('rules')).toBe(true);
       });
@@ -341,8 +364,12 @@ describe('QueryExpansionService', () => {
 
       it('should not exceed maxVariants when combining rules and LLM', async () => {
         mockLLM.json.mockResolvedValue([
-          'LLM variant 1', 'LLM variant 2', 'LLM variant 3',
-          'LLM variant 4', 'LLM variant 5', 'LLM variant 6',
+          'LLM variant 1',
+          'LLM variant 2',
+          'LLM variant 3',
+          'LLM variant 4',
+          'LLM variant 5',
+          'LLM variant 6',
         ]);
 
         const result = await service.expand('What does Beaux like?', {
@@ -363,13 +390,16 @@ describe('QueryExpansionService', () => {
 
   describe('expandWithRules', () => {
     it('should handle "remember when" pattern', async () => {
-      const result = await service.expand('remember when we went to the beach', {
-        strategy: ExpansionStrategy.RULES,
-        maxVariants: 10,
-      });
+      const result = await service.expand(
+        'remember when we went to the beach',
+        {
+          strategy: ExpansionStrategy.RULES,
+          maxVariants: 10,
+        },
+      );
 
-      const hasExpansion = result.variants.some(v => 
-        v.includes('memory') || v.includes('happened')
+      const hasExpansion = result.variants.some(
+        (v) => v.includes('memory') || v.includes('happened'),
       );
       expect(hasExpansion).toBe(true);
     });
@@ -380,8 +410,8 @@ describe('QueryExpansionService', () => {
         maxVariants: 10,
       });
 
-      const hasExpansion = result.variants.some(v => 
-        v.includes('about') || v.includes('details') || v === 'Deanna'
+      const hasExpansion = result.variants.some(
+        (v) => v.includes('about') || v.includes('details') || v === 'Deanna',
       );
       expect(hasExpansion).toBe(true);
     });
@@ -392,8 +422,11 @@ describe('QueryExpansionService', () => {
         maxVariants: 10,
       });
 
-      const hasExpansion = result.variants.some(v => 
-        v.includes('definition') || v.includes('explanation') || v === 'Engram'
+      const hasExpansion = result.variants.some(
+        (v) =>
+          v.includes('definition') ||
+          v.includes('explanation') ||
+          v === 'Engram',
       );
       expect(hasExpansion).toBe(true);
     });
@@ -405,8 +438,8 @@ describe('QueryExpansionService', () => {
       });
 
       // "work" has related concepts like job, career, profession
-      const hasRelated = result.variants.some(v => 
-        v.includes('job') || v.includes('career') || v.includes('task')
+      const hasRelated = result.variants.some(
+        (v) => v.includes('job') || v.includes('career') || v.includes('task'),
       );
       expect(hasRelated).toBe(true);
     });
@@ -422,8 +455,8 @@ describe('QueryExpansionService', () => {
       });
 
       // Should expand Stella to daughter
-      const hasExpansion = result.variants.some(v => 
-        v.includes('daughter') || v.includes('child')
+      const hasExpansion = result.variants.some(
+        (v) => v.includes('daughter') || v.includes('child'),
       );
       expect(hasExpansion).toBe(true);
     });
@@ -436,8 +469,8 @@ describe('QueryExpansionService', () => {
         maxVariants: 15,
       });
 
-      const hasExpansion = result.variants.some(v => 
-        v.includes('user') || v.includes('human')
+      const hasExpansion = result.variants.some(
+        (v) => v.includes('user') || v.includes('human'),
       );
       expect(hasExpansion).toBe(true);
     });

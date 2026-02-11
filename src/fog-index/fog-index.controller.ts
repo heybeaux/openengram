@@ -6,9 +6,7 @@ export class FogIndexController {
   constructor(private fogIndex: FogIndexService) {}
 
   @Get()
-  async getCurrent(
-    @Query('userId') userId?: string,
-  ): Promise<FogIndexResult> {
+  async getCurrent(@Query('userId') userId?: string): Promise<FogIndexResult> {
     return this.fogIndex.compute(userId);
   }
 

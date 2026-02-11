@@ -1,7 +1,19 @@
-import { Controller, Post, Get, Delete, Param, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  Body,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MemoryPoolService } from './memory-pool.service';
-import { CreateMemoryPoolDto, GrantPoolAccessDto, AddMemoryToPoolDto } from './dto/memory-pool.dto';
+import {
+  CreateMemoryPoolDto,
+  GrantPoolAccessDto,
+  AddMemoryToPoolDto,
+} from './dto/memory-pool.dto';
 
 @ApiTags('memory-pools')
 @Controller('v1/pools')
@@ -46,7 +58,10 @@ export class MemoryPoolController {
 
   @Delete(':id/memories/:memoryId')
   @ApiOperation({ summary: 'Remove memory from pool' })
-  async removeMemory(@Param('id') id: string, @Param('memoryId') memoryId: string) {
+  async removeMemory(
+    @Param('id') id: string,
+    @Param('memoryId') memoryId: string,
+  ) {
     return this.service.removeMemory(id, memoryId);
   }
 }

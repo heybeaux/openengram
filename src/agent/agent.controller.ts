@@ -1,5 +1,19 @@
-import { Controller, Post, Get, Param, Body, Query, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  Query,
+  HttpCode,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { MemoryLayer } from '@prisma/client';
 import { AgentService } from './agent.service';
 import { ReflectDto, ReflectionResultDto } from './dto/reflect.dto';
@@ -11,7 +25,7 @@ export class AgentController {
 
   /**
    * Trigger agent self-reflection
-   * 
+   *
    * Analyzes recent conversation turns to extract self-knowledge.
    * Creates memories about the agent itself (identity, lessons, preferences, working style).
    */

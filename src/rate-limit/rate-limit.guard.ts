@@ -22,10 +22,10 @@ export class RateLimitGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Check for skip decorator
-    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_RATE_LIMIT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const skip = this.reflector.getAllAndOverride<boolean>(
+      SKIP_RATE_LIMIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (skip) return true;
 
     const request = context.switchToHttp().getRequest();
@@ -39,10 +39,10 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // Check for route-specific limit via decorator
-    const routeLimit = this.reflector.getAllAndOverride<number | null>(RATE_LIMIT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const routeLimit = this.reflector.getAllAndOverride<number | null>(
+      RATE_LIMIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const limit = routeLimit ?? RateLimitGuard.DEFAULT_LIMIT;
 
@@ -50,7 +50,11 @@ export class RateLimitGuard implements CanActivate {
     const routePath = request.route?.path || request.url;
     const key = `${apiKey}:${routePath}`;
 
-    const result = this.rateLimitService.consume(key, limit, RateLimitGuard.WINDOW_MS);
+    const result = this.rateLimitService.consume(
+      key,
+      limit,
+      RateLimitGuard.WINDOW_MS,
+    );
 
     // Always set rate limit headers
     response.set('X-RateLimit-Limit', String(limit));

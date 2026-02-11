@@ -65,8 +65,20 @@ describe('ConsolidationService', () => {
 
     it('should return empty result when memories count is below threshold', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([
-        { id: 'mem1', raw: 'I prefer dark mode', createdAt: new Date(), importanceScore: 0.5, extraction: { what: 'prefers dark mode' } },
-        { id: 'mem2', raw: 'Dark mode is my preference', createdAt: new Date(), importanceScore: 0.5, extraction: { what: 'prefers dark mode' } },
+        {
+          id: 'mem1',
+          raw: 'I prefer dark mode',
+          createdAt: new Date(),
+          importanceScore: 0.5,
+          extraction: { what: 'prefers dark mode' },
+        },
+        {
+          id: 'mem2',
+          raw: 'Dark mode is my preference',
+          createdAt: new Date(),
+          importanceScore: 0.5,
+          extraction: { what: 'prefers dark mode' },
+        },
       ]);
 
       const result = await service.promoteRecurringPatterns(userId);
@@ -77,9 +89,27 @@ describe('ConsolidationService', () => {
     it('should identify and promote clusters of 3+ similar memories', async () => {
       const now = new Date();
       const memories = [
-        { id: 'mem1', raw: 'I prefer dark mode', createdAt: now, importanceScore: 0.5, extraction: { what: 'prefers dark mode' } },
-        { id: 'mem2', raw: 'Dark mode is my preference', createdAt: new Date(now.getTime() - 1000), importanceScore: 0.6, extraction: { what: 'Dark mode is my preference' } },
-        { id: 'mem3', raw: 'I always use dark mode', createdAt: new Date(now.getTime() - 2000), importanceScore: 0.5, extraction: { what: 'always use dark mode' } },
+        {
+          id: 'mem1',
+          raw: 'I prefer dark mode',
+          createdAt: now,
+          importanceScore: 0.5,
+          extraction: { what: 'prefers dark mode' },
+        },
+        {
+          id: 'mem2',
+          raw: 'Dark mode is my preference',
+          createdAt: new Date(now.getTime() - 1000),
+          importanceScore: 0.6,
+          extraction: { what: 'Dark mode is my preference' },
+        },
+        {
+          id: 'mem3',
+          raw: 'I always use dark mode',
+          createdAt: new Date(now.getTime() - 2000),
+          importanceScore: 0.5,
+          extraction: { what: 'always use dark mode' },
+        },
       ];
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
@@ -90,7 +120,9 @@ describe('ConsolidationService', () => {
         { id: 'mem3', score: 0.88 },
       ]);
 
-      const result = await service.promoteRecurringPatterns(userId, { dryRun: true });
+      const result = await service.promoteRecurringPatterns(userId, {
+        dryRun: true,
+      });
 
       expect(result.clustersFound).toBe(1);
       expect(result.promoted).toBe(1);
@@ -100,16 +132,34 @@ describe('ConsolidationService', () => {
     it('should not modify database in dry run mode', async () => {
       const now = new Date();
       const memories = [
-        { id: 'mem1', raw: 'Test memory 1', createdAt: now, importanceScore: 0.5, extraction: { what: 'test 1' } },
-        { id: 'mem2', raw: 'Test memory 2', createdAt: new Date(now.getTime() - 1000), importanceScore: 0.5, extraction: { what: 'test 2' } },
-        { id: 'mem3', raw: 'Test memory 3', createdAt: new Date(now.getTime() - 2000), importanceScore: 0.5, extraction: { what: 'test 3' } },
+        {
+          id: 'mem1',
+          raw: 'Test memory 1',
+          createdAt: now,
+          importanceScore: 0.5,
+          extraction: { what: 'test 1' },
+        },
+        {
+          id: 'mem2',
+          raw: 'Test memory 2',
+          createdAt: new Date(now.getTime() - 1000),
+          importanceScore: 0.5,
+          extraction: { what: 'test 2' },
+        },
+        {
+          id: 'mem3',
+          raw: 'Test memory 3',
+          createdAt: new Date(now.getTime() - 2000),
+          importanceScore: 0.5,
+          extraction: { what: 'test 3' },
+        },
       ];
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: 'mem1', score: 1.0 },
-        { id: 'mem2', score: 0.90 },
+        { id: 'mem2', score: 0.9 },
         { id: 'mem3', score: 0.88 },
       ]);
 
@@ -121,20 +171,42 @@ describe('ConsolidationService', () => {
     it('should select canonical memory with longest extraction', async () => {
       const now = new Date();
       const memories = [
-        { id: 'mem1', raw: 'Short', createdAt: now, importanceScore: 0.5, extraction: { what: 'short' } },
-        { id: 'mem2', raw: 'This is a longer and more detailed memory about preferences', createdAt: new Date(now.getTime() - 1000), importanceScore: 0.5, extraction: { what: 'This is a longer and more detailed memory about preferences' } },
-        { id: 'mem3', raw: 'Medium length', createdAt: new Date(now.getTime() - 2000), importanceScore: 0.5, extraction: { what: 'Medium length' } },
+        {
+          id: 'mem1',
+          raw: 'Short',
+          createdAt: now,
+          importanceScore: 0.5,
+          extraction: { what: 'short' },
+        },
+        {
+          id: 'mem2',
+          raw: 'This is a longer and more detailed memory about preferences',
+          createdAt: new Date(now.getTime() - 1000),
+          importanceScore: 0.5,
+          extraction: {
+            what: 'This is a longer and more detailed memory about preferences',
+          },
+        },
+        {
+          id: 'mem3',
+          raw: 'Medium length',
+          createdAt: new Date(now.getTime() - 2000),
+          importanceScore: 0.5,
+          extraction: { what: 'Medium length' },
+        },
       ];
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: 'mem1', score: 1.0 },
-        { id: 'mem2', score: 0.90 },
+        { id: 'mem2', score: 0.9 },
         { id: 'mem3', score: 0.88 },
       ]);
 
-      const result = await service.promoteRecurringPatterns(userId, { dryRun: true });
+      const result = await service.promoteRecurringPatterns(userId, {
+        dryRun: true,
+      });
 
       // mem2 should be canonical (longest extraction.what)
       expect(result.details[0].canonicalId).toBe('mem2');
@@ -145,39 +217,74 @@ describe('ConsolidationService', () => {
     it('should respect custom minOccurrences setting', async () => {
       const now = new Date();
       const memories = [
-        { id: 'mem1', raw: 'Test 1', createdAt: now, importanceScore: 0.5, extraction: { what: 'test' } },
-        { id: 'mem2', raw: 'Test 2', createdAt: new Date(now.getTime() - 1000), importanceScore: 0.5, extraction: { what: 'test' } },
+        {
+          id: 'mem1',
+          raw: 'Test 1',
+          createdAt: now,
+          importanceScore: 0.5,
+          extraction: { what: 'test' },
+        },
+        {
+          id: 'mem2',
+          raw: 'Test 2',
+          createdAt: new Date(now.getTime() - 1000),
+          importanceScore: 0.5,
+          extraction: { what: 'test' },
+        },
       ];
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: 'mem1', score: 1.0 },
-        { id: 'mem2', score: 0.90 },
+        { id: 'mem2', score: 0.9 },
       ]);
 
       // With default minOccurrences=3, should not promote
-      let result = await service.promoteRecurringPatterns(userId, { dryRun: true });
+      let result = await service.promoteRecurringPatterns(userId, {
+        dryRun: true,
+      });
       expect(result.promoted).toBe(0);
 
       // With minOccurrences=2, should promote
-      result = await service.promoteRecurringPatterns(userId, { dryRun: true, minOccurrences: 2 });
+      result = await service.promoteRecurringPatterns(userId, {
+        dryRun: true,
+        minOccurrences: 2,
+      });
       expect(result.promoted).toBe(1);
     });
 
     it('should update memory with IDENTITY layer and boost importance when not dry run', async () => {
       const now = new Date();
       const memories = [
-        { id: 'mem1', raw: 'I prefer dark mode', createdAt: now, importanceScore: 0.5, extraction: { what: 'prefers dark mode' } },
-        { id: 'mem2', raw: 'Dark mode preference', createdAt: new Date(now.getTime() - 1000), importanceScore: 0.5, extraction: { what: 'dark mode' } },
-        { id: 'mem3', raw: 'Always dark mode', createdAt: new Date(now.getTime() - 2000), importanceScore: 0.5, extraction: { what: 'dark mode' } },
+        {
+          id: 'mem1',
+          raw: 'I prefer dark mode',
+          createdAt: now,
+          importanceScore: 0.5,
+          extraction: { what: 'prefers dark mode' },
+        },
+        {
+          id: 'mem2',
+          raw: 'Dark mode preference',
+          createdAt: new Date(now.getTime() - 1000),
+          importanceScore: 0.5,
+          extraction: { what: 'dark mode' },
+        },
+        {
+          id: 'mem3',
+          raw: 'Always dark mode',
+          createdAt: new Date(now.getTime() - 2000),
+          importanceScore: 0.5,
+          extraction: { what: 'dark mode' },
+        },
       ];
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.search.mockResolvedValue([
         { id: 'mem1', score: 1.0 },
-        { id: 'mem2', score: 0.90 },
+        { id: 'mem2', score: 0.9 },
         { id: 'mem3', score: 0.88 },
       ]);
       mockPrisma.memory.update.mockResolvedValue({} as any);
@@ -215,10 +322,10 @@ describe('ConsolidationService', () => {
     it('should return memory statistics', async () => {
       mockPrisma.memory.count
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(60)  // session
-        .mockResolvedValueOnce(25)  // identity
-        .mockResolvedValueOnce(15)  // project
-        .mockResolvedValueOnce(5);  // consolidated
+        .mockResolvedValueOnce(60) // session
+        .mockResolvedValueOnce(25) // identity
+        .mockResolvedValueOnce(15) // project
+        .mockResolvedValueOnce(5); // consolidated
 
       const stats = await service.getStats(userId);
 

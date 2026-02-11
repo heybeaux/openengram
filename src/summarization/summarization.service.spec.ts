@@ -13,10 +13,16 @@ describe('SummarizationService', () => {
 
   const mockTurns = [
     { role: MessageRole.USER, content: 'I prefer dark mode in all my apps' },
-    { role: MessageRole.ASSISTANT, content: 'Noted! I\'ll remember that preference.' },
-    { role: MessageRole.USER, content: 'Also, I live in Vancouver and work at Acme Corp' },
+    {
+      role: MessageRole.ASSISTANT,
+      content: "Noted! I'll remember that preference.",
+    },
+    {
+      role: MessageRole.USER,
+      content: 'Also, I live in Vancouver and work at Acme Corp',
+    },
     { role: MessageRole.ASSISTANT, content: 'Got it — Vancouver, Acme Corp.' },
-    { role: MessageRole.USER, content: 'Let\'s deploy the API on Monday' },
+    { role: MessageRole.USER, content: "Let's deploy the API on Monday" },
   ];
 
   const mockLLMResponse = {
@@ -52,13 +58,15 @@ describe('SummarizationService', () => {
     };
 
     configService = {
-      get: jest.fn().mockImplementation((key: string, defaultValue?: string) => {
-        const config: Record<string, string> = {
-          SUMMARIZATION_ENABLED: 'true',
-          SUMMARIZATION_BATCH_SIZE: '5',
-        };
-        return config[key] ?? defaultValue;
-      }),
+      get: jest
+        .fn()
+        .mockImplementation((key: string, defaultValue?: string) => {
+          const config: Record<string, string> = {
+            SUMMARIZATION_ENABLED: 'true',
+            SUMMARIZATION_BATCH_SIZE: '5',
+          };
+          return config[key] ?? defaultValue;
+        }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -91,14 +99,23 @@ describe('SummarizationService', () => {
     });
 
     it('should handle LLM failures gracefully', async () => {
-      (llmService.json as jest.Mock).mockRejectedValueOnce(new Error('LLM unavailable'));
+      (llmService.json as jest.Mock).mockRejectedValueOnce(
+        new Error('LLM unavailable'),
+      );
       const facts = await service.summarize(mockTurns);
       expect(facts).toEqual([]);
     });
 
     it('should clamp confidence to 0-1', async () => {
       (llmService.json as jest.Mock).mockResolvedValueOnce({
-        facts: [{ content: 'test', category: 'fact', confidence: 1.5, sourceTurnIndices: [0] }],
+        facts: [
+          {
+            content: 'test',
+            category: 'fact',
+            confidence: 1.5,
+            sourceTurnIndices: [0],
+          },
+        ],
       });
       const facts = await service.summarize(mockTurns);
       expect(facts[0].confidence).toBe(1);
@@ -134,18 +151,30 @@ describe('SummarizationService', () => {
   describe('buffer management', () => {
     it('should buffer turns until batch size is reached', async () => {
       // Add 3 turns (below batch size of 5)
-      const result1 = await service.addTurnsToBuffer('user-1', 'session-1', mockTurns.slice(0, 3));
+      const result1 = await service.addTurnsToBuffer(
+        'user-1',
+        'session-1',
+        mockTurns.slice(0, 3),
+      );
       expect(result1).toBeNull();
       expect(service.getBufferSize('session-1')).toBe(3);
 
       // Add 2 more to reach batch size
-      const result2 = await service.addTurnsToBuffer('user-1', 'session-1', mockTurns.slice(3));
+      const result2 = await service.addTurnsToBuffer(
+        'user-1',
+        'session-1',
+        mockTurns.slice(3),
+      );
       expect(result2).not.toBeNull();
       expect(result2!.created).toBe(3);
     });
 
     it('should flush remaining buffer', async () => {
-      await service.addTurnsToBuffer('user-1', 'session-1', mockTurns.slice(0, 2));
+      await service.addTurnsToBuffer(
+        'user-1',
+        'session-1',
+        mockTurns.slice(0, 2),
+      );
       expect(service.getBufferSize('session-1')).toBe(2);
 
       const result = await service.flushBuffer('user-1', 'session-1');
@@ -175,8 +204,13 @@ describe('SummarizationService', () => {
         ],
       }).compile();
 
-      const disabledService = module.get<SummarizationService>(SummarizationService);
-      const result = await disabledService.addTurnsToBuffer('user-1', 'session-1', mockTurns);
+      const disabledService =
+        module.get<SummarizationService>(SummarizationService);
+      const result = await disabledService.addTurnsToBuffer(
+        'user-1',
+        'session-1',
+        mockTurns,
+      );
       expect(result).toBeNull();
     });
   });

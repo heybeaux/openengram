@@ -74,7 +74,9 @@ describe('EmbeddingService', () => {
     it('should propagate errors from LLM service', async () => {
       mockLlmService.embed.mockRejectedValue(new Error('Embedding failed'));
 
-      await expect(service.generate('test')).rejects.toThrow('Embedding failed');
+      await expect(service.generate('test')).rejects.toThrow(
+        'Embedding failed',
+      );
     });
   });
 
@@ -155,12 +157,10 @@ describe('EmbeddingService', () => {
     it('should filter by layers when provided', async () => {
       mockVectorService.search.mockResolvedValue([]);
 
-      await service.search(
-        'user-123',
-        mockEmbedding,
-        10,
-        [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
-      );
+      await service.search('user-123', mockEmbedding, 10, [
+        MemoryLayer.IDENTITY,
+        MemoryLayer.PROJECT,
+      ]);
 
       expect(mockVectorService.search).toHaveBeenCalledWith(mockEmbedding, {
         userId: 'user-123',

@@ -89,10 +89,10 @@ describe('FogIndexService', () => {
       // Mock memoryStaleness
       prisma.memory.count
         .mockResolvedValueOnce(100) // total memories (staleness)
-        .mockResolvedValueOnce(40)  // accessed memories
+        .mockResolvedValueOnce(40) // accessed memories
         // embeddingCoverage
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(90)  // with legacy embeddings
+        .mockResolvedValueOnce(90) // with legacy embeddings
         // dedupDensity
         .mockResolvedValueOnce(100); // total for dedup
 
@@ -112,19 +112,21 @@ describe('FogIndexService', () => {
       // memoryDecayRate
       prisma.memory.count
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(5)   // decayed
-        .mockResolvedValueOnce(3);  // low score
+        .mockResolvedValueOnce(5) // decayed
+        .mockResolvedValueOnce(3); // low score
 
       // coverageGaps
       prisma.memory.count.mockResolvedValueOnce(100); // total
       prisma.memory.groupBy
-        .mockResolvedValueOnce([ // type counts
+        .mockResolvedValueOnce([
+          // type counts
           { memoryType: 'FACT', _count: 40 },
           { memoryType: 'PREFERENCE', _count: 20 },
           { memoryType: 'EVENT', _count: 30 },
           { memoryType: 'LESSON', _count: 10 },
         ])
-        .mockResolvedValueOnce([ // layer counts
+        .mockResolvedValueOnce([
+          // layer counts
           { layer: 'IDENTITY', _count: 30 },
           { layer: 'SESSION', _count: 50 },
           { layer: 'PROJECT', _count: 20 },
@@ -139,7 +141,7 @@ describe('FogIndexService', () => {
       expect(result.computedAt).toBeDefined();
 
       // Verify component names
-      const names = result.components.map(c => c.name);
+      const names = result.components.map((c) => c.name);
       expect(names).toContain('Memory Freshness');
       expect(names).toContain('Embedding Coverage');
       expect(names).toContain('Dedup Health');
@@ -187,8 +189,16 @@ describe('FogIndexService', () => {
   describe('getHistory', () => {
     it('should return historical snapshots', async () => {
       prisma.$queryRawUnsafe.mockResolvedValue([
-        { score: 85, tier: 'Clear', computed_at: new Date('2026-02-10T10:00:00Z') },
-        { score: 72, tier: 'Haze', computed_at: new Date('2026-02-09T10:00:00Z') },
+        {
+          score: 85,
+          tier: 'Clear',
+          computed_at: new Date('2026-02-10T10:00:00Z'),
+        },
+        {
+          score: 72,
+          tier: 'Haze',
+          computed_at: new Date('2026-02-09T10:00:00Z'),
+        },
       ]);
 
       const history = await service.getHistory(10);

@@ -34,12 +34,17 @@ export class SummarizationController {
     @UserId() userId: string,
     @Param('sessionId') sessionId: string,
   ): Promise<SummarizeResult> {
-    const result = await this.summarizationService.flushBuffer(userId, sessionId);
-    return result ?? {
-      facts: [],
-      created: 0,
-      totalTurns: 0,
-      processingMs: 0,
-    };
+    const result = await this.summarizationService.flushBuffer(
+      userId,
+      sessionId,
+    );
+    return (
+      result ?? {
+        facts: [],
+        created: 0,
+        totalTurns: 0,
+        processingMs: 0,
+      }
+    );
   }
 }

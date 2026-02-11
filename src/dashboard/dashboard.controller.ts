@@ -8,7 +8,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { DashboardService, StatsResponse, MemoriesListResponse, UsersListResponse, UserDetailResponse, HealthResponse } from './dashboard.service';
+import {
+  DashboardService,
+  StatsResponse,
+  MemoriesListResponse,
+  UsersListResponse,
+  UserDetailResponse,
+  HealthResponse,
+} from './dashboard.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { ListMemoriesDto } from './dto/list-memories.dto';
@@ -77,7 +84,10 @@ export class DashboardController {
     @Param('id') id: string,
     @Query('deleteMemories') deleteMemories?: string,
   ): Promise<{ deleted: boolean; memoriesDeleted?: number }> {
-    const result = await this.dashboardService.deleteUser(id, deleteMemories === 'true');
+    const result = await this.dashboardService.deleteUser(
+      id,
+      deleteMemories === 'true',
+    );
     if (!result) {
       throw new NotFoundException(`User ${id} not found`);
     }

@@ -1,5 +1,18 @@
-import { Controller, Post, Get, Param, Body, Query, NotFoundException } from '@nestjs/common';
-import type { ClusteringRunOptions, ClusteringRunResult, ClusterSummary, ClusterDetail } from './clustering.service';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  Query,
+  NotFoundException,
+} from '@nestjs/common';
+import type {
+  ClusteringRunOptions,
+  ClusteringRunResult,
+  ClusterSummary,
+  ClusterDetail,
+} from './clustering.service';
 import { ClusteringService } from './clustering.service';
 
 @Controller('v1/clustering')

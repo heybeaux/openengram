@@ -2,14 +2,18 @@
 import { ModelId } from './ensemble.types';
 /**
  * Checkpoint Service
- * 
+ *
  * Manages checkpoints for resumable re-embedding jobs.
  * Uses PostgreSQL for persistence (Redis would be better for production).
  */
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReembedCheckpoint, ReembedProgress, ReembedMetrics } from './ensemble.types';
+import {
+  ReembedCheckpoint,
+  ReembedProgress,
+  ReembedMetrics,
+} from './ensemble.types';
 
 @Injectable()
 export class CheckpointService {
@@ -112,7 +116,7 @@ export class CheckpointService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return records.map(record => ({
+    return records.map((record) => ({
       jobId: record.jobId,
       createdAt: record.createdAt,
       lastProcessedId: record.lastProcessedId,

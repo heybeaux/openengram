@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SegmentationService, SentenceUnit, ParagraphUnit } from './segmentation.service';
+import {
+  SegmentationService,
+  SentenceUnit,
+  ParagraphUnit,
+} from './segmentation.service';
 
 describe('SegmentationService', () => {
   let service: SegmentationService;
@@ -14,9 +18,10 @@ describe('SegmentationService', () => {
 
   describe('extractSentences', () => {
     it('should extract simple sentences', () => {
-      const text = 'This is the first sentence. This is the second sentence. This is the third sentence.';
+      const text =
+        'This is the first sentence. This is the second sentence. This is the third sentence.';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBe(3);
       expect(sentences[0].text).toBe('This is the first sentence.');
       expect(sentences[1].text).toBe('This is the second sentence.');
@@ -26,7 +31,7 @@ describe('SegmentationService', () => {
     it('should handle single sentence', () => {
       const text = 'This is a single sentence without any periods at the end';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBe(1);
       expect(sentences[0].text).toBe(text);
     });
@@ -37,41 +42,45 @@ describe('SegmentationService', () => {
     });
 
     it('should preserve code blocks as atomic units', () => {
-      const text = 'Here is some code. ```javascript\nconst x = 1;\nconst y = 2;\n``` And this is after.';
+      const text =
+        'Here is some code. ```javascript\nconst x = 1;\nconst y = 2;\n``` And this is after.';
       const sentences = service.extractSentences(text);
-      
+
       // Code block should be preserved
-      const hasCodeBlock = sentences.some(s => s.text.includes('```'));
+      const hasCodeBlock = sentences.some((s) => s.text.includes('```'));
       expect(hasCodeBlock).toBe(true);
     });
 
     it('should handle inline code', () => {
       const text = 'Use the `console.log()` function to debug. It works well.';
       const sentences = service.extractSentences(text);
-      
-      const hasInlineCode = sentences.some(s => s.text.includes('`console.log()`'));
+
+      const hasInlineCode = sentences.some((s) =>
+        s.text.includes('`console.log()`'),
+      );
       expect(hasInlineCode).toBe(true);
     });
 
     it('should calculate correct character offsets', () => {
       const text = 'This is the first sentence. This is the second sentence.';
       const sentences = service.extractSentences(text);
-      
+
       // All sentences should have defined offsets
-      sentences.forEach(s => {
+      sentences.forEach((s) => {
         expect(s.charStart).toBeDefined();
         expect(s.charEnd).toBeDefined();
         expect(s.charEnd).toBeGreaterThan(s.charStart);
       });
-      
+
       // First sentence should start at 0
       expect(sentences[0].charStart).toBe(0);
     });
 
     it('should number sentences with position', () => {
-      const text = 'This is sentence one. This is sentence two. This is sentence three.';
+      const text =
+        'This is sentence one. This is sentence two. This is sentence three.';
       const sentences = service.extractSentences(text);
-      
+
       // Should have sequential positions starting from 0
       sentences.forEach((s, i) => {
         expect(s.position).toBe(i);
@@ -81,16 +90,17 @@ describe('SegmentationService', () => {
     it('should handle question and exclamation marks', () => {
       const text = 'Is this a question? Yes! And this is a statement.';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBeGreaterThanOrEqual(2);
-      expect(sentences.some(s => s.text.includes('?'))).toBe(true);
-      expect(sentences.some(s => s.text.includes('!'))).toBe(true);
+      expect(sentences.some((s) => s.text.includes('?'))).toBe(true);
+      expect(sentences.some((s) => s.text.includes('!'))).toBe(true);
     });
 
     it('should merge very short sentences with neighbors', () => {
-      const text = 'OK. Fine. This is a much longer sentence that should stand alone.';
+      const text =
+        'OK. Fine. This is a much longer sentence that should stand alone.';
       const sentences = service.extractSentences(text);
-      
+
       // "OK" and "Fine" are under 20 chars, should be merged
       expect(sentences.length).toBeLessThan(3);
     });
@@ -103,9 +113,9 @@ describe('SegmentationService', () => {
 Second paragraph with more content.
 
 Third paragraph with final content.`;
-      
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       expect(paragraphs.length).toBe(3);
       expect(paragraphs[0].text).toContain('First paragraph');
       expect(paragraphs[1].text).toContain('Second paragraph');
@@ -119,12 +129,12 @@ Third paragraph with final content.`;
         sentences.push(`This is sentence number ${i} with some more content.`);
       }
       const text = sentences.join(' ');
-      
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       // Should create paragraphs (might be 1 if text is short enough)
       expect(paragraphs.length).toBeGreaterThan(0);
-      paragraphs.forEach(p => {
+      paragraphs.forEach((p) => {
         expect(p.sentences.length).toBeLessThanOrEqual(5);
         expect(p.sentences.length).toBeGreaterThanOrEqual(1);
       });
@@ -136,10 +146,11 @@ Third paragraph with final content.`;
     });
 
     it('should handle single paragraph content', () => {
-      const text = 'This is a single paragraph. It has multiple sentences. But no breaks.';
-      
+      const text =
+        'This is a single paragraph. It has multiple sentences. But no breaks.';
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       expect(paragraphs.length).toBe(1);
       expect(paragraphs[0].sentences.length).toBeGreaterThanOrEqual(1);
     });
@@ -148,9 +159,9 @@ Third paragraph with final content.`;
       const text = `First paragraph sentence one. First paragraph sentence two.
 
 Second paragraph sentence one. Second paragraph sentence two.`;
-      
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       expect(paragraphs.length).toBe(2);
       expect(paragraphs[0].sentences.length).toBeGreaterThanOrEqual(1);
       expect(paragraphs[1].sentences.length).toBeGreaterThanOrEqual(1);
@@ -160,9 +171,9 @@ Second paragraph sentence one. Second paragraph sentence two.`;
       const text = `First paragraph.
 
 Second paragraph.`;
-      
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       expect(paragraphs[0].charStart).toBeDefined();
       expect(paragraphs[0].charEnd).toBeGreaterThan(paragraphs[0].charStart);
       expect(paragraphs[1].charStart).toBeGreaterThan(paragraphs[0].charEnd);
@@ -174,9 +185,9 @@ Second paragraph.`;
 Two.
 
 Three.`;
-      
+
       const paragraphs = service.extractParagraphs(text);
-      
+
       expect(paragraphs[0].position).toBe(0);
       expect(paragraphs[1].position).toBe(1);
       expect(paragraphs[2].position).toBe(2);
@@ -187,35 +198,35 @@ Three.`;
     it('should handle text with only whitespace between sentences', () => {
       const text = 'Sentence one.     Sentence two.';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should handle text with tabs and newlines', () => {
       const text = 'Sentence one.\t\nSentence two.';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should handle Unicode content', () => {
       const text = 'Hello 世界. Bonjour le monde. Привет мир.';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should handle very long text', () => {
       const longSentence = 'This is a word. '.repeat(100);
       const sentences = service.extractSentences(longSentence);
-      
+
       expect(sentences.length).toBeGreaterThan(0);
     });
 
     it('should handle text ending without punctuation', () => {
       const text = 'First sentence. Second sentence without end';
       const sentences = service.extractSentences(text);
-      
+
       expect(sentences.length).toBeGreaterThanOrEqual(1);
     });
   });

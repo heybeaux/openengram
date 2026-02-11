@@ -18,10 +18,10 @@ import {
 
 /**
  * Multi-Query Controller
- * 
+ *
  * Debug and testing endpoints for multi-query retrieval.
  * The main search integration happens through MemoryController.
- * 
+ *
  * Endpoints:
  * - GET /v1/multi-query/enabled - Check if multi-query is enabled
  * - POST /v1/multi-query/expand - Preview query expansion
@@ -49,7 +49,7 @@ export class MultiQueryController {
 
   /**
    * Preview query expansion without performing search
-   * 
+   *
    * Useful for debugging and testing expansion rules.
    */
   @Post('expand')
@@ -116,34 +116,39 @@ export class MultiQueryController {
   @Post('test')
   @ApiOperation({ summary: 'Test expansion with all strategies' })
   @ApiResponse({ status: 200 })
-  async testExpansion(
-    @Body() dto: { query: string },
-  ): Promise<{
+  async testExpansion(@Body() dto: { query: string }): Promise<{
     query: string;
-    results: Record<string, {
-      variants: string[];
-      count: number;
-      timeMs: number;
-      llmUsed: boolean;
-    }>;
+    results: Record<
+      string,
+      {
+        variants: string[];
+        count: number;
+        timeMs: number;
+        llmUsed: boolean;
+      }
+    >;
   }> {
     if (!dto.query || dto.query.trim().length === 0) {
       throw new HttpException('Query is required', HttpStatus.BAD_REQUEST);
     }
 
-    const results: Record<string, {
-      variants: string[];
-      count: number;
-      timeMs: number;
-      llmUsed: boolean;
-    }> = {};
+    const results: Record<
+      string,
+      {
+        variants: string[];
+        count: number;
+        timeMs: number;
+        llmUsed: boolean;
+      }
+    > = {};
 
     for (const strategy of Object.values(ExpansionStrategy)) {
       try {
         const result = await this.expansionService.expand(dto.query, {
           strategy,
           maxVariants: 10,
-          llm: { temperature: 0.3,
+          llm: {
+            temperature: 0.3,
             enabled: strategy !== ExpansionStrategy.RULES,
             fallbackOnly: strategy === ExpansionStrategy.HYBRID,
             timeoutMs: 2000,

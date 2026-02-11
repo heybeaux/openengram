@@ -1,6 +1,6 @@
 /**
  * Topic Taxonomy
- * 
+ *
  * Defines the hierarchical topic structure, keyword rules,
  * and default configuration for topic detection.
  */
@@ -51,7 +51,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.7,
   },
-  
+
   // Work/Projects
   {
     topic: 'work',
@@ -94,7 +94,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.6,
   },
-  
+
   // Schedule
   {
     topic: 'schedule',
@@ -146,7 +146,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.7,
   },
-  
+
   // Health
   {
     topic: 'health',
@@ -184,7 +184,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.7,
   },
-  
+
   // Preferences
   {
     topic: 'preferences',
@@ -213,7 +213,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     weight: 0.5,
     requiresContext: true,
   },
-  
+
   // Technical/Engineering
   {
     topic: 'technical',
@@ -242,7 +242,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.6,
   },
-  
+
   // Identity
   {
     topic: 'identity',
@@ -268,7 +268,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.5,
   },
-  
+
   // Agent
   {
     topic: 'agent',
@@ -295,7 +295,7 @@ export const KEYWORD_RULES: KeywordRule[] = [
     ],
     weight: 0.5,
   },
-  
+
   // Conversation
   {
     topic: 'conversation',
@@ -363,7 +363,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.1,
     relatedTopics: ['family', 'health'],
   },
-  
+
   // Professional
   {
     id: 'work',
@@ -470,7 +470,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.2,
     relatedTopics: ['technical'],
   },
-  
+
   // Temporal
   {
     id: 'schedule',
@@ -577,7 +577,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.4,
     relatedTopics: ['events', 'projects', 'schedule'],
   },
-  
+
   // Health
   {
     id: 'health',
@@ -626,7 +626,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.1,
     relatedTopics: ['health', 'schedule'],
   },
-  
+
   // Preferences
   {
     id: 'preferences',
@@ -663,7 +663,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.1,
     relatedTopics: ['preferences'],
   },
-  
+
   // Identity
   {
     id: 'identity',
@@ -700,7 +700,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.05,
     relatedTopics: ['identity', 'family'],
   },
-  
+
   // Agent
   {
     id: 'agent',
@@ -737,7 +737,7 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
     decayRate: 0.05,
     relatedTopics: ['agent/self', 'technical'],
   },
-  
+
   // Conversation
   {
     id: 'conversation',
@@ -759,15 +759,17 @@ export const TOPIC_DEFINITIONS: TopicDefinition[] = [
 /**
  * Get topic definition by ID
  */
-export function getTopicDefinition(topicId: TopicId): TopicDefinition | undefined {
-  return TOPIC_DEFINITIONS.find(t => t.id === topicId);
+export function getTopicDefinition(
+  topicId: TopicId,
+): TopicDefinition | undefined {
+  return TOPIC_DEFINITIONS.find((t) => t.id === topicId);
 }
 
 /**
  * Get all child topics for a parent topic
  */
 export function getChildTopics(parentId: TopicId): TopicDefinition[] {
-  return TOPIC_DEFINITIONS.filter(t => t.parentId === parentId);
+  return TOPIC_DEFINITIONS.filter((t) => t.parentId === parentId);
 }
 
 /**
@@ -782,19 +784,19 @@ export function getRelatedTopics(topicId: TopicId): TopicId[] {
  * Get all root topics (no parent)
  */
 export function getRootTopics(): TopicDefinition[] {
-  return TOPIC_DEFINITIONS.filter(t => !t.parentId);
+  return TOPIC_DEFINITIONS.filter((t) => !t.parentId);
 }
 
 /**
  * Get keyword rules for a specific topic
  */
 export function getKeywordRulesForTopic(topicId: TopicId): KeywordRule[] {
-  return KEYWORD_RULES.filter(r => r.topic === topicId);
+  return KEYWORD_RULES.filter((r) => r.topic === topicId);
 }
 
 /**
  * Get all topic IDs
  */
 export function getAllTopicIds(): TopicId[] {
-  return TOPIC_DEFINITIONS.map(t => t.id);
+  return TOPIC_DEFINITIONS.map((t) => t.id);
 }

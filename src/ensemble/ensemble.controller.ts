@@ -1,6 +1,6 @@
 /**
  * Ensemble Controller
- * 
+ *
  * API endpoints for multi-model ensemble retrieval.
  */
 
@@ -149,7 +149,7 @@ export class EnsembleController {
     // Convert Map to object for JSON serialization
     return {
       ...result,
-      results: result.results.map(r => ({
+      results: result.results.map((r) => ({
         ...r,
         modelScores: Object.fromEntries(r.modelScores) as Record<
           ModelId,
@@ -172,7 +172,9 @@ export class EnsembleController {
     }
 
     if (!dto.memoryId || !dto.content || !dto.userId) {
-      throw new BadRequestException('memoryId, content, and userId are required');
+      throw new BadRequestException(
+        'memoryId, content, and userId are required',
+      );
     }
 
     await this.ensembleService.upsert({
@@ -194,7 +196,10 @@ export class EnsembleController {
   @ApiResponse({ status: 200, description: 'Comparison results' })
   async compare(@Body() dto: CompareQueryDto): Promise<{
     ensemble: EnsembleQueryResponse;
-    singleModel: Record<ModelId, Array<{ memoryId: string; rank: number; score: number }>>;
+    singleModel: Record<
+      ModelId,
+      Array<{ memoryId: string; rank: number; score: number }>
+    >;
   }> {
     if (!this.ensembleService.isEnabled()) {
       throw new BadRequestException('Ensemble retrieval is not enabled');
@@ -207,13 +212,13 @@ export class EnsembleController {
     const result = await this.ensembleService.compare(
       dto.query,
       dto.userId,
-      dto.limit ?? 10
+      dto.limit ?? 10,
     );
 
     return {
       ensemble: {
         ...result.ensemble,
-        results: result.ensemble.results.map(r => ({
+        results: result.ensemble.results.map((r) => ({
           ...r,
           modelScores: Object.fromEntries(r.modelScores) as Record<
             ModelId,
@@ -224,9 +229,16 @@ export class EnsembleController {
       singleModel: Object.fromEntries(
         Array.from(result.singleModel.entries()).map(([model, results]) => [
           model,
-          results.map(r => ({ memoryId: r.memoryId, rank: r.rank, score: r.score })),
-        ])
-      ) as Record<ModelId, Array<{ memoryId: string; rank: number; score: number }>>,
+          results.map((r) => ({
+            memoryId: r.memoryId,
+            rank: r.rank,
+            score: r.score,
+          })),
+        ]),
+      ) as Record<
+        ModelId,
+        Array<{ memoryId: string; rank: number; score: number }>
+      >,
     };
   }
 
@@ -252,7 +264,7 @@ export class EnsembleController {
     const result = await this.ensembleService.embedAll(dto.text);
 
     return {
-      embeddings: result.embeddings.map(e => ({
+      embeddings: result.embeddings.map((e) => ({
         model: e.model,
         dimensions: e.dimensions,
         latencyMs: e.latencyMs,
@@ -267,7 +279,10 @@ export class EnsembleController {
    */
   @Get('models')
   @ApiOperation({ summary: 'List all registered ensemble models' })
-  @ApiResponse({ status: 200, description: 'List of models with their configuration' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of models with their configuration',
+  })
   async getModels(): Promise<ModelInfo[]> {
     return this.ensembleService.getModels();
   }
@@ -281,15 +296,17 @@ export class EnsembleController {
   @ApiResponse({ status: 200, description: 'Coverage stats per model' })
   async getCoverage() {
     const stats = await this.ensembleService.getCoverage();
-    
+
     // Transform perModel from Record to array for dashboard compatibility
-    const perModelArray = Object.entries(stats.perModel).map(([model, modelStats]) => ({
-      model,
-      status: 'active' as const,
-      embeddedCount: modelStats.embeddingCount,
-      totalMemories: stats.totalMemories,
-      coveragePercentage: modelStats.coveragePercent,
-    }));
+    const perModelArray = Object.entries(stats.perModel).map(
+      ([model, modelStats]) => ({
+        model,
+        status: 'active' as const,
+        embeddedCount: modelStats.embeddingCount,
+        totalMemories: stats.totalMemories,
+        coveragePercentage: modelStats.coveragePercent,
+      }),
+    );
 
     return {
       totalMemories: stats.totalMemories,
@@ -305,9 +322,12 @@ export class EnsembleController {
    */
   @Get('memories/:id/embeddings')
   @ApiOperation({ summary: 'Get embedding status for a specific memory' })
-  @ApiResponse({ status: 200, description: 'Embedding status per model for the memory' })
+  @ApiResponse({
+    status: 200,
+    description: 'Embedding status per model for the memory',
+  })
   async getMemoryEmbeddings(
-    @Param('id') memoryId: string
+    @Param('id') memoryId: string,
   ): Promise<{ memoryId: string; embeddings: MemoryEmbeddingStatus[] }> {
     if (!memoryId) {
       throw new BadRequestException('Memory ID is required');
@@ -322,15 +342,26 @@ export class EnsembleController {
    */
   @Get('ab-results')
   @ApiOperation({ summary: 'Get A/B test results' })
-  @ApiQuery({ name: 'testId', required: false, description: 'Filter by test ID' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max results to return' })
+  @ApiQuery({
+    name: 'testId',
+    required: false,
+    description: 'Filter by test ID',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max results to return',
+  })
   @ApiResponse({ status: 200, description: 'A/B test results' })
   async getABTestResults(
     @Query('testId') testId?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ): Promise<{ results: ABTestResult[]; count: number }> {
     const limitNum = limit ? parseInt(limit, 10) : 100;
-    const results = await this.ensembleService.getABTestResults(testId, limitNum);
+    const results = await this.ensembleService.getABTestResults(
+      testId,
+      limitNum,
+    );
     return { results, count: results.length };
   }
 
@@ -362,7 +393,10 @@ export class EnsembleController {
    */
   @Get('reembed/status')
   @ApiOperation({ summary: 'Get active re-embed job status' })
-  @ApiResponse({ status: 200, description: 'Job status or null if no active job' })
+  @ApiResponse({
+    status: 200,
+    description: 'Job status or null if no active job',
+  })
   getReembedStatus() {
     return this.nightlyReembedService.getActiveJobStatus();
   }
@@ -374,7 +408,9 @@ export class EnsembleController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Re-embed specific memories with specific models' })
   @ApiResponse({ status: 200, description: 'Targeted re-embed job started' })
-  async targetedReembed(@Body() dto: { memoryIds: string[]; models: ModelId[] }): Promise<{
+  async targetedReembed(
+    @Body() dto: { memoryIds: string[]; models: ModelId[] },
+  ): Promise<{
     jobId: string;
     total: number;
     message: string;
@@ -419,9 +455,9 @@ export class EnsembleController {
     thresholds: { drift: number; alert: number };
   }> {
     // Get distinct models from drift snapshots
-    const models = await this.prisma.$queryRawUnsafe<Array<{ model_id: string }>>(
-      `SELECT DISTINCT model_id FROM drift_snapshots ORDER BY model_id`
-    );
+    const models = await this.prisma.$queryRawUnsafe<
+      Array<{ model_id: string }>
+    >(`SELECT DISTINCT model_id FROM drift_snapshots ORDER BY model_id`);
 
     const perModel: Array<{
       modelId: string;
@@ -459,9 +495,21 @@ export class EnsembleController {
    */
   @Get('drift/history')
   @ApiOperation({ summary: 'Get drift history for charting' })
-  @ApiQuery({ name: 'modelId', required: false, description: 'Filter by model' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max snapshots to return' })
-  @ApiQuery({ name: 'since', required: false, description: 'ISO date to filter from' })
+  @ApiQuery({
+    name: 'modelId',
+    required: false,
+    description: 'Filter by model',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max snapshots to return',
+  })
+  @ApiQuery({
+    name: 'since',
+    required: false,
+    description: 'ISO date to filter from',
+  })
   @ApiResponse({ status: 200, description: 'Drift snapshots over time' })
   async getDriftHistory(
     @Query('modelId') modelId?: string,
@@ -570,13 +618,18 @@ export class EnsembleController {
       });
     }
 
-    const criticalCount = snapshots.filter(s => s.alertLevel === 'critical').length;
-    const warningCount = snapshots.filter(s => s.alertLevel === 'warning').length;
-    const summary = criticalCount > 0
-      ? `${criticalCount} model(s) in critical drift`
-      : warningCount > 0
-        ? `${warningCount} model(s) with elevated drift`
-        : 'All models within normal drift range';
+    const criticalCount = snapshots.filter(
+      (s) => s.alertLevel === 'critical',
+    ).length;
+    const warningCount = snapshots.filter(
+      (s) => s.alertLevel === 'warning',
+    ).length;
+    const summary =
+      criticalCount > 0
+        ? `${criticalCount} model(s) in critical drift`
+        : warningCount > 0
+          ? `${warningCount} model(s) with elevated drift`
+          : 'All models within normal drift range';
 
     return { snapshots, summary };
   }
@@ -592,7 +645,7 @@ export class EnsembleController {
     for (const memory of memories) {
       try {
         const result = await this.ensembleService.embedAll(memory.raw);
-        const modelEmbed = result.embeddings.find(e => e.model === model);
+        const modelEmbed = result.embeddings.find((e) => e.model === model);
         if (modelEmbed) {
           embeddings.push(modelEmbed.embedding);
         } else {
@@ -610,7 +663,9 @@ export class EnsembleController {
     memoryIds: string[],
     models: ModelId[],
   ): Promise<void> {
-    console.log(`[${jobId}] Starting targeted re-embed for ${memoryIds.length} memories`);
+    console.log(
+      `[${jobId}] Starting targeted re-embed for ${memoryIds.length} memories`,
+    );
 
     // Process in batches of 50
     const batchSize = 50;
@@ -619,7 +674,7 @@ export class EnsembleController {
 
     for (let i = 0; i < memoryIds.length; i += batchSize) {
       const batchIds = memoryIds.slice(i, i + batchSize);
-      
+
       try {
         // Call the batch embedding method which handles storage
         await this.ensembleService.embedBatchForMemories(batchIds, models);
@@ -631,6 +686,8 @@ export class EnsembleController {
       }
     }
 
-    console.log(`[${jobId}] Completed: ${processed} processed, ${errors} errors`);
+    console.log(
+      `[${jobId}] Completed: ${processed} processed, ${errors} errors`,
+    );
   }
 }

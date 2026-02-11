@@ -1,6 +1,6 @@
 /**
  * Vector Storage Provider Interface
- * 
+ *
  * Abstracts vector storage so users can choose:
  * - pgvector (default, local, free)
  * - Pinecone (cloud, scales to billions)

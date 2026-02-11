@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ExtractionService, ExtractionContext, EntityWithType } from './extraction.service';
+import {
+  ExtractionService,
+  ExtractionContext,
+  EntityWithType,
+} from './extraction.service';
 
 export interface BackfillOptions {
   batchSize?: number;
@@ -52,20 +56,19 @@ export class BackfillService {
   /**
    * Find all memories with empty 5W1H extraction data
    */
-  async findMemoriesNeedingBackfill(): Promise<Array<{
-    id: string;
-    raw: string;
-    userId: string;
-    userName: string | null;
-  }>> {
+  async findMemoriesNeedingBackfill(): Promise<
+    Array<{
+      id: string;
+      raw: string;
+      userId: string;
+      userName: string | null;
+    }>
+  > {
     const memories = await this.prisma.memory.findMany({
       where: {
         deletedAt: null,
         extraction: {
-          AND: [
-            { who: null },
-            { what: null },
-          ],
+          AND: [{ who: null }, { what: null }],
         },
       },
       include: {
@@ -75,7 +78,7 @@ export class BackfillService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return memories.map(m => ({
+    return memories.map((m) => ({
       id: m.id,
       raw: m.raw,
       userId: m.userId,
@@ -87,14 +90,18 @@ export class BackfillService {
    * Backfill missing extraction data for memories
    * @param options - Batch size, dry run flag, delay between extractions
    */
-  async backfillExtractions(options: BackfillOptions = {}): Promise<BackfillResult> {
+  async backfillExtractions(
+    options: BackfillOptions = {},
+  ): Promise<BackfillResult> {
     const { batchSize = 50, dryRun = false, delayMs = 500 } = options;
 
     // Get all memories needing backfill
     const allMemories = await this.findMemoriesNeedingBackfill();
     const total = allMemories.length;
 
-    console.log(`[Backfill] Found ${total} memories needing backfill (dryRun: ${dryRun})`);
+    console.log(
+      `[Backfill] Found ${total} memories needing backfill (dryRun: ${dryRun})`,
+    );
 
     if (total === 0) {
       return { processed: 0, errors: 0, skipped: 0, total: 0, details: [] };
@@ -104,7 +111,9 @@ export class BackfillService {
     const memories = allMemories.slice(0, batchSize);
     const skipped = total - memories.length;
 
-    console.log(`[Backfill] Processing batch of ${memories.length} memories (${skipped} remaining for future batches)`);
+    console.log(
+      `[Backfill] Processing batch of ${memories.length} memories (${skipped} remaining for future batches)`,
+    );
 
     let processed = 0;
     let errors = 0;
@@ -124,7 +133,9 @@ export class BackfillService {
         const extracted = await this.extraction.extract(memory.raw, context);
 
         if (dryRun) {
-          console.log(`${progress} [DRY RUN] Would update ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`);
+          console.log(
+            `${progress} [DRY RUN] Would update ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`,
+          );
           details.push({
             memoryId: memory.id,
             status: 'success',
@@ -150,10 +161,16 @@ export class BackfillService {
 
           // Store entities if any
           if (extracted.entities && extracted.entities.length > 0) {
-            await this.storeEntities(memory.userId, memory.id, extracted.entities);
+            await this.storeEntities(
+              memory.userId,
+              memory.id,
+              extracted.entities,
+            );
           }
 
-          console.log(`${progress} Updated ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`);
+          console.log(
+            `${progress} Updated ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`,
+          );
           details.push({
             memoryId: memory.id,
             status: 'success',
@@ -168,7 +185,8 @@ export class BackfillService {
           await this.sleep(delayMs);
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.error(`${progress} Failed ${memory.id}: ${errorMessage}`);
         details.push({
           memoryId: memory.id,
@@ -180,7 +198,9 @@ export class BackfillService {
       }
     }
 
-    console.log(`[Backfill] Complete: ${processed} processed, ${errors} errors, ${skipped} remaining`);
+    console.log(
+      `[Backfill] Complete: ${processed} processed, ${errors} errors, ${skipped} remaining`,
+    );
 
     return { processed, errors, skipped, total, details };
   }
@@ -233,13 +253,16 @@ export class BackfillService {
           update: {},
         });
       } catch (error) {
-        console.error(`[Backfill] Failed to store entity ${entity.name}:`, error);
+        console.error(
+          `[Backfill] Failed to store entity ${entity.name}:`,
+          error,
+        );
       }
     }
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // =========================================================================
@@ -249,9 +272,9 @@ export class BackfillService {
   /**
    * Backfill user identity in memories by replacing generic references
    * like "beaux", "User", "the user" with the actual name.
-   * 
+   *
    * This fixes old memories that were created before identity resolution was added.
-   * 
+   *
    * @param userId - The user's internal ID
    * @param actualName - The actual name to replace generic references with (e.g., "Beaux")
    * @param options - Dry run, batch size
@@ -263,7 +286,9 @@ export class BackfillService {
   ): Promise<UserIdentityBackfillResult> {
     const { dryRun = false, batchSize = 1000 } = options;
 
-    console.log(`[Backfill:UserIdentity] Starting backfill for userId=${userId}, actualName="${actualName}", dryRun=${dryRun}`);
+    console.log(
+      `[Backfill:UserIdentity] Starting backfill for userId=${userId}, actualName="${actualName}", dryRun=${dryRun}`,
+    );
 
     // Patterns to replace - ordered by specificity (most specific first)
     // Note: We use negative lookahead/lookbehind to avoid matching within compound words
@@ -274,7 +299,10 @@ export class BackfillService {
       { pattern: /\bthe user\b/gi, replacement: actualName },
       // Standalone "User" - only when NOT followed by: -ID, Id, Name, etc.
       // This prevents matching User in X-AM-User-ID, userId, userName, etc.
-      { pattern: /\bUser(?![-_]?[Ii][Dd]|[-_]?[Nn]ame|[-_]?[Ee]mail)\b/g, replacement: actualName },
+      {
+        pattern: /\bUser(?![-_]?[Ii][Dd]|[-_]?[Nn]ame|[-_]?[Ee]mail)\b/g,
+        replacement: actualName,
+      },
     ];
 
     // Get all memories for this user
@@ -340,8 +368,10 @@ export class BackfillService {
       // Record details
       details.push({
         memoryId: memory.id,
-        rawBefore: memory.raw.substring(0, 100) + (memory.raw.length > 100 ? '...' : ''),
-        rawAfter: rawUpdated.substring(0, 100) + (rawUpdated.length > 100 ? '...' : ''),
+        rawBefore:
+          memory.raw.substring(0, 100) + (memory.raw.length > 100 ? '...' : ''),
+        rawAfter:
+          rawUpdated.substring(0, 100) + (rawUpdated.length > 100 ? '...' : ''),
         whoBefore: memory.extraction?.who ?? null,
         whoAfter: whoUpdated,
         whatBefore: memory.extraction?.what?.substring(0, 50) ?? null,
@@ -366,15 +396,21 @@ export class BackfillService {
           });
         }
 
-        console.log(`[Backfill:UserIdentity] Updated ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`);
+        console.log(
+          `[Backfill:UserIdentity] Updated ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`,
+        );
       } else {
-        console.log(`[Backfill:UserIdentity] [DRY RUN] Would update ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`);
+        console.log(
+          `[Backfill:UserIdentity] [DRY RUN] Would update ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`,
+        );
       }
 
       updated++;
     }
 
-    console.log(`[Backfill:UserIdentity] Complete: ${updated} updated, ${skipped} skipped, ${total} total (dryRun=${dryRun})`);
+    console.log(
+      `[Backfill:UserIdentity] Complete: ${updated} updated, ${skipped} skipped, ${total} total (dryRun=${dryRun})`,
+    );
 
     return { updated, skipped, total, dryRun, details };
   }
@@ -382,7 +418,9 @@ export class BackfillService {
   /**
    * Find user by externalId pattern (e.g., 'beaux')
    */
-  async findUserByExternalIdPattern(pattern: string): Promise<Array<{ id: string; externalId: string }>> {
+  async findUserByExternalIdPattern(
+    pattern: string,
+  ): Promise<Array<{ id: string; externalId: string }>> {
     const users = await this.prisma.user.findMany({
       where: {
         externalId: {

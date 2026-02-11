@@ -170,8 +170,16 @@ describe('ScopedContextService', () => {
   describe('selectByBudget', () => {
     it('should always include safety-critical memories', () => {
       const scored = [
-        makeScoredMemory('crit1', { safetyCritical: true, tokens: 100, raw: 'x'.repeat(400) }),
-        makeScoredMemory('normal1', { finalScore: 0.9, tokens: 50, raw: 'y'.repeat(200) }),
+        makeScoredMemory('crit1', {
+          safetyCritical: true,
+          tokens: 100,
+          raw: 'x'.repeat(400),
+        }),
+        makeScoredMemory('normal1', {
+          finalScore: 0.9,
+          tokens: 50,
+          raw: 'y'.repeat(200),
+        }),
       ];
 
       const { critical } = service.selectByBudget(scored, 200);
@@ -180,9 +188,21 @@ describe('ScopedContextService', () => {
 
     it('should prioritize CONSTRAINT/LESSON in critical bucket', () => {
       const scored = [
-        makeScoredMemory('constraint1', { memoryType: 'CONSTRAINT', finalScore: 0.8, tokens: 50 }),
-        makeScoredMemory('lesson1', { memoryType: 'LESSON', finalScore: 0.7, tokens: 50 }),
-        makeScoredMemory('fact1', { memoryType: 'FACT', finalScore: 0.9, tokens: 50 }),
+        makeScoredMemory('constraint1', {
+          memoryType: 'CONSTRAINT',
+          finalScore: 0.8,
+          tokens: 50,
+        }),
+        makeScoredMemory('lesson1', {
+          memoryType: 'LESSON',
+          finalScore: 0.7,
+          tokens: 50,
+        }),
+        makeScoredMemory('fact1', {
+          memoryType: 'FACT',
+          finalScore: 0.9,
+          tokens: 50,
+        }),
       ];
 
       const { critical } = service.selectByBudget(scored, 1000);
@@ -196,7 +216,10 @@ describe('ScopedContextService', () => {
         makeScoredMemory(`mem${i}`, { finalScore: 1 - i * 0.05, tokens: 100 }),
       );
 
-      const { critical, taskRelevant, background } = service.selectByBudget(scored, 500);
+      const { critical, taskRelevant, background } = service.selectByBudget(
+        scored,
+        500,
+      );
       const totalTokens = [...critical, ...taskRelevant, ...background].reduce(
         (sum, m) => sum + m.tokens,
         0,
@@ -207,7 +230,11 @@ describe('ScopedContextService', () => {
 
     it('should allocate ~50% to task-relevant', () => {
       const scored = Array.from({ length: 50 }, (_, i) =>
-        makeScoredMemory(`mem${i}`, { finalScore: 1 - i * 0.02, tokens: 20, memoryType: 'FACT' }),
+        makeScoredMemory(`mem${i}`, {
+          finalScore: 1 - i * 0.02,
+          tokens: 20,
+          memoryType: 'FACT',
+        }),
       );
 
       const { taskRelevant } = service.selectByBudget(scored, 2000);
@@ -229,7 +256,13 @@ describe('ScopedContextService', () => {
       const taskRelevant = [makeScoredMemory('t1', { raw: 'Task fact' })];
       const background = [makeScoredMemory('b1', { raw: 'Background fact' })];
 
-      const result = service.formatMarkdown('Test', critical, taskRelevant, background, 100);
+      const result = service.formatMarkdown(
+        'Test',
+        critical,
+        taskRelevant,
+        background,
+        100,
+      );
       expect(result).toContain('## Critical (always included)');
       expect(result).toContain('- Critical fact');
       expect(result).toContain('## Task-Relevant');

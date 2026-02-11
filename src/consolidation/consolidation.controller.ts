@@ -1,8 +1,15 @@
 import { Controller, Post, Query, Body, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { DreamCycleService, DreamCycleStage, DreamCycleResult } from './dream-cycle.service';
+import {
+  DreamCycleService,
+  DreamCycleStage,
+  DreamCycleResult,
+} from './dream-cycle.service';
 import { GenerateContextService } from './generate-context.service';
-import type { GenerateContextOptions, GenerateContextResult } from './generate-context.service';
+import type {
+  GenerateContextOptions,
+  GenerateContextResult,
+} from './generate-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('Consolidation')
@@ -17,7 +24,12 @@ export class ConsolidationController {
   @Post('dream-cycle')
   async runDreamCycle(
     @Query('dryRun') dryRun?: string,
-    @Body() body?: { stages?: DreamCycleStage[]; userId?: string; maxMemories?: number },
+    @Body()
+    body?: {
+      stages?: DreamCycleStage[];
+      userId?: string;
+      maxMemories?: number;
+    },
   ): Promise<DreamCycleResult> {
     return this.dreamCycle.run({
       dryRun: dryRun === 'true' || dryRun === '1',

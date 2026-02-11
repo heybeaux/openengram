@@ -16,7 +16,12 @@ export interface LessonFields {
   lessonRootCause: string | null;
   lessonCorrectAction: string | null;
   lessonSeverity: 'low' | 'medium' | 'high' | 'critical' | null;
-  lessonSource: 'user_correction' | 'error_detection' | 'self_reflection' | 'explicit' | null;
+  lessonSource:
+    | 'user_correction'
+    | 'error_detection'
+    | 'self_reflection'
+    | 'explicit'
+    | null;
   lessonTriggerPatterns: string[];
 }
 
@@ -40,17 +45,23 @@ export interface ExtractionResult {
 
 // Priority mapping for memory types
 export const MEMORY_TYPE_PRIORITY: Record<MemoryType, number> = {
-  CONSTRAINT: 1,  // Safety-critical, highest priority
-  LESSON: 1,      // Mistakes and learnings, same tier as CONSTRAINT
-  PREFERENCE: 2,  // User preferences
-  TASK: 2,        // Actionable items (same as preferences)
-  FACT: 3,        // Stable information
-  EVENT: 4,       // Conversational moments, lowest priority
+  CONSTRAINT: 1, // Safety-critical, highest priority
+  LESSON: 1, // Mistakes and learnings, same tier as CONSTRAINT
+  PREFERENCE: 2, // User preferences
+  TASK: 2, // Actionable items (same as preferences)
+  FACT: 3, // Stable information
+  EVENT: 4, // Conversational moments, lowest priority
 };
 
 export interface EntityWithType {
   name: string;
-  type: 'person' | 'organization' | 'project' | 'product' | 'location' | 'other';
+  type:
+    | 'person'
+    | 'organization'
+    | 'project'
+    | 'product'
+    | 'location'
+    | 'other';
 }
 
 export interface ExtractionContext {
@@ -61,7 +72,9 @@ export interface ExtractionContext {
   conversationId?: string;
 }
 
-const EXTRACTION_PROMPT_TEMPLATE = (userName?: string) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
+const EXTRACTION_PROMPT_TEMPLATE = (
+  userName?: string,
+) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
 
 ${userName ? `IMPORTANT: This memory is about or from a user named "${userName}". Replace generic references like "User", "user", "the user", "I", "they" with "${userName}" in your extraction.` : ''}
 
@@ -180,9 +193,12 @@ export class ExtractionService {
    * @param raw - The raw memory text to extract from
    * @param context - Optional context including user name for better extraction
    */
-  async extract(raw: string, context?: ExtractionContext): Promise<ExtractionResult> {
+  async extract(
+    raw: string,
+    context?: ExtractionContext,
+  ): Promise<ExtractionResult> {
     const inputPreview = raw.length > 100 ? raw.substring(0, 100) + '...' : raw;
-    
+
     console.log('[Extraction] Starting extraction:', {
       inputPreview,
       inputLength: raw.length,
@@ -192,7 +208,7 @@ export class ExtractionService {
 
     try {
       const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName);
-      
+
       const rawResult = await this.llm.json<Record<string, unknown>>(
         [
           { role: 'system', content: prompt },
@@ -203,10 +219,12 @@ export class ExtractionService {
       );
 
       // Log raw LLM response keys to catch case sensitivity issues
-      const rawEntities = (rawResult as Record<string, unknown>).entities ?? (rawResult as Record<string, unknown>).ENTITIES;
+      const rawEntities = rawResult.entities ?? rawResult.ENTITIES;
       console.log('[Extraction] Raw LLM response:', {
         keys: Object.keys(rawResult),
-        hasUppercaseKeys: Object.keys(rawResult).some(k => k !== k.toLowerCase()),
+        hasUppercaseKeys: Object.keys(rawResult).some(
+          (k) => k !== k.toLowerCase(),
+        ),
         entityCount: Array.isArray(rawEntities) ? rawEntities.length : 0,
       });
 
@@ -216,27 +234,44 @@ export class ExtractionService {
       // Normalize memory type (handle case variations)
       const rawMemoryType = result.memoryType || result.memorytype;
       const memoryType = this.normalizeMemoryType(rawMemoryType);
-      const typeConfidence = result.typeConfidence ?? result.typeconfidence ?? null;
+      const typeConfidence =
+        result.typeConfidence ?? result.typeconfidence ?? null;
 
       // Parse field-level confidence scores
       const confidence: FieldConfidence = {
         whoConfidence: this.parseConfidence(result.who_confidence, result.who),
-        whatConfidence: this.parseConfidence(result.what_confidence, result.what),
-        whenConfidence: this.parseConfidence(result.when_confidence, result.when),
-        whereConfidence: this.parseConfidence(result.where_confidence, result.where),
+        whatConfidence: this.parseConfidence(
+          result.what_confidence,
+          result.what,
+        ),
+        whenConfidence: this.parseConfidence(
+          result.when_confidence,
+          result.when,
+        ),
+        whereConfidence: this.parseConfidence(
+          result.where_confidence,
+          result.where,
+        ),
         whyConfidence: this.parseConfidence(result.why_confidence, result.why),
         howConfidence: this.parseConfidence(result.how_confidence, result.how),
       };
 
       // Parse LESSON-specific fields if applicable
-      const lesson: LessonFields | null = memoryType === 'LESSON' ? {
-        lessonMistake: result.lessonmistake || null,
-        lessonRootCause: result.lessonrootcause || null,
-        lessonCorrectAction: result.lessoncorrectaction || null,
-        lessonSeverity: this.normalizeLessonSeverity(result.lessonseverity),
-        lessonSource: this.normalizeLessonSource(result.lessonsource),
-        lessonTriggerPatterns: Array.isArray(result.lessontriggerpatterns) ? result.lessontriggerpatterns : [],
-      } : null;
+      const lesson: LessonFields | null =
+        memoryType === 'LESSON'
+          ? {
+              lessonMistake: result.lessonmistake || null,
+              lessonRootCause: result.lessonrootcause || null,
+              lessonCorrectAction: result.lessoncorrectaction || null,
+              lessonSeverity: this.normalizeLessonSeverity(
+                result.lessonseverity,
+              ),
+              lessonSource: this.normalizeLessonSource(result.lessonsource),
+              lessonTriggerPatterns: Array.isArray(result.lessontriggerpatterns)
+                ? result.lessontriggerpatterns
+                : [],
+            }
+          : null;
 
       const extractionResult: ExtractionResult = {
         who: result.who || null,
@@ -248,7 +283,8 @@ export class ExtractionService {
         topics: Array.isArray(result.topics) ? result.topics : [],
         entities: this.normalizeEntities(result.entities, context?.userName),
         memoryType,
-        typeConfidence: typeof typeConfidence === 'number' ? typeConfidence : null,
+        typeConfidence:
+          typeof typeConfidence === 'number' ? typeConfidence : null,
         confidence,
         lesson,
       };
@@ -258,7 +294,7 @@ export class ExtractionService {
         what: extractionResult.what?.substring(0, 50),
         topicCount: extractionResult.topics.length,
         entityCount: extractionResult.entities.length,
-        entities: extractionResult.entities.map(e => `${e.name}:${e.type}`),
+        entities: extractionResult.entities.map((e) => `${e.name}:${e.type}`),
         memoryType: extractionResult.memoryType,
         typeConfidence: extractionResult.typeConfidence,
         confidence: extractionResult.confidence,
@@ -284,7 +320,10 @@ export class ExtractionService {
    * Parse a confidence value from LLM response
    * Returns null if the corresponding field is null (no confidence for absent data)
    */
-  private parseConfidence(confidence: number | null | undefined, fieldValue: unknown): number | null {
+  private parseConfidence(
+    confidence: number | null | undefined,
+    fieldValue: unknown,
+  ): number | null {
     if (fieldValue === null || fieldValue === undefined) return null;
     if (typeof confidence !== 'number') return null;
     return Math.max(0, Math.min(1, confidence)); // Clamp to 0-1
@@ -294,7 +333,9 @@ export class ExtractionService {
    * Normalize response keys to lowercase
    * Handles LLM returning WHO/WHAT vs who/what
    */
-  private normalizeResponseKeys(raw: Record<string, unknown>): ExtractionResponse {
+  private normalizeResponseKeys(
+    raw: Record<string, unknown>,
+  ): ExtractionResponse {
     const normalized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(raw)) {
       normalized[key.toLowerCase()] = value;
@@ -317,8 +358,8 @@ export class ExtractionService {
     for (const entity of entities) {
       if (typeof entity === 'string') {
         // Legacy format: "Name:type" or just "Name"
-        const [name, type] = entity.includes(':') 
-          ? entity.split(':').map(s => s.trim())
+        const [name, type] = entity.includes(':')
+          ? entity.split(':').map((s) => s.trim())
           : [entity, 'other'];
         result.push({
           name,
@@ -333,7 +374,10 @@ export class ExtractionService {
     }
 
     // If userName provided, ensure they're included as a person entity
-    if (userName && !result.some(e => e.name.toLowerCase() === userName.toLowerCase())) {
+    if (
+      userName &&
+      !result.some((e) => e.name.toLowerCase() === userName.toLowerCase())
+    ) {
       // Check if the original text likely references this user
       // (handled by the LLM prompt, but this is a safety net)
     }
@@ -345,62 +389,102 @@ export class ExtractionService {
    * Validate entity type, default to 'other' if invalid
    */
   private validateEntityType(type: string): EntityWithType['type'] {
-    const validTypes = ['person', 'organization', 'project', 'product', 'location', 'other'];
+    const validTypes = [
+      'person',
+      'organization',
+      'project',
+      'product',
+      'location',
+      'other',
+    ];
     const normalized = type?.toLowerCase().trim();
-    return validTypes.includes(normalized) ? normalized as EntityWithType['type'] : 'other';
+    return validTypes.includes(normalized)
+      ? (normalized as EntityWithType['type'])
+      : 'other';
   }
 
   /**
    * Normalize memory type from LLM response
    * Handles case variations and invalid values
    */
-  private normalizeMemoryType(type: string | null | undefined): MemoryType | null {
+  private normalizeMemoryType(
+    type: string | null | undefined,
+  ): MemoryType | null {
     if (!type) return null;
-    
+
     const normalized = type.toUpperCase().trim();
-    const validTypes: MemoryType[] = ['CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT', 'LESSON'];
-    
+    const validTypes: MemoryType[] = [
+      'CONSTRAINT',
+      'PREFERENCE',
+      'FACT',
+      'TASK',
+      'EVENT',
+      'LESSON',
+    ];
+
     if (validTypes.includes(normalized as MemoryType)) {
       return normalized as MemoryType;
     }
-    
+
     // Handle common variations
     const mappings: Record<string, MemoryType> = {
-      'CONSTRAINTS': 'CONSTRAINT',
-      'PREFERENCES': 'PREFERENCE',
-      'FACTS': 'FACT',
-      'TASKS': 'TASK',
-      'EVENTS': 'EVENT',
-      'LESSONS': 'LESSON',
-      'PREF': 'PREFERENCE',
+      CONSTRAINTS: 'CONSTRAINT',
+      PREFERENCES: 'PREFERENCE',
+      FACTS: 'FACT',
+      TASKS: 'TASK',
+      EVENTS: 'EVENT',
+      LESSONS: 'LESSON',
+      PREF: 'PREFERENCE',
     };
-    
+
     if (mappings[normalized]) {
       return mappings[normalized];
     }
-    
-    console.warn('[Extraction] Unknown memory type:', type, '-> defaulting to FACT');
+
+    console.warn(
+      '[Extraction] Unknown memory type:',
+      type,
+      '-> defaulting to FACT',
+    );
     return 'FACT'; // Safe default
   }
 
   /**
    * Normalize lesson severity from LLM response
    */
-  private normalizeLessonSeverity(severity: string | null | undefined): LessonFields['lessonSeverity'] {
+  private normalizeLessonSeverity(
+    severity: string | null | undefined,
+  ): LessonFields['lessonSeverity'] {
     if (!severity) return null;
     const normalized = severity.toLowerCase().trim();
-    const valid: LessonFields['lessonSeverity'][] = ['low', 'medium', 'high', 'critical'];
-    return valid.includes(normalized as any) ? normalized as LessonFields['lessonSeverity'] : 'medium';
+    const valid: LessonFields['lessonSeverity'][] = [
+      'low',
+      'medium',
+      'high',
+      'critical',
+    ];
+    return valid.includes(normalized as any)
+      ? (normalized as LessonFields['lessonSeverity'])
+      : 'medium';
   }
 
   /**
    * Normalize lesson source from LLM response
    */
-  private normalizeLessonSource(source: string | null | undefined): LessonFields['lessonSource'] {
+  private normalizeLessonSource(
+    source: string | null | undefined,
+  ): LessonFields['lessonSource'] {
     if (!source) return null;
     const normalized = source.toLowerCase().trim().replace(/\s+/g, '_');
-    const valid: LessonFields['lessonSource'][] = ['user_correction', 'error_detection', 'self_reflection', 'explicit'];
-    return valid.includes(normalized as any) ? normalized as LessonFields['lessonSource'] : 'explicit';
+    const valid: LessonFields['lessonSource'][] = [
+      'user_correction',
+      'error_detection',
+      'self_reflection',
+      'explicit',
+    ];
+    return valid.includes(normalized as any)
+      ? (normalized as LessonFields['lessonSource'])
+      : 'explicit';
   }
 
   /**
@@ -414,7 +498,7 @@ export class ExtractionService {
   /**
    * Classify the appropriate memory layer based on content analysis
    * P5-003: Intelligent Layer Classification
-   * 
+   *
    * @param raw - The raw memory text
    * @param extracted - Optional extraction result for entity-based classification
    * @returns The recommended MemoryLayer
@@ -441,7 +525,10 @@ export class ExtractionService {
     // Check for identity patterns
     for (const pattern of identityPatterns) {
       if (pattern.test(raw)) {
-        console.log('[classifyLayer] Matched IDENTITY pattern:', pattern.toString());
+        console.log(
+          '[classifyLayer] Matched IDENTITY pattern:',
+          pattern.toString(),
+        );
         return MemoryLayer.IDENTITY;
       }
     }
@@ -462,7 +549,10 @@ export class ExtractionService {
     // Check for project patterns
     for (const pattern of projectPatterns) {
       if (pattern.test(raw)) {
-        console.log('[classifyLayer] Matched PROJECT pattern:', pattern.toString());
+        console.log(
+          '[classifyLayer] Matched PROJECT pattern:',
+          pattern.toString(),
+        );
         return MemoryLayer.PROJECT;
       }
     }
@@ -470,7 +560,7 @@ export class ExtractionService {
     // Additional heuristic: if entities include projects or organizations, lean toward PROJECT
     if (extracted?.entities) {
       const hasProjectEntity = extracted.entities.some(
-        e => e.type === 'project' || e.type === 'organization'
+        (e) => e.type === 'project' || e.type === 'organization',
       );
       if (hasProjectEntity) {
         console.log('[classifyLayer] Entity-based classification: PROJECT');
@@ -478,11 +568,15 @@ export class ExtractionService {
       }
 
       // If it's about a person (not the user), could be relationship info (IDENTITY)
-      const personEntities = extracted.entities.filter(e => e.type === 'person');
+      const personEntities = extracted.entities.filter(
+        (e) => e.type === 'person',
+      );
       if (personEntities.length > 0 && extracted.who) {
         // Check if it's about family/relationships
         if (/\b(wife|husband|daughter|son|friend|colleague)\b/i.test(raw)) {
-          console.log('[classifyLayer] Relationship-based classification: IDENTITY');
+          console.log(
+            '[classifyLayer] Relationship-based classification: IDENTITY',
+          );
           return MemoryLayer.IDENTITY;
         }
       }
@@ -510,7 +604,10 @@ export class ExtractionService {
     const memoryType = this.basicMemoryTypeClassification(processedRaw);
 
     const who = userName || this.extractWho(processedRaw);
-    const what = processedRaw.length > 200 ? processedRaw.substring(0, 200) + '...' : processedRaw;
+    const what =
+      processedRaw.length > 200
+        ? processedRaw.substring(0, 200) + '...'
+        : processedRaw;
 
     return {
       who,
@@ -543,38 +640,65 @@ export class ExtractionService {
     const lowered = raw.toLowerCase();
 
     // CONSTRAINT patterns (safety-critical)
-    if (/\b(allergic|allergy|allergies|intolerant|medication|medical|deadly|fatal)\b/i.test(raw)) {
+    if (
+      /\b(allergic|allergy|allergies|intolerant|medication|medical|deadly|fatal)\b/i.test(
+        raw,
+      )
+    ) {
       return 'CONSTRAINT';
     }
-    if (/\b(must not|cannot|can't|never|forbidden|prohibited)\b/i.test(raw) && 
-        /\b(eat|take|use|do|have)\b/i.test(raw)) {
+    if (
+      /\b(must not|cannot|can't|never|forbidden|prohibited)\b/i.test(raw) &&
+      /\b(eat|take|use|do|have)\b/i.test(raw)
+    ) {
       return 'CONSTRAINT';
     }
 
     // LESSON patterns (mistakes, corrections, learnings)
-    if (/\b(that's wrong|that was wrong|you made a mistake|lesson learned|don't do that again)\b/i.test(raw)) {
+    if (
+      /\b(that's wrong|that was wrong|you made a mistake|lesson learned|don't do that again)\b/i.test(
+        raw,
+      )
+    ) {
       return 'LESSON';
     }
-    if (/\b(actually|no,)\b/i.test(raw) && /\b(wrong|incorrect|mistake|shouldn't have|should have)\b/i.test(raw)) {
+    if (
+      /\b(actually|no,)\b/i.test(raw) &&
+      /\b(wrong|incorrect|mistake|shouldn't have|should have)\b/i.test(raw)
+    ) {
       return 'LESSON';
     }
 
     // TASK patterns
-    if (/\b(remind|todo|task|need to|should|must|deadline|by tomorrow|by next)\b/i.test(raw)) {
+    if (
+      /\b(remind|todo|task|need to|should|must|deadline|by tomorrow|by next)\b/i.test(
+        raw,
+      )
+    ) {
       return 'TASK';
     }
 
     // PREFERENCE patterns
-    if (/\b(prefer|prefers|favorite|favourite|like|likes|love|loves|enjoy|enjoys|want|wants)\b/i.test(raw)) {
+    if (
+      /\b(prefer|prefers|favorite|favourite|like|likes|love|loves|enjoy|enjoys|want|wants)\b/i.test(
+        raw,
+      )
+    ) {
       return 'PREFERENCE';
     }
-    if (/\b(always|usually|normally|every morning|every day)\b/i.test(raw) && 
-        !/\b(allergic|medical|cannot)\b/i.test(raw)) {
+    if (
+      /\b(always|usually|normally|every morning|every day)\b/i.test(raw) &&
+      !/\b(allergic|medical|cannot)\b/i.test(raw)
+    ) {
       return 'PREFERENCE';
     }
 
     // EVENT patterns
-    if (/\b(yesterday|today|last week|recently|just now|this morning|earlier)\b/i.test(raw)) {
+    if (
+      /\b(yesterday|today|last week|recently|just now|this morning|earlier)\b/i.test(
+        raw,
+      )
+    ) {
       return 'EVENT';
     }
 
@@ -591,10 +715,34 @@ export class ExtractionService {
 
     if (matches && matches.length > 0) {
       const commonWords = new Set([
-        'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
+        'The',
+        'This',
+        'That',
+        'I',
+        'We',
+        'They',
+        'It',
+        'He',
+        'She',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ]);
       const names = matches.filter((m) => !commonWords.has(m));
       return names.length > 0 ? names[0] : null;
@@ -611,9 +759,24 @@ export class ExtractionService {
     const lowered = raw.toLowerCase();
 
     const topicKeywords: Record<string, string[]> = {
-      coding: ['code', 'programming', 'developer', 'api', 'function', 'bug', 'deploy'],
+      coding: [
+        'code',
+        'programming',
+        'developer',
+        'api',
+        'function',
+        'bug',
+        'deploy',
+      ],
       design: ['design', 'ui', 'ux', 'layout', 'color', 'font', 'style'],
-      business: ['meeting', 'client', 'project', 'deadline', 'budget', 'pricing'],
+      business: [
+        'meeting',
+        'client',
+        'project',
+        'deadline',
+        'budget',
+        'pricing',
+      ],
       preferences: ['prefer', 'like', 'hate', 'favorite', 'always', 'never'],
       technical: ['database', 'server', 'api', 'integration', 'architecture'],
     };
@@ -637,10 +800,34 @@ export class ExtractionService {
 
     if (matches) {
       const commonWords = new Set([
-        'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
+        'The',
+        'This',
+        'That',
+        'I',
+        'We',
+        'They',
+        'It',
+        'He',
+        'She',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ]);
 
       for (const match of matches) {
@@ -656,7 +843,10 @@ export class ExtractionService {
   /**
    * Basic entity extraction with type inference
    */
-  private extractEntitiesWithTypes(raw: string, userName?: string): EntityWithType[] {
+  private extractEntitiesWithTypes(
+    raw: string,
+    userName?: string,
+  ): EntityWithType[] {
     const entities: EntityWithType[] = [];
     const seen = new Set<string>();
 
@@ -672,11 +862,36 @@ export class ExtractionService {
 
     if (matches) {
       const commonWords = new Set([
-        'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
-        'User', 'Assistant',
+        'The',
+        'This',
+        'That',
+        'I',
+        'We',
+        'They',
+        'It',
+        'He',
+        'She',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+        'User',
+        'Assistant',
       ]);
 
       for (const match of matches) {
@@ -684,7 +899,7 @@ export class ExtractionService {
         if (!commonWords.has(match) && !seen.has(normalized)) {
           // Simple heuristic for type detection
           let type: EntityWithType['type'] = 'other';
-          
+
           // Two-word names are likely people
           if (match.includes(' ') && match.split(' ').length === 2) {
             type = 'person';

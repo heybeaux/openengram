@@ -1,8 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { SimilarityService, MemoryCluster, PairwiseSimilarity } from './similarity.service';
-import { SafetyService, SafetyConfig, DEFAULT_SAFETY_CONFIG } from './safety.service';
+import {
+  SimilarityService,
+  MemoryCluster,
+  PairwiseSimilarity,
+} from './similarity.service';
+import {
+  SafetyService,
+  SafetyConfig,
+  DEFAULT_SAFETY_CONFIG,
+} from './safety.service';
 import { MergeService, MergeResult } from './merge.service';
 import { LineageService } from './lineage.service';
 import { ReviewService } from './review.service';
@@ -98,18 +106,25 @@ export class DeduplicationService {
     memoryId: string,
     userId: string,
     content: string,
-  ): Promise<{ action: 'none' | 'auto_merged' | 'queued_for_review'; details?: any }> {
+  ): Promise<{
+    action: 'none' | 'auto_merged' | 'queued_for_review';
+    details?: any;
+  }> {
     if (!this.isEnabled() || !this.config.incrementalEnabled) {
       return { action: 'none' };
     }
 
     try {
       // Find similar memories
-      const similar = await this.similarity.findSimilarForContent(content, userId, {
-        topK: 5,
-        minSimilarity: this.config.reviewSuggestThreshold,
-        excludeIds: [memoryId],
-      });
+      const similar = await this.similarity.findSimilarForContent(
+        content,
+        userId,
+        {
+          topK: 5,
+          minSimilarity: this.config.reviewSuggestThreshold,
+          excludeIds: [memoryId],
+        },
+      );
 
       if (similar.length === 0) {
         return { action: 'none' };
@@ -118,17 +133,28 @@ export class DeduplicationService {
       const topMatch = similar[0];
 
       // Check if this pair was previously rejected
-      const wasRejected = await this.review.wasRejected(memoryId, topMatch.memoryId);
+      const wasRejected = await this.review.wasRejected(
+        memoryId,
+        topMatch.memoryId,
+      );
       if (wasRejected) {
         return { action: 'none' };
       }
 
       // Check safety
-      const { canAutoMerge, reasons } = await this.safety.canAutoMergePair(memoryId, topMatch.memoryId);
+      const { canAutoMerge, reasons } = await this.safety.canAutoMergePair(
+        memoryId,
+        topMatch.memoryId,
+      );
 
       if (!canAutoMerge || !this.config.incrementalAutoMerge) {
         // Queue for review
-        await this.review.queuePairForReview(userId, memoryId, topMatch.memoryId, topMatch.similarity);
+        await this.review.queuePairForReview(
+          userId,
+          memoryId,
+          topMatch.memoryId,
+          topMatch.similarity,
+        );
         return {
           action: 'queued_for_review',
           details: { similarity: topMatch.similarity, reasons },
@@ -157,7 +183,12 @@ export class DeduplicationService {
 
       // Queue for review if above suggest threshold
       if (topMatch.similarity >= this.config.reviewSuggestThreshold) {
-        await this.review.queuePairForReview(userId, memoryId, topMatch.memoryId, topMatch.similarity);
+        await this.review.queuePairForReview(
+          userId,
+          memoryId,
+          topMatch.memoryId,
+          topMatch.similarity,
+        );
         return {
           action: 'queued_for_review',
           details: { similarity: topMatch.similarity },
@@ -220,7 +251,9 @@ export class DeduplicationService {
     this.currentJob = jobId;
 
     try {
-      console.log(`[DeduplicationService] Starting batch job ${jobId} for user ${userId}`);
+      console.log(
+        `[DeduplicationService] Starting batch job ${jobId} for user ${userId}`,
+      );
 
       // Compute pairwise similarities
       const pairs = await this.similarity.computePairwiseSimilarity(userId, {
@@ -231,7 +264,10 @@ export class DeduplicationService {
       job.memoriesProcessed = maxMemories; // Approximation
 
       // Cluster similar memories
-      const clusters = this.similarity.clusterSimilarMemories(pairs, minSimilarity);
+      const clusters = this.similarity.clusterSimilarMemories(
+        pairs,
+        minSimilarity,
+      );
       job.clustersFound = clusters.length;
 
       console.log(`[DeduplicationService] Found ${clusters.length} clusters`);
@@ -241,9 +277,13 @@ export class DeduplicationService {
         try {
           await this.processCluster(userId, cluster, job, dryRun);
         } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
           job.errors.push(`Cluster ${cluster.id}: ${errorMsg}`);
-          console.error(`[DeduplicationService] Error processing cluster:`, error);
+          console.error(
+            `[DeduplicationService] Error processing cluster:`,
+            error,
+          );
         }
       }
 
@@ -304,7 +344,9 @@ export class DeduplicationService {
     dryRun: boolean,
   ): Promise<void> {
     // Check safety for all memories in cluster
-    const safetyResults = await this.safety.checkMultipleSafety(cluster.memoryIds);
+    const safetyResults = await this.safety.checkMultipleSafety(
+      cluster.memoryIds,
+    );
     const hasProtected = safetyResults.some((r) => r.isProtected);
     const canAutoMerge =
       cluster.minSimilarity >= this.config.autoMergeThreshold &&
@@ -355,14 +397,24 @@ export class DeduplicationService {
     approvedBy?: string,
   ): Promise<MergeResult> {
     const result = await this.merge.merge(memoryIds, strategy);
-    await this.lineage.recordMerge(userId, result, trigger, similarity, approvedBy);
+    await this.lineage.recordMerge(
+      userId,
+      result,
+      trigger,
+      similarity,
+      approvedBy,
+    );
     return result;
   }
 
   /**
    * Manually trigger a merge
    */
-  async manualMerge(dto: ManualMergeDto, userId: string, approvedBy?: string): Promise<MergeResponseDto> {
+  async manualMerge(
+    dto: ManualMergeDto,
+    userId: string,
+    approvedBy?: string,
+  ): Promise<MergeResponseDto> {
     if (!this.isEnabled()) {
       throw new Error('Deduplication is disabled');
     }
@@ -372,7 +424,13 @@ export class DeduplicationService {
       customContent: dto.customContent,
     });
 
-    const event = await this.lineage.recordMerge(userId, result, 'manual', 1.0, approvedBy);
+    const event = await this.lineage.recordMerge(
+      userId,
+      result,
+      'manual',
+      1.0,
+      approvedBy,
+    );
 
     return {
       success: true,
@@ -420,7 +478,8 @@ export class DeduplicationService {
       defaultStrategy: this.config.defaultStrategy,
       protectedTypes: this.safetyConfig.protectedTypes,
       protectedKeywords: this.safetyConfig.protectedKeywords,
-      protectedImportanceThreshold: this.safetyConfig.protectedImportanceThreshold,
+      protectedImportanceThreshold:
+        this.safetyConfig.protectedImportanceThreshold,
       batchEnabled: this.config.batchEnabled,
     };
   }
@@ -428,23 +487,41 @@ export class DeduplicationService {
   /**
    * Update deduplication configuration
    */
-  async updateConfig(userId: string, dto: UpdateConfigDto): Promise<ConfigResponseDto> {
+  async updateConfig(
+    userId: string,
+    dto: UpdateConfigDto,
+  ): Promise<ConfigResponseDto> {
     const existing = await this.prisma.dedupConfig.findUnique({
       where: { userId },
     });
 
     const data = {
-      autoMergeThreshold: dto.autoMergeThreshold ?? existing?.autoMergeThreshold ?? this.config.autoMergeThreshold,
+      autoMergeThreshold:
+        dto.autoMergeThreshold ??
+        existing?.autoMergeThreshold ??
+        this.config.autoMergeThreshold,
       reviewSuggestThreshold:
-        dto.reviewSuggestThreshold ?? existing?.reviewSuggestThreshold ?? this.config.reviewSuggestThreshold,
-      defaultStrategy: dto.defaultStrategy ?? existing?.defaultStrategy ?? this.config.defaultStrategy,
-      protectedTypes: dto.protectedTypes ?? existing?.protectedTypes ?? this.safetyConfig.protectedTypes,
-      protectedKeywords: dto.protectedKeywords ?? existing?.protectedKeywords ?? this.safetyConfig.protectedKeywords,
+        dto.reviewSuggestThreshold ??
+        existing?.reviewSuggestThreshold ??
+        this.config.reviewSuggestThreshold,
+      defaultStrategy:
+        dto.defaultStrategy ??
+        existing?.defaultStrategy ??
+        this.config.defaultStrategy,
+      protectedTypes:
+        dto.protectedTypes ??
+        existing?.protectedTypes ??
+        this.safetyConfig.protectedTypes,
+      protectedKeywords:
+        dto.protectedKeywords ??
+        existing?.protectedKeywords ??
+        this.safetyConfig.protectedKeywords,
       protectedImportanceThreshold:
         dto.protectedImportanceThreshold ??
         existing?.protectedImportanceThreshold ??
         this.safetyConfig.protectedImportanceThreshold,
-      batchEnabled: dto.batchEnabled ?? existing?.batchEnabled ?? this.config.batchEnabled,
+      batchEnabled:
+        dto.batchEnabled ?? existing?.batchEnabled ?? this.config.batchEnabled,
     };
 
     const config = await this.prisma.dedupConfig.upsert({
@@ -454,7 +531,11 @@ export class DeduplicationService {
     });
 
     // Update in-memory config
-    if (dto.protectedTypes || dto.protectedKeywords || dto.protectedImportanceThreshold) {
+    if (
+      dto.protectedTypes ||
+      dto.protectedKeywords ||
+      dto.protectedImportanceThreshold
+    ) {
       this.safety.updateConfig({
         protectedTypes: config.protectedTypes as any,
         protectedKeywords: config.protectedKeywords,
@@ -479,7 +560,11 @@ export class DeduplicationService {
    */
   async getStats(userId: string): Promise<StatsResponseDto> {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [
@@ -491,7 +576,9 @@ export class DeduplicationService {
       deletedMemories,
     ] = await Promise.all([
       this.prisma.memory.count({ where: { userId, deletedAt: null } }),
-      this.prisma.mergeCandidate.count({ where: { userId, status: 'PENDING' } }),
+      this.prisma.mergeCandidate.count({
+        where: { userId, status: 'PENDING' },
+      }),
       this.prisma.memoryMergeEvent.count({
         where: { userId, createdAt: { gte: weekStart } },
       }),
@@ -509,7 +596,8 @@ export class DeduplicationService {
 
     // Compression ratio
     const originalCount = totalMemories + deletedMemories;
-    const compressionRatio = originalCount > 0 ? deletedMemories / originalCount : 0;
+    const compressionRatio =
+      originalCount > 0 ? deletedMemories / originalCount : 0;
 
     return {
       totalMemories,

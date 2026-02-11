@@ -27,7 +27,9 @@ async function main() {
         status: 'ACTIVE',
       },
     });
-    console.log(`✓ Agent session: ${agentSession.id} (${agentSession.sessionKey})`);
+    console.log(
+      `✓ Agent session: ${agentSession.id} (${agentSession.sessionKey})`,
+    );
 
     // 2. Create global pool per user
     const users = await prisma.user.findMany({
@@ -70,7 +72,9 @@ async function main() {
           if (e.code !== 'P2002') throw e;
         }
       }
-      console.log(`  ✓ Added ${added}/${memories.length} memories to global pool`);
+      console.log(
+        `  ✓ Added ${added}/${memories.length} memories to global pool`,
+      );
     }
 
     // 4. Attribute all existing memories to agent:main

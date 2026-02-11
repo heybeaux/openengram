@@ -29,9 +29,9 @@ export interface MemoryCluster {
 
 /**
  * ConsolidationService handles memory promotion and deduplication.
- * 
+ *
  * P5-003: Intelligent Layer Classification - Consolidation Component
- * 
+ *
  * Key Features:
  * - Finds recurring SESSION memories with 3+ similar occurrences
  * - Promotes the canonical version to IDENTITY layer
@@ -52,7 +52,7 @@ export class ConsolidationService {
 
   /**
    * Find and promote recurring patterns from SESSION to IDENTITY layer.
-   * 
+   *
    * Algorithm:
    * 1. Get all SESSION memories for the user
    * 2. Cluster them by semantic similarity
@@ -60,7 +60,7 @@ export class ConsolidationService {
    *    - Pick the most complete memory as canonical
    *    - Promote it to IDENTITY
    *    - Soft-delete others with consolidatedInto reference
-   * 
+   *
    * @param userId - The user whose memories to consolidate
    * @param options - Configuration options
    */
@@ -108,7 +108,10 @@ export class ConsolidationService {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log('[Consolidation] Found SESSION memories:', sessionMemories.length);
+    console.log(
+      '[Consolidation] Found SESSION memories:',
+      sessionMemories.length,
+    );
 
     if (sessionMemories.length < minOccurrences) {
       console.log('[Consolidation] Not enough memories to consolidate');
@@ -117,7 +120,7 @@ export class ConsolidationService {
 
     // 2. Cluster memories by semantic similarity
     const clusters = await this.clusterBySimilarity(
-      sessionMemories.map(m => ({
+      sessionMemories.map((m) => ({
         id: m.id,
         raw: m.raw,
         createdAt: m.createdAt,
@@ -138,7 +141,9 @@ export class ConsolidationService {
         // Pick the most complete memory as canonical
         // Criteria: longest extraction.what > highest importance > most recent
         const canonical = this.selectCanonical(cluster.memories);
-        const duplicates = cluster.memories.filter(m => m.id !== canonical.id);
+        const duplicates = cluster.memories.filter(
+          (m) => m.id !== canonical.id,
+        );
 
         // Extract gist from the cluster (sleep consolidation!)
         const { gist, confidence } = await this.extractGist(cluster.memories);
@@ -174,8 +179,8 @@ export class ConsolidationService {
               where: { memoryId: canonical.id },
               data: {
                 rawJson: {
-                  ...(extraction.rawJson as object || {}),
-                  consolidatedFrom: cluster.memories.map(m => ({
+                  ...((extraction.rawJson as object) || {}),
+                  consolidatedFrom: cluster.memories.map((m) => ({
                     id: m.id,
                     raw: m.raw,
                     createdAt: m.createdAt,
@@ -205,7 +210,7 @@ export class ConsolidationService {
           canonicalId: canonical.id,
           canonicalRaw: gist, // Return the gist, not original
           promotedToLayer: MemoryLayer.IDENTITY,
-          duplicateIds: duplicates.map(d => d.id),
+          duplicateIds: duplicates.map((d) => d.id),
         });
       }
     }
@@ -248,7 +253,9 @@ export class ConsolidationService {
       // Retrieve existing embedding from pgvector instead of regenerating (much faster!)
       let embedding: number[];
       try {
-        const raw = await this.prisma.$queryRawUnsafe<Array<{ embedding: string }>>(
+        const raw = await this.prisma.$queryRawUnsafe<
+          Array<{ embedding: string }>
+        >(
           `SELECT embedding::text FROM memories WHERE id = $1 AND embedding IS NOT NULL`,
           memory.id,
         );
@@ -260,7 +267,10 @@ export class ConsolidationService {
           embedding = JSON.parse(raw[0].embedding);
         }
       } catch (error) {
-        console.error(`[Consolidation] Failed to get embedding for ${memory.id}:`, error);
+        console.error(
+          `[Consolidation] Failed to get embedding for ${memory.id}:`,
+          error,
+        );
         continue;
       }
 
@@ -268,20 +278,23 @@ export class ConsolidationService {
       const similar = await this.embedding.search(userId, embedding, 20);
 
       // Filter to memories in our list that are above threshold
-      const memoryIds = new Set(memories.map(m => m.id));
+      const memoryIds = new Set(memories.map((m) => m.id));
       const clusterMembers = similar
-        .filter(s => memoryIds.has(s.id) && !assigned.has(s.id) && s.score >= threshold)
-        .map(s => {
-          const mem = memories.find(m => m.id === s.id)!;
+        .filter(
+          (s) =>
+            memoryIds.has(s.id) && !assigned.has(s.id) && s.score >= threshold,
+        )
+        .map((s) => {
+          const mem = memories.find((m) => m.id === s.id)!;
           return { ...mem, score: s.score };
         });
 
       if (clusterMembers.length >= 1) {
         // Include the seed memory
-        const seedMem = memories.find(m => m.id === memory.id)!;
+        const seedMem = memories.find((m) => m.id === memory.id)!;
         const allMembers = [
           { ...seedMem, score: 1.0 },
-          ...clusterMembers.filter(m => m.id !== memory.id),
+          ...clusterMembers.filter((m) => m.id !== memory.id),
         ];
 
         // Mark all as assigned
@@ -314,7 +327,7 @@ export class ConsolidationService {
       extractionWhat: string | null;
       importanceScore: number;
     }>,
-  ): typeof memories[0] {
+  ): (typeof memories)[0] {
     return memories.sort((a, b) => {
       // 1. Prefer longer extraction.what (more complete)
       const whatLenA = a.extractionWhat?.length ?? 0;
@@ -392,23 +405,25 @@ Respond with JSON:
     consolidatedCount: number;
     potentialClusters: number;
   }> {
-    const [total, session, identity, project, consolidated] = await Promise.all([
-      this.prisma.memory.count({
-        where: { userId, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { userId, layer: MemoryLayer.SESSION, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { userId, layer: MemoryLayer.IDENTITY, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { userId, layer: MemoryLayer.PROJECT, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { userId, consolidated: true },
-      }),
-    ]);
+    const [total, session, identity, project, consolidated] = await Promise.all(
+      [
+        this.prisma.memory.count({
+          where: { userId, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: { userId, layer: MemoryLayer.SESSION, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: { userId, layer: MemoryLayer.IDENTITY, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: { userId, layer: MemoryLayer.PROJECT, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: { userId, consolidated: true },
+        }),
+      ],
+    );
 
     // Rough estimate of potential clusters (dry run would be more accurate)
     const potentialClusters = Math.floor(session / this.MIN_OCCURRENCES);

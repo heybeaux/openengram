@@ -1,6 +1,6 @@
 /**
  * Ensemble Retrieval Types
- * 
+ *
  * Multi-model embedding and RRF fusion types for improved memory retrieval.
  * Extended with nightly batch re-embedding support.
  */
@@ -23,12 +23,22 @@ export type ReembedMode = 'incremental' | 'full';
 /**
  * Re-embed job status
  */
-export type ReembedJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type ReembedJobStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 /**
  * Query type for adaptive fusion
  */
-export type QueryType = 'factual' | 'conversational' | 'temporal' | 'entity' | 'procedural';
+export type QueryType =
+  | 'factual'
+  | 'conversational'
+  | 'temporal'
+  | 'entity'
+  | 'procedural';
 
 /**
  * Model configuration
@@ -36,8 +46,8 @@ export type QueryType = 'factual' | 'conversational' | 'temporal' | 'entity' | '
 export interface ModelConfig {
   id: ModelId;
   dimensions: number;
-  namespace: string;  // Pinecone namespace for this model
-  weight: number;     // Fusion weight (default 1.0)
+  namespace: string; // Pinecone namespace for this model
+  weight: number; // Fusion weight (default 1.0)
   maxTokens: number;
   queryPrefix?: string;
   documentPrefix?: string;
@@ -54,7 +64,7 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
     weight: 1.0,
     maxTokens: 512,
   },
-  'nomic': {
+  nomic: {
     id: 'nomic',
     dimensions: 768,
     namespace: 'nomic',
@@ -63,7 +73,7 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
     queryPrefix: 'search_query: ',
     documentPrefix: 'search_document: ',
   },
-  'minilm': {
+  minilm: {
     id: 'minilm',
     dimensions: 384,
     namespace: 'minilm',
@@ -82,12 +92,22 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
 /**
  * All available models
  */
-export const ALL_MODELS: ModelId[] = ['bge-base', 'nomic', 'minilm', 'gte-base'];
+export const ALL_MODELS: ModelId[] = [
+  'bge-base',
+  'nomic',
+  'minilm',
+  'gte-base',
+];
 
 /**
  * Default active models (MVP)
  */
-export const DEFAULT_ACTIVE_MODELS: ModelId[] = ['bge-base', 'minilm', 'nomic', 'gte-base'];
+export const DEFAULT_ACTIVE_MODELS: ModelId[] = [
+  'bge-base',
+  'minilm',
+  'nomic',
+  'gte-base',
+];
 
 /**
  * Result from a single model query
@@ -95,8 +115,8 @@ export const DEFAULT_ACTIVE_MODELS: ModelId[] = ['bge-base', 'minilm', 'nomic', 
 export interface ModelSearchResult {
   memoryId: string;
   model: ModelId;
-  rank: number;       // 1-indexed position in results
-  score: number;      // Raw similarity score (0-1)
+  rank: number; // 1-indexed position in results
+  score: number; // Raw similarity score (0-1)
 }
 
 /**
@@ -106,7 +126,7 @@ export interface FusedResult {
   memoryId: string;
   rrfScore: number;
   modelScores: Map<ModelId, { rank: number; score: number }>;
-  appearsInModels: number;  // Consensus count
+  appearsInModels: number; // Consensus count
 }
 
 /**
@@ -144,9 +164,9 @@ export interface EnsembleQueryOptions {
   query: string;
   userId: string;
   limit?: number;
-  k?: number;          // RRF constant (default 60)
+  k?: number; // RRF constant (default 60)
   weights?: Partial<Record<ModelId, number>>;
-  models?: ModelId[];  // Specific models to query (default: all active)
+  models?: ModelId[]; // Specific models to query (default: all active)
 }
 
 /**
@@ -179,7 +199,7 @@ export interface EnsembleConfig {
   enabled: boolean;
   models: ModelId[];
   weights: Record<ModelId, number>;
-  rrfK: number;  // RRF constant
+  rrfK: number; // RRF constant
   localEmbedUrl: string;
   consensusBoostEnabled: boolean;
   consensusBoostFactor: number;
@@ -200,11 +220,11 @@ export interface ScoringWeights {
  * Default scoring weights
  */
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  semantic: 0.50,
+  semantic: 0.5,
   recency: 0.15,
-  importance: 0.20,
+  importance: 0.2,
   access: 0.05,
-  consensus: 0.10,
+  consensus: 0.1,
 };
 
 // ============================================================================
@@ -366,7 +386,7 @@ export interface PromotionThresholds {
 export const DEFAULT_PROMOTION_THRESHOLDS: PromotionThresholds = {
   minSampleQueries: 1000,
   minRankContribution: 0.15,
-  minCorrelation: 0.80,
+  minCorrelation: 0.8,
 };
 
 // ============================================================================
@@ -376,11 +396,11 @@ export const DEFAULT_PROMOTION_THRESHOLDS: PromotionThresholds = {
 /**
  * Event types that can trigger re-embedding
  */
-export type ReembedEventType = 
-  | 'lesson_created' 
-  | 'user_correction' 
-  | 'entity_change' 
-  | 'importance_upgrade' 
+export type ReembedEventType =
+  | 'lesson_created'
+  | 'user_correction'
+  | 'entity_change'
+  | 'importance_upgrade'
   | 'model_added'
   | 'manual';
 

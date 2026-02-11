@@ -1,10 +1,10 @@
 /**
  * Ensemble Module
- * 
+ *
  * Multi-model embedding and RRF fusion for improved memory retrieval.
  * Uses pgvector for storage (replaced Pinecone).
  * Includes nightly batch re-embedding with checkpointing and drift detection.
- * 
+ *
  * Enable with ENSEMBLE_ENABLED=true environment variable.
  * Enable nightly re-embed with ENSEMBLE_REEMBED_ENABLED=true.
  */

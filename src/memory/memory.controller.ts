@@ -12,14 +12,29 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { MemoryService, MemoryWithExtraction, QueryResult, ContextResult } from './memory.service';
-import { BackfillService, BackfillResult, UserIdentityBackfillResult } from './backfill.service';
-import { ConsolidationService, ConsolidationResult } from './consolidation.service';
+import {
+  MemoryService,
+  MemoryWithExtraction,
+  QueryResult,
+  ContextResult,
+} from './memory.service';
+import {
+  BackfillService,
+  BackfillResult,
+  UserIdentityBackfillResult,
+} from './backfill.service';
+import {
+  ConsolidationService,
+  ConsolidationResult,
+} from './consolidation.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
 import { ContextualRecallService } from './contextual-recall.service';
-import { ContextualRecallDto, ContextualRecallResponseDto } from './dto/contextual-recall.dto';
+import {
+  ContextualRecallDto,
+  ContextualRecallResponseDto,
+} from './dto/contextual-recall.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
@@ -108,7 +123,7 @@ export class MemoryController {
     stats?: { human: number; agent: number };
   }> {
     return this.memoryService.getGraphData(
-      userId, 
+      userId,
       limit ? parseInt(limit, 10) : 500,
       includeAgent === 'true',
     );
@@ -128,15 +143,15 @@ export class MemoryController {
   /**
    * PATCH /v1/memories/:id
    * Update an existing memory
-   * 
+   *
    * P5-001: Memory Correction API
-   * 
+   *
    * Allows direct editing of:
    * - raw: Memory content (triggers re-embedding)
    * - layer: IDENTITY, PROJECT, SESSION, TASK
    * - importance: Hint or explicit score
    * - extraction: 5W1H fields (who, what, when, where, why, how, topics)
-   * 
+   *
    * Use this for typo fixes, layer promotions, or extraction corrections.
    * For factual corrections that should preserve history, use POST /:id/correct instead.
    */
@@ -238,9 +253,9 @@ export class MemoryController {
   /**
    * POST /v1/backfill/user-identity
    * Replace generic user references (user_xxx, User, the user) with actual name.
-   * 
+   *
    * P5-002: User Identity Backfill
-   * 
+   *
    * @param userId - The user's internal ID
    * @param actualName - The actual name to replace generic references with
    * @param dryRun - If 'true', only report what would be done
@@ -248,10 +263,19 @@ export class MemoryController {
    */
   @Post('backfill/user-identity')
   async backfillUserIdentity(
-    @Body() body: { userId: string; actualName: string; dryRun?: boolean; batchSize?: number },
+    @Body()
+    body: {
+      userId: string;
+      actualName: string;
+      dryRun?: boolean;
+      batchSize?: number;
+    },
   ): Promise<UserIdentityBackfillResult> {
     const { userId, actualName, dryRun = false, batchSize = 1000 } = body;
-    return this.backfillService.backfillUserIdentity(userId, actualName, { dryRun, batchSize });
+    return this.backfillService.backfillUserIdentity(userId, actualName, {
+      dryRun,
+      batchSize,
+    });
   }
 
   /**
@@ -275,13 +299,13 @@ export class MemoryController {
   /**
    * POST /v1/consolidate
    * Trigger memory consolidation - promotes recurring SESSION patterns to IDENTITY.
-   * 
+   *
    * P5-003: Intelligent Layer Classification - Consolidation Endpoint
-   * 
+   *
    * This finds SESSION memories with 3+ similar occurrences and:
    * - Promotes the canonical (most complete) version to IDENTITY layer
    * - Soft-deletes duplicates with consolidatedInto reference
-   * 
+   *
    * @param dryRun - If 'true', only report what would be done
    * @param minOccurrences - Minimum similar memories to trigger promotion (default 3)
    * @param similarityThreshold - Similarity threshold for clustering (default 0.85)
@@ -296,7 +320,9 @@ export class MemoryController {
     return this.consolidationService.promoteRecurringPatterns(userId, {
       dryRun: dryRun === 'true',
       minOccurrences: minOccurrences ? parseInt(minOccurrences, 10) : undefined,
-      similarityThreshold: similarityThreshold ? parseFloat(similarityThreshold) : undefined,
+      similarityThreshold: similarityThreshold
+        ? parseFloat(similarityThreshold)
+        : undefined,
     });
   }
 
@@ -305,9 +331,7 @@ export class MemoryController {
    * Get consolidation statistics for the current user.
    */
   @Get('consolidate/stats')
-  async getConsolidationStats(
-    @UserId() userId: string,
-  ): Promise<{
+  async getConsolidationStats(@UserId() userId: string): Promise<{
     totalMemories: number;
     sessionMemories: number;
     identityMemories: number;

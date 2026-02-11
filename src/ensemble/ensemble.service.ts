@@ -1,9 +1,9 @@
 /**
  * Ensemble Service
- * 
+ *
  * Manages multi-model embedding and retrieval with RRF fusion.
  * Uses pgvector for storage (replaced Pinecone).
- * 
+ *
  * Key features:
  * - Multiple models: bge-base (768-dim), nomic (768-dim), minilm (384-dim)
  * - Parallel vector queries across models stored in memory_embeddings table
@@ -15,7 +15,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { PgVectorEnsembleProvider, EnsembleEmbeddingRecord } from './pgvector-ensemble.provider';
+import {
+  PgVectorEnsembleProvider,
+  EnsembleEmbeddingRecord,
+} from './pgvector-ensemble.provider';
 import {
   ModelId,
   ModelConfig,
@@ -48,17 +51,29 @@ export class EnsembleService implements OnModuleInit {
   ) {
     // Load configuration
     // Models can be configured via ENSEMBLE_MODELS env var (comma-separated)
-    const modelsEnv = this.configService.get<string>('ENSEMBLE_MODELS', 'bge-base,minilm,nomic');
-    const models = modelsEnv.split(',').map(m => m.trim()) as ModelId[];
-    
+    const modelsEnv = this.configService.get<string>(
+      'ENSEMBLE_MODELS',
+      'bge-base,minilm,nomic',
+    );
+    const models = modelsEnv.split(',').map((m) => m.trim()) as ModelId[];
+
     this.config = {
       enabled: this.configService.get<boolean>('ENSEMBLE_ENABLED', false),
       models,
-      weights: { 'bge-base': 1.0, nomic: 0.8, 'gte-base': 0.7, 'minilm': 1.0 },
+      weights: { 'bge-base': 1.0, nomic: 0.8, 'gte-base': 0.7, minilm: 1.0 },
       rrfK: 60,
-      localEmbedUrl: this.configService.get<string>('LOCAL_EMBED_URL', 'http://127.0.0.1:8080'),
-      consensusBoostEnabled: this.configService.get<boolean>('ENSEMBLE_CONSENSUS_BOOST', true),
-      consensusBoostFactor: this.configService.get<number>('ENSEMBLE_CONSENSUS_FACTOR', 0.1),
+      localEmbedUrl: this.configService.get<string>(
+        'LOCAL_EMBED_URL',
+        'http://127.0.0.1:8080',
+      ),
+      consensusBoostEnabled: this.configService.get<boolean>(
+        'ENSEMBLE_CONSENSUS_BOOST',
+        true,
+      ),
+      consensusBoostFactor: this.configService.get<number>(
+        'ENSEMBLE_CONSENSUS_FACTOR',
+        0.1,
+      ),
     };
   }
 
@@ -69,7 +84,9 @@ export class EnsembleService implements OnModuleInit {
     }
 
     // pgvector is always available if database is configured
-    this.logger.log(`Ensemble initialized with pgvector storage, models: ${this.config.models.join(', ')}`);
+    this.logger.log(
+      `Ensemble initialized with pgvector storage, models: ${this.config.models.join(', ')}`,
+    );
   }
 
   /**
@@ -95,17 +112,22 @@ export class EnsembleService implements OnModuleInit {
 
     // Call local embed server with model="*" for all models
     try {
-      const response = await fetch(`${this.config.localEmbedUrl}/v1/embeddings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: text,
-          model: '*', // Request all models
-        }),
-      });
+      const response = await fetch(
+        `${this.config.localEmbedUrl}/v1/embeddings`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: text,
+            model: '*', // Request all models
+          }),
+        },
+      );
 
       if (!response.ok) {
-        throw new Error(`Embed server returned ${response.status}: ${await response.text()}`);
+        throw new Error(
+          `Embed server returned ${response.status}: ${await response.text()}`,
+        );
       }
 
       const data = await response.json();
@@ -131,7 +153,7 @@ export class EnsembleService implements OnModuleInit {
       return {
         embeddings: [],
         totalMs: Date.now() - start,
-        errors: this.config.models.map(model => ({
+        errors: this.config.models.map((model) => ({
           model,
           error: error instanceof Error ? error.message : String(error),
           recoverable: true,
@@ -161,7 +183,9 @@ export class EnsembleService implements OnModuleInit {
     });
 
     if (!response.ok) {
-      throw new Error(`Embed server returned ${response.status}: ${await response.text()}`);
+      throw new Error(
+        `Embed server returned ${response.status}: ${await response.text()}`,
+      );
     }
 
     const data = await response.json();
@@ -192,7 +216,9 @@ export class EnsembleService implements OnModuleInit {
     const { embeddings, errors } = await this.embedAll(options.content);
 
     if (embeddings.length === 0) {
-      this.logger.warn(`No embeddings generated for memory ${options.memoryId} — embed service may be down`);
+      this.logger.warn(
+        `No embeddings generated for memory ${options.memoryId} — embed service may be down`,
+      );
       return;
     }
 
@@ -207,7 +233,9 @@ export class EnsembleService implements OnModuleInit {
     // Upsert to pgvector
     await this.pgvectorProvider.upsertEmbeddings(records);
 
-    this.logger.debug(`Upserted ${embeddings.length} embeddings for memory ${options.memoryId}`);
+    this.logger.debug(
+      `Upserted ${embeddings.length} embeddings for memory ${options.memoryId}`,
+    );
   }
 
   /**
@@ -223,7 +251,10 @@ export class EnsembleService implements OnModuleInit {
   /**
    * Embed specific memories with specific models (fetches content, embeds, stores)
    */
-  async embedBatchForMemories(memoryIds: string[], models: ModelId[]): Promise<void> {
+  async embedBatchForMemories(
+    memoryIds: string[],
+    models: ModelId[],
+  ): Promise<void> {
     if (!this.config.enabled) {
       return;
     }
@@ -237,7 +268,7 @@ export class EnsembleService implements OnModuleInit {
     if (memories.length === 0) return;
 
     // Generate embeddings - embedBatch returns embeddings grouped by model, then by text index
-    const texts = memories.map(m => m.raw);
+    const texts = memories.map((m) => m.raw);
     const batchResult = await this.embedBatch(texts, models);
 
     // Group embeddings by model to track text index
@@ -289,13 +320,13 @@ export class EnsembleService implements OnModuleInit {
 
     // Generate query embeddings for all models
     const { embeddings } = await this.embedAll(options.query);
-    const embeddingMap = new Map(embeddings.map(e => [e.model, e.embedding]));
+    const embeddingMap = new Map(embeddings.map((e) => [e.model, e.embedding]));
 
     // Query each model using pgvector
     const modelResults = await this.pgvectorProvider.queryWithModelEmbeddings(
       embeddingMap,
       options.userId,
-      topKPerModel
+      topKPerModel,
     );
 
     // Apply RRF fusion
@@ -315,10 +346,10 @@ export class EnsembleService implements OnModuleInit {
 
   /**
    * Reciprocal Rank Fusion (RRF)
-   * 
+   *
    * Combines results from multiple models using the formula:
    * RRF_score(d) = Σ weight_m * (1 / (k + rank_m(d)))
-   * 
+   *
    * @param modelResults Map of model -> ranked results
    * @param k RRF constant (default 60)
    * @param weights Per-model weights
@@ -326,7 +357,12 @@ export class EnsembleService implements OnModuleInit {
   reciprocalRankFusion(
     modelResults: Map<ModelId, ModelSearchResult[]>,
     k: number = 60,
-    weights: Record<ModelId, number> = { 'bge-base': 1.0, nomic: 0.8, 'gte-base': 0.7, 'minilm': 1.0 },
+    weights: Record<ModelId, number> = {
+      'bge-base': 1.0,
+      nomic: 0.8,
+      'gte-base': 0.7,
+      minilm: 1.0,
+    },
   ): FusedResult[] {
     const fusedScores = new Map<string, FusedResult>();
 
@@ -349,7 +385,10 @@ export class EnsembleService implements OnModuleInit {
         // RRF contribution: weight * (1 / (k + rank))
         const rrfContribution = weight * (1 / (k + result.rank));
         existing.rrfScore += rrfContribution;
-        existing.modelScores.set(model, { rank: result.rank, score: result.score });
+        existing.modelScores.set(model, {
+          rank: result.rank,
+          score: result.score,
+        });
         existing.appearsInModels++;
       }
     }
@@ -361,13 +400,16 @@ export class EnsembleService implements OnModuleInit {
         if (result.appearsInModels > 1) {
           // Boost score based on how many models agree
           const consensusRatio = result.appearsInModels / maxModels;
-          result.rrfScore *= (1 + this.config.consensusBoostFactor * consensusRatio);
+          result.rrfScore *=
+            1 + this.config.consensusBoostFactor * consensusRatio;
         }
       }
     }
 
     // Sort by RRF score descending
-    return Array.from(fusedScores.values()).sort((a, b) => b.rrfScore - a.rrfScore);
+    return Array.from(fusedScores.values()).sort(
+      (a, b) => b.rrfScore - a.rrfScore,
+    );
   }
 
   /**
@@ -384,24 +426,29 @@ export class EnsembleService implements OnModuleInit {
    */
   async embedBatch(
     texts: string[],
-    models: ModelId[]
+    models: ModelId[],
   ): Promise<MultiEmbedResponse> {
     const start = Date.now();
     const embeddings: EmbeddingResult[] = [];
     const errors: EmbedError[] = [];
 
     try {
-      const response = await fetch(`${this.config.localEmbedUrl}/v1/embeddings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: texts,
-          model: models.length === 1 ? models[0] : '*',
-        }),
-      });
+      const response = await fetch(
+        `${this.config.localEmbedUrl}/v1/embeddings`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: texts,
+            model: models.length === 1 ? models[0] : '*',
+          }),
+        },
+      );
 
       if (!response.ok) {
-        throw new Error(`Embed server returned ${response.status}: ${await response.text()}`);
+        throw new Error(
+          `Embed server returned ${response.status}: ${await response.text()}`,
+        );
       }
 
       const data = await response.json();
@@ -471,12 +518,12 @@ export class EnsembleService implements OnModuleInit {
 
     // Get individual model results
     const { embeddings } = await this.embedAll(query);
-    const embeddingMap = new Map(embeddings.map(e => [e.model, e.embedding]));
+    const embeddingMap = new Map(embeddings.map((e) => [e.model, e.embedding]));
 
     const singleModel = await this.pgvectorProvider.queryWithModelEmbeddings(
       embeddingMap,
       userId,
-      limit
+      limit,
     );
 
     return { ensemble, singleModel };
@@ -492,7 +539,10 @@ export class EnsembleService implements OnModuleInit {
   /**
    * Get existing embedding for drift detection
    */
-  async getExistingEmbedding(memoryId: string, modelId: ModelId): Promise<number[] | null> {
+  async getExistingEmbedding(
+    memoryId: string,
+    modelId: ModelId,
+  ): Promise<number[] | null> {
     return this.pgvectorProvider.getExistingEmbedding(memoryId, modelId);
   }
 
@@ -502,10 +552,14 @@ export class EnsembleService implements OnModuleInit {
   async getMemoriesMissingEmbeddings(
     userId: string,
     models?: ModelId[],
-    limit?: number
+    limit?: number,
   ): Promise<string[]> {
     const targetModels = models ?? this.config.models;
-    return this.pgvectorProvider.getMemoriesMissingEmbeddings(userId, targetModels, limit);
+    return this.pgvectorProvider.getMemoriesMissingEmbeddings(
+      userId,
+      targetModels,
+      limit,
+    );
   }
 
   /**
@@ -514,19 +568,21 @@ export class EnsembleService implements OnModuleInit {
   async getModels(): Promise<ModelInfo[]> {
     // Get counts per model
     const counts = await this.pgvectorProvider.getEmbeddingCountByModel();
-    
+
     // Get model configs from database if available, otherwise use defaults
     const modelConfigs = await this.pgvectorProvider.getModelConfigs();
-    
+
     const models: ModelInfo[] = [];
-    
+
     for (const modelId of ALL_MODELS) {
       const config = MODEL_CONFIGS[modelId];
-      const dbConfig = modelConfigs.find(m => m.modelId === modelId);
-      
+      const dbConfig = modelConfigs.find((m) => m.modelId === modelId);
+
       models.push({
         modelId,
-        status: dbConfig?.status ?? (this.config.models.includes(modelId) ? 'active' : 'disabled'),
+        status:
+          dbConfig?.status ??
+          (this.config.models.includes(modelId) ? 'active' : 'disabled'),
         dimensions: config.dimensions,
         weight: dbConfig?.weight ?? this.config.weights[modelId] ?? 1.0,
         embeddingCount: counts[modelId] ?? 0,
@@ -535,7 +591,7 @@ export class EnsembleService implements OnModuleInit {
         promotedAt: dbConfig?.promotedAt ?? null,
       });
     }
-    
+
     return models;
   }
 
@@ -549,14 +605,19 @@ export class EnsembleService implements OnModuleInit {
   /**
    * Get embeddings status for a specific memory
    */
-  async getMemoryEmbeddings(memoryId: string): Promise<MemoryEmbeddingStatus[]> {
+  async getMemoryEmbeddings(
+    memoryId: string,
+  ): Promise<MemoryEmbeddingStatus[]> {
     return this.pgvectorProvider.getMemoryEmbeddingStatus(memoryId);
   }
 
   /**
    * Get A/B test results
    */
-  async getABTestResults(testId?: string, limit?: number): Promise<ABTestResult[]> {
+  async getABTestResults(
+    testId?: string,
+    limit?: number,
+  ): Promise<ABTestResult[]> {
     return this.pgvectorProvider.getABTestResults(testId, limit);
   }
 }

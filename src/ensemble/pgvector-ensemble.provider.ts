@@ -1,9 +1,9 @@
 /**
  * PgVector Ensemble Provider
- * 
+ *
  * Handles multi-model embedding storage and retrieval using pgvector.
  * Stores embeddings in memory_embeddings table with model_id for separation.
- * 
+ *
  * Key features:
  * - Stores embeddings per model per memory
  * - Handles different dimensions (768 for bge/nomic, 384 for minilm)
@@ -73,7 +73,7 @@ export class PgVectorEnsembleProvider {
       record.modelId,
       record.dimensions,
       embeddingStr,
-      now
+      now,
     );
   }
 
@@ -101,7 +101,7 @@ export class PgVectorEnsembleProvider {
           record.modelId,
           record.dimensions,
           embeddingStr,
-          now
+          now,
         );
       }
     });
@@ -111,7 +111,9 @@ export class PgVectorEnsembleProvider {
    * Query embeddings for a specific model
    * Uses cosine distance for similarity search
    */
-  async queryByModel(options: EnsembleSearchOptions): Promise<EnsembleSearchResult[]> {
+  async queryByModel(
+    options: EnsembleSearchOptions,
+  ): Promise<EnsembleSearchResult[]> {
     const embeddingStr = `[${options.embedding.join(',')}]`;
     const dimensions = options.embedding.length;
 
@@ -137,7 +139,7 @@ export class PgVectorEnsembleProvider {
       options.modelId,
       dimensions,
       options.userId,
-      options.limit
+      options.limit,
     );
 
     return results.map((r) => ({
@@ -155,7 +157,7 @@ export class PgVectorEnsembleProvider {
     embedding: number[],
     userId: string,
     models: ModelId[],
-    limit: number
+    limit: number,
   ): Promise<Map<ModelId, ModelSearchResult[]>> {
     const results = new Map<ModelId, ModelSearchResult[]>();
 
@@ -163,11 +165,11 @@ export class PgVectorEnsembleProvider {
     await Promise.all(
       models.map(async (modelId) => {
         const modelConfig = MODEL_CONFIGS[modelId];
-        
+
         // Skip if embedding dimensions don't match this model
         if (embedding.length !== modelConfig.dimensions) {
           this.logger.debug(
-            `Skipping model ${modelId}: embedding dims ${embedding.length} != model dims ${modelConfig.dimensions}`
+            `Skipping model ${modelId}: embedding dims ${embedding.length} != model dims ${modelConfig.dimensions}`,
           );
           return;
         }
@@ -191,7 +193,7 @@ export class PgVectorEnsembleProvider {
         } catch (error) {
           this.logger.error(`Query failed for model ${modelId}`, error);
         }
-      })
+      }),
     );
 
     return results;
@@ -203,7 +205,7 @@ export class PgVectorEnsembleProvider {
   async queryWithModelEmbeddings(
     embeddings: Map<ModelId, number[]>,
     userId: string,
-    limit: number
+    limit: number,
   ): Promise<Map<ModelId, ModelSearchResult[]>> {
     const results = new Map<ModelId, ModelSearchResult[]>();
 
@@ -228,7 +230,7 @@ export class PgVectorEnsembleProvider {
         } catch (error) {
           this.logger.error(`Query failed for model ${modelId}`, error);
         }
-      })
+      }),
     );
 
     return results;
@@ -246,7 +248,10 @@ export class PgVectorEnsembleProvider {
   /**
    * Delete embeddings for a specific model/memory pair
    */
-  async deleteByMemoryAndModel(memoryId: string, modelId: ModelId): Promise<void> {
+  async deleteByMemoryAndModel(
+    memoryId: string,
+    modelId: ModelId,
+  ): Promise<void> {
     await this.prisma.$executeRaw`
       DELETE FROM memory_embeddings 
       WHERE memory_id = ${memoryId} AND model_id = ${modelId}
@@ -263,7 +268,7 @@ export class PgVectorEnsembleProvider {
       USING memories m
       WHERE me.memory_id = m.id AND m.user_id = $1
       `,
-      userId
+      userId,
     );
   }
 
@@ -290,7 +295,10 @@ export class PgVectorEnsembleProvider {
   /**
    * Check if a memory has embeddings for all specified models
    */
-  async hasAllModelEmbeddings(memoryId: string, models: ModelId[]): Promise<boolean> {
+  async hasAllModelEmbeddings(
+    memoryId: string,
+    models: ModelId[],
+  ): Promise<boolean> {
     const result = await this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
       `
       SELECT COUNT(*) as count
@@ -300,7 +308,7 @@ export class PgVectorEnsembleProvider {
         AND embedding IS NOT NULL
       `,
       memoryId,
-      models
+      models,
     );
 
     return Number(result[0].count) === models.length;
@@ -312,7 +320,7 @@ export class PgVectorEnsembleProvider {
   async getMemoriesMissingEmbeddings(
     userId: string,
     models: ModelId[],
-    limit: number = 1000
+    limit: number = 1000,
   ): Promise<string[]> {
     // Find memories that don't have embeddings for all models
     const results = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
@@ -334,7 +342,7 @@ export class PgVectorEnsembleProvider {
       userId,
       models,
       models.length,
-      limit
+      limit,
     );
 
     return results.map((r) => r.id);
@@ -345,7 +353,7 @@ export class PgVectorEnsembleProvider {
    */
   async getExistingEmbedding(
     memoryId: string,
-    modelId: ModelId
+    modelId: ModelId,
   ): Promise<number[] | null> {
     const result = await this.prisma.$queryRawUnsafe<
       Array<{ embedding: string }>
@@ -356,7 +364,7 @@ export class PgVectorEnsembleProvider {
       WHERE memory_id = $1 AND model_id = $2 AND embedding IS NOT NULL
       `,
       memoryId,
-      modelId
+      modelId,
     );
 
     if (result.length === 0 || !result[0].embedding) {
@@ -372,14 +380,16 @@ export class PgVectorEnsembleProvider {
   /**
    * Get model configs from database
    */
-  async getModelConfigs(): Promise<Array<{
-    modelId: ModelId;
-    status: ModelStatus;
-    weight: number;
-    qualityMetrics: ModelQualityMetrics | null;
-    addedAt: Date | null;
-    promotedAt: Date | null;
-  }>> {
+  async getModelConfigs(): Promise<
+    Array<{
+      modelId: ModelId;
+      status: ModelStatus;
+      weight: number;
+      qualityMetrics: ModelQualityMetrics | null;
+      addedAt: Date | null;
+      promotedAt: Date | null;
+    }>
+  > {
     try {
       const results = await this.prisma.$queryRaw<
         Array<{
@@ -395,11 +405,13 @@ export class PgVectorEnsembleProvider {
         FROM ensemble_model_configs
       `;
 
-      return results.map(r => ({
+      return results.map((r) => ({
         modelId: r.model_id as ModelId,
         status: r.status.toLowerCase() as ModelStatus,
         weight: r.weight,
-        qualityMetrics: r.quality_metrics ? JSON.parse(String(r.quality_metrics)) : null,
+        qualityMetrics: r.quality_metrics
+          ? JSON.parse(String(r.quality_metrics))
+          : null,
         addedAt: r.added_at,
         promotedAt: r.promoted_at,
       }));
@@ -429,7 +441,9 @@ export class PgVectorEnsembleProvider {
     const memoriesWithAnyEmbedding = Number(anyEmbeddingResult[0].count);
 
     // Get count of memories with all active models
-    const allModelsResult = await this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
+    const allModelsResult = await this.prisma.$queryRawUnsafe<
+      [{ count: bigint }]
+    >(
       `
       SELECT COUNT(*) as count
       FROM (
@@ -441,7 +455,7 @@ export class PgVectorEnsembleProvider {
       ) sub
       `,
       activeModels,
-      activeModels.length
+      activeModels.length,
     );
     const memoriesWithAllModels = Number(allModelsResult[0].count);
 
@@ -457,11 +471,12 @@ export class PgVectorEnsembleProvider {
 
     const perModel: Record<string, ModelCoverageStats> = {};
     for (const modelId of ALL_MODELS) {
-      const row = perModelResults.find(r => r.model_id === modelId);
+      const row = perModelResults.find((r) => r.model_id === modelId);
       const embeddingCount = row ? Number(row.count) : 0;
       perModel[modelId] = {
         embeddingCount,
-        coveragePercent: totalMemories > 0 ? (embeddingCount / totalMemories) * 100 : 0,
+        coveragePercent:
+          totalMemories > 0 ? (embeddingCount / totalMemories) * 100 : 0,
         missingCount: totalMemories - embeddingCount,
       };
     }
@@ -470,7 +485,10 @@ export class PgVectorEnsembleProvider {
       totalMemories,
       memoriesWithAnyEmbedding,
       memoriesWithAllModels,
-      coveragePercent: totalMemories > 0 ? (memoriesWithAnyEmbedding / totalMemories) * 100 : 0,
+      coveragePercent:
+        totalMemories > 0
+          ? (memoriesWithAnyEmbedding / totalMemories) * 100
+          : 0,
       perModel: perModel as Record<ModelId, ModelCoverageStats>,
     };
   }
@@ -478,7 +496,9 @@ export class PgVectorEnsembleProvider {
   /**
    * Get embedding status for a specific memory
    */
-  async getMemoryEmbeddingStatus(memoryId: string): Promise<MemoryEmbeddingStatus[]> {
+  async getMemoryEmbeddingStatus(
+    memoryId: string,
+  ): Promise<MemoryEmbeddingStatus[]> {
     const results = await this.prisma.$queryRawUnsafe<
       Array<{
         model_id: string;
@@ -498,14 +518,14 @@ export class PgVectorEnsembleProvider {
       FROM memory_embeddings
       WHERE memory_id = $1
       `,
-      memoryId
+      memoryId,
     );
 
     // Create a map of existing embeddings
-    const existingMap = new Map(results.map(r => [r.model_id, r]));
+    const existingMap = new Map(results.map((r) => [r.model_id, r]));
 
     // Return status for all models
-    return ALL_MODELS.map(modelId => {
+    return ALL_MODELS.map((modelId) => {
       const existing = existingMap.get(modelId);
       return {
         modelId,
@@ -520,7 +540,10 @@ export class PgVectorEnsembleProvider {
   /**
    * Get A/B test results from database
    */
-  async getABTestResults(testId?: string, limit: number = 100): Promise<ABTestResult[]> {
+  async getABTestResults(
+    testId?: string,
+    limit: number = 100,
+  ): Promise<ABTestResult[]> {
     try {
       let results: Array<{
         id: string;
@@ -541,7 +564,7 @@ export class PgVectorEnsembleProvider {
           LIMIT $2
           `,
           testId,
-          limit
+          limit,
         );
       } else {
         results = await this.prisma.$queryRawUnsafe(
@@ -551,11 +574,11 @@ export class PgVectorEnsembleProvider {
           ORDER BY timestamp DESC
           LIMIT $1
           `,
-          limit
+          limit,
         );
       }
 
-      return results.map(r => ({
+      return results.map((r) => ({
         id: r.id,
         testId: r.test_id,
         config: r.config,

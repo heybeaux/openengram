@@ -31,11 +31,11 @@ export interface QueryMatch {
  */
 export interface FusedResult {
   memoryId: string;
-  score: number;           // Final normalized score
-  rrfScore: number;        // Raw RRF score
-  queryCount: number;      // Number of queries that matched
-  bestRank: number;        // Best rank across all queries
-  avgScore: number;        // Average similarity score
+  score: number; // Final normalized score
+  rrfScore: number; // Raw RRF score
+  queryCount: number; // Number of queries that matched
+  bestRank: number; // Best rank across all queries
+  avgScore: number; // Average similarity score
   metadata?: Record<string, any>;
   queryMatches: QueryMatch[];
 }
@@ -44,19 +44,19 @@ export interface FusedResult {
  * Configuration for RRF fusion
  */
 export interface RRFConfig {
-  k: number;               // Damping constant (default: 60)
+  k: number; // Damping constant (default: 60)
   normalizeScores: boolean;
-  minQueries: number;      // Minimum queries a result must appear in
+  minQueries: number; // Minimum queries a result must appear in
 }
 
 /**
  * Configuration for weighted RRF fusion
  */
 export interface WeightedFusionConfig {
-  originalWeight: number;    // Weight for original query
+  originalWeight: number; // Weight for original query
   ruleVariantWeight: number; // Weight for rule-based variants
-  llmVariantWeight: number;  // Weight for LLM variants
-  baseRRFk: number;          // Base RRF k value
+  llmVariantWeight: number; // Weight for LLM variants
+  baseRRFk: number; // Base RRF k value
 }
 
 const DEFAULT_RRF_CONFIG: RRFConfig = {
@@ -74,7 +74,7 @@ const DEFAULT_WEIGHTED_CONFIG: WeightedFusionConfig = {
 
 /**
  * Result Fusion Service
- * 
+ *
  * Combines and re-ranks results from multiple query variants using
  * various fusion strategies (RRF, frequency-based, weighted).
  */
@@ -104,9 +104,9 @@ export class ResultFusionService {
 
   /**
    * Reciprocal Rank Fusion (RRF)
-   * 
+   *
    * Score = Σ 1/(k + rank) across all queries where the document appears
-   * 
+   *
    * Well-studied fusion method that works well without tuning.
    * The k parameter dampens the impact of high ranks (default: 60).
    */
@@ -134,7 +134,9 @@ export class ResultFusionService {
         entry.bestRank = Math.min(entry.bestRank, rank + 1);
 
         // Update average score incrementally
-        entry.avgScore = (entry.avgScore * (entry.queryCount - 1) + match.score) / entry.queryCount;
+        entry.avgScore =
+          (entry.avgScore * (entry.queryCount - 1) + match.score) /
+          entry.queryCount;
 
         entry.queryMatches.push({
           queryIndex: queryResult.queryIndex,
@@ -146,8 +148,9 @@ export class ResultFusionService {
     }
 
     // Filter by minimum query count
-    let results = Array.from(memoryMap.values())
-      .filter(r => r.queryCount >= config.minQueries);
+    const results = Array.from(memoryMap.values()).filter(
+      (r) => r.queryCount >= config.minQueries,
+    );
 
     // Sort by RRF score (descending)
     results.sort((a, b) => b.rrfScore - a.rrfScore);
@@ -169,7 +172,7 @@ export class ResultFusionService {
 
   /**
    * Frequency-based fusion
-   * 
+   *
    * Boosts results that appear in more queries.
    * Score = (queryCount / numQueries) * 0.4 + maxScore * 0.6
    */
@@ -191,7 +194,7 @@ export class ResultFusionService {
         entry.queryCount++;
         entry.avgScore = Math.max(entry.avgScore, match.score); // Track max score
         entry.bestRank = Math.min(entry.bestRank, rank + 1);
-        
+
         entry.queryMatches.push({
           queryIndex: queryResult.queryIndex,
           query: queryResult.query,
@@ -216,7 +219,7 @@ export class ResultFusionService {
 
   /**
    * Weighted RRF fusion
-   * 
+   *
    * Weights the original query higher than expanded variants.
    * This respects user intent while still benefiting from recall improvement.
    */
@@ -230,7 +233,7 @@ export class ResultFusionService {
     for (const queryResult of searchResults) {
       // Determine weight for this query
       let weight: number = config.ruleVariantWeight;
-      
+
       if (expansion?.sources) {
         const querySource = expansion.sources[queryResult.query];
         switch (querySource) {
@@ -266,7 +269,9 @@ export class ResultFusionService {
         entry.bestRank = Math.min(entry.bestRank, rank + 1);
 
         // Update average score
-        entry.avgScore = (entry.avgScore * (entry.queryCount - 1) + match.score) / entry.queryCount;
+        entry.avgScore =
+          (entry.avgScore * (entry.queryCount - 1) + match.score) /
+          entry.queryCount;
 
         entry.queryMatches.push({
           queryIndex: queryResult.queryIndex,
@@ -293,7 +298,7 @@ export class ResultFusionService {
 
   /**
    * Max score fusion
-   * 
+   *
    * Takes the maximum similarity score across all queries.
    * Preserves original similarity scores but adds multi-query signal.
    */
@@ -350,7 +355,10 @@ export class ResultFusionService {
   /**
    * Create empty result entry
    */
-  private createEmptyResult(memoryId: string, metadata?: Record<string, any>): FusedResult {
+  private createEmptyResult(
+    memoryId: string,
+    metadata?: Record<string, any>,
+  ): FusedResult {
     return {
       memoryId,
       score: 0,

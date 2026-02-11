@@ -23,8 +23,7 @@ export class MonitoringInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       catchError((err) => {
-        const status =
-          err instanceof HttpException ? err.getStatus() : 500;
+        const status = err instanceof HttpException ? err.getStatus() : 500;
         if (status >= 500) {
           this.monitoring.recordApiError(status, path);
         }

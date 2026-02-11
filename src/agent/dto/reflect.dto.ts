@@ -1,4 +1,12 @@
-import { IsArray, IsOptional, IsString, ValidateNested, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -6,7 +14,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * A single conversation turn for reflection analysis
  */
 export class ConversationTurnDto {
-  @ApiProperty({ enum: ['user', 'assistant'], description: 'Role of the speaker' })
+  @ApiProperty({
+    enum: ['user', 'assistant'],
+    description: 'Role of the speaker',
+  })
   @IsString()
   role: 'user' | 'assistant';
 
@@ -33,12 +44,14 @@ export class ReflectDto {
   @Type(() => ConversationTurnDto)
   recentTurns: ConversationTurnDto[];
 
-  @ApiPropertyOptional({ description: 'Agent name for personalized reflection' })
+  @ApiPropertyOptional({
+    description: 'Agent name for personalized reflection',
+  })
   @IsOptional()
   @IsString()
   agentName?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Minimum importance score for memories to be created (0-1)',
     default: 0.5,
   })
@@ -48,7 +61,9 @@ export class ReflectDto {
   @Max(1)
   minImportance?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum number of memories to create per reflection' })
+  @ApiPropertyOptional({
+    description: 'Maximum number of memories to create per reflection',
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)

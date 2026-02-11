@@ -2,8 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { MemoryLayer } from '@prisma/client';
 import { MultiQueryService } from './multi-query.service';
-import { QueryExpansionService, QueryExpansionResult } from './query-expansion.service';
-import { ResultFusionService, QuerySearchResult, FusedResult } from './result-fusion.service';
+import {
+  QueryExpansionService,
+  QueryExpansionResult,
+} from './query-expansion.service';
+import {
+  ResultFusionService,
+  QuerySearchResult,
+  FusedResult,
+} from './result-fusion.service';
 import { EmbeddingService } from '../memory/embedding.service';
 import { FusionStrategy, ExpansionStrategy } from './dto/multi-query.dto';
 
@@ -130,8 +137,8 @@ describe('MultiQueryService', () => {
           { provide: ResultFusionService, useValue: mockFusion },
         ],
       }).compile();
-      
-      const newService = module.then(m => m.get(MultiQueryService));
+
+      const newService = module.then((m) => m.get(MultiQueryService));
       // Note: This tests the config loading behavior
     });
   });
@@ -200,10 +207,20 @@ describe('MultiQueryService', () => {
     it('should respect topK limit', async () => {
       mockFusion.fuse.mockReturnValue([
         ...mockFusedResults,
-        { memoryId: 'mem_3', score: 0.7, rrfScore: 0.03, queryCount: 1, bestRank: 3, avgScore: 0.7, queryMatches: [] },
+        {
+          memoryId: 'mem_3',
+          score: 0.7,
+          rrfScore: 0.03,
+          queryCount: 1,
+          bestRank: 3,
+          avgScore: 0.7,
+          queryMatches: [],
+        },
       ]);
 
-      const result = await service.search('test query', 'user_123', { topK: 2 });
+      const result = await service.search('test query', 'user_123', {
+        topK: 2,
+      });
 
       expect(result.results.length).toBe(2);
     });
@@ -296,22 +313,30 @@ describe('MultiQueryService', () => {
     it('should handle expansion timeout gracefully', async () => {
       // First call times out, second call (fallback) succeeds
       mockExpansion.expand
-        .mockImplementationOnce(() => 
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 100))
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), 100),
+            ),
         )
         .mockResolvedValueOnce(mockExpansionResult);
 
       // Should degrade gracefully without throwing
-      await expect(service.search('test query', 'user_123', {
-        multiQuery: { targetLatencyMs: 50 },
-      })).resolves.toBeDefined();
+      await expect(
+        service.search('test query', 'user_123', {
+          multiQuery: { targetLatencyMs: 50 },
+        }),
+      ).resolves.toBeDefined();
     });
 
     it('should set degraded flag when falling back', async () => {
       // First call times out, second call (fallback) succeeds
       mockExpansion.expand
-        .mockImplementationOnce(() => 
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 100))
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), 100),
+            ),
         )
         .mockResolvedValueOnce(mockExpansionResult);
 
@@ -328,13 +353,25 @@ describe('MultiQueryService', () => {
       const result = {
         results: mockFusedResults,
         expansion: mockExpansionResult,
-        metrics: { expansionMs: 5, embeddingMs: 50, searchMs: 80, fusionMs: 10, totalMs: 145 },
+        metrics: {
+          expansionMs: 5,
+          embeddingMs: 50,
+          searchMs: 80,
+          fusionMs: 10,
+          totalMs: 145,
+        },
         degraded: false,
       };
 
-      const metadata = service.generateMetadata(result, { includeVariants: true });
+      const metadata = service.generateMetadata(result, {
+        includeVariants: true,
+      });
 
-      expect(metadata.variants).toEqual(['test query', 'test variant 1', 'test variant 2']);
+      expect(metadata.variants).toEqual([
+        'test query',
+        'test variant 1',
+        'test variant 2',
+      ]);
       expect(metadata.variantSources).toBeDefined();
     });
 
@@ -342,11 +379,19 @@ describe('MultiQueryService', () => {
       const result = {
         results: mockFusedResults,
         expansion: mockExpansionResult,
-        metrics: { expansionMs: 5, embeddingMs: 50, searchMs: 80, fusionMs: 10, totalMs: 145 },
+        metrics: {
+          expansionMs: 5,
+          embeddingMs: 50,
+          searchMs: 80,
+          fusionMs: 10,
+          totalMs: 145,
+        },
         degraded: false,
       };
 
-      const metadata = service.generateMetadata(result, { includeVariants: false });
+      const metadata = service.generateMetadata(result, {
+        includeVariants: false,
+      });
 
       expect(metadata.variants).toBeUndefined();
       expect(metadata.variantSources).toBeUndefined();
@@ -356,11 +401,19 @@ describe('MultiQueryService', () => {
       const result = {
         results: mockFusedResults,
         expansion: mockExpansionResult,
-        metrics: { expansionMs: 5, embeddingMs: 50, searchMs: 80, fusionMs: 10, totalMs: 145 },
+        metrics: {
+          expansionMs: 5,
+          embeddingMs: 50,
+          searchMs: 80,
+          fusionMs: 10,
+          totalMs: 145,
+        },
         degraded: false,
       };
 
-      const metadata = service.generateMetadata(result, { includeTimings: true });
+      const metadata = service.generateMetadata(result, {
+        includeTimings: true,
+      });
 
       expect(metadata.timings).toBeDefined();
       expect(metadata.timings!.totalMs).toBe(145);
@@ -369,14 +422,20 @@ describe('MultiQueryService', () => {
 
   describe('generateExplanations', () => {
     it('should generate explanations for each result', () => {
-      const explanations = service.generateExplanations(mockFusedResults, mockExpansionResult);
+      const explanations = service.generateExplanations(
+        mockFusedResults,
+        mockExpansionResult,
+      );
 
       expect(explanations['mem_1']).toBeDefined();
       expect(explanations['mem_2']).toBeDefined();
     });
 
     it('should include matched queries in explanation', () => {
-      const explanations = service.generateExplanations(mockFusedResults, mockExpansionResult);
+      const explanations = service.generateExplanations(
+        mockFusedResults,
+        mockExpansionResult,
+      );
 
       expect(explanations['mem_1'].matchedQueries.length).toBe(3);
       expect(explanations['mem_1'].matchedQueries[0].isOriginal).toBe(true);
@@ -384,10 +443,15 @@ describe('MultiQueryService', () => {
     });
 
     it('should include fusion contributions', () => {
-      const explanations = service.generateExplanations(mockFusedResults, mockExpansionResult);
+      const explanations = service.generateExplanations(
+        mockFusedResults,
+        mockExpansionResult,
+      );
 
       expect(explanations['mem_1'].fusionContributions.rrfScore).toBe(0.05);
-      expect(explanations['mem_1'].fusionContributions.frequencyBoost).toBeCloseTo(1.0, 5);
+      expect(
+        explanations['mem_1'].fusionContributions.frequencyBoost,
+      ).toBeCloseTo(1.0, 5);
       expect(explanations['mem_1'].fusionContributions.weightBoost).toBe(1.5); // Has original match
     });
   });

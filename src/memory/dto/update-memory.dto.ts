@@ -1,11 +1,19 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsObject, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsObject,
+  Min,
+  Max,
+} from 'class-validator';
 import { ImportanceHint, MemoryLayer } from '@prisma/client';
 
 /**
  * DTO for updating an existing memory (P5-001)
- * 
+ *
  * PATCH /v1/memories/:id
- * 
+ *
  * Allows direct editing of memory content and metadata.
  * If `raw` content changes, the memory will be re-embedded.
  */
@@ -51,7 +59,7 @@ export class UpdateMemoryDto {
   extraction?: {
     who?: string | null;
     what?: string | null;
-    when?: string | null;  // ISO date string or natural language
+    when?: string | null; // ISO date string or natural language
     where?: string | null;
     why?: string | null;
     how?: string | null;
@@ -61,9 +69,9 @@ export class UpdateMemoryDto {
 
 /**
  * DTO for correcting a memory with contradiction tracking (P5-001)
- * 
+ *
  * POST /v1/memories/:id/correct
- * 
+ *
  * Creates a new "correction" memory that supersedes the original.
  * The old memory is marked as superseded but preserved for history.
  * A CONTRADICTS link is created between them.

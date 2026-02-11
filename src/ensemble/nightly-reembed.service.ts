@@ -1,9 +1,9 @@
 /**
  * Nightly Re-embed Service
- * 
+ *
  * Handles batch re-embedding of memories with multiple models.
  * Uses pgvector for storage (replaced Pinecone).
- * 
+ *
  * Features:
  * - Scheduled nightly runs (2 AM Pacific)
  * - Incremental and full re-embed modes
@@ -19,7 +19,10 @@ import { EnsembleService } from './ensemble.service';
 import { DriftDetectionService } from './drift-detection.service';
 import { CheckpointService } from './checkpoint.service';
 import { ModelRegistryService } from './model-registry.service';
-import { PgVectorEnsembleProvider, EnsembleEmbeddingRecord } from './pgvector-ensemble.provider';
+import {
+  PgVectorEnsembleProvider,
+  EnsembleEmbeddingRecord,
+} from './pgvector-ensemble.provider';
 import {
   ModelId,
   ReembedMode,
@@ -36,7 +39,7 @@ import {
 
 // Cron schedule for nightly runs
 const NIGHTLY_SCHEDULE = {
-  hour: 2,  // 2 AM
+  hour: 2, // 2 AM
   minute: 0,
   timezone: 'America/Vancouver',
 };
@@ -70,7 +73,7 @@ export class NightlyReembedService implements OnModuleInit {
     if (checkpoint) {
       this.logger.warn(
         `Found interrupted job ${checkpoint.jobId}. ` +
-        `Run manually with resumeJobId to continue.`
+          `Run manually with resumeJobId to continue.`,
       );
     }
   }
@@ -117,7 +120,7 @@ export class NightlyReembedService implements OnModuleInit {
     }
 
     const jobId = options.resumeJobId || this.generateJobId();
-    const models = options.models || await this.getActiveAndShadowModels();
+    const models = options.models || (await this.getActiveAndShadowModels());
 
     // Start job asynchronously
     this.executeReembedJob({
@@ -139,9 +142,17 @@ export class NightlyReembedService implements OnModuleInit {
    * Execute a re-embed job with checkpointing
    */
   async executeReembedJob(
-    config: ReembedJobConfig & { jobId: string }
+    config: ReembedJobConfig & { jobId: string },
   ): Promise<ReembedJobResult> {
-    const { jobId, mode, models, batchSize, checkpointInterval, dryRun, driftCheck } = config;
+    const {
+      jobId,
+      mode,
+      models,
+      batchSize,
+      checkpointInterval,
+      dryRun,
+      driftCheck,
+    } = config;
     const startTime = Date.now();
 
     // Initialize job state
@@ -174,14 +185,14 @@ export class NightlyReembedService implements OnModuleInit {
         state.checkpoint = existingCheckpoint;
         state.progress = existingCheckpoint.progress;
         this.logger.log(
-          `Resuming job ${jobId} from checkpoint at batch ${existingCheckpoint.progress.currentBatch}`
+          `Resuming job ${jobId} from checkpoint at batch ${existingCheckpoint.progress.currentBatch}`,
         );
       }
 
       // Fetch memories to process
       const memories = await this.fetchMemoriesToReembed(
         mode,
-        state.checkpoint?.lastProcessedId
+        state.checkpoint?.lastProcessedId,
       );
       state.progress.totalMemories = memories.length;
       state.progress.totalBatches = Math.ceil(memories.length / batchSize);
@@ -195,7 +206,11 @@ export class NightlyReembedService implements OnModuleInit {
       this.logger.log(`Found ${memories.length} memories to re-embed`);
 
       // Process in batches
-      for (let i = state.progress.currentBatch; i < state.progress.totalBatches; i++) {
+      for (
+        let i = state.progress.currentBatch;
+        i < state.progress.totalBatches;
+        i++
+      ) {
         // Check for cancellation
         if (this.cancelRequested) {
           await this.saveCheckpoint(state, memories[i * batchSize]?.id);
@@ -207,7 +222,13 @@ export class NightlyReembedService implements OnModuleInit {
         state.progress.currentBatch = i;
 
         try {
-          await this.processMemoryBatch(batch, models, state, dryRun, driftCheck);
+          await this.processMemoryBatch(
+            batch,
+            models,
+            state,
+            dryRun,
+            driftCheck,
+          );
           state.progress.processedMemories += batch.length;
 
           // Save checkpoint periodically
@@ -220,7 +241,6 @@ export class NightlyReembedService implements OnModuleInit {
 
           // Report progress
           await this.updateJobProgress(state);
-
         } catch (error) {
           // Save checkpoint for resume
           await this.saveCheckpoint(state, batch[0]?.id);
@@ -235,7 +255,6 @@ export class NightlyReembedService implements OnModuleInit {
       await this.completeJob(state, 'completed');
 
       return this.toResult(state, Date.now() - startTime);
-
     } catch (error) {
       state.status = 'failed';
       await this.prisma.ensembleReembedJob.update({
@@ -303,7 +322,9 @@ export class NightlyReembedService implements OnModuleInit {
   // ===========================================================================
 
   private isEnabled(): boolean {
-    return this.config.get<string>('ENSEMBLE_REEMBED_ENABLED', 'false') === 'true';
+    return (
+      this.config.get<string>('ENSEMBLE_REEMBED_ENABLED', 'false') === 'true'
+    );
   }
 
   private generateJobId(): string {
@@ -346,14 +367,17 @@ export class NightlyReembedService implements OnModuleInit {
         maxCosineDrift: 0,
         memoriesWithHighDrift: 0,
         driftThreshold: 0.15,
-        byModel: {} as Record<ModelId, { avg: number; max: number; flagged: number }>,
+        byModel: {} as Record<
+          ModelId,
+          { avg: number; max: number; flagged: number }
+        >,
       },
     };
   }
 
   private async fetchMemoriesToReembed(
     mode: ReembedMode,
-    afterId?: string
+    afterId?: string,
   ): Promise<Array<{ id: string; raw: string; userId: string }>> {
     if (mode === 'full') {
       return this.prisma.memory.findMany({
@@ -395,9 +419,9 @@ export class NightlyReembedService implements OnModuleInit {
     models: ModelId[],
     state: ReembedJobState,
     dryRun?: boolean,
-    driftCheck?: boolean
+    driftCheck?: boolean,
   ): Promise<void> {
-    const texts = memories.map(m => m.raw);
+    const texts = memories.map((m) => m.raw);
     const batchStart = Date.now();
 
     for (const model of models) {
@@ -407,7 +431,9 @@ export class NightlyReembedService implements OnModuleInit {
 
       try {
         // Generate embeddings
-        const embedResult = await this.ensembleService.embedBatch(texts, [model]);
+        const embedResult = await this.ensembleService.embedBatch(texts, [
+          model,
+        ]);
         const latencyMs = Date.now() - modelStart;
 
         state.metrics.perModel[model].latencyMs.push(latencyMs);
@@ -417,19 +443,23 @@ export class NightlyReembedService implements OnModuleInit {
         if (driftCheck && embedResult.embeddings.length > 0) {
           const driftAnalyses = await this.driftService.measureBatchDrift(
             memories,
-            embedResult.embeddings.map(e => e.embedding),
-            model
+            embedResult.embeddings.map((e) => e.embedding),
+            model,
           );
           this.updateDriftMetrics(state.metrics.drift, driftAnalyses, model);
         }
 
         // Upsert to pgvector (unless dry run)
         if (!dryRun && embedResult.embeddings.length > 0) {
-          await this.upsertBatchToPgVector(memories, embedResult, model, modelConfig.dimensions);
+          await this.upsertBatchToPgVector(
+            memories,
+            embedResult,
+            model,
+            modelConfig.dimensions,
+          );
         }
 
         state.metrics.perModel[model].memoriesProcessed += memories.length;
-
       } catch (error) {
         this.logger.error(`Failed to embed with ${model}: ${error}`);
         state.metrics.perModel[model].errors += memories.length;
@@ -437,8 +467,9 @@ export class NightlyReembedService implements OnModuleInit {
       }
     }
 
-    state.metrics.avgBatchDurationMs = 
-      (state.metrics.avgBatchDurationMs * state.progress.currentBatch + (Date.now() - batchStart)) /
+    state.metrics.avgBatchDurationMs =
+      (state.metrics.avgBatchDurationMs * state.progress.currentBatch +
+        (Date.now() - batchStart)) /
       (state.progress.currentBatch + 1);
   }
 
@@ -447,21 +478,29 @@ export class NightlyReembedService implements OnModuleInit {
    */
   private async upsertBatchToPgVector(
     memories: Array<{ id: string; raw: string; userId: string }>,
-    embedResult: { embeddings: Array<{ model: ModelId; embedding: number[]; dimensions: number }> },
+    embedResult: {
+      embeddings: Array<{
+        model: ModelId;
+        embedding: number[];
+        dimensions: number;
+      }>;
+    },
     model: ModelId,
-    dimensions: number
+    dimensions: number,
   ): Promise<void> {
     // Group embeddings by memory
     // For batch responses, embeddings are in order: [text1_model1, text2_model1, ...]
     const records: EnsembleEmbeddingRecord[] = [];
-    
+
     // Filter embeddings for this specific model
-    const modelEmbeddings = embedResult.embeddings.filter(e => e.model === model);
-    
+    const modelEmbeddings = embedResult.embeddings.filter(
+      (e) => e.model === model,
+    );
+
     for (let i = 0; i < memories.length; i++) {
       const memory = memories[i];
       const embedding = modelEmbeddings[i];
-      
+
       if (embedding) {
         records.push({
           memoryId: memory.id,
@@ -480,15 +519,15 @@ export class NightlyReembedService implements OnModuleInit {
   private updateDriftMetrics(
     drift: DriftSummary,
     analyses: Array<{ cosineDrift: number; flagged: boolean }>,
-    model: ModelId
+    model: ModelId,
   ): void {
     if (analyses.length === 0) return;
 
     drift.measured = true;
-    const drifts = analyses.map(a => a.cosineDrift);
+    const drifts = analyses.map((a) => a.cosineDrift);
     const avgDrift = drifts.reduce((a, b) => a + b, 0) / drifts.length;
     const maxDrift = Math.max(...drifts);
-    const flaggedCount = analyses.filter(a => a.flagged).length;
+    const flaggedCount = analyses.filter((a) => a.flagged).length;
 
     // Update overall metrics
     drift.avgCosineDrift = (drift.avgCosineDrift + avgDrift) / 2;
@@ -505,7 +544,7 @@ export class NightlyReembedService implements OnModuleInit {
 
   private async saveCheckpoint(
     state: ReembedJobState,
-    lastProcessedId: string | undefined
+    lastProcessedId: string | undefined,
   ): Promise<void> {
     if (!lastProcessedId) return;
 
@@ -521,9 +560,13 @@ export class NightlyReembedService implements OnModuleInit {
     this.logger.debug(`Saved checkpoint at ${lastProcessedId}`);
   }
 
-  private updateEstimatedCompletion(state: ReembedJobState, startTime: number): void {
+  private updateEstimatedCompletion(
+    state: ReembedJobState,
+    startTime: number,
+  ): void {
     const elapsed = Date.now() - startTime;
-    const progressRatio = state.progress.processedMemories / state.progress.totalMemories;
+    const progressRatio =
+      state.progress.processedMemories / state.progress.totalMemories;
 
     if (progressRatio > 0) {
       const estimatedTotal = elapsed / progressRatio;
@@ -535,7 +578,7 @@ export class NightlyReembedService implements OnModuleInit {
   private async createJobRecord(
     jobId: string,
     mode: ReembedMode,
-    models: ModelId[]
+    models: ModelId[],
   ): Promise<void> {
     await this.prisma.ensembleReembedJob.create({
       data: {
@@ -563,20 +606,23 @@ export class NightlyReembedService implements OnModuleInit {
 
     // Log progress periodically
     const progress = Math.round(
-      (state.progress.processedMemories / state.progress.totalMemories) * 100
+      (state.progress.processedMemories / state.progress.totalMemories) * 100,
     );
     if (progress % 10 === 0) {
       this.logger.log(
-        `Job ${state.jobId}: ${progress}% (${state.progress.processedMemories}/${state.progress.totalMemories})`
+        `Job ${state.jobId}: ${progress}% (${state.progress.processedMemories}/${state.progress.totalMemories})`,
       );
     }
   }
 
   private async completeJob(
     state: ReembedJobState,
-    status: 'completed' | 'failed' | 'cancelled'
+    status: 'completed' | 'failed' | 'cancelled',
   ): Promise<void> {
-    const dbStatus = status.toUpperCase() as 'COMPLETED' | 'FAILED' | 'CANCELLED';
+    const dbStatus = status.toUpperCase() as
+      | 'COMPLETED'
+      | 'FAILED'
+      | 'CANCELLED';
 
     await this.prisma.ensembleReembedJob.update({
       where: { jobId: state.jobId },
@@ -594,12 +640,15 @@ export class NightlyReembedService implements OnModuleInit {
 
     this.logger.log(
       `Job ${state.jobId} ${status}: ` +
-      `${state.progress.processedMemories} processed, ` +
-      `${state.metrics.memoriesFailed} failed`
+        `${state.progress.processedMemories} processed, ` +
+        `${state.metrics.memoriesFailed} failed`,
     );
   }
 
-  private toResult(state: ReembedJobState, durationMs: number): ReembedJobResult {
+  private toResult(
+    state: ReembedJobState,
+    durationMs: number,
+  ): ReembedJobResult {
     return {
       jobId: state.jobId,
       status: state.status,

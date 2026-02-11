@@ -49,7 +49,7 @@ export class ClusteringService {
 
   /**
    * Run DBSCAN clustering on memory embeddings using pgvector cosine distances.
-   * 
+   *
    * Algorithm:
    * 1. Fetch all active memories with ensemble embeddings
    * 2. For each unvisited point, find neighbors within eps cosine distance
@@ -65,7 +65,7 @@ export class ClusteringService {
     const modelId = options.modelId ?? 'bge-base';
 
     // Resolve userId
-    let userId = options.userId;
+    const userId = options.userId;
     if (!userId) {
       const users = await this.prisma.memory.findMany({
         where: { deletedAt: null },
@@ -73,7 +73,14 @@ export class ClusteringService {
         distinct: ['userId'],
       });
       if (users.length === 0) {
-        return { clustersCreated: 0, memoriesClustered: 0, memoriesTotal: 0, noisePoints: 0, dryRun, durationMs: Date.now() - startTime };
+        return {
+          clustersCreated: 0,
+          memoriesClustered: 0,
+          memoriesTotal: 0,
+          noisePoints: 0,
+          dryRun,
+          durationMs: Date.now() - startTime,
+        };
       }
       // Run for all users, return last result
       let lastResult: ClusteringRunResult | undefined;
@@ -83,10 +90,14 @@ export class ClusteringService {
       return lastResult!;
     }
 
-    this.logger.log(`Starting DBSCAN clustering for user ${userId} (eps=${eps}, minPoints=${minPoints}, model=${modelId})`);
+    this.logger.log(
+      `Starting DBSCAN clustering for user ${userId} (eps=${eps}, minPoints=${minPoints}, model=${modelId})`,
+    );
 
     // Fetch memory IDs that have embeddings for the chosen model
-    const memoryRows = await this.prisma.$queryRawUnsafe<Array<{ memory_id: string }>>(
+    const memoryRows = await this.prisma.$queryRawUnsafe<
+      Array<{ memory_id: string }>
+    >(
       `SELECT me.memory_id 
        FROM memory_embeddings me
        JOIN memories m ON m.id = me.memory_id
@@ -100,12 +111,21 @@ export class ClusteringService {
       modelId,
     );
 
-    const memoryIds = memoryRows.map(r => r.memory_id);
+    const memoryIds = memoryRows.map((r) => r.memory_id);
     const totalMemories = memoryIds.length;
 
     if (totalMemories < minPoints) {
-      this.logger.log(`Not enough memories with embeddings (${totalMemories} < ${minPoints})`);
-      return { clustersCreated: 0, memoriesClustered: 0, memoriesTotal: totalMemories, noisePoints: totalMemories, dryRun, durationMs: Date.now() - startTime };
+      this.logger.log(
+        `Not enough memories with embeddings (${totalMemories} < ${minPoints})`,
+      );
+      return {
+        clustersCreated: 0,
+        memoriesClustered: 0,
+        memoriesTotal: totalMemories,
+        noisePoints: totalMemories,
+        dryRun,
+        durationMs: Date.now() - startTime,
+      };
     }
 
     // DBSCAN using pgvector cosine distance
@@ -118,7 +138,12 @@ export class ClusteringService {
       if (visited.has(memoryId)) continue;
       visited.add(memoryId);
 
-      const neighbors = await this.findNeighbors(memoryId, memoryIds, eps, modelId);
+      const neighbors = await this.findNeighbors(
+        memoryId,
+        memoryIds,
+        eps,
+        modelId,
+      );
 
       if (neighbors.length < minPoints) {
         // Noise point
@@ -138,7 +163,12 @@ export class ClusteringService {
 
         if (!visited.has(currentId)) {
           visited.add(currentId);
-          const currentNeighbors = await this.findNeighbors(currentId, memoryIds, eps, modelId);
+          const currentNeighbors = await this.findNeighbors(
+            currentId,
+            memoryIds,
+            eps,
+            modelId,
+          );
 
           if (currentNeighbors.length >= minPoints) {
             for (const n of currentNeighbors) {
@@ -164,7 +194,9 @@ export class ClusteringService {
     }
 
     const noisePoints = totalMemories - clusterAssignments.size;
-    this.logger.log(`DBSCAN found ${clusters.size} clusters, ${noisePoints} noise points`);
+    this.logger.log(
+      `DBSCAN found ${clusters.size} clusters, ${noisePoints} noise points`,
+    );
 
     if (dryRun) {
       return {
@@ -208,10 +240,12 @@ export class ClusteringService {
         select: { id: true, raw: true },
       });
 
-      const label = await this.generateClusterLabel(memories.map(m => m.raw));
+      const label = await this.generateClusterLabel(memories.map((m) => m.raw));
 
       // Compute centroid embedding (average of member embeddings)
-      const centroidResult = await this.prisma.$queryRawUnsafe<Array<{ centroid: string }>>(
+      const centroidResult = await this.prisma.$queryRawUnsafe<
+        Array<{ centroid: string }>
+      >(
         `SELECT avg(me.embedding)::text as centroid
          FROM memory_embeddings me
          WHERE me.memory_id = ANY($1::text[])
@@ -264,7 +298,9 @@ export class ClusteringService {
     modelId: string,
   ): Promise<string[]> {
     // Use pgvector cosine distance operator (<=>)
-    const results = await this.prisma.$queryRawUnsafe<Array<{ memory_id: string; distance: number }>>(
+    const results = await this.prisma.$queryRawUnsafe<
+      Array<{ memory_id: string; distance: number }>
+    >(
       `SELECT b.memory_id, (a.embedding <=> b.embedding) as distance
        FROM memory_embeddings a
        JOIN memory_embeddings b ON b.model_id = a.model_id
@@ -279,7 +315,7 @@ export class ClusteringService {
       eps,
     );
 
-    return results.map(r => r.memory_id);
+    return results.map((r) => r.memory_id);
   }
 
   /**
@@ -288,10 +324,16 @@ export class ClusteringService {
   private async generateClusterLabel(
     texts: string[],
   ): Promise<{ label: string; description: string }> {
-    const sample = texts.slice(0, 10).map((t, i) => `${i + 1}. ${t}`).join('\n');
+    const sample = texts
+      .slice(0, 10)
+      .map((t, i) => `${i + 1}. ${t}`)
+      .join('\n');
 
     try {
-      const result = await this.llm.json<{ label: string; description: string }>(
+      const result = await this.llm.json<{
+        label: string;
+        description: string;
+      }>(
         [
           {
             role: 'system',
@@ -314,7 +356,28 @@ export class ClusteringService {
       // Fallback: extract common words
       const words = texts.join(' ').toLowerCase().split(/\s+/);
       const freq = new Map<string, number>();
-      const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'for', 'and', 'or', 'that', 'this', 'with', 'on', 'at', 'by', 'from']);
+      const stopWords = new Set([
+        'the',
+        'a',
+        'an',
+        'is',
+        'are',
+        'was',
+        'were',
+        'to',
+        'of',
+        'in',
+        'for',
+        'and',
+        'or',
+        'that',
+        'this',
+        'with',
+        'on',
+        'at',
+        'by',
+        'from',
+      ]);
       for (const w of words) {
         if (w.length > 3 && !stopWords.has(w)) {
           freq.set(w, (freq.get(w) || 0) + 1);
@@ -336,20 +399,22 @@ export class ClusteringService {
    * List all clusters with member counts
    */
   async listClusters(): Promise<ClusterSummary[]> {
-    const clusters = await this.prisma.$queryRawUnsafe<Array<{
-      id: string;
-      label: string;
-      description: string | null;
-      member_count: number;
-      created_at: Date;
-      updated_at: Date;
-    }>>(
+    const clusters = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: string;
+        label: string;
+        description: string | null;
+        member_count: number;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >(
       `SELECT id, label, description, member_count, created_at, updated_at
        FROM memory_clusters
        ORDER BY member_count DESC`,
     );
 
-    return clusters.map(c => ({
+    return clusters.map((c) => ({
       id: c.id,
       label: c.label,
       description: c.description,
@@ -363,14 +428,16 @@ export class ClusteringService {
    * Get a cluster with its member memories
    */
   async getCluster(clusterId: string): Promise<ClusterDetail | null> {
-    const clusterRows = await this.prisma.$queryRawUnsafe<Array<{
-      id: string;
-      label: string;
-      description: string | null;
-      member_count: number;
-      created_at: Date;
-      updated_at: Date;
-    }>>(
+    const clusterRows = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: string;
+        label: string;
+        description: string | null;
+        member_count: number;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >(
       `SELECT id, label, description, member_count, created_at, updated_at
        FROM memory_clusters WHERE id = $1`,
       clusterId,
@@ -380,13 +447,15 @@ export class ClusteringService {
 
     const cluster = clusterRows[0];
 
-    const members = await this.prisma.$queryRawUnsafe<Array<{
-      id: string;
-      raw: string;
-      effective_score: number;
-      memory_type: string | null;
-      created_at: Date;
-    }>>(
+    const members = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: string;
+        raw: string;
+        effective_score: number;
+        memory_type: string | null;
+        created_at: Date;
+      }>
+    >(
       `SELECT id, raw, effective_score, memory_type, created_at
        FROM memories WHERE cluster_id = $1 AND deleted_at IS NULL
        ORDER BY effective_score DESC`,
@@ -400,7 +469,7 @@ export class ClusteringService {
       memberCount: Number(cluster.member_count),
       createdAt: cluster.created_at,
       updatedAt: cluster.updated_at,
-      members: members.map(m => ({
+      members: members.map((m) => ({
         id: m.id,
         raw: m.raw,
         effectiveScore: Number(m.effective_score),

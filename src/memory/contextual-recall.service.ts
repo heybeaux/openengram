@@ -1,7 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
-import { ContextualRecallDto, ContextualRecallResponseDto } from './dto/contextual-recall.dto';
+import {
+  ContextualRecallDto,
+  ContextualRecallResponseDto,
+} from './dto/contextual-recall.dto';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
@@ -25,7 +28,8 @@ export class ContextualRecallService {
     private readonly prisma: PrismaService,
     private readonly embedding: EmbeddingService,
     @Optional() private readonly memoryPoolService?: MemoryPoolService,
-    @Optional() private readonly memoryAccessLogService?: MemoryAccessLogService,
+    @Optional()
+    private readonly memoryAccessLogService?: MemoryAccessLogService,
   ) {}
 
   async recall(
@@ -61,7 +65,10 @@ export class ContextualRecallService {
     let poolIds: string[] | undefined;
     if (dto.agentSessionKey && this.memoryPoolService) {
       try {
-        poolIds = await this.memoryPoolService.getAccessiblePoolIds(dto.agentSessionKey, userId);
+        poolIds = await this.memoryPoolService.getAccessiblePoolIds(
+          dto.agentSessionKey,
+          userId,
+        );
       } catch (err) {
         console.warn('[ContextualRecall] Failed to resolve pool IDs:', err);
       }
@@ -85,7 +92,12 @@ export class ContextualRecallService {
     );
 
     // 5. Filter: exclude already-known IDs, apply score threshold
-    console.log(`[ContextualRecall] vectorResults: ${vectorResults.length}, scores: [${vectorResults.slice(0, 5).map(r => r.score.toFixed(3)).join(', ')}], minScore: ${minScore}`);
+    console.log(
+      `[ContextualRecall] vectorResults: ${vectorResults.length}, scores: [${vectorResults
+        .slice(0, 5)
+        .map((r) => r.score.toFixed(3))
+        .join(', ')}], minScore: ${minScore}`,
+    );
     const filteredIds = vectorResults
       .filter((r) => r.score >= minScore && !excludeSet.has(r.id))
       .slice(0, limit)
@@ -156,7 +168,9 @@ export class ContextualRecallService {
 
       // v0.7: Log recalled memories (fire-and-forget)
       if (dto.agentSessionKey && this.memoryAccessLogService) {
-        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.text).catch(() => {});
+        this.memoryAccessLogService
+          .logRecalled(resultIds, dto.agentSessionKey, dto.text)
+          .catch(() => {});
       }
     }
 

@@ -111,7 +111,11 @@ describe('EntityService', () => {
 
       mockPrismaService.graphEntity.findUnique.mockResolvedValue(mockEntity);
 
-      const result = await service.findByName('user-1', 'Beaux', GraphEntityType.PERSON);
+      const result = await service.findByName(
+        'user-1',
+        'Beaux',
+        GraphEntityType.PERSON,
+      );
 
       expect(result).toEqual(mockEntity);
       expect(mockPrismaService.graphEntity.findUnique).toHaveBeenCalledWith({
@@ -151,7 +155,11 @@ describe('EntityService', () => {
 
       mockPrismaService.graphEntity.findFirst.mockResolvedValue(mockEntity);
 
-      const result = await service.findByAlias('user-1', 'beaux', GraphEntityType.PERSON);
+      const result = await service.findByAlias(
+        'user-1',
+        'beaux',
+        GraphEntityType.PERSON,
+      );
 
       expect(result).toEqual(mockEntity);
       expect(mockPrismaService.graphEntity.findFirst).toHaveBeenCalledWith({

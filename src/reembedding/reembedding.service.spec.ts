@@ -137,14 +137,15 @@ describe('ReembeddingService', () => {
 
       expect(result.jobId).toBeDefined();
       // Job status can be PENDING or RUNNING depending on timing
-      expect([ReembeddingJobStatus.PENDING, ReembeddingJobStatus.RUNNING]).toContain(
-        result.status,
-      );
+      expect([
+        ReembeddingJobStatus.PENDING,
+        ReembeddingJobStatus.RUNNING,
+      ]).toContain(result.status);
     });
 
     it('should throw when a job is already running', async () => {
       mockConfig.get.mockReturnValue('true');
-      
+
       // Create a never-resolving promise to simulate running job
       mockEnricher.getMemoriesForEnrichment.mockImplementation(
         () => new Promise(() => {}),

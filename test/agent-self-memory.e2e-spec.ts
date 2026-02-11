@@ -99,7 +99,7 @@ describe('Agent Self-Memory API (e2e)', () => {
       expect(response.body.raw).toBe('User prefers dark mode');
       expect(response.body.subjectType).toBe('USER');
       expect(response.body.agentId).toBeNull();
-      
+
       createdMemoryIds.push(response.body.id);
       testInternalUserId = response.body.userId;
     });
@@ -124,7 +124,7 @@ describe('Agent Self-Memory API (e2e)', () => {
       expect(response.body.subjectId).toBe(testAgentName);
       expect(response.body.agentId).toBe(testAgentName);
       expect(response.body.layer).toBe('IDENTITY');
-      
+
       createdMemoryIds.push(response.body.id);
     });
 
@@ -145,7 +145,7 @@ describe('Agent Self-Memory API (e2e)', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.subjectType).toBe('AGENT');
       expect(response.body.agentId).toBe(testAgentName);
-      
+
       createdMemoryIds.push(response.body.id);
     });
 
@@ -165,7 +165,7 @@ describe('Agent Self-Memory API (e2e)', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.subjectType).toBe('ENTITY');
       expect(response.body.subjectId).toBe('engram-project');
-      
+
       createdMemoryIds.push(response.body.id);
     });
   });
@@ -173,7 +173,7 @@ describe('Agent Self-Memory API (e2e)', () => {
   describe('POST /v1/memories/query - Filtering by Subject Type', () => {
     // Give time for async extraction to complete before querying
     beforeAll(async () => {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     });
     it('should recall only USER memories when includeAgentMemories=false', async () => {
       const response = await request(app.getHttpServer())
@@ -241,7 +241,9 @@ describe('Agent Self-Memory API (e2e)', () => {
 
       expect(response.body).toHaveProperty('memories');
       // Should include multiple subject types
-      const subjectTypes = new Set(response.body.memories.map((m: any) => m.subjectType));
+      const subjectTypes = new Set(
+        response.body.memories.map((m: any) => m.subjectType),
+      );
       expect(subjectTypes.size).toBeGreaterThanOrEqual(1);
     });
   });
@@ -273,7 +275,7 @@ describe('Agent Self-Memory API (e2e)', () => {
         take: 10,
       });
       const queryTime = Date.now() - startTime;
-      
+
       // Should be very fast with index (< 100ms)
       expect(queryTime).toBeLessThan(1000);
     });

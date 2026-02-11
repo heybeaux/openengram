@@ -67,7 +67,11 @@ describe('LineageService', () => {
 
     it('should create merge event with original contents', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([
-        { id: 'mem_absorbed', raw: 'Original absorbed content', createdAt: new Date() },
+        {
+          id: 'mem_absorbed',
+          raw: 'Original absorbed content',
+          createdAt: new Date(),
+        },
       ]);
       mockPrisma.memoryMergeEvent.create.mockResolvedValue({
         id: 'event_1',
@@ -88,7 +92,12 @@ describe('LineageService', () => {
       mockPrisma.memory.updateMany.mockResolvedValue({ count: 1 });
       mockEmbedding.delete.mockResolvedValue(undefined);
 
-      const result = await service.recordMerge('user_123', mockMergeResult, 'auto', 0.95);
+      const result = await service.recordMerge(
+        'user_123',
+        mockMergeResult,
+        'auto',
+        0.95,
+      );
 
       expect(result.id).toBe('event_1');
       expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalled();
@@ -152,7 +161,13 @@ describe('LineageService', () => {
       mockPrisma.memory.update.mockResolvedValue({});
       mockPrisma.memory.updateMany.mockResolvedValue({ count: 0 });
 
-      await service.recordMerge('user_123', mockMergeResult, 'manual', 1.0, 'approver_1');
+      await service.recordMerge(
+        'user_123',
+        mockMergeResult,
+        'manual',
+        1.0,
+        'approver_1',
+      );
 
       expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -171,7 +186,11 @@ describe('LineageService', () => {
         survivorMemoryId: 'mem_survivor',
         absorbedMemoryIds: ['mem_absorbed'],
         originalContents: JSON.stringify([
-          { memoryId: 'mem_absorbed', content: 'Original content', createdAt: new Date() },
+          {
+            memoryId: 'mem_absorbed',
+            content: 'Original content',
+            createdAt: new Date(),
+          },
         ]),
         contentChanged: false,
         canRollback: true,
@@ -207,7 +226,11 @@ describe('LineageService', () => {
         survivorMemoryId: 'mem_survivor',
         absorbedMemoryIds: ['mem_absorbed'],
         originalContents: JSON.stringify([
-          { memoryId: 'mem_absorbed', content: 'Original content', createdAt: new Date() },
+          {
+            memoryId: 'mem_absorbed',
+            content: 'Original content',
+            createdAt: new Date(),
+          },
         ]),
         contentChanged: false,
         canRollback: true,
@@ -232,7 +255,9 @@ describe('LineageService', () => {
     it('should throw for non-existent event', async () => {
       mockPrisma.memoryMergeEvent.findUnique.mockResolvedValue(null);
 
-      await expect(service.rollbackMerge('nonexistent')).rejects.toThrow('Merge event not found');
+      await expect(service.rollbackMerge('nonexistent')).rejects.toThrow(
+        'Merge event not found',
+      );
     });
 
     it('should throw when rollback not allowed', async () => {
@@ -241,7 +266,9 @@ describe('LineageService', () => {
         canRollback: false,
       });
 
-      await expect(service.rollbackMerge('event_1')).rejects.toThrow('cannot be rolled back');
+      await expect(service.rollbackMerge('event_1')).rejects.toThrow(
+        'cannot be rolled back',
+      );
     });
 
     it('should throw when already rolled back', async () => {
@@ -251,7 +278,9 @@ describe('LineageService', () => {
         rolledBackAt: new Date(),
       });
 
-      await expect(service.rollbackMerge('event_1')).rejects.toThrow('already been rolled back');
+      await expect(service.rollbackMerge('event_1')).rejects.toThrow(
+        'already been rolled back',
+      );
     });
 
     it('should mark event as rolled back', async () => {

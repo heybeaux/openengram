@@ -1,6 +1,6 @@
 /**
  * Prefetch Module
- * 
+ *
  * Provides predictive pre-fetching capabilities for the Engram memory system.
  * Includes topic detection, warm caching, and metrics tracking.
  */
@@ -13,9 +13,7 @@ import { PrefetchService } from './prefetch.service';
 import { MemoryModule } from '../memory/memory.module';
 
 @Module({
-  imports: [
-    forwardRef(() => MemoryModule),
-  ],
+  imports: [forwardRef(() => MemoryModule)],
   providers: [
     TopicDetectionService,
     PrefetchCacheService,
