@@ -11,6 +11,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { GraphService } from './services/graph.service';
 import { EntityService } from './services/entity.service';
 import { RelationshipService } from './services/relationship.service';
@@ -37,7 +38,8 @@ import {
  * - Entity search and profiles
  * - Graph statistics
  */
-@Controller('graph')
+@ApiTags('Graph')
+@Controller('v1/graph')
 export class GraphController {
   constructor(
     private readonly graphService: GraphService,

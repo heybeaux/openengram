@@ -38,6 +38,7 @@ interface CategorizedMemory {
   layer: string | null;
   memoryType: string | null;
   category: CategoryKey;
+  clusterId: string | null;
 }
 
 @Injectable()
@@ -81,6 +82,32 @@ export class GenerateContextService {
         consolidatedInto: true,
       },
     });
+
+    // Fetch cluster assignments via raw SQL (clusterId may not be in Prisma client yet)
+    const memoryClusterMap = new Map<string, string>();
+    const clusterLabelMap = new Map<string, string>();
+    try {
+      const clusterAssignments = await this.prisma.$queryRawUnsafe<Array<{ id: string; cluster_id: string }>>(
+        `SELECT id, cluster_id FROM memories WHERE agent_id = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
+        options.agentId,
+      );
+      for (const row of clusterAssignments) {
+        memoryClusterMap.set(row.id, row.cluster_id);
+      }
+
+      const clusterIds = [...new Set(clusterAssignments.map(r => r.cluster_id))];
+      if (clusterIds.length > 0) {
+        const clusters = await this.prisma.$queryRawUnsafe<Array<{ id: string; label: string }>>(
+          `SELECT id, label FROM memory_clusters WHERE id = ANY($1::text[])`,
+          clusterIds,
+        );
+        for (const c of clusters) {
+          clusterLabelMap.set(c.id, c.label);
+        }
+      }
+    } catch {
+      // Cluster table may not exist yet — gracefully degrade
+    }
 
     const totalMemories = memories.length;
 
@@ -141,6 +168,7 @@ export class GenerateContextService {
         layer: m.layer,
         memoryType: m.memoryType,
         category: 'recentContext',
+        clusterId: memoryClusterMap.get(m.id) ?? null,
       });
     }
 
@@ -172,6 +200,7 @@ export class GenerateContextService {
         layer: m.layer,
         memoryType: m.memoryType,
         category,
+        clusterId: memoryClusterMap.get(m.id) ?? null,
       });
     }
 
@@ -287,11 +316,42 @@ export class GenerateContextService {
       { key: 'recentContext', title: 'Recent Context' },
     );
 
+    // Build a map from memory text -> clusterId for grouping output
+    const textToCluster = new Map<string, string | null>();
+    for (const m of categorized) {
+      textToCluster.set(m.raw, m.clusterId);
+    }
+
     for (const { key, title } of sectionDefs) {
       if (selected[key].length > 0) {
         sections.push('');
         sections.push(`## ${title}`);
+
+        // Group memories by cluster label within section
+        const clustered = new Map<string, string[]>(); // label -> texts
+        const unclustered: string[] = [];
+
         for (const text of selected[key]) {
+          const clusterId = textToCluster.get(text);
+          const label = clusterId ? clusterLabelMap.get(clusterId) : null;
+          if (label) {
+            if (!clustered.has(label)) clustered.set(label, []);
+            clustered.get(label)!.push(text);
+          } else {
+            unclustered.push(text);
+          }
+        }
+
+        // Render clustered memories grouped under sub-headers
+        for (const [label, texts] of clustered) {
+          sections.push(`### ${label}`);
+          for (const text of texts) {
+            sections.push(`- ${text}`);
+          }
+        }
+
+        // Render unclustered memories flat
+        for (const text of unclustered) {
           sections.push(`- ${text}`);
         }
       }

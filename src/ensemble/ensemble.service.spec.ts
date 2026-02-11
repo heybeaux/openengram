@@ -105,6 +105,7 @@ describe('EnsembleService', () => {
         EnsembleService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
@@ -1186,6 +1187,7 @@ describe('Ensemble Integration Tests', () => {
           EnsembleService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
+          { provide: PrismaService, useValue: mockPrismaService },
         ],
       }).compile();
 
@@ -1231,6 +1233,7 @@ describe('Ensemble Integration Tests', () => {
           EnsembleService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
+          { provide: PrismaService, useValue: mockPrismaService },
         ],
       }).compile();
 
@@ -1297,6 +1300,7 @@ describe('Ensemble Integration Tests', () => {
           EnsembleService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
+          { provide: PrismaService, useValue: mockPrismaService },
         ],
       }).compile();
 
@@ -1343,6 +1347,7 @@ describe('Edge Cases', () => {
         EnsembleService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 

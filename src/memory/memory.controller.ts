@@ -17,14 +17,18 @@ import { BackfillService, BackfillResult, UserIdentityBackfillResult } from './b
 import { ConsolidationService, ConsolidationResult } from './consolidation.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
-import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
+import { UpdateMemoryDto } from './dto/update-memory.dto';
 import { ContextualRecallService } from './contextual-recall.service';
 import { ContextualRecallDto, ContextualRecallResponseDto } from './dto/contextual-recall.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiTags } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
+@ApiTags('Memory')
 @Controller('v1')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, RateLimitGuard)
 export class MemoryController {
   constructor(
     private readonly memoryService: MemoryService,
@@ -66,6 +70,7 @@ export class MemoryController {
    * Semantic search for memories
    */
   @Post('memories/query')
+  @RateLimit(60)
   async recall(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
@@ -180,32 +185,7 @@ export class MemoryController {
   }
 
   /**
-   * POST /v1/memories/:id/correct
-   * Correct a memory with contradiction tracking
-   * 
-   * P5-001: Memory Correction API
-   * 
-   * Creates a new "correction" memory that supersedes the original:
-   * 1. Original memory is marked as superseded (preserved for history)
-   * 2. New correction memory is created with CORRECTION source
-   * 3. CONTRADICTS link is created between them
-   * 
-   * Use this when a memory contains incorrect information.
-   * For simple typo fixes, use PATCH /:id instead.
-   * 
-   * @param correctedContent - The corrected content for the new memory
-   * @param reason - Optional explanation of why this correction was made
-   * @param layer - Optional override for the correction's layer
-   * @param importanceHint - Optional override for the correction's importance
-   */
-  @Post('memories/:id/correct')
-  async correct(
-    @UserId() userId: string,
-    @Param('id') id: string,
-    @Body() dto: CorrectMemoryDto,
-  ): Promise<MemoryWithExtraction> {
-    return this.memoryService.correctMemory(userId, id, dto);
-  }
+  // NOTE: POST /v1/memories/:id/correct moved to CorrectionController
 
   // =========================================================================
   // CONTEXT

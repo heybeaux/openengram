@@ -11,10 +11,10 @@ import { ImportanceHint, MemoryLayer, MemorySource } from '@prisma/client';
 describe('MemoryService', () => {
   let service: MemoryService;
   let mockPrisma: any;
-  let mockExtraction: jest.Mocked<ExtractionService>;
-  let mockEmbedding: jest.Mocked<EmbeddingService>;
-  let mockImportance: jest.Mocked<ImportanceService>;
-  let mockTemporalParser: jest.Mocked<TemporalParserService>;
+  let mockExtraction: any;
+  let mockEmbedding: any;
+  let mockImportance: any;
+  let mockTemporalParser: any;
   let mockHierarchyService: jest.Mocked<HierarchyService>;
 
   const mockMemory = {
@@ -86,7 +86,7 @@ describe('MemoryService', () => {
         topics: [],
         entities: [],
         memoryType: null,
-        typeConfidence: null,
+        typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
       }),
       getPriorityForType: jest.fn().mockReturnValue(3),
       classifyLayer: jest.fn().mockReturnValue('SESSION'),
@@ -156,7 +156,7 @@ describe('MemoryService', () => {
         topics: [],
         entities: [],
         memoryType: null,
-        typeConfidence: null,
+        typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
       mockEmbedding.store.mockResolvedValue('embed-123');
@@ -237,7 +237,7 @@ describe('MemoryService', () => {
           topics: [],
           entities: [],
           memoryType: null,
-          typeConfidence: null,
+          typeConfidence: null, confidence: { whoConfidence: null, whatConfidence: null, whenConfidence: null, whereConfidence: null, whyConfidence: null, howConfidence: null }, lesson: null,
         });
       });
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2]);
@@ -332,6 +332,8 @@ describe('MemoryService', () => {
         queryEmbedding,
         10,
         undefined,
+        undefined,
+        undefined,
       );
       expect(result.memories).toHaveLength(2);
       expect(result.queryTokens).toBeGreaterThan(0);
@@ -354,6 +356,8 @@ describe('MemoryService', () => {
         expect.any(Array),
         10,
         [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
+        undefined,
+        undefined,
       );
     });
 
@@ -363,7 +367,10 @@ describe('MemoryService', () => {
         { id: 'mem-1', score: 0.9 },
         { id: 'mem-2', score: 0.8 },
       ]);
-      mockPrisma.memory.findMany.mockResolvedValue([mockMemory]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        { ...mockMemory, id: 'mem-1' },
+        { ...mockMemory, id: 'mem-2' },
+      ]);
       mockPrisma.memory.updateMany.mockResolvedValue({ count: 2 });
 
       await service.recall('user-456', { query: 'test' });

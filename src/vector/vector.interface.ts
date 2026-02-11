@@ -24,6 +24,7 @@ export interface VectorSearchOptions {
   filter?: {
     layers?: string[];
     projectId?: string;
+    poolIds?: string[];
   };
 }
 

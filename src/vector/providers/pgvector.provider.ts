@@ -83,8 +83,17 @@ export class PgVectorProvider implements VectorProvider {
       paramIndex++;
     }
 
+    // Pool filtering: JOIN on memory_pool_memberships to restrict results
+    let poolJoinClause = '';
+    if (options.filter?.poolIds && options.filter.poolIds.length > 0) {
+      const poolPlaceholders = options.filter.poolIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      poolJoinClause = `JOIN memory_pool_memberships mpm ON mpm.memory_id = m.id AND mpm.pool_id IN (${poolPlaceholders})`;
+      params.push(...options.filter.poolIds);
+      paramIndex += options.filter.poolIds.length;
+    }
+
     // DEBUG: log search params
-    console.log(`[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}`);
+    console.log(`[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`);
 
     // Search ensemble embeddings first, fall back to inline column
     const results = await this.prisma.$queryRawUnsafe<
@@ -96,6 +105,7 @@ export class PgVectorProvider implements VectorProvider {
           1 - (me.embedding <=> $1::vector) as score
         FROM memories m
         JOIN memory_embeddings me ON me.memory_id = m.id
+        ${poolJoinClause}
         WHERE me.model_id = $3
           AND ${memoryWhereClause}
           AND me.embedding IS NOT NULL
@@ -108,6 +118,7 @@ export class PgVectorProvider implements VectorProvider {
           m.id,
           1 - (m.embedding <=> $1::vector) as score
         FROM memories m
+        ${poolJoinClause}
         WHERE ${memoryWhereClause}
           AND m.embedding IS NOT NULL
           AND NOT EXISTS (

@@ -119,8 +119,7 @@ describe('LLMService', () => {
         jest.spyOn(mockProvider, 'chat').mockResolvedValue({
           content: 'Hello!',
           model: 'gpt-4o-mini',
-          tokensUsed: 10,
-          finishReason: 'stop',
+          // tokensUsed: 10,
         });
       }
 
@@ -137,8 +136,7 @@ describe('LLMService', () => {
         jest.spyOn(anthropicProvider, 'chat').mockResolvedValue({
           content: 'Claude here!',
           model: 'claude-3-5-sonnet',
-          tokensUsed: 15,
-          finishReason: 'stop',
+          // tokensUsed: 15,
         });
       }
 
@@ -156,14 +154,13 @@ describe('LLMService', () => {
         jest.spyOn(defaultProvider, 'chat').mockResolvedValue({
           content: 'Fallback response',
           model: 'gpt-4o-mini',
-          tokensUsed: 5,
-          finishReason: 'stop',
+          // tokensUsed: 5,
         });
       }
 
       const result = await service.chat(
         [{ role: 'user', content: 'Hi' }],
-        { provider: 'nonexistent' },
+        { provider: 'nonexistent' as any },
       );
 
       expect(result.content).toBe('Fallback response');
@@ -214,7 +211,7 @@ describe('LLMService', () => {
           embedding: [0.1, 0.2, 0.3],
           dimensions: 1536,
           model: 'text-embedding-3-small',
-          tokensUsed: 5,
+          // tokensUsed: 5,
         });
       }
 
@@ -243,7 +240,7 @@ describe('LLMService', () => {
           embedding: [0.5, 0.6],
           dimensions: 768,
           model: 'nomic-embed-text',
-          tokensUsed: 3,
+          // tokensUsed: 3,
         });
       }
 

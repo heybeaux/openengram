@@ -1,14 +1,18 @@
 import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
+import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 @Controller('health')
+@SkipRateLimit()
 export class HealthController {
   private readonly startTime = Date.now();
 
   constructor(
     private prisma: PrismaService,
     private embedHealth: EmbedHealthService,
+    private monitoring: MonitoringService,
   ) {}
 
   @Get()
@@ -47,8 +51,22 @@ export class HealthController {
     // Determine overall status
     const overallStatus = dbStatus === 'down' ? 'unhealthy' : embedStatus.status === 'down' ? 'degraded' : 'healthy';
 
+    // 4. Monitoring alerts
+    let monitoringAlerts: any[] = [];
+    try {
+      monitoringAlerts = await this.monitoring.getAlerts();
+    } catch {
+      // monitoring might not be ready
+    }
+
+    // Degrade status if there are critical alerts
+    const hasCriticalAlerts = monitoringAlerts.some((a: any) => a.level === 'critical');
+    if (hasCriticalAlerts && overallStatus === 'healthy') {
+      // Don't override unhealthy, but flag degraded
+    }
+
     const body = {
-      status: overallStatus,
+      status: hasCriticalAlerts && overallStatus === 'healthy' ? 'degraded' : overallStatus,
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       dependencies: {
         database: {
@@ -71,6 +89,10 @@ export class HealthController {
       memory: {
         heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
         heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`,
+      },
+      monitoring: {
+        alertCount: monitoringAlerts.length,
+        hasCriticalAlerts,
       },
       checkedIn: `${Date.now() - start}ms`,
     };

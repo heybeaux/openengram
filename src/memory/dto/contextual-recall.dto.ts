@@ -23,6 +23,11 @@ export class ContextualRecallDto {
   @IsOptional()
   @IsNumber()
   minScore?: number = 0.65;
+
+  // v0.7: Agent session for pool-filtered recall
+  @IsOptional()
+  @IsString()
+  agentSessionKey?: string;
 }
 
 export class ContextualRecallResponseDto {

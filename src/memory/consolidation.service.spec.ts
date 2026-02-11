@@ -7,9 +7,9 @@ import { MemoryLayer } from '@prisma/client';
 
 describe('ConsolidationService', () => {
   let service: ConsolidationService;
-  let mockPrisma: jest.Mocked<PrismaService>;
-  let mockEmbedding: jest.Mocked<EmbeddingService>;
-  let mockLLM: jest.Mocked<LLMService>;
+  let mockPrisma: any;
+  let mockEmbedding: any;
+  let mockLLM: any;
 
   beforeEach(async () => {
     mockPrisma = {
@@ -22,6 +22,7 @@ describe('ConsolidationService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     } as any;
 
     mockEmbedding = {

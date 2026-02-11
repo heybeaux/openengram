@@ -1,81 +1,59 @@
 #!/usr/bin/env bash
 # Engram Database Backup Script
-# Backs up the engram PostgreSQL database with timestamp and compression.
-# Retains backups for 30 days, auto-deletes older ones.
-#
+# Creates compressed pg_dump backups with 30-day retention.
 # Usage: ./scripts/backup.sh
-# Cron:  0 */6 * * * cd /path/to/engram && ./scripts/backup.sh
-#
-# Environment variables (all optional, with sensible defaults):
-#   ENGRAM_DB_NAME      Database name (default: engram)
-#   ENGRAM_DB_USER      Database user (default: $USER)
-#   ENGRAM_DB_HOST      Database host (default: localhost)
-#   ENGRAM_BACKUP_DIR   Backup directory (default: ./backups)
-#   ENGRAM_RETENTION    Days to retain backups (default: 30)
-
 set -euo pipefail
 
-# --- Config (env vars with defaults) ---
-DB_NAME="${ENGRAM_DB_NAME:-engram}"
-DB_USER="${ENGRAM_DB_USER:-$USER}"
-DB_HOST="${ENGRAM_DB_HOST:-localhost}"
-BACKUP_DIR="${ENGRAM_BACKUP_DIR:-$(cd "$(dirname "$0")/.." && pwd)/backups}"
-RETENTION_DAYS="${ENGRAM_RETENTION:-30}"
+DB_NAME="engram"
+DB_USER="clawdbot"
+DB_HOST="localhost"
+DB_PORT="5432"
+BACKUP_DIR="$HOME/engram-backups"
+RETENTION_DAYS=30
 
-# Find pg_dump - check common locations
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+# Find pg_dump
 find_pg_dump() {
-    # Check if pg_dump is in PATH
-    if command -v pg_dump &> /dev/null; then
-        echo "pg_dump"
-        return
-    fi
-    # macOS Postgres.app locations
+    command -v pg_dump && return
     for ver in 18 17 16 15 14; do
-        local pg_path="/Applications/Postgres.app/Contents/Versions/${ver}/bin/pg_dump"
-        if [ -x "$pg_path" ]; then
-            echo "$pg_path"
-            return
-        fi
+        local p="/Applications/Postgres.app/Contents/Versions/${ver}/bin/pg_dump"
+        [ -x "$p" ] && echo "$p" && return
     done
-    # Homebrew locations
-    for pg_path in /opt/homebrew/bin/pg_dump /usr/local/bin/pg_dump; do
-        if [ -x "$pg_path" ]; then
-            echo "$pg_path"
-            return
-        fi
+    for p in /opt/homebrew/bin/pg_dump /usr/local/bin/pg_dump; do
+        [ -x "$p" ] && echo "$p" && return
     done
-    echo ""
 }
 
 PG_DUMP=$(find_pg_dump)
 if [ -z "$PG_DUMP" ]; then
-    echo "❌ pg_dump not found. Install PostgreSQL or set it in PATH."
+    log "❌ pg_dump not found"
     exit 1
 fi
 
-# --- Setup ---
 mkdir -p "$BACKUP_DIR"
-TIMESTAMP=$(date +"%Y-%m-%d_%H%M%S")
-BACKUP_FILE="${BACKUP_DIR}/engram_backup_${TIMESTAMP}.sql.gz"
+TIMESTAMP=$(date +"%Y-%m-%d-%H%M%S")
+BACKUP_FILE="${BACKUP_DIR}/engram-backup-${TIMESTAMP}.sql.gz"
 
-# --- Backup ---
-echo "🗄️  Backing up database '${DB_NAME}' → ${BACKUP_FILE}"
-"$PG_DUMP" -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" --no-password | gzip > "$BACKUP_FILE"
-
-# Verify
-if [ -s "$BACKUP_FILE" ]; then
-    SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-    echo "✅ Backup complete: ${BACKUP_FILE} (${SIZE})"
+log "🗄️  Backing up '${DB_NAME}' → ${BACKUP_FILE}"
+if "$PG_DUMP" -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" --no-password | gzip > "$BACKUP_FILE"; then
+    if [ -s "$BACKUP_FILE" ]; then
+        SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+        log "✅ Backup complete: ${BACKUP_FILE} (${SIZE})"
+    else
+        log "❌ Backup failed — file is empty"
+        rm -f "$BACKUP_FILE"
+        exit 1
+    fi
 else
-    echo "❌ Backup failed — file is empty"
+    log "❌ pg_dump failed with exit code $?"
     rm -f "$BACKUP_FILE"
     exit 1
 fi
 
-# --- Cleanup old backups ---
-DELETED=$(find "$BACKUP_DIR" -name "engram_backup_*.sql.gz" -type f -mtime +${RETENTION_DAYS} -print -delete | wc -l | tr -d ' ')
-if [ "$DELETED" -gt 0 ]; then
-    echo "🧹 Deleted ${DELETED} backup(s) older than ${RETENTION_DAYS} days"
-fi
+# Cleanup old backups (keep last 30)
+DELETED=$(find "$BACKUP_DIR" -name "engram-backup-*.sql.gz" -type f -mtime +${RETENTION_DAYS} -print -delete | wc -l | tr -d ' ')
+[ "$DELETED" -gt 0 ] && log "🧹 Deleted ${DELETED} old backup(s)"
 
-echo "📁 Backups in ${BACKUP_DIR}: $(ls -1 "$BACKUP_DIR"/engram_backup_*.sql.gz 2>/dev/null | wc -l | tr -d ' ') file(s)"
+TOTAL=$(ls -1 "$BACKUP_DIR"/engram-backup-*.sql.gz 2>/dev/null | wc -l | tr -d ' ')
+log "📁 Total backups: ${TOTAL}"

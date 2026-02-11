@@ -11,7 +11,10 @@ import { Memory, MemoryLayer, MemorySource, Entity, SubjectType } from '@prisma/
 import { parseFlexibleDate } from '../utils/date-parser';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { MultiQueryService } from '../multi-query/multi-query.service';
+import { CorrectionService } from '../correction/correction.service';
 import { MultiQueryMetadataDto, ResultExplanationDto } from '../multi-query/dto/multi-query.dto';
+import { MemoryPoolService } from '../memory-pool/memory-pool.service';
+import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
 // Three-tier dedup thresholds (v2)
 const DEDUP_AUTO_MERGE_THRESHOLD = 0.93;   // Auto-merge: combine content, boost confidence
@@ -87,6 +90,9 @@ export class MemoryService {
     private temporalParser: TemporalParserService,
     @Optional() private hierarchyService?: HierarchyService,
     @Optional() private multiQueryService?: MultiQueryService,
+    @Optional() private correctionService?: CorrectionService,
+    @Optional() private memoryPoolService?: MemoryPoolService,
+    @Optional() private memoryAccessLogService?: MemoryAccessLogService,
   ) {}
 
   /**
@@ -174,8 +180,17 @@ export class MemoryService {
         subjectType,
         subjectId,
         agentId: dto.agentId,
+        // v0.7: Agent session attribution
+        createdBySession: dto.agentSessionKey ?? undefined,
       },
     });
+
+    // v0.7: Auto-add to global pool and log creation
+    if (dto.agentSessionKey) {
+      this.addToGlobalPoolAndLog(memory.id, userId, dto.agentSessionKey).catch((err) => {
+        console.error(`[Memory] Failed to add to global pool / log creation for ${memory.id}:`, err);
+      });
+    }
 
     // 8. Build extraction context
     const extractionContext: ExtractionContext = {
@@ -191,7 +206,50 @@ export class MemoryService {
       console.error(`Extraction failed for memory ${memory.id}:`, err);
     });
 
+    // 10. Check for contradictions with existing memories (async, best-effort)
+    if (this.correctionService) {
+      this.correctionService
+        .checkForContradictions(memory.id, userId, rawContent)
+        .catch((err) => {
+          console.error(`[Correction] Contradiction check failed for memory ${memory.id}:`, err);
+        });
+    }
+
     return memory;
+  }
+
+  /**
+   * v0.7: Add memory to global pool and log creation (fire-and-forget helper)
+   */
+  private async addToGlobalPoolAndLog(
+    memoryId: string,
+    userId: string,
+    agentSessionKey: string,
+  ): Promise<void> {
+    // Auto-add to global pool
+    const globalPool = await this.prisma.memoryPool.findFirst({
+      where: { userId, name: 'global', visibility: 'GLOBAL', archivedAt: null },
+      select: { id: true },
+    });
+    if (globalPool) {
+      try {
+        await this.prisma.memoryPoolMembership.create({
+          data: {
+            memoryId,
+            poolId: globalPool.id,
+            addedBy: agentSessionKey,
+          },
+        });
+      } catch (err: any) {
+        // Ignore unique constraint violation (already in pool)
+        if (!err?.code?.includes('P2002')) throw err;
+      }
+    }
+
+    // Log creation
+    if (this.memoryAccessLogService) {
+      this.memoryAccessLogService.logCreated(memoryId, agentSessionKey).catch(() => {});
+    }
   }
 
   /**
@@ -353,11 +411,21 @@ export class MemoryService {
   async recall(userId: string, dto: QueryMemoryDto): Promise<QueryResult> {
     const startTime = Date.now();
 
+    // v0.7: Resolve accessible pool IDs if agentSessionKey is provided
+    let poolIds: string[] | undefined;
+    if (dto.agentSessionKey && this.memoryPoolService) {
+      try {
+        poolIds = await this.memoryPoolService.getAccessiblePoolIds(dto.agentSessionKey, userId);
+      } catch (err) {
+        console.warn('[Recall] Failed to resolve pool IDs, proceeding without pool filter:', err);
+      }
+    }
+
     // Check if multi-query is enabled and should be used
     const useMultiQuery = this.shouldUseMultiQuery(dto);
     
     if (useMultiQuery) {
-      return this.recallWithMultiQuery(userId, dto, startTime);
+      return this.recallWithMultiQuery(userId, dto, startTime, poolIds);
     }
 
     // 1. Parse temporal intent from query (P6-006)
@@ -396,7 +464,7 @@ export class MemoryService {
       const temporalMemories = await this.prisma.memory.findMany({
         where: {
           userId,
-          deletedAt: null,
+          deletedAt: null, supersededById: null,
           createdAt: {
             gte: parsed.temporalFilter!.start,
             lte: parsed.temporalFilter!.end,
@@ -419,6 +487,8 @@ export class MemoryService {
         queryEmbedding,
         200, // Large search to overlap with temporal results
         dto.layers,
+        undefined,
+        poolIds,
       );
       const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
 
@@ -459,6 +529,8 @@ export class MemoryService {
         queryEmbedding,
         limit,
         dto.layers,
+        undefined,
+        poolIds,
       );
 
       const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
@@ -468,7 +540,7 @@ export class MemoryService {
       const memories = await this.prisma.memory.findMany({
         where: {
           id: { in: memoryIds },
-          deletedAt: null,
+          deletedAt: null, supersededById: null,
           ...subjectTypeFilter,
         },
         include: {
@@ -512,6 +584,11 @@ export class MemoryService {
           lastRetrievedAt: new Date(),
         },
       });
+
+      // v0.7: Log recalled memories (fire-and-forget)
+      if (dto.agentSessionKey && this.memoryAccessLogService) {
+        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.query).catch(() => {});
+      }
     }
 
     return {
@@ -551,6 +628,7 @@ export class MemoryService {
     userId: string,
     dto: QueryMemoryDto,
     startTime: number,
+    poolIds?: string[],
   ): Promise<QueryResult> {
     // 1. Parse temporal intent - multi-query doesn't work well with temporal queries
     // because it's designed for semantic expansion, not temporal constraints
@@ -575,6 +653,7 @@ export class MemoryService {
         layers: dto.layers,
         projectId: dto.projectId,
         multiQuery: dto.multiQuery,
+        poolIds,
       },
     );
 
@@ -585,7 +664,7 @@ export class MemoryService {
     const memories = await this.prisma.memory.findMany({
       where: {
         id: { in: memoryIds },
-        deletedAt: null,
+        deletedAt: null, supersededById: null,
         ...subjectTypeFilter,
       },
       include: {
@@ -630,6 +709,11 @@ export class MemoryService {
           lastRetrievedAt: new Date(),
         },
       });
+
+      // v0.7: Log recalled memories (fire-and-forget)
+      if (dto.agentSessionKey && this.memoryAccessLogService) {
+        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.query).catch(() => {});
+      }
     }
 
     // 8. Generate metadata and explanations
@@ -683,7 +767,7 @@ export class MemoryService {
         userId,
         layer: MemoryLayer.IDENTITY,
         subjectType: SubjectType.USER,
-        deletedAt: null,
+        deletedAt: null, supersededById: null,
         userHidden: false, // Memory Intelligence: respect user hiding
       },
       orderBy: [
@@ -712,7 +796,7 @@ export class MemoryService {
           userId,
           projectId: dto.projectId,
           layer: MemoryLayer.PROJECT,
-          deletedAt: null,
+          deletedAt: null, supersededById: null,
           userHidden: false,
         },
         orderBy: [
@@ -740,7 +824,7 @@ export class MemoryService {
       where: {
         userId,
         layer: MemoryLayer.SESSION,
-        deletedAt: null,
+        deletedAt: null, supersededById: null,
         userHidden: false,
         createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
       },
@@ -768,7 +852,7 @@ export class MemoryService {
         where: {
           agentId: dto.agentId,
           subjectType: SubjectType.AGENT,
-          deletedAt: null,
+          deletedAt: null, supersededById: null,
           userHidden: false,
         },
         orderBy: [

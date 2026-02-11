@@ -46,6 +46,11 @@ export class QueryMemoryDto {
   @ValidateNested()
   @Type(() => MultiQueryOptionsDto)
   multiQuery?: MultiQueryOptionsDto;
+
+  // v0.7: Agent session attribution
+  @IsOptional()
+  @IsString()
+  agentSessionKey?: string;
 }
 
 export class LoadContextDto {

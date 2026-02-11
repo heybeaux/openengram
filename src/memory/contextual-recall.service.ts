@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { ContextualRecallDto, ContextualRecallResponseDto } from './dto/contextual-recall.dto';
+import { MemoryPoolService } from '../memory-pool/memory-pool.service';
+import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
 interface SessionState {
   recentEmbeddings: number[][]; // last N message embeddings
@@ -22,6 +24,8 @@ export class ContextualRecallService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly embedding: EmbeddingService,
+    @Optional() private readonly memoryPoolService?: MemoryPoolService,
+    @Optional() private readonly memoryAccessLogService?: MemoryAccessLogService,
   ) {}
 
   async recall(
@@ -53,6 +57,16 @@ export class ContextualRecallService {
       };
     }
 
+    // v0.7: Resolve accessible pool IDs
+    let poolIds: string[] | undefined;
+    if (dto.agentSessionKey && this.memoryPoolService) {
+      try {
+        poolIds = await this.memoryPoolService.getAccessiblePoolIds(dto.agentSessionKey, userId);
+      } catch (err) {
+        console.warn('[ContextualRecall] Failed to resolve pool IDs:', err);
+      }
+    }
+
     // 4. Semantic search
     const limit = dto.maxResults ?? 5;
     const minScore = dto.minScore ?? 0.65;
@@ -65,6 +79,9 @@ export class ContextualRecallService {
       userId,
       queryEmbedding,
       limit + excludeSet.size, // over-fetch to account for filtering
+      undefined,
+      undefined,
+      poolIds,
     );
 
     // 5. Filter: exclude already-known IDs, apply score threshold
@@ -89,6 +106,7 @@ export class ContextualRecallService {
       where: {
         id: { in: filteredIds.map((r) => r.id) },
         deletedAt: null,
+        supersededById: null,
       },
       include: {
         extraction: true,
@@ -135,6 +153,11 @@ export class ContextualRecallService {
           lastRetrievedAt: new Date(),
         },
       });
+
+      // v0.7: Log recalled memories (fire-and-forget)
+      if (dto.agentSessionKey && this.memoryAccessLogService) {
+        this.memoryAccessLogService.logRecalled(resultIds, dto.agentSessionKey, dto.text).catch(() => {});
+      }
     }
 
     return {

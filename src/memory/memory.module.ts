@@ -13,9 +13,11 @@ import { MultiQueryService } from '../multi-query/multi-query.service';
 import { QueryExpansionService } from '../multi-query/query-expansion.service';
 import { ResultFusionService } from '../multi-query/result-fusion.service';
 import { ContextualRecallService } from './contextual-recall.service';
+import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
+import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 
 @Module({
-  imports: [LLMModule, forwardRef(() => HierarchyModule)],
+  imports: [LLMModule, forwardRef(() => HierarchyModule), MemoryPoolModule, MemoryAccessLogModule],
   controllers: [MemoryController],
   providers: [
     MemoryService,

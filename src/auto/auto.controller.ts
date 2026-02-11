@@ -8,9 +8,11 @@ import { ConversationObserverService } from './conversation-observer.service';
 import { ObserveDto, ObserveResult } from './dto/observe.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 @Controller('v1')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, RateLimitGuard)
 export class AutoController {
   constructor(private readonly observer: ConversationObserverService) {}
 
@@ -27,6 +29,7 @@ export class AutoController {
    * Extracts and stores memories above the importance threshold.
    */
   @Post('observe')
+  @RateLimit(30)
   async observe(
     @UserId() userId: string,
     @Body() dto: ObserveDto,

@@ -78,6 +78,7 @@ model Session {
   consolidatedAt DateTime? @map("consolidated_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
+  agentSessionKey String?   @map("agent_session_key")
   memories       Memory[]
   project        Project?  @relation(fields: [projectId], references: [id])
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -148,6 +149,10 @@ model Memory {
   extraction       MemoryExtraction?
   hierarchyUnits   HierarchyUnit[]
   
+  // Multi-agent attribution
+  createdBySession  String?   @map("created_by_session")
+  poolMemberships   MemoryPoolMembership[]
+
   // Dream Cycle additions
   archivedReason    String?   @map("archived_reason")
   lastDreamCycleAt  DateTime? @map("last_dream_cycle_at")
@@ -157,15 +162,19 @@ model Memory {
   graphMentions    GraphEntityMention[]
   graphEntityFirstSeen GraphEntity[] @relation("GraphEntityFirstSeen")
   
+  // Clustering
+  clusterId         String?   @map("cluster_id")
+  cluster           MemoryCluster? @relation(fields: [clusterId], references: [id])
+
   // Multi-model ensemble embeddings
   ensembleEmbeddings MemoryEmbedding[]
 
+  @@index([clusterId])
   @@index([userId, layer])
   @@index([userId, createdAt])
   @@index([projectId])
   @@index([sessionId])
   @@index([deletedAt])
-  @@index([embedding])
   @@index([subjectType, agentId])
   @@index([userId, layer, priority, createdAt(sort: Desc)]) // Memory Intelligence: priority retrieval
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
@@ -338,6 +347,130 @@ model AuditLog {
   @@index([agentId, createdAt])
   @@index([userId, createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// MULTI-AGENT MEMORY (v0.7)
+// ============================================================================
+
+/// Tracks agent identities that interact with memory
+model AgentSession {
+  id              String             @id @default(cuid())
+  sessionKey      String             @unique @map("session_key")
+  parentKey       String?            @map("parent_key")
+  label           String?
+  taskDescription String?            @map("task_description")
+  status          AgentSessionStatus @default(ACTIVE)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  endedAt         DateTime?          @map("ended_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  memoryAccess MemoryAccessLog[]
+  poolGrants   PoolGrant[]
+
+  @@index([parentKey])
+  @@index([status])
+  @@index([createdAt])
+  @@map("agent_sessions")
+}
+
+/// Named memory pool for sharing between agent sessions
+model MemoryPool {
+  id          String         @id @default(cuid())
+  name        String
+  userId      String         @map("user_id")
+  visibility  PoolVisibility @default(GLOBAL)
+  description String?
+  createdBy   String         @map("created_by")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  archivedAt  DateTime?      @map("archived_at")
+
+  memberships MemoryPoolMembership[]
+  grants      PoolGrant[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("memory_pools")
+}
+
+/// Links a memory to a pool
+model MemoryPoolMembership {
+  id       String   @id @default(cuid())
+  memoryId String   @map("memory_id")
+  poolId   String   @map("pool_id")
+  addedBy  String   @map("added_by")
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  memory Memory     @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  pool   MemoryPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@unique([memoryId, poolId])
+  @@index([poolId])
+  @@index([memoryId])
+  @@map("memory_pool_memberships")
+}
+
+/// Grants an agent session access to a shared pool
+model PoolGrant {
+  id             String         @id @default(cuid())
+  poolId         String         @map("pool_id")
+  agentSessionId String         @map("agent_session_id")
+  permission     PoolPermission @default(READ)
+  grantedBy      String         @map("granted_by")
+  grantedAt      DateTime       @default(now()) @map("granted_at")
+  expiresAt      DateTime?      @map("expires_at")
+
+  pool         MemoryPool   @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  agentSession AgentSession @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, agentSessionId])
+  @@map("pool_grants")
+}
+
+/// Audit trail for memory access by agent sessions
+model MemoryAccessLog {
+  id             String           @id @default(cuid())
+  memoryId       String           @map("memory_id")
+  agentSessionId String           @map("agent_session_id")
+  accessType     MemoryAccessType
+  context        String?
+  tokensCost     Int?             @map("tokens_cost")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  agentSession AgentSession @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+
+  @@index([memoryId, createdAt])
+  @@index([agentSessionId, createdAt])
+  @@index([createdAt])
+  @@map("memory_access_logs")
+}
+
+enum AgentSessionStatus {
+  ACTIVE
+  COMPLETED
+  TERMINATED
+}
+
+enum PoolVisibility {
+  GLOBAL
+  SHARED
+  PRIVATE
+}
+
+enum PoolPermission {
+  READ
+  WRITE
+  ADMIN
+}
+
+enum MemoryAccessType {
+  CREATED
+  READ
+  RECALLED
+  INJECTED
+  UPDATED
+  SUPERSEDED
 }
 
 /// Memory layer enum
@@ -775,6 +908,21 @@ model MemoryEmbedding {
   @@map("memory_embeddings")
 }
 
+/// Drift snapshot for tracking embedding drift over time
+model DriftSnapshot {
+  id          String   @id @default(cuid())
+  modelId     String   @map("model_id")
+  avgDrift    Float    @map("avg_drift")
+  maxDrift    Float    @map("max_drift")
+  sampleCount Int      @map("sample_count")
+  alertLevel  String   @map("alert_level") // 'normal' | 'warning' | 'critical'
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([modelId, createdAt])
+  @@index([alertLevel])
+  @@map("drift_snapshots")
+}
+
 /// Re-embed job status
 enum EnsembleJobStatus {
   PENDING
@@ -917,6 +1065,20 @@ model DedupBatchRun {
   @@map("dedup_batch_runs")
 }
 
+/// Memory clusters for grouping related memories
+model MemoryCluster {
+  id                 String   @id
+  label              String
+  description        String?
+  memberCount        Int      @default(0) @map("member_count")
+  centroidEmbedding  Unsupported("vector")? @map("centroid_embedding")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  memories           Memory[]
+
+  @@map("memory_clusters")
+}
+
 /// Dream Cycle consolidation reports
 model DreamCycleReport {
   id                 String   @id @default(cuid())
@@ -946,4 +1108,32 @@ model DreamCycleReport {
 
   @@index([userId, createdAt])
   @@map("dream_cycle_reports")
+}
+
+/// Tracks Dream Cycle execution runs for mutex / concurrency control
+model DreamCycleRun {
+  id          String    @id @default(cuid())
+  status      String    @default("RUNNING") // RUNNING | COMPLETED | FAILED
+  instanceId  String    @map("instance_id") // hostname or unique instance identifier
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  error       String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("dream_cycle_runs")
+}
+
+/// Monitoring metric snapshots for tracking system health over time
+model MonitoringSnapshot {
+  id          String   @id @default(cuid())
+  metrics     Json     @default("{}")
+  alerts      Json     @default("[]")
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([snapshotAt])
+  @@map("monitoring_snapshots")
 }

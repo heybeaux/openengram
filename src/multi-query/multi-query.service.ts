@@ -171,6 +171,7 @@ export class MultiQueryService {
       layers?: MemoryLayer[];
       projectId?: string;
       multiQuery?: MultiQueryOptionsDto;
+      poolIds?: string[];
     } = {},
   ): Promise<MultiQuerySearchResult> {
     const startTime = Date.now();
@@ -232,6 +233,7 @@ export class MultiQueryService {
         topK: options.topK ?? config.search.topKPerQuery,
         layers: options.layers,
         projectId: options.projectId,
+        poolIds: options.poolIds,
       },
     );
     metrics.searchMs = Date.now() - searchStart;
@@ -328,6 +330,7 @@ export class MultiQueryService {
       topK: number;
       layers?: MemoryLayer[];
       projectId?: string;
+      poolIds?: string[];
     },
   ): Promise<QuerySearchResult[]> {
     const searchPromises = embeddings.map(async (embedding, index) => {
@@ -339,6 +342,7 @@ export class MultiQueryService {
         options.topK,
         options.layers,
         options.projectId,
+        options.poolIds,
       );
 
       return {

@@ -107,6 +107,11 @@ export class CreateMemoryDto {
   @IsOptional()
   @IsString()
   sourceMessageId?: string;
+
+  // v0.7: Agent session attribution
+  @IsOptional()
+  @IsString()
+  agentSessionKey?: string;
 }
 
 export class CreateMemoryBatchDto {

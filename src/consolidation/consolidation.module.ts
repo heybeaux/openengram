@@ -4,10 +4,12 @@ import { DreamCycleService } from './dream-cycle.service';
 import { GenerateContextService } from './generate-context.service';
 import { MemoryModule } from '../memory/memory.module';
 import { LLMModule } from '../llm/llm.module';
+import { ClusteringModule } from '../clustering/clustering.module';
 import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
+import { FogIndexModule } from '../fog-index/fog-index.module';
 
 @Module({
-  imports: [MemoryModule, LLMModule],
+  imports: [MemoryModule, LLMModule, ClusteringModule, FogIndexModule],
   controllers: [ConsolidationController],
   providers: [DreamCycleService, GenerateContextService, ImportanceScorerService],
   exports: [DreamCycleService, GenerateContextService],

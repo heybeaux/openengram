@@ -34,6 +34,7 @@ import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
   exports: [
     EnsembleService,
     NightlyReembedService,
+    DriftDetectionService,
     ModelRegistryService,
     PgVectorEnsembleProvider,
   ],

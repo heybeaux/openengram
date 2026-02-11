@@ -17,7 +17,17 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { DeduplicationModule } from './deduplication/deduplication.module';
 import { MultiQueryModule } from './multi-query/multi-query.module';
 import { ConsolidationModule } from './consolidation/consolidation.module';
+import { ClusteringModule } from './clustering/clustering.module';
 import { HealthModule } from './health/health.module';
+import { SummarizationModule } from './summarization/summarization.module';
+import { CorrectionModule } from './correction/correction.module';
+import { AgentSessionModule } from './agent-session/agent-session.module';
+import { MemoryPoolModule } from './memory-pool/memory-pool.module';
+import { MemoryAccessLogModule } from './memory-access-log/memory-access-log.module';
+import { ScopedContextModule } from './scoped-context/scoped-context.module';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { FogIndexModule } from './fog-index/fog-index.module';
 
 @Module({
   imports: [
@@ -47,7 +57,17 @@ import { HealthModule } from './health/health.module';
     MultiQueryModule,
     DeduplicationModule,
     ConsolidationModule,
+    ClusteringModule,
     HealthModule,
+    CorrectionModule,
+    SummarizationModule,
+    MemoryAccessLogModule,
+    AgentSessionModule,
+    MemoryPoolModule,
+    ScopedContextModule,
+    FogIndexModule,
+    RateLimitModule,
+    MonitoringModule,
   ],
 })
 export class AppModule {}

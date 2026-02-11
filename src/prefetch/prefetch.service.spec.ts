@@ -9,11 +9,11 @@ import { TopicScore } from './prefetch.types';
 
 describe('PrefetchService', () => {
   let service: PrefetchService;
-  let mockTopicDetection: jest.Mocked<TopicDetectionService>;
-  let mockCache: jest.Mocked<PrefetchCacheService>;
-  let mockMetrics: jest.Mocked<PrefetchMetricsService>;
-  let mockMemoryService: jest.Mocked<MemoryService>;
-  let mockEmbeddingService: jest.Mocked<EmbeddingService>;
+  let mockTopicDetection: any;
+  let mockCache: any;
+  let mockMetrics: any;
+  let mockMemoryService: any;
+  let mockEmbeddingService: any;
 
   const mockTopics: TopicScore[] = [
     { topic: 'family', confidence: 0.8, source: 'merged' },
@@ -123,12 +123,12 @@ describe('PrefetchService', () => {
     });
 
     it('should apply cache configuration', () => {
-      service.configure({ cache: { maxSize: 100 } });
+      service.configure({ cache: { maxSize: 100 } } as any);
       expect(mockCache.configure).toHaveBeenCalled();
     });
 
     it('should apply detection configuration', () => {
-      service.configure({ detection: { minConfidence: 0.5 } });
+      service.configure({ detection: { minConfidence: 0.5 } } as any);
       expect(mockTopicDetection.configure).toHaveBeenCalled();
     });
 
@@ -226,7 +226,7 @@ describe('PrefetchService', () => {
     it('should prefetch memories for topics', async () => {
       mockMemoryService.recall.mockResolvedValue({
         memories: [
-          { id: 'mem-1', raw: 'test', layer: 'IDENTITY' },
+          { id: 'mem-1', raw: 'test', layer: 'IDENTITY' } as any,
         ],
         queryTokens: 5,
         latencyMs: 10,
@@ -426,7 +426,7 @@ describe('PrefetchService', () => {
 
   describe('onModuleInit', () => {
     it('should initialize prototypes when embedding classification enabled', async () => {
-      service.configure({ detection: { enableEmbeddingClassification: true } });
+      service.configure({ detection: { enableEmbeddingClassification: true } as any });
       
       await service.onModuleInit();
       
@@ -434,7 +434,7 @@ describe('PrefetchService', () => {
     });
 
     it('should skip prototype initialization when disabled', async () => {
-      service.configure({ detection: { enableEmbeddingClassification: false } });
+      service.configure({ detection: { enableEmbeddingClassification: false } as any });
       mockTopicDetection.initializePrototypes.mockClear();
       
       await service.onModuleInit();

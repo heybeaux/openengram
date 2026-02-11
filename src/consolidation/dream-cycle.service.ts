@@ -6,8 +6,16 @@ import { EmbeddingService } from '../memory/embedding.service';
 import { LLMService } from '../llm/llm.service';
 import { ConfigService } from '@nestjs/config';
 import { GenerateContextService } from './generate-context.service';
+import { DriftDetectionService } from '../ensemble/drift-detection.service';
+import { EnsembleService } from '../ensemble/ensemble.service';
+import { ClusteringService } from '../clustering/clustering.service';
+import { FogIndexService } from '../fog-index/fog-index.service';
+import * as os from 'os';
 
-export type DreamCycleStage = 'dedup' | 'staleness' | 'patterns' | 'report';
+// Advisory lock key for Dream Cycle (arbitrary unique int)
+const DREAM_CYCLE_LOCK_KEY = 294967; // arbitrary constant for pg_advisory_lock
+
+export type DreamCycleStage = 'dedup' | 'staleness' | 'patterns' | 'clustering' | 'drift' | 'report';
 
 export interface DreamCycleOptions {
   dryRun?: boolean;
@@ -18,7 +26,7 @@ export interface DreamCycleOptions {
 
 export interface DreamCycleResult {
   id: string;
-  status: 'COMPLETED' | 'FAILED' | 'DRY_RUN';
+  status: 'COMPLETED' | 'FAILED' | 'DRY_RUN' | 'SKIPPED';
   durationMs: number;
   scoresRefreshed: number;
   duplicatesMerged: number;
@@ -30,7 +38,7 @@ export interface DreamCycleResult {
   errors: string[];
 }
 
-const ALL_STAGES: DreamCycleStage[] = ['dedup', 'staleness', 'patterns', 'report'];
+const ALL_STAGES: DreamCycleStage[] = ['dedup', 'staleness', 'patterns', 'clustering', 'drift', 'report'];
 
 @Injectable()
 export class DreamCycleService {
@@ -50,6 +58,10 @@ export class DreamCycleService {
     private llm: LLMService,
     private config: ConfigService,
     @Optional() private generateContextService?: GenerateContextService,
+    @Optional() private driftDetectionService?: DriftDetectionService,
+    @Optional() private clusteringService?: ClusteringService,
+    @Optional() private ensembleService?: EnsembleService,
+    @Optional() private fogIndexService?: FogIndexService,
   ) {
     this.dedupThreshold = parseFloat(this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85');
     this.stalenessScoreThreshold = parseFloat(this.config.get('DREAM_STALENESS_SCORE') ?? '0.35');
@@ -60,7 +72,90 @@ export class DreamCycleService {
     this.patternClusterMinSize = parseInt(this.config.get('DREAM_PATTERN_MIN_CLUSTER') ?? '3', 10);
   }
 
+  /**
+   * Attempt to acquire the advisory lock. Returns true if acquired, false if another run is active.
+   * Uses pg_try_advisory_lock so it returns immediately without blocking.
+   */
+  async acquireLock(): Promise<boolean> {
+    const result = await this.prisma.$queryRawUnsafe<Array<{ acquired: boolean }>>(
+      `SELECT pg_try_advisory_lock(${DREAM_CYCLE_LOCK_KEY}) as acquired`,
+    );
+    return result[0]?.acquired ?? false;
+  }
+
+  /**
+   * Release the advisory lock.
+   */
+  async releaseLock(): Promise<void> {
+    await this.prisma.$queryRawUnsafe(
+      `SELECT pg_advisory_unlock(${DREAM_CYCLE_LOCK_KEY})`,
+    );
+  }
+
+  /**
+   * Get the instance identifier for this process.
+   */
+  private getInstanceId(): string {
+    return `${os.hostname()}-${process.pid}`;
+  }
+
   async run(options: DreamCycleOptions = {}): Promise<DreamCycleResult> {
+    // Acquire advisory lock to prevent concurrent runs
+    const lockAcquired = await this.acquireLock();
+    if (!lockAcquired) {
+      this.log('Dream Cycle already running — another instance holds the lock. Exiting gracefully.', undefined, 'log');
+      // Return a result indicating the run was skipped
+      return {
+        id: 'skipped',
+        status: 'SKIPPED' as any,
+        durationMs: 0,
+        scoresRefreshed: 0,
+        duplicatesMerged: 0,
+        patternsCreated: 0,
+        memoriesArchived: 0,
+        totalActive: 0,
+        avgEffectiveScore: 0,
+        stageDetails: {},
+        errors: ['Skipped: another Dream Cycle instance is already running'],
+      };
+    }
+
+    // Track this run
+    const runRecord = await this.prisma.dreamCycleRun.create({
+      data: {
+        status: 'RUNNING',
+        instanceId: this.getInstanceId(),
+      },
+    });
+
+    try {
+      const result = await this.runInternal(options);
+
+      // Mark run as completed
+      await this.prisma.dreamCycleRun.update({
+        where: { id: runRecord.id },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+      });
+
+      return result;
+    } catch (err) {
+      // Mark run as failed
+      await this.prisma.dreamCycleRun.update({
+        where: { id: runRecord.id },
+        data: {
+          status: 'FAILED',
+          endedAt: new Date(),
+          error: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(() => {}); // best-effort
+
+      throw err;
+    } finally {
+      await this.releaseLock();
+    }
+  }
+
+  private async runInternal(options: DreamCycleOptions = {}): Promise<DreamCycleResult> {
     // Auto-discover users if no userId specified and no DEFAULT_USER_ID configured
     if (!options.userId && !this.config.get('DEFAULT_USER_ID')) {
       this.log('No userId or DEFAULT_USER_ID configured — auto-discovering users');
@@ -80,7 +175,7 @@ export class DreamCycleService {
       let lastResult: DreamCycleResult | undefined;
       for (const user of users) {
         this.log(`Running Dream Cycle for user: ${user.userId}`);
-        lastResult = await this.run({ ...options, userId: user.userId });
+        lastResult = await this.runInternal({ ...options, userId: user.userId });
       }
       return lastResult!;
     }
@@ -176,6 +271,37 @@ export class DreamCycleService {
         }
       }
 
+      // Stage 3.5: Memory clustering
+      if (stages.includes('clustering') && this.clusteringService) {
+        this.log('Stage 3.5: Memory clustering');
+        try {
+          const clusterResult = await this.clusteringService.run({
+            userId,
+            dryRun,
+          });
+          stageDetails.clustering = clusterResult;
+          this.log('Stage 3.5 (clustering) complete', clusterResult);
+        } catch (err) {
+          const msg = `Clustering stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.6: Drift analysis
+      if (stages.includes('drift') && this.driftDetectionService && this.ensembleService) {
+        this.log('Stage 3.5: Embedding drift analysis');
+        try {
+          const driftResult = await this.runDriftStage(userId, dryRun);
+          stageDetails.drift = driftResult;
+          this.log('Stage 3.5 complete', driftResult);
+        } catch (err) {
+          const msg = `Drift stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
       // Stage 4: Generate report
       if (stages.includes('report')) {
         this.log('Stage 4: Generating consolidation report');
@@ -213,6 +339,24 @@ export class DreamCycleService {
           this.log('Stage 5 complete', stageDetails.generateContext);
         } catch (err) {
           const msg = `Generate context stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 6: Fog Index snapshot
+      if (this.fogIndexService && !dryRun) {
+        this.log('Stage 6: Computing Fog Index snapshot');
+        try {
+          const fogResult = await this.fogIndexService.snapshot(userId);
+          stageDetails.fogIndex = {
+            score: fogResult.score,
+            tier: fogResult.tier,
+            components: fogResult.components,
+          };
+          this.log('Stage 6 complete', { score: fogResult.score, tier: fogResult.tier });
+        } catch (err) {
+          const msg = `Fog Index stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
           this.log(msg, undefined, 'error');
         }
@@ -668,6 +812,78 @@ export class DreamCycleService {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────
+
+  // ─── Stage 3.5: Drift Analysis ──────────────────────────────────
+
+  private async runDriftStage(
+    userId: string,
+    dryRun: boolean,
+  ): Promise<{ modelsAnalyzed: number; snapshotsPersisted: number; alerts: string[] }> {
+    const alerts: string[] = [];
+    let snapshotsPersisted = 0;
+
+    // Sample recent memories for drift analysis
+    const memories = await this.prisma.memory.findMany({
+      where: { userId, deletedAt: null },
+      select: { id: true, raw: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+
+    if (memories.length === 0 || !this.driftDetectionService || !this.ensembleService) {
+      return { modelsAnalyzed: 0, snapshotsPersisted: 0, alerts: [] };
+    }
+
+    const config = this.ensembleService.getConfig();
+    const models = config.models;
+
+    for (const model of models) {
+      // Generate new embeddings
+      const newEmbeddings: number[][] = [];
+      for (const memory of memories) {
+        try {
+          const result = await this.ensembleService.embedAll(memory.raw);
+          const modelEmbed = result.embeddings.find((e: any) => e.model === model);
+          newEmbeddings.push(modelEmbed ? modelEmbed.embedding : []);
+        } catch {
+          newEmbeddings.push([]);
+        }
+      }
+
+      const analyses = await this.driftDetectionService.measureBatchDrift(
+        memories,
+        newEmbeddings,
+        model as any,
+      );
+
+      const summary = this.driftDetectionService.summarizeDrift(analyses);
+      const thresholds = this.driftDetectionService.getThresholds();
+
+      let alertLevel = 'normal';
+      if (summary.avgCosineDrift > thresholds.alert) {
+        alertLevel = 'critical';
+        alerts.push(`Critical drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`);
+      } else if (summary.avgCosineDrift > thresholds.drift) {
+        alertLevel = 'warning';
+        alerts.push(`Warning drift on ${model}: avg=${summary.avgCosineDrift.toFixed(4)}`);
+      }
+
+      if (!dryRun) {
+        await this.prisma.driftSnapshot.create({
+          data: {
+            modelId: model,
+            avgDrift: summary.avgCosineDrift,
+            maxDrift: summary.maxCosineDrift,
+            sampleCount: analyses.length,
+            alertLevel,
+          },
+        });
+        snapshotsPersisted++;
+      }
+    }
+
+    return { modelsAnalyzed: models.length, snapshotsPersisted, alerts };
+  }
 
   private log(message: string, data?: any, level: 'log' | 'error' = 'log'): void {
     const fn = level === 'error' ? console.error : console.log;

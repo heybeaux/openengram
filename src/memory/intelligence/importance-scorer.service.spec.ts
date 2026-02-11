@@ -8,7 +8,7 @@ describe('ImportanceScorerService', () => {
     scorer = new ImportanceScorerService();
   });
 
-  const createMockMemory = (overrides: Partial<any> = {}) => ({
+  const createMockMemory = (overrides: Partial<any> = {}): any => ({
     id: 'test-memory-1',
     userId: 'user-1',
     raw: 'Test memory content',

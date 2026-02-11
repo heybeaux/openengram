@@ -48,7 +48,7 @@ describe('EmbeddingService', () => {
         embedding: mockEmbedding,
         dimensions: 1536,
         model: 'text-embedding-3-small',
-        tokensUsed: 10,
+        // tokensUsed: 10,
       });
 
       const result = await service.generate('test text');
@@ -63,7 +63,7 @@ describe('EmbeddingService', () => {
         embedding: new Array(768).fill(0),
         dimensions: 768,
         model: 'some-model',
-        tokensUsed: 5,
+        // tokensUsed: 5,
       });
 
       await service.generate('test');

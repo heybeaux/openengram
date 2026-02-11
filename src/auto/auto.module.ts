@@ -5,9 +5,10 @@ import { ImportanceDetectorService } from './importance-detector.service';
 import { AutoExtractorService } from './auto-extractor.service';
 import { MemoryModule } from '../memory/memory.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SummarizationModule } from '../summarization/summarization.module';
 
 @Module({
-  imports: [MemoryModule, PrismaModule],
+  imports: [MemoryModule, PrismaModule, SummarizationModule],
   controllers: [AutoController],
   providers: [
     ConversationObserverService,

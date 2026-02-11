@@ -70,6 +70,7 @@ export class EmbeddingService {
     limit: number = 10,
     layers?: MemoryLayer[],
     projectId?: string,
+    poolIds?: string[],
   ): Promise<VectorSearchResult[]> {
     return this.vector.search(queryEmbedding, {
       userId,
@@ -77,6 +78,7 @@ export class EmbeddingService {
       filter: {
         layers: layers?.map((l) => l.toString()),
         projectId,
+        poolIds,
       },
     });
   }

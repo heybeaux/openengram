@@ -7,23 +7,18 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { DashboardService, StatsResponse, MemoriesListResponse, UsersListResponse, UserDetailResponse, HealthResponse } from './dashboard.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { ListMemoriesDto } from './dto/list-memories.dto';
 
+@ApiTags('Dashboard')
 @Controller('v1')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  /**
-   * GET /v1/health
-   * Comprehensive memory system health check (public, no auth required)
-   */
-  @Get('health')
-  async getHealth(): Promise<HealthResponse> {
-    return this.dashboardService.getHealth();
-  }
+  // NOTE: GET /health is served by HealthController (k8s/load balancer probe)
 
   /**
    * GET /v1/stats

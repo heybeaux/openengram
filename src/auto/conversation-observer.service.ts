@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { ImportanceDetectorService } from './importance-detector.service';
 import { AutoExtractorService, ExtractorContext } from './auto-extractor.service';
+import { SummarizationService } from '../summarization/summarization.service';
 import {
   ObserveDto,
   ObserveResult,
@@ -28,6 +29,7 @@ export class ConversationObserverService {
     private memoryService: MemoryService,
     private importanceDetector: ImportanceDetectorService,
     private autoExtractor: AutoExtractorService,
+    @Optional() private summarizationService?: SummarizationService,
   ) {}
 
   /**
@@ -54,7 +56,42 @@ export class ConversationObserverService {
       userName = user?.externalId;
     }
 
-    // 2. Build extraction context
+    // 2. If summarization is enabled, batch turns through summarizer instead
+    if (this.summarizationService?.isEnabled && dto.sessionId) {
+      const summaryResult = await this.summarizationService.addTurnsToBuffer(
+        userId,
+        dto.sessionId,
+        dto.turns,
+        { projectId: dto.projectId, userName },
+      );
+
+      if (summaryResult) {
+        // Batch was triggered — return summary-style result
+        return {
+          memories: summaryResult.facts.map(f => ({
+            content: f.content,
+            importance: f.confidence,
+            signals: [],
+            source: { turnIndex: f.sourceTurnIndices[0] ?? 0, role: 'user' as any },
+          })),
+          created: summaryResult.created,
+          skipped: summaryResult.facts.length - summaryResult.created,
+          signals: [],
+          processingMs: summaryResult.processingMs,
+        };
+      }
+
+      // Buffer not full yet — return empty result (turns are buffered)
+      return {
+        memories: [],
+        created: 0,
+        skipped: 0,
+        signals: [],
+        processingMs: Date.now() - startTime,
+      };
+    }
+
+    // 2b. Build extraction context (original path when summarization is off)
     const extractorContext: ExtractorContext = { userName };
 
     // 3. Detect importance signals

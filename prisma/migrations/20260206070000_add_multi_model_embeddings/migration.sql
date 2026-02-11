@@ -27,17 +27,8 @@ CREATE INDEX "memory_embeddings_model_id_idx" ON "memory_embeddings"("model_id")
 -- CreateIndex: for looking up embeddings by memory
 CREATE INDEX "memory_embeddings_memory_id_idx" ON "memory_embeddings"("memory_id");
 
--- CreateIndex: IVFFlat index for 768-dim models (bge-base, nomic, gte-base)
--- Note: We create separate partial indexes by dimension for efficient querying
--- The index is created on rows where dimensions = 768
-CREATE INDEX "memory_embeddings_embedding_768_idx" ON "memory_embeddings" 
-USING ivfflat (embedding vector_cosine_ops)
-WHERE dimensions = 768;
-
--- CreateIndex: IVFFlat index for 384-dim models (minilm)
-CREATE INDEX "memory_embeddings_embedding_384_idx" ON "memory_embeddings" 
-USING ivfflat (embedding vector_cosine_ops)
-WHERE dimensions = 384;
+-- Note: IVFFlat indexes require data to build lists, so we skip them here.
+-- They will be created later when data exists, or use HNSW instead.
 
 -- AddForeignKey
 ALTER TABLE "memory_embeddings" ADD CONSTRAINT "memory_embeddings_memory_id_fkey" 

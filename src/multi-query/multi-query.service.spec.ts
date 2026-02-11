@@ -166,6 +166,7 @@ describe('MultiQueryService', () => {
         expect.any(Number),
         undefined, // layers
         undefined, // projectId
+        undefined, // poolIds
       );
     });
 
@@ -218,6 +219,7 @@ describe('MultiQueryService', () => {
         expect.any(Number),
         [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
         undefined,
+        undefined,
       );
     });
 
@@ -232,6 +234,7 @@ describe('MultiQueryService', () => {
         expect.any(Number),
         undefined,
         'project_123',
+        undefined,
       );
     });
 

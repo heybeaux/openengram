@@ -9,7 +9,7 @@ import { VectorService } from '../vector/vector.service';
 
 describe('HierarchyService', () => {
   let service: HierarchyService;
-  let mockConfig: jest.Mocked<ConfigService>;
+  let mockConfig: any;
   let mockPrisma: any;
   let mockLLM: jest.Mocked<LLMService>;
   let mockVector: jest.Mocked<VectorService>;

@@ -17,8 +17,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { IsOptional, IsArray, IsString, IsIn } from 'class-validator';
 import { EnsembleService } from './ensemble.service';
 import { NightlyReembedService } from './nightly-reembed.service';
+import { DriftDetectionService } from './drift-detection.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   ModelId,
   EnsembleQueryResult,
@@ -79,17 +82,28 @@ interface EnsembleQueryResponse extends Omit<EnsembleQueryResult, 'results'> {
 // ============================================================================
 
 class ReembedDto {
+  @IsOptional()
+  @IsArray()
   models?: ModelId[];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['incremental', 'full'])
   mode?: 'incremental' | 'full';
+
+  @IsOptional()
+  @IsArray()
   memoryIds?: string[];
 }
 
 @ApiTags('ensemble')
-@Controller('ensemble')
+@Controller('v1/ensemble')
 export class EnsembleController {
   constructor(
     private readonly ensembleService: EnsembleService,
     private readonly nightlyReembedService: NightlyReembedService,
+    private readonly driftDetectionService: DriftDetectionService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -381,6 +395,214 @@ export class EnsembleController {
       total: dto.memoryIds.length,
       message: `Processing ${dto.memoryIds.length} memories for models: ${dto.models.join(', ')}`,
     };
+  }
+
+  // ==========================================================================
+  // Drift Detection Endpoints
+  // ==========================================================================
+
+  /**
+   * Get latest drift analysis per model
+   */
+  @Get('drift')
+  @ApiOperation({ summary: 'Get latest drift snapshot per model' })
+  @ApiResponse({ status: 200, description: 'Latest drift per model' })
+  async getLatestDrift(): Promise<{
+    perModel: Array<{
+      modelId: string;
+      avgDrift: number;
+      maxDrift: number;
+      sampleCount: number;
+      alertLevel: string;
+      createdAt: Date;
+    }>;
+    thresholds: { drift: number; alert: number };
+  }> {
+    // Get distinct models from drift snapshots
+    const models = await this.prisma.$queryRawUnsafe<Array<{ model_id: string }>>(
+      `SELECT DISTINCT model_id FROM drift_snapshots ORDER BY model_id`
+    );
+
+    const perModel: Array<{
+      modelId: string;
+      avgDrift: number;
+      maxDrift: number;
+      sampleCount: number;
+      alertLevel: string;
+      createdAt: Date;
+    }> = [];
+    for (const { model_id } of models) {
+      const snapshot = await this.prisma.driftSnapshot.findFirst({
+        where: { modelId: model_id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (snapshot) {
+        perModel.push({
+          modelId: snapshot.modelId,
+          avgDrift: snapshot.avgDrift,
+          maxDrift: snapshot.maxDrift,
+          sampleCount: snapshot.sampleCount,
+          alertLevel: snapshot.alertLevel,
+          createdAt: snapshot.createdAt,
+        });
+      }
+    }
+
+    return {
+      perModel,
+      thresholds: this.driftDetectionService.getThresholds(),
+    };
+  }
+
+  /**
+   * Get drift snapshots over time (for charting)
+   */
+  @Get('drift/history')
+  @ApiOperation({ summary: 'Get drift history for charting' })
+  @ApiQuery({ name: 'modelId', required: false, description: 'Filter by model' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max snapshots to return' })
+  @ApiQuery({ name: 'since', required: false, description: 'ISO date to filter from' })
+  @ApiResponse({ status: 200, description: 'Drift snapshots over time' })
+  async getDriftHistory(
+    @Query('modelId') modelId?: string,
+    @Query('limit') limit?: string,
+    @Query('since') since?: string,
+  ): Promise<{
+    snapshots: Array<{
+      id: string;
+      modelId: string;
+      avgDrift: number;
+      maxDrift: number;
+      sampleCount: number;
+      alertLevel: string;
+      createdAt: Date;
+    }>;
+    count: number;
+  }> {
+    const where: any = {};
+    if (modelId) where.modelId = modelId;
+    if (since) where.createdAt = { gte: new Date(since) };
+
+    const snapshots = await this.prisma.driftSnapshot.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit ? parseInt(limit, 10) : 100,
+    });
+
+    return { snapshots, count: snapshots.length };
+  }
+
+  /**
+   * Trigger a new drift analysis and persist snapshots
+   */
+  @Post('drift/analyze')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Trigger drift analysis and persist results' })
+  @ApiResponse({ status: 200, description: 'Drift analysis results' })
+  async analyzeDrift(): Promise<{
+    snapshots: Array<{
+      modelId: string;
+      avgDrift: number;
+      maxDrift: number;
+      sampleCount: number;
+      alertLevel: string;
+    }>;
+    summary: string;
+  }> {
+    // Get a sample of memories to analyze
+    const memories = await this.prisma.memory.findMany({
+      where: { deletedAt: null },
+      select: { id: true, raw: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+
+    if (memories.length === 0) {
+      return { snapshots: [], summary: 'No memories to analyze' };
+    }
+
+    const config = this.ensembleService.getConfig();
+    const models = config.models;
+    const snapshots: Array<{
+      modelId: string;
+      avgDrift: number;
+      maxDrift: number;
+      sampleCount: number;
+      alertLevel: string;
+    }> = [];
+
+    for (const model of models) {
+      // Use drift detection service to measure batch drift
+      const analyses = await this.driftDetectionService.measureBatchDrift(
+        memories,
+        // Generate new embeddings for comparison
+        await this.generateEmbeddingsForModel(memories, model),
+        model,
+      );
+
+      const driftSummary = this.driftDetectionService.summarizeDrift(analyses);
+      const thresholds = this.driftDetectionService.getThresholds();
+
+      let alertLevel = 'normal';
+      if (driftSummary.avgCosineDrift > thresholds.alert) {
+        alertLevel = 'critical';
+      } else if (driftSummary.avgCosineDrift > thresholds.drift) {
+        alertLevel = 'warning';
+      }
+
+      // Persist snapshot
+      await this.prisma.driftSnapshot.create({
+        data: {
+          modelId: model,
+          avgDrift: driftSummary.avgCosineDrift,
+          maxDrift: driftSummary.maxCosineDrift,
+          sampleCount: analyses.length,
+          alertLevel,
+        },
+      });
+
+      snapshots.push({
+        modelId: model,
+        avgDrift: driftSummary.avgCosineDrift,
+        maxDrift: driftSummary.maxCosineDrift,
+        sampleCount: analyses.length,
+        alertLevel,
+      });
+    }
+
+    const criticalCount = snapshots.filter(s => s.alertLevel === 'critical').length;
+    const warningCount = snapshots.filter(s => s.alertLevel === 'warning').length;
+    const summary = criticalCount > 0
+      ? `${criticalCount} model(s) in critical drift`
+      : warningCount > 0
+        ? `${warningCount} model(s) with elevated drift`
+        : 'All models within normal drift range';
+
+    return { snapshots, summary };
+  }
+
+  /**
+   * Helper: generate embeddings for a batch of memories for a specific model
+   */
+  private async generateEmbeddingsForModel(
+    memories: Array<{ id: string; raw: string }>,
+    model: ModelId,
+  ): Promise<number[][]> {
+    const embeddings: number[][] = [];
+    for (const memory of memories) {
+      try {
+        const result = await this.ensembleService.embedAll(memory.raw);
+        const modelEmbed = result.embeddings.find(e => e.model === model);
+        if (modelEmbed) {
+          embeddings.push(modelEmbed.embedding);
+        } else {
+          embeddings.push([]);
+        }
+      } catch {
+        embeddings.push([]);
+      }
+    }
+    return embeddings;
   }
 
   private async processTargetedReembed(

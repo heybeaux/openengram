@@ -114,7 +114,7 @@ Third paragraph with final content.`;
 
     it('should group sentences into paragraphs when no natural breaks', () => {
       // Create a text with many sentences (enough to require splitting)
-      const sentences = [];
+      const sentences: string[] = [];
       for (let i = 1; i <= 20; i++) {
         sentences.push(`This is sentence number ${i} with some more content.`);
       }
