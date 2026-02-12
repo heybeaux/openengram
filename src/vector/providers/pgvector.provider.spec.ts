@@ -119,8 +119,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('SELECT'),
-        expect.stringContaining('[0.1,0.2,0.3]'),
+        '[0.1,0.2,0.3]',
         'user-123',
+        'bge-base',
       );
       expect(result).toEqual([
         { id: 'mem-1', score: 0.95 },
@@ -141,8 +142,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('layer IN'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
         'IDENTITY',
         'PROJECT',
       );
@@ -161,8 +163,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('project_id'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
         'project-456',
       );
     });
@@ -181,8 +184,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('layer IN'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
         'SESSION',
         'project-789',
       );
@@ -195,8 +199,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('LIMIT 10'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
       );
     });
 
@@ -207,8 +212,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('<=>'), // Cosine distance operator
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
       );
     });
 
@@ -219,8 +225,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('deleted_at IS NULL'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
       );
     });
 
@@ -231,8 +238,9 @@ describe('PgVectorProvider', () => {
 
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('embedding IS NOT NULL'),
-        expect.any(String),
+        '[0.1]',
         'user-123',
+        'bge-base',
       );
     });
 
