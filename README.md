@@ -1,481 +1,293 @@
 <p align="center">
+  <img src="docs/assets/engram-logo.png" alt="Engram" width="120" />
   <h1 align="center">Engram</h1>
-  <p align="center"><strong>Memory infrastructure for AI agents.</strong></p>
+  <p align="center"><strong>Memory infrastructure for AI agents that actually works.</strong></p>
   <p align="center">
-    <a href="https://github.com/heybeaux/engram/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
-    <a href="https://github.com/heybeaux/engram/actions"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci.yml?label=tests" alt="Tests"></a>
+    <a href="https://github.com/heybeaux/engram/actions"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci.yml?label=build&style=flat-square" alt="Build"></a>
+    <a href="https://github.com/heybeaux/engram/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
+    <a href="https://github.com/heybeaux/engram/releases"><img src="https://img.shields.io/github/v/release/heybeaux/engram?style=flat-square&label=version" alt="Version"></a>
+    <a href="https://github.com/heybeaux/engram"><img src="https://img.shields.io/github/stars/heybeaux/engram?style=flat-square" alt="Stars"></a>
   </p>
   <p align="center">
-    <strong>Ecosystem:</strong>&nbsp;
     <a href="https://github.com/heybeaux/engram">Core API</a> •
     <a href="https://github.com/heybeaux/engram-dashboard">Dashboard</a> •
-    <a href="https://github.com/heybeaux/engram-embed">Local Embeddings</a>
+    <a href="https://github.com/heybeaux/engram-embed">Local Embeddings</a> •
+    <a href="https://github.com/heybeaux/engram/blob/main/docs/API.md">API Docs</a>
   </p>
 </p>
 
+---
+
 > An **engram** is a hypothetical permanent change in the brain accounting for the existence of memory — a memory trace.
 
-Every AI agent wakes up blank. Engram fixes that.
+## What is Engram?
 
----
+Every AI agent wakes up blank. It doesn't remember your name, your allergies, your preferences, or what you were working on yesterday. Most "memory" solutions bolt vector search onto chat history and call it a day. That's not memory — that's ctrl+F.
 
-## Why Engram?
+Engram is real memory infrastructure. It extracts structured knowledge from conversations, classifies it by type (facts, preferences, constraints, tasks, events), scores it by importance, and consolidates it over time — like how your brain moves short-term memories into long-term storage while you sleep. Safety-critical information (allergies, medications, emergency contacts) is detected automatically and **never forgotten**.
 
-Most "memory" solutions for AI agents are glorified vector search over chat history. Engram is different:
+Built for developers who are tired of agents that can't remember what happened five minutes ago. Engram runs fully local — PostgreSQL for storage, pgvector for search, local Rust embeddings at zero cost — or connects to OpenAI, Anthropic, Ollama, or LM Studio. It's been running in production with 2,300+ memories, 88% recall accuracy, and sub-200ms latency. This isn't a prototype.
 
-- **Type-aware** — Classifies memories as CONSTRAINT, PREFERENCE, FACT, TASK, or EVENT
-- **Safety-critical** — Allergies, medications, and emergencies are never evicted from context
-- **Time-aware** — Understands "yesterday," "last week," "3 hours ago" in recall queries
-- **Scored** — effectiveScore blends decay, novelty, usage, and importance
-- **Consolidating** — Sleep consolidation compresses duplicates into essential facts
-- **Confident** — Per-field confidence scores (0.0-1.0) on every extraction
-- **Flexible** — Bring your own LLM (OpenAI, Anthropic, Ollama, LM Studio)
-- **Local-first** — pgvector for embeddings, no cloud required
+## Key Features
 
-```
-"I'm allergic to peanuts"     → CONSTRAINT (safety-critical, never evicted)
-"I prefer dark mode"          → PREFERENCE (high priority, slow decay)
-"I live in Vancouver"         → FACT (stable, minimal decay)
-"Fix the login bug"           → TASK (fast decay after completion)
-"We discussed auth yesterday" → EVENT (normal decay)
-```
-
-## What's New in v0.5
-
-### Graceful Degradation
-When `engram-embed` is down, memories are saved without embeddings. A background retry runs every 5 minutes and backfills embeddings automatically once the service recovers.
-
-### `/health` Endpoint
-`GET /v1/health` (no auth) returns system health and quality metrics:
-
-```json
-{
-  "status": "healthy | degraded | unhealthy",
-  "timestamp": "2026-02-09T...",
-  "metrics": {
-    "totalMemories": 1539,
-    "extractionRate": 0.94,
-    "whoExtractionRate": 0.87,
-    "entitiesPerMemory": 2.3,
-    "linksPerMemory": 1.1,
-    "memoriesLast24h": 42,
-    "safetyCriticalCount": 8,
-    "consolidatedCount": 156
-  },
-  "issues": []
-}
-```
-
-### Retrieval-Aware Decay
-Memory decay now anchors on `lastRetrievedAt` instead of `createdAt`. Memories you actively use stay relevant longer. Adjusted half-lives: SESSION 30d (was 14d), TASK 7d (was 3d).
-
-### Generate Context Improvements
-- Recent-first categorization with staleness filtering
-- Current project detection from recent memory patterns
-- Better token budget allocation across categories
-
-### Eval Framework
-22 semantic recall scenarios covering temporal queries, safety-critical recall, type classification, and deduplication. Run with `pnpm test:eval`.
-
----
-
-## Quick Start
-
-```bash
-# Clone
-git clone https://github.com/heybeaux/engram
-cd engram
-
-# Install
-pnpm install
-
-# Configure
-cp .env.example .env
-# Edit .env with your database URL and LLM keys
-
-# Database
-pnpm prisma migrate dev
-
-# Run
-pnpm start:dev
-```
-
-Server starts at `http://localhost:3001`. Health check: `GET /v1/health` (no auth required).
-
-### Store a memory
-
-```bash
-curl -X POST http://localhost:3001/v1/memories \
-  -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: your-key" \
-  -H "X-AM-User-ID: beaux" \
-  -d '{"raw": "I prefer dark mode for all applications"}'
-```
-
-Engram automatically:
-- Extracts 5W1H structure (who, what, when, where, why, how)
-- Classifies the memory type (PREFERENCE)
-- Generates an embedding for semantic search
-- Scores importance and detects safety-critical content
-- Assigns field-level confidence scores
-- Links related memories
-
-### Recall memories
-
-```bash
-# Semantic search
-curl -X POST http://localhost:3001/v1/memories/query \
-  -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: your-key" \
-  -H "X-AM-User-ID: beaux" \
-  -d '{"query": "user preferences", "limit": 10}'
-
-# Temporal search — understands "yesterday", "last week", etc.
-curl -X POST http://localhost:3001/v1/memories/query \
-  -d '{"query": "What did we discuss yesterday?", "limit": 10}'
-
-# Load context for system prompt injection
-curl -X POST http://localhost:3001/v1/context \
-  -d '{"maxTokens": 4000}'
-```
-
-### Auto-capture from conversations
-
-```bash
-curl -X POST http://localhost:3001/v1/observe \
-  -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: your-key" \
-  -H "X-AM-User-ID: beaux" \
-  -d '{
-    "turns": [
-      {"role": "user", "content": "I always use TypeScript for new projects"},
-      {"role": "assistant", "content": "Noted — TypeScript it is."},
-      {"role": "user", "content": "Remember: never deploy on Fridays"}
-    ]
-  }'
-```
-
-## Features
-
-### Memory Intelligence v2
-
-Every memory is classified by type and scored for priority:
-
-| Type | Priority | Decay | Example |
-|------|----------|-------|---------|
-| CONSTRAINT | 1 (highest) | None (safety floor 0.6) | "Allergic to penicillin" |
-| PREFERENCE | 2 | Slow (60d half-life) | "Prefers dark mode" |
-| TASK | 2 | Fast (7d half-life) | "Fix the login bug by Friday" |
-| FACT | 3 | Slow (60d half-life) | "Lives in Vancouver" |
-| EVENT | 4 (lowest) | Normal (14d half-life) | "Discussed auth flow" |
-
-### effectiveScore
-
-```
-effectiveScore = max(safetyFloor, (baseScore × decayFactor) + noveltyBoost + usageBoost + pinnedBoost)
-```
-
-- **Decay**: Memories fade over time (configurable per-layer half-life)
-- **Novelty**: New memories get a temporary boost (+0.15, tapers over 7 days)
-- **Usage**: Frequently retrieved memories score higher
-- **Pinned**: User-pinned memories get a permanent boost
-- **Safety floor**: Safety-critical memories never drop below 0.6
-
-### Temporal Recall
-
-Queries with temporal expressions are automatically parsed and time-filtered:
-
-```
-"What happened yesterday?"     → Filters to yesterday, searches "what happened"
-"Show me last week's decisions" → Filters to last 7 days, searches "decisions"
-"What did we discuss 2 hours ago?" → Filters to 2h window
-```
-
-Time is the primary constraint. Semantic similarity is secondary. This matches how human memory works — you jump to the time period first, then search within it.
-
-### Sleep Consolidation
-
-Periodic job that compresses duplicate memories:
-
-1. Clusters similar SESSION memories (0.85 similarity threshold)
-2. Uses LLM to extract the essential "gist" from each cluster
-3. Promotes the canonical memory to IDENTITY layer
-4. Soft-deletes duplicates with audit trail
-
-### Contextual Recall
-
-Automatically surfaces relevant memories when conversation topics shift:
-
-```bash
-curl -X POST http://localhost:3001/v1/recall/contextual \
-  -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: your-key" \
-  -d '{"sessionId": "abc123", "messages": [...]}'
-```
-
-- Detects topic shifts via cosine distance between consecutive messages
-- 30-second cooldown prevents recall flooding
-- Per-session rate limiting for multi-agent environments
-
-### Dream Cycle
-
-A 4-stage memory consolidation pipeline inspired by sleep consolidation in the brain:
-
-```bash
-curl -X POST http://localhost:3001/v1/consolidation/dream-cycle \
-  -H "X-AM-API-Key: your-key" \
-  -d '{"agentId": "clawd-agent-001"}'
-```
-
-1. **Dedup** — Merges duplicate memories (three-tier: auto-merge ≥0.93, reinforce ≥0.85, flag ≥0.78)
-2. **Staleness** — Soft-deletes stale, low-value memories
-3. **Patterns** — Extracts recurring themes into higher-order memories
-4. **Report** — Summarizes all consolidation actions
-
-Protected types (CONSTRAINT, pinned) are never touched. All deletes are soft-deletes.
-
-### Generate Context
-
-Auto-curates your top memories into a ready-to-inject `MEMORY_CONTEXT.md`:
-
-```bash
-curl -X POST http://localhost:3001/v1/consolidation/generate-context \
-  -H "X-AM-API-Key: your-key" \
-  -d '{"agentId": "clawd-agent-001", "maxTokens": 1500}'
-```
-
-- Groups memories by category (Identity, Projects, Recent Context)
-- Respects a configurable token budget
-- Designed as Dream Cycle Stage 5
-
-### Safety-Critical Detection
-
-16 patterns detect safety-relevant information:
-
-Allergies, medications, diabetes, seizures, asthma, emergency contacts, blood type, DNR directives, life-threatening conditions, and more.
-
-Safety-critical memories:
-- Get a score floor of 0.6 (never fade below this)
-- Are never evicted from context, regardless of token budget
-- Display with a red ring and 🏥 badge in the graph visualization
-
-### Field-Level Confidence
-
-Every extraction field carries a confidence score:
-
-| Score | Meaning | Example |
-|-------|---------|---------|
-| 1.0 | Explicitly stated | "I live in Vancouver" → where: 1.0 |
-| 0.7-0.9 | Strongly implied | "Working from Pacific timezone" → where: 0.8 |
-| 0.4-0.6 | Inferred | "Mentioned a meeting at Google" → where: 0.5 |
-| 0.1-0.3 | Guessed | Weak signal, heuristic extraction |
+- 🧠 **Smart Extraction** — Auto-extracts 5W1H structure, types, importance, and confidence scores from raw text
+- 🔒 **Safety-Critical Detection** — 16 patterns catch allergies, medications, DNR directives — never evicted from context
+- 🎯 **Multi-Model Ensemble** — 4 embedding models (bge-base, minilm, nomic, gte-base) with RRF fusion for better recall
+- 🌙 **Dream Cycle** — 4-stage consolidation pipeline: dedup → staleness → patterns → report (inspired by sleep neuroscience)
+- 🏊 **Memory Pools** — Scoped, shared memory spaces for multi-agent collaboration with grant-based access control
+- 🌫️ **Fog Index** — 6-component cognitive health score that tells you how "clear" your agent's memory is
+- ⏰ **Temporal Recall** — Understands "yesterday," "last week," "3 hours ago" — time-first, then semantic
+- 🦀 **Local Embeddings** — Rust-powered [engram-embed](https://github.com/heybeaux/engram-embed) generates 768-dim vectors in ~10ms, $0 cost
+- 📊 **Dashboard** — Next.js UI with memory browser, D3 graph visualization, ensemble status, and health monitoring
+- 🔌 **Bring Your Own LLM** — OpenAI, Anthropic, Ollama, LM Studio — swap providers with one env var
+- 📈 **Eval Framework** — 25 recall scenarios, latency benchmarks, regression detection built in
+- 🛡️ **Production-Ready** — Rate limiting, advisory locks, daily backups, Swagger docs (120+ endpoints)
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────────────────────┐     ┌─────────────┐
-│   Client    │────▶│         Engram Server         │────▶│  PostgreSQL │
-│  (Agent /   │     │  ┌──────────┐ ┌────────────┐ │     │  + pgvector │
-│   SDK)      │     │  │Extraction│ │  Temporal   │ │     └─────────────┘
-└─────────────┘     │  │ Pipeline │ │   Parser    │ │
-                    │  └──────────┘ └────────────┘ │     ┌─────────────┐
-                    │  ┌──────────┐ ┌────────────┐ │     │  LLM APIs   │
-                    │  │ Scoring  │ │   Safety    │ │────▶│  (OpenAI /  │
-                    │  │ Engine   │ │  Detector   │ │     │  Anthropic /│
-                    │  └──────────┘ └────────────┘ │     │  Ollama)    │
-                    │  ┌──────────┐ ┌────────────┐ │     └─────────────┘
-                    │  │Consolid- │ │   Graph     │ │
-                    │  │ation     │ │   Viz (D3)  │ │     ┌─────────────┐
-                    │  └──────────┘ └────────────┘ │     │  Pinecone   │
-                    └──────────────────────────────┘     │  (optional) │
-                                                         └─────────────┘
+                    ┌──────────────────────────────────────────┐
+                    │            Engram API (NestJS)           │
+  ┌──────────┐     │                port 3001                 │     ┌─────────────────┐
+  │  Your AI │────▶│  ┌────────────┐  ┌───────────────────┐  │────▶│   PostgreSQL     │
+  │  Agent   │     │  │ Extraction │  │  Scoring & Decay   │  │     │   + pgvector     │
+  │          │◀────│  │  Pipeline  │  │  Engine            │  │     │   port 5432      │
+  └──────────┘     │  └────────────┘  └───────────────────┘  │     └─────────────────┘
+                    │  ┌────────────┐  ┌───────────────────┐  │
+                    │  │  Temporal  │  │  Safety-Critical   │  │     ┌─────────────────┐
+                    │  │  Parser    │  │  Detector          │  │────▶│  engram-embed    │
+                    │  └────────────┘  └───────────────────┘  │     │  (Rust/Candle)   │
+                    │  ┌────────────┐  ┌───────────────────┐  │     │  port 8080       │
+                    │  │  Dream     │  │  Memory Pools &    │  │     └─────────────────┘
+                    │  │  Cycle     │  │  Multi-Agent       │  │
+                    │  └────────────┘  └───────────────────┘  │     ┌─────────────────┐
+                    └──────────────────────────────────────────┘     │  LLM Provider   │
+                                   │                           ────▶│  (OpenAI/Claude/ │
+                    ┌──────────────────────────────────────────┐     │  Ollama/LMStudio)│
+                    │          Dashboard (Next.js)             │     └─────────────────┘
+                    │              port 3000                    │
+                    └──────────────────────────────────────────┘
 ```
 
-### LLM Providers
+## Quick Start
 
-| Provider | Chat/Extraction | Embeddings | Local? |
-|----------|----------------|------------|--------|
-| OpenAI | ✅ | ✅ | No |
-| Anthropic | ✅ | ❌ (use OpenAI) | No |
-| Ollama | ✅ | ✅ | Yes |
-| LM Studio | ✅ | ✅ | Yes |
+### Docker Compose (recommended)
 
-### Vector Providers
+The fastest way to get everything running:
 
-| Provider | Local? | Notes |
-|----------|--------|-------|
-| pgvector | Yes | Default. Runs in your PostgreSQL. |
-| Pinecone | No | Optional cloud vector store. |
+```bash
+git clone https://github.com/heybeaux/engram.git
+cd engram
 
-## API Reference
+# Configure
+cp .env.example .env
+# Edit .env — at minimum set POSTGRES_PASSWORD and OPENAI_API_KEY (or use Ollama)
 
-### Core Memory Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/v1/memories` | POST | ✅ | Create a memory |
-| `/v1/memories/:id` | PATCH | ✅ | Update a memory |
-| `/v1/memories/:id` | DELETE | ✅ | Soft-delete a memory |
-| `/v1/memories/query` | POST | ✅ | Semantic + temporal search |
-| `/v1/memories/graph` | GET | ✅ | Graph data for visualization |
-| `/v1/context` | POST | ✅ | Load context for system prompt |
-| `/v1/observe` | POST | ✅ | Auto-capture from conversation |
-| `/v1/consolidate` | POST | ✅ | Trigger sleep consolidation |
-| `/v1/recall/contextual` | POST | ✅ | Contextual recall (topic shift detection) |
-| `/v1/consolidation/dream-cycle` | POST | ✅ | Run 4-stage Dream Cycle consolidation |
-| `/v1/consolidation/generate-context` | POST | ✅ | Generate MEMORY_CONTEXT.md from top memories |
-| `/v1/health` | GET | ❌ | System health + metrics |
-
-### Multi-Model Ensemble Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/ensemble/status` | GET | ✅ | Get ensemble config and status |
-| `/ensemble/query` | POST | ✅ | Multi-model RRF fusion query |
-| `/ensemble/upsert` | POST | ✅ | Upsert with multi-model embeddings |
-| `/ensemble/compare` | POST | ✅ | Compare ensemble vs single-model |
-| `/ensemble/embed` | POST | ✅ | Generate embeddings for text |
-
-### Re-embedding Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/v1/reembedding/enabled` | GET | ✅ | Check if re-embedding is enabled |
-| `/v1/reembedding/status` | GET | ✅ | Get current job status |
-| `/v1/reembedding/status/:jobId` | GET | ✅ | Get specific job status |
-| `/v1/reembedding/jobs` | GET | ✅ | List all re-embedding jobs |
-| `/v1/reembedding/run` | POST | ✅ | Trigger batch re-embedding |
-| `/v1/reembedding/preview/:memoryId` | GET | ✅ | Preview enrichment for memory |
-| `/v1/reembedding/memory/:memoryId` | POST | ✅ | Re-embed a single memory |
-
-### Dashboard Integration Endpoints (Proposed)
-
-These endpoints would enhance the dashboard's multi-model visibility:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/ensemble/models` | GET | List all registered models with status |
-| `/ensemble/memories/:id/embeddings` | GET | Per-memory embedding status per model |
-| `/ensemble/coverage` | GET | Embedding coverage statistics |
-| `/ensemble/ab-results` | GET | A/B test results for model comparison |
-
-Full API documentation available in the [dashboard](https://github.com/heybeaux/engram-dashboard).
-
-## Memory Layers
-
-| Layer | Purpose | Decay Half-Life | Example |
-|-------|---------|-----------------|---------|
-| IDENTITY | Core user facts | ∞ (no decay) | Name, preferences, allergies |
-| PROJECT | Work context | 60 days | Current projects, teammates |
-| SESSION | Conversation context | 30 days | Recent discussions |
-| TASK | Immediate work | 7 days | Active todos |
-
-> **v0.5:** Decay is now retrieval-aware — the decay clock resets from `lastRetrievedAt` instead of `createdAt`, so memories you actually use stay fresh longer.
-
-## Dashboard
-
-Engram ships with a web dashboard (separate repo: [engram-dashboard](https://github.com/heybeaux/engram-dashboard)):
-
-- **Memory browser** — Search, filter, edit memories
-- **Graph visualization** — D3 force-directed graph with effectiveScore sizing and safety-critical badges
-- **Documentation** — Built-in docs with quickstart, architecture, and API reference
-- **Health monitoring** — System metrics and issue detection
-
-## Integrations
-
-### OpenClaw
-
-Engram integrates with [OpenClaw](https://github.com/openclaw/openclaw) via workspace hooks for automatic memory capture from conversations.
-
-See [OpenClaw Integration Guide](./docs/OPENCLAW_HOOK_INTEGRATION.md).
-
-## Self-Hosting
-
-### Requirements
-
-- Node.js 20+
-- PostgreSQL 15+ with pgvector extension
-- An LLM provider (OpenAI API key, or local Ollama/LM Studio)
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  engram:
-    build: .
-    ports:
-      - "3001:3001"
-    environment:
-      DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
-      LLM_PROVIDER: openai
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    depends_on:
-      - postgres
-  
-  postgres:
-    image: pgvector/pgvector:pg16
-    environment:
-      POSTGRES_USER: engram
-      POSTGRES_PASSWORD: engram
-      POSTGRES_DB: engram
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-volumes:
-  pgdata:
+# Launch everything: API + PostgreSQL + engram-embed + Dashboard
+docker compose up -d
 ```
+
+That's it. Engram API at `localhost:3001`, Dashboard at `localhost:3000`.
+
+### Manual Setup
+
+```bash
+git clone https://github.com/heybeaux/engram.git
+cd engram
+
+# Install dependencies
+pnpm install
+
+# Configure
+cp .env.example .env
+# Edit .env with your DATABASE_URL and LLM provider keys
+
+# Run database migrations
+pnpm prisma migrate deploy
+
+# Start the server
+pnpm start:dev
+```
+
+Server starts at `http://localhost:3001`. Verify with `curl http://localhost:3001/v1/health`.
 
 ### Fully Local (No Cloud APIs)
 
 ```bash
 # Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull models
 ollama pull llama3.2
 ollama pull nomic-embed-text
 
-# Configure .env
+# In your .env:
 LLM_PROVIDER=ollama
 LLM_MODEL=llama3.2
-EMBEDDING_PROVIDER=ollama
+EMBEDDING_PROVIDER=local        # uses engram-embed (Rust, free)
 VECTOR_PROVIDER=pgvector
 ```
 
 Zero data leaves your machine.
 
+### Store Your First Memory
+
+```bash
+curl -X POST http://localhost:3001/v1/memories \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -H "X-AM-User-ID: demo" \
+  -d '{"raw": "I'\''m allergic to peanuts and I prefer dark mode"}'
+```
+
+Engram automatically extracts type (CONSTRAINT + PREFERENCE), scores importance, flags safety-critical content, generates embeddings, and links related memories.
+
+### Recall
+
+```bash
+# Semantic search
+curl -X POST http://localhost:3001/v1/memories/query \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-key" \
+  -H "X-AM-User-ID: demo" \
+  -d '{"query": "any health concerns?", "limit": 5}'
+
+# Temporal search
+curl -X POST http://localhost:3001/v1/memories/query \
+  -d '{"query": "what did we discuss yesterday?", "limit": 10}'
+
+# Generate context for system prompt injection
+curl -X POST http://localhost:3001/v1/context \
+  -d '{"maxTokens": 4000}'
+```
+
+## Configuration
+
+Copy `.env.example` to `.env` — it's fully documented. Key variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | *required* |
+| `LLM_PROVIDER` | Chat/extraction: `openai`, `anthropic`, `ollama`, `lmstudio` | `openai` |
+| `EMBEDDING_PROVIDER` | Embeddings: `openai`, `ollama`, `local` | `openai` |
+| `VECTOR_PROVIDER` | Vector store: `pgvector`, `pinecone` | `pgvector` |
+| `ENSEMBLE_ENABLED` | Multi-model ensemble search | `true` |
+| `ENSEMBLE_MODELS` | Comma-separated model list | `bge-base,minilm,nomic,gte-base` |
+| `LOCAL_EMBED_URL` | engram-embed server URL | `http://localhost:8080` |
+| `PORT` | API server port | `3001` |
+
+See [`.env.example`](.env.example) for the full list.
+
+## API Overview
+
+Engram exposes 120+ endpoints. Here are the ones you'll use most:
+
+### Memories
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/memories` | Store a memory |
+| `PATCH` | `/v1/memories/:id` | Update a memory |
+| `DELETE` | `/v1/memories/:id` | Soft-delete a memory |
+| `POST` | `/v1/memories/query` | Semantic + temporal search |
+| `POST` | `/v1/observe` | Auto-capture from conversation turns |
+| `POST` | `/v1/context` | Generate context for system prompt |
+
+### Search & Recall
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/ensemble/query` | Multi-model RRF fusion search |
+| `POST` | `/v1/recall/contextual` | Topic-shift-aware contextual recall |
+| `GET` | `/v1/memories/graph` | Graph data for visualization |
+
+### Pools & Multi-Agent
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/pools` | Create a memory pool |
+| `GET` | `/v1/pools` | List pools |
+| `POST` | `/v1/pools/:id/grant` | Grant agent access to pool |
+
+### Consolidation
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/consolidation/dream-cycle` | Run 4-stage Dream Cycle |
+| `POST` | `/v1/consolidation/generate-context` | Generate MEMORY_CONTEXT.md |
+
+### Monitoring
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/health` | System health + metrics (no auth) |
+| `GET` | `/v1/fog-index` | Cognitive health score |
+| `GET` | `/v1/monitoring/status` | Detailed monitoring dashboard |
+| `GET` | `/v1/monitoring/alerts` | Active alerts |
+| `GET` | `/v1/eval/*` | Eval framework endpoints |
+
+Full Swagger docs available at `/v1/docs` when the server is running.
+
+## Dashboard
+
+<!-- TODO: Add screenshot -->
+<!-- ![Engram Dashboard](docs/assets/dashboard-screenshot.png) -->
+
+The [Engram Dashboard](https://github.com/heybeaux/engram-dashboard) is a Next.js app that gives you full visibility into your agent's memory:
+
+- **Memory Browser** — Search, filter, inspect, and edit memories with full metadata
+- **Graph Visualization** — Interactive D3 force-directed graph showing memory relationships, with effectiveScore sizing and safety-critical 🏥 badges
+- **Ensemble Status** — See which embedding models are active, coverage stats, and A/B comparisons
+- **Fog Index** — Real-time cognitive health dashboard — is your agent's memory sharp or getting foggy?
+- **Pools & Sessions** — Manage multi-agent memory pools, view session contexts, memory attribution
+- **Merge Candidates** — Review and bulk approve/reject/skip duplicate memory clusters
+- **Health & Monitoring** — System metrics, alerts, Dream Cycle status
+
+Runs on port 3000. Included in `docker compose up` or run separately from [engram-dashboard](https://github.com/heybeaux/engram-dashboard).
+
+## Integration
+
+### OpenClaw
+
+Engram integrates with [OpenClaw](https://github.com/openclaw/openclaw) via workspace hooks for automatic memory capture:
+
+- **`agent:bootstrap`** — Loads MEMORY_CONTEXT.md into the agent on startup
+- **`message:received`** — Triggers contextual recall on topic shifts, injecting relevant memories
+- **`message:sent`** — Captures agent observations and new knowledge
+
+See the [OpenClaw Integration Guide](./docs/OPENCLAW_HOOK_INTEGRATION.md) for setup.
+
+### Other Frameworks
+
+Engram is a REST API — any agent framework can use it. A plugin system with adapters for LangChain, CrewAI, AutoGen, and others is coming in v2.0.
+
 ## Contributing
 
-We'd love your help. See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We'd love your help. See [CONTRIBUTING.md](./CONTRIBUTING.md) for dev environment setup and PR guidelines.
 
 **High-impact areas:**
 - Python SDK
 - Integration guides (LangChain, AutoGen, CrewAI)
-- New LLM/vector providers
-- Extraction improvements
-- Documentation
+- New LLM/embedding providers
+- Extraction quality improvements
+- Documentation and examples
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md) for current priorities and future plans.
+Engram is at **v0.9** heading to v1.0. Here's what's coming:
 
-**Coming soon:**
-- Webhook events (memory created, contradiction detected)
-- Dashboard authentication
-- Analytics and usage trends
-- Python SDK
-- Engram Cloud (managed hosting)
+**v1.0** (Feb 2026) — Open source launch, Docker one-click, CI, benchmarks, security audit
+
+**v2.0 and beyond:**
+- 🔌 **Plugin System** — Swap embedding providers, hook into any AI framework, pluggable storage backends
+- 🕐 **Temporal Reasoning** — "What changed since last Tuesday?" with contradiction detection
+- 🕸️ **Memory Graphs** — Typed relationship edges, graph traversal, causal chains
+- 🌐 **Federated Memory** — CRDT-based sync between instances
+- 🎤 **Voice & Multimodal** — Whisper transcription → auto-observe, image memories
+- 👥 **Team Memory** — Multi-user pools with role-based access control
+
+See [ROADMAP.md](./ROADMAP.md) for the full plan.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](./LICENSE).
+[Apache License 2.0](./LICENSE)
 
 ## Authors
 
-Built by [Beaux Walton](https://heybeaux.dev) and Rook ♜ in Powell River, BC.
+Built by [Beaux Walton](https://heybeaux.dev) and [Rook](https://github.com/heybeaux/engram) ♜ in Powell River, BC.
 
 ---
 
