@@ -1,6 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { FogIndexService, FogIndexResult } from './fog-index.service';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
+@UseGuards(ApiKeyGuard)
 @Controller('v1/fog-index')
 export class FogIndexController {
   constructor(private fogIndex: FogIndexService) {}

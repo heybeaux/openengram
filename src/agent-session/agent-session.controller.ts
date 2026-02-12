@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AgentSessionService } from './agent-session.service';
@@ -13,8 +14,10 @@ import {
   CreateAgentSessionDto,
   UpdateAgentSessionDto,
 } from './dto/agent-session.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @ApiTags('agent-sessions')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/agent-sessions')
 export class AgentSessionController {
   constructor(private readonly service: AgentSessionService) {}

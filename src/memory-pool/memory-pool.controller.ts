@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MemoryPoolService } from './memory-pool.service';
@@ -14,8 +15,10 @@ import {
   GrantPoolAccessDto,
   AddMemoryToPoolDto,
 } from './dto/memory-pool.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @ApiTags('memory-pools')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/pools')
 export class MemoryPoolController {
   constructor(private readonly service: MemoryPoolService) {}

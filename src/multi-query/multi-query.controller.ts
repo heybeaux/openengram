@@ -6,6 +6,7 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { MultiQueryService } from './multi-query.service';
@@ -15,6 +16,7 @@ import {
   QueryExpansionResultDto,
   ExpansionStrategy,
 } from './dto/multi-query.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 /**
  * Multi-Query Controller
@@ -27,6 +29,7 @@ import {
  * - POST /v1/multi-query/expand - Preview query expansion
  */
 @ApiTags('multi-query')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/multi-query')
 export class MultiQueryController {
   constructor(

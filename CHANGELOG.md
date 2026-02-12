@@ -2,6 +2,62 @@
 
 All notable changes to the Engram project will be documented in this file.
 
+## [1.0.0] — 2026-02-12
+
+### 🎉 First Public Release
+
+Engram is production-ready agent memory. 2,700+ memories, 88% recall accuracy, Fog Index 92.5 Crystal.
+
+### Added (since 0.5.0)
+
+#### v0.6 — Memory Quality
+- Automatic memory correction — facts update/supersede old memories
+- Memory clustering — group related memories for richer context
+- Conversation summarization — extract key facts, not every turn
+- Embedding drift monitoring — track quality over time
+- Dashboard: MergeCandidate review UI (bulk approve/reject/skip)
+- Multi-agent sessions (AgentSession model, pools, grants)
+- Dashboard: Sessions page, Pools page, Memory attribution tab
+
+#### v0.7 — Attribution & Access
+- Memory attribution — track which agent created/used memories
+- Dashboard rebuilt on 0.0.0.0:3000 for LAN access
+- Full re-embed after completion
+
+#### v0.8 — Production Hardening
+- Dream Cycle mutex — PostgreSQL advisory lock prevents concurrent runs
+- Fog Index — 6-component cognitive health score with Crystal→Dense Fog spectrum
+- Route cleanup — `/v1/` prefix on all controllers, deduplicated endpoints
+- Backup strategy — daily 2am backups via LaunchAgent, restore script
+- Migration safety — `safe-migrate.sh` blocks `prisma migrate dev` on production
+- Rate limiting — token bucket per API key (100/min global, 30/min observe, 60/min query)
+- Monitoring & alerts — embedding failures, memory anomalies, 5xx, Dream Cycle health
+- API documentation — Swagger UI at `/v1/docs`, 116 endpoints, 8 controller groups
+- Test fixes — 4 spec files fixed (102 tests passing)
+
+#### v0.9 — Multi-Agent Intelligence
+- Pool APIs — Full CRUD at /v1/pools, grant management, auto-pool creation
+- Per-session context budget — contextTokenBudget on AgentSession, main=4000/sub-agent=2000
+- OpenClaw hook integration — sub-agent bootstrap, message capture, memory promotion
+- Generate-context tuning — staleness detection, section prioritization, embedding dedup
+- Eval module — eval_runs table, 25 recall + 30 latency fixtures, regression detection
+- Multi-query expansion — automatic query reformulation for better recall
+- Prefetch cache — topic-based predictive memory loading
+- Scoped context — per-conversation memory windows
+
+#### v1.0 — Open Source Prep
+- Apache 2.0 license
+- README rewrite with architecture diagram and 5-minute quickstart
+- CONTRIBUTING.md with dev environment setup and PR process
+- GitHub Actions CI (lint, build, test with pgvector service container)
+- Docker Compose — one-command setup (Engram + PostgreSQL + engram-embed)
+- `.env.example` with all 28 required vars documented
+- Hardcoded values removed — all config via environment variables
+- Health endpoint consolidation (`/health` → 301 redirect to `/v1/health`)
+- 3 broken test suites fixed (pgvector, analytics, backfill)
+
+---
+
 ## [0.5.0] — 2026-02-09
 
 ### Added

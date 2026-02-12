@@ -15,6 +15,7 @@ import {
   HttpStatus,
   BadRequestException,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { IsOptional, IsArray, IsString, IsIn } from 'class-validator';
@@ -32,6 +33,7 @@ import {
   MemoryEmbeddingStatus,
   ABTestResult,
 } from './ensemble.types';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 // ============================================================================
 // DTOs
@@ -97,6 +99,7 @@ class ReembedDto {
 }
 
 @ApiTags('ensemble')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/ensemble')
 export class EnsembleController {
   constructor(

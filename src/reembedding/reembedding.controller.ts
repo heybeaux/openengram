@@ -7,6 +7,7 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ReembeddingService } from './reembedding.service';
@@ -15,6 +16,7 @@ import {
   ReembeddingJobDto,
   EnrichedMemoryPreviewDto,
 } from './dto/reembedding.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 /**
  * Re-embedding Controller
@@ -30,6 +32,7 @@ import {
  * - POST /v1/reembedding/memory/:memoryId - Re-embed a single memory
  */
 @ApiTags('reembedding')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/reembedding')
 export class ReembeddingController {
   constructor(private reembeddingService: ReembeddingService) {}

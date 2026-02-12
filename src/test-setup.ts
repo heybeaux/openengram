@@ -1,0 +1,32 @@
+/**
+ * Global Jest setup: auto-close NestJS TestingModules after each test suite.
+ * This prevents open handles from unclosed modules (Prisma connections, intervals, etc.)
+ */
+import { Test, TestingModule } from '@nestjs/testing';
+
+const originalCreateTestingModule = Test.createTestingModule.bind(Test);
+const activeModules: TestingModule[] = [];
+
+Test.createTestingModule = function (...args: Parameters<typeof Test.createTestingModule>) {
+  const builder = originalCreateTestingModule(...args);
+  const originalCompile = builder.compile.bind(builder);
+
+  builder.compile = async function (...compileArgs: Parameters<typeof builder.compile>) {
+    const module = await originalCompile(...compileArgs);
+    activeModules.push(module);
+    return module;
+  };
+
+  return builder;
+};
+
+afterEach(async () => {
+  while (activeModules.length > 0) {
+    const module = activeModules.pop();
+    try {
+      await module?.close();
+    } catch {
+      // Module may already be closed
+    }
+  }
+});

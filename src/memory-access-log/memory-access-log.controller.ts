@@ -1,6 +1,8 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { MemoryAccessLogService } from './memory-access-log.service';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
+@UseGuards(ApiKeyGuard)
 @Controller('v1')
 export class MemoryAccessLogController {
   constructor(private readonly accessLogService: MemoryAccessLogService) {}

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { GraphService } from './services/graph.service';
@@ -27,6 +28,7 @@ import {
   ListRelationshipsDto,
   TraverseGraphDto,
 } from './dto/relationship.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 /**
  * GraphController - REST API for Semantic Memory Graphs
@@ -39,6 +41,7 @@ import {
  * - Graph statistics
  */
 @ApiTags('Graph')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/graph')
 export class GraphController {
   constructor(

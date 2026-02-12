@@ -9,6 +9,7 @@ import {
   HttpException,
   HttpStatus,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -38,6 +39,7 @@ import {
   SimilarMemoryDto,
   MergeEventDto,
 } from './dto/deduplication.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 /**
  * Deduplication Controller
@@ -49,6 +51,7 @@ import {
  * - Configuration and statistics
  */
 @ApiTags('deduplication')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/dedup')
 export class DeduplicationController {
   constructor(

@@ -1,4 +1,4 @@
-import { Controller, Post, Query, Body, Get } from '@nestjs/common';
+import { Controller, Post, Query, Body, Get, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   DreamCycleService,
@@ -11,8 +11,10 @@ import type {
   GenerateContextResult,
 } from './generate-context.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @ApiTags('Consolidation')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/consolidation')
 export class ConsolidationController {
   constructor(

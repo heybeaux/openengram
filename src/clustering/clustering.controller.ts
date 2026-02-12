@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import type {
   ClusteringRunOptions,
@@ -14,7 +15,9 @@ import type {
   ClusterDetail,
 } from './clustering.service';
 import { ClusteringService } from './clustering.service';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
+@UseGuards(ApiKeyGuard)
 @Controller('v1/clustering')
 export class ClusteringController {
   constructor(private clusteringService: ClusteringService) {}

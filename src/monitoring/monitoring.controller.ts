@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   MonitoringService,
@@ -6,8 +6,10 @@ import {
   MonitoringAlert,
 } from './monitoring.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @ApiTags('Monitoring')
+@UseGuards(ApiKeyGuard)
 @Controller('v1/monitoring')
 @SkipRateLimit()
 export class MonitoringController {
