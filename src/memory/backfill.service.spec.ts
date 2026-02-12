@@ -123,7 +123,16 @@ describe('BackfillService', () => {
 
   describe('backfillUserIdentity', () => {
     it('should replace user_xxx patterns with actual name', async () => {
-      prisma.memory.findMany = jest.fn().mockResolvedValue([mockMemories[0]]);
+      const memoryWithUserPattern = {
+        ...mockMemories[0],
+        raw: 'user_123 prefers dark mode for all applications',
+        extraction: {
+          ...mockMemories[0].extraction,
+          who: 'user_123',
+          what: 'user_123 prefers dark mode for all applications',
+        },
+      };
+      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithUserPattern]);
       prisma.memory.update = jest.fn().mockResolvedValue({});
       prisma.memoryExtraction.update = jest.fn().mockResolvedValue({});
 
@@ -187,7 +196,10 @@ describe('BackfillService', () => {
     });
 
     it('should handle dry run mode', async () => {
-      prisma.memory.findMany = jest.fn().mockResolvedValue([mockMemories[0]]);
+      const memoryWithUserPattern = {
+        ...mockMemories[1],
+      };
+      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithUserPattern]);
 
       const result = await service.backfillUserIdentity('user-123', 'Beaux', {
         dryRun: true,
@@ -229,14 +241,14 @@ describe('BackfillService', () => {
       expect(prisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'mem-1' },
         data: {
-          raw: 'Beaux said Beaux prefers dark mode. Beaux confirmed this.',
+          raw: 'beaux said Beaux prefers dark mode. Beaux confirmed this.',
         },
       });
     });
 
     it('should handle memories without extraction', async () => {
       const memoryWithoutExtraction = {
-        ...mockMemories[0],
+        ...mockMemories[1],
         extraction: null,
       };
 
