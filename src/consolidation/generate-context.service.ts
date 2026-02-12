@@ -8,6 +8,8 @@ export interface GenerateContextOptions {
   maxTokens?: number;
   writePath?: string;
   dryRun?: boolean;
+  includeStale?: boolean;
+  tokenBudget?: number;
 }
 
 export interface GenerateContextResult {
@@ -16,12 +18,19 @@ export interface GenerateContextResult {
   memoriesIncluded: number;
   memoriesTotal: number;
   memoriesFiltered: number;
+  memoriesStale: number;
+  memoriesDeduped: number;
   categories: {
     userIdentity: number;
     currentProject: number;
     activeProjects: number;
     keyLessons: number;
     recentContext: number;
+  };
+  budgetAllocation: {
+    critical: number;
+    relevant: number;
+    background: number;
   };
   writtenTo: string | null;
   latencyMs: number;
@@ -34,6 +43,8 @@ type CategoryKey =
   | 'keyLessons'
   | 'recentContext';
 
+type PriorityTier = 'critical' | 'relevant' | 'background';
+
 interface CategorizedMemory {
   id: string;
   raw: string;
@@ -43,8 +54,11 @@ interface CategorizedMemory {
   layer: string | null;
   memoryType: string | null;
   category: CategoryKey;
+  tier: PriorityTier;
   clusterId: string | null;
 }
+
+const STALENESS_DAYS = 14;
 
 @Injectable()
 export class GenerateContextService {
@@ -56,11 +70,15 @@ export class GenerateContextService {
     options: GenerateContextOptions,
   ): Promise<GenerateContextResult> {
     const startTime = Date.now();
-    const maxTokens = options.maxTokens ?? 2000;
+    const maxTokens = options.tokenBudget ?? options.maxTokens ?? 4000;
     const dryRun = options.dryRun ?? false;
+    const includeStale = options.includeStale ?? false;
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stalenessThreshold = new Date(
+      Date.now() - STALENESS_DAYS * 24 * 60 * 60 * 1000,
+    );
 
     // Query all active memories for this agent
     const memories = await this.prisma.memory.findMany({
@@ -87,7 +105,7 @@ export class GenerateContextService {
       },
     });
 
-    // Fetch cluster assignments via raw SQL (clusterId may not be in Prisma client yet)
+    // Fetch cluster assignments via raw SQL
     const memoryClusterMap = new Map<string, string>();
     const clusterLabelMap = new Map<string, string>();
     try {
@@ -121,21 +139,69 @@ export class GenerateContextService {
 
     const totalMemories = memories.length;
 
-    // === Task 1: Pre-filter stale/superseded memories ===
+    // === Pre-filter stale/superseded memories ===
     const filtered = memories.filter((m) => {
       if (m.effectiveScore < 0.3) return false;
       if (m.supersededById != null) return false;
       if (m.consolidatedInto != null) return false;
-      if (m.archivedReason != null) return false; // already excluded by query, but belt-and-suspenders
+      if (m.archivedReason != null) return false;
       return true;
     });
     const memoriesFiltered = totalMemories - filtered.length;
+
+    // === 4.1 Staleness Detection ===
+    // Find memories older than STALENESS_DAYS with no access in memory_access_logs
+    let staleMemoryIds = new Set<string>();
+    let memoriesStale = 0;
+    if (!includeStale) {
+      const oldMemoryIds = filtered
+        .filter((m) => m.createdAt < stalenessThreshold)
+        .map((m) => m.id);
+
+      if (oldMemoryIds.length > 0) {
+        try {
+          // Find which of these old memories have been accessed in the last STALENESS_DAYS
+          const accessedRows = await this.prisma.$queryRawUnsafe<
+            Array<{ memory_id: string }>
+          >(
+            `SELECT DISTINCT memory_id FROM memory_access_logs
+             WHERE memory_id = ANY($1::text[])
+             AND created_at >= $2`,
+            oldMemoryIds,
+            stalenessThreshold,
+          );
+          const accessedIds = new Set(accessedRows.map((r) => r.memory_id));
+
+          // Stale = old AND not accessed recently
+          for (const id of oldMemoryIds) {
+            if (!accessedIds.has(id)) {
+              staleMemoryIds.add(id);
+            }
+          }
+          memoriesStale = staleMemoryIds.size;
+          this.logger.log(
+            `Staleness: ${memoriesStale} memories marked stale (>${STALENESS_DAYS} days, no access)`,
+          );
+        } catch {
+          // memory_access_logs may not exist — skip staleness detection
+          this.logger.warn(
+            'Could not query memory_access_logs for staleness detection',
+          );
+        }
+      }
+    }
+
+    // Apply staleness filter
+    const nonStale = includeStale
+      ? filtered
+      : filtered.filter((m) => !staleMemoryIds.has(m.id));
+
     this.logger.log(
-      `Pre-filter: excluded ${memoriesFiltered} stale/superseded memories`,
+      `Pre-filter: excluded ${memoriesFiltered} low-score/superseded, ${memoriesStale} stale`,
     );
 
-    // === Task 5: Detect current project from last 24h high-score PROJECT memories ===
-    const recentProjectMemories = filtered.filter(
+    // === Detect current project from last 24h high-score PROJECT memories ===
+    const recentProjectMemories = nonStale.filter(
       (m) =>
         m.layer === 'PROJECT' &&
         m.createdAt >= oneDayAgo &&
@@ -143,9 +209,7 @@ export class GenerateContextService {
     );
     const projectCounts = new Map<string, number>();
     for (const m of recentProjectMemories) {
-      // Extract project name from raw text (first significant noun phrase or keyword)
       const text = m.raw.toLowerCase();
-      // Simple heuristic: look for known project patterns
       const projectPatterns = text.match(
         /(?:working on|building|project[:\s]+|developing)\s+([a-z][\w\s-]+)/i,
       );
@@ -161,24 +225,28 @@ export class GenerateContextService {
       )[0][0];
     }
 
-    // === Task 2: Recent-first categorization ===
-    // FIRST: select recent memories (last 7 days) for recentContext bucket
-    const recentMemories: typeof filtered = [];
-    const remainingMemories: typeof filtered = [];
+    // === 4.2 Section Prioritization with Token Budgets ===
+    // Critical (40%): User identity, active project facts, key lessons
+    // Relevant (40%): Recent context, current project-specific
+    // Background (20%): Cross-project, older memories
+    const criticalBudget = Math.floor(maxTokens * 0.4);
+    const relevantBudget = Math.floor(maxTokens * 0.4);
+    const backgroundBudget = Math.floor(maxTokens * 0.2);
 
-    for (const m of filtered) {
+    // Categorize memories with tier assignment
+    const recentMemories: typeof nonStale = [];
+    const remainingMemories: typeof nonStale = [];
+
+    for (const m of nonStale) {
       if (m.createdAt >= sevenDaysAgo) {
         recentMemories.push(m);
       } else {
         remainingMemories.push(m);
       }
     }
-    // recentMemories already sorted by effectiveScore desc from query
 
-    // THEN: categorize remaining memories by type
     const categorized: CategorizedMemory[] = [];
 
-    // Mark recent memories for recentContext bucket
     for (const m of recentMemories) {
       categorized.push({
         id: m.id,
@@ -189,13 +257,14 @@ export class GenerateContextService {
         layer: m.layer,
         memoryType: m.memoryType,
         category: 'recentContext',
+        tier: 'relevant',
         clusterId: memoryClusterMap.get(m.id) ?? null,
       });
     }
 
-    // Categorize older memories by type
     for (const m of remainingMemories) {
       let category: CategoryKey;
+      let tier: PriorityTier;
 
       if (
         m.memoryType === 'LESSON' ||
@@ -203,8 +272,10 @@ export class GenerateContextService {
         m.safetyCritical
       ) {
         category = 'keyLessons';
+        tier = 'critical'; // Key lessons are critical
       } else if (m.layer === 'PROJECT' || m.memoryType === 'TASK') {
         category = 'activeProjects';
+        tier = 'background'; // cross-project older memories are background
       } else if (
         m.subjectType === 'USER' ||
         m.memoryType === 'PREFERENCE' ||
@@ -212,8 +283,10 @@ export class GenerateContextService {
         m.layer === 'IDENTITY'
       ) {
         category = 'userIdentity';
+        tier = 'critical'; // user identity is critical
       } else {
         category = 'userIdentity';
+        tier = 'critical';
       }
 
       categorized.push({
@@ -225,25 +298,68 @@ export class GenerateContextService {
         layer: m.layer,
         memoryType: m.memoryType,
         category,
+        tier,
         clusterId: memoryClusterMap.get(m.id) ?? null,
       });
     }
 
-    // === Task 3: Rebalanced budget allocation ===
-    const budgets: Record<CategoryKey, number> = {
-      recentContext: Math.floor(maxTokens * 0.3),
-      activeProjects: Math.floor(maxTokens * 0.2),
-      userIdentity: Math.floor(maxTokens * 0.2),
-      keyLessons: Math.floor(maxTokens * 0.2),
-      currentProject: 0, // carved out from activeProjects below
-    };
-    // 10% buffer is unused allocation
+    // === 4.3 Dedup via Embedding Similarity ===
+    // Get embeddings for all candidate memories and remove near-duplicates (cosine > 0.92)
+    let memoriesDeduped = 0;
+    const memoryIds = categorized.map((m) => m.id);
+    const dedupExcludeIds = new Set<string>();
 
-    // If we detected a current project, carve out half of activeProjects budget for it
-    if (currentProjectName) {
-      budgets.currentProject = Math.floor(budgets.activeProjects * 0.5);
-      budgets.activeProjects -= budgets.currentProject;
+    if (memoryIds.length > 1) {
+      try {
+        // Find pairs with cosine similarity > 0.92
+        const similarPairs = await this.prisma.$queryRawUnsafe<
+          Array<{
+            id1: string;
+            id2: string;
+            similarity: number;
+            score1: number;
+            score2: number;
+          }>
+        >(
+          `SELECT
+            m1.id as id1, m2.id as id2,
+            1 - (m1.embedding <=> m2.embedding) as similarity,
+            m1.effective_score as score1,
+            m2.effective_score as score2
+           FROM memories m1
+           JOIN memories m2 ON m1.id < m2.id
+           WHERE m1.id = ANY($1::text[])
+             AND m2.id = ANY($1::text[])
+             AND m1.embedding IS NOT NULL
+             AND m2.embedding IS NOT NULL
+             AND 1 - (m1.embedding <=> m2.embedding) > 0.92`,
+          memoryIds,
+        );
+
+        // For each similar pair, exclude the one with lower effectiveScore
+        for (const pair of similarPairs) {
+          if (dedupExcludeIds.has(pair.id1) || dedupExcludeIds.has(pair.id2))
+            continue;
+          const loserId =
+            Number(pair.score1) >= Number(pair.score2) ? pair.id2 : pair.id1;
+          dedupExcludeIds.add(loserId);
+        }
+        memoriesDeduped = dedupExcludeIds.size;
+        this.logger.log(
+          `Embedding dedup: removed ${memoriesDeduped} near-duplicate memories (cosine > 0.92)`,
+        );
+      } catch (e) {
+        // Embedding column may not be populated — fall back to text dedup
+        this.logger.warn(
+          `Embedding dedup failed, falling back to text dedup: ${e}`,
+        );
+      }
     }
+
+    // Remove deduped memories
+    const dedupedCategorized = categorized.filter(
+      (m) => !dedupExcludeIds.has(m.id),
+    );
 
     // Group by category
     const groups: Record<CategoryKey, CategorizedMemory[]> = {
@@ -254,14 +370,13 @@ export class GenerateContextService {
       recentContext: [],
     };
 
-    for (const m of categorized) {
-      // Split activeProjects into currentProject vs activeProjects
+    for (const m of dedupedCategorized) {
       if (
         m.category === 'activeProjects' &&
         currentProjectName &&
         m.raw.toLowerCase().includes(currentProjectName)
       ) {
-        groups.currentProject.push(m);
+        groups.currentProject.push({ ...m, tier: 'critical' });
       } else {
         groups[m.category].push(m);
       }
@@ -275,7 +390,7 @@ export class GenerateContextService {
           (m.layer === 'PROJECT' || m.memoryType === 'TASK') &&
           m.raw.toLowerCase().includes(currentProjectName)
         ) {
-          moved.push(m);
+          moved.push({ ...m, tier: 'relevant' });
           return false;
         }
         return true;
@@ -283,8 +398,16 @@ export class GenerateContextService {
       groups.currentProject.push(...moved);
     }
 
-    // Select memories per category within budget, with dedup
-    // Process order: keyLessons, currentProject, recentContext, activeProjects, userIdentity
+    // === Select memories per tier within budget ===
+    // Tier mapping: critical = userIdentity + keyLessons + currentProject
+    //               relevant = recentContext + currentProject overflow
+    //               background = activeProjects
+    const tierBudgets: Record<PriorityTier, number> = {
+      critical: criticalBudget,
+      relevant: relevantBudget,
+      background: backgroundBudget,
+    };
+
     const selected: Record<CategoryKey, string[]> = {
       userIdentity: [],
       currentProject: [],
@@ -301,27 +424,27 @@ export class GenerateContextService {
       recentContext: 0,
     };
 
-    const processingOrder: CategoryKey[] = [
-      'keyLessons',
-      'currentProject',
-      'recentContext',
-      'activeProjects',
-      'userIdentity',
+    // Process in priority order: critical categories first, then relevant, then background
+    const processingOrder: { cat: CategoryKey; tier: PriorityTier }[] = [
+      { cat: 'keyLessons', tier: 'critical' },
+      { cat: 'userIdentity', tier: 'critical' },
+      { cat: 'currentProject', tier: 'critical' },
+      { cat: 'recentContext', tier: 'relevant' },
+      { cat: 'activeProjects', tier: 'background' },
     ];
 
-    for (const cat of processingOrder) {
-      let tokensBudget = budgets[cat];
+    for (const { cat, tier } of processingOrder) {
       for (const m of groups[cat]) {
-        if (tokensBudget <= 0) break;
+        if (tierBudgets[tier] <= 0) break;
         const tokens = this.estimateTokens(m.raw);
-        if (tokens > tokensBudget) continue;
+        if (tokens > tierBudgets[tier]) continue;
 
-        // Dedup check
+        // Text-based dedup check (fallback for memories without embeddings)
         if (this.isDuplicate(m.raw, allSelectedTexts)) continue;
 
         selected[cat].push(m.raw);
         allSelectedTexts.push(m.raw);
-        tokensBudget -= tokens;
+        tierBudgets[tier] -= tokens;
         counts[cat]++;
       }
     }
@@ -346,7 +469,6 @@ export class GenerateContextService {
     );
     sections.push('> influence actions on the current project.');
 
-    // Section definitions with current project first if present
     const sectionDefs: { key: CategoryKey; title: string }[] = [
       { key: 'userIdentity', title: 'User Identity' },
     ];
@@ -364,9 +486,8 @@ export class GenerateContextService {
       { key: 'recentContext', title: 'Recent Context' },
     );
 
-    // Build a map from memory text -> clusterId for grouping output
     const textToCluster = new Map<string, string | null>();
-    for (const m of categorized) {
+    for (const m of dedupedCategorized) {
       textToCluster.set(m.raw, m.clusterId);
     }
 
@@ -375,8 +496,7 @@ export class GenerateContextService {
         sections.push('');
         sections.push(`## ${title}`);
 
-        // Group memories by cluster label within section
-        const clustered = new Map<string, string[]>(); // label -> texts
+        const clustered = new Map<string, string[]>();
         const unclustered: string[] = [];
 
         for (const text of selected[key]) {
@@ -390,7 +510,6 @@ export class GenerateContextService {
           }
         }
 
-        // Render clustered memories grouped under sub-headers
         for (const [label, texts] of clustered) {
           sections.push(`### ${label}`);
           for (const text of texts) {
@@ -398,7 +517,6 @@ export class GenerateContextService {
           }
         }
 
-        // Render unclustered memories flat
         for (const text of unclustered) {
           sections.push(`- ${text}`);
         }
@@ -432,18 +550,25 @@ export class GenerateContextService {
       memoriesIncluded: totalIncluded,
       memoriesTotal: totalMemories,
       memoriesFiltered,
+      memoriesStale,
+      memoriesDeduped,
       categories: counts,
+      budgetAllocation: {
+        critical: criticalBudget,
+        relevant: relevantBudget,
+        background: backgroundBudget,
+      },
       writtenTo,
       latencyMs: Date.now() - startTime,
     };
   }
 
-  private estimateTokens(text: string): number {
+  estimateTokens(text: string): number {
     return text.split(/\s+/).filter(Boolean).length * 1.3;
   }
 
-  // === Task 4: Improved dedup with lower Jaccard threshold + substring containment ===
-  private isDuplicate(text: string, existing: string[]): boolean {
+  // Text-based dedup with Jaccard similarity + substring containment
+  isDuplicate(text: string, existing: string[]): boolean {
     const normalizedText = text.toLowerCase();
     const words = new Set(normalizedText.split(/\s+/).filter(Boolean));
     if (words.size === 0) return true;
@@ -452,7 +577,6 @@ export class GenerateContextService {
       const normalizedOther = other.toLowerCase();
       const otherWords = new Set(normalizedOther.split(/\s+/).filter(Boolean));
 
-      // Jaccard similarity check (threshold lowered from 0.9 to 0.7)
       const intersection = Array.from(words).filter((w) => otherWords.has(w));
       const unionSet = new Set(
         Array.from(words).concat(Array.from(otherWords)),
@@ -460,7 +584,6 @@ export class GenerateContextService {
       const similarity = intersection.length / unionSet.size;
       if (similarity > 0.7) return true;
 
-      // Substring containment check: if 80%+ of one text's words are in the other
       const smallerWords = words.size <= otherWords.size ? words : otherWords;
       const largerWords = words.size <= otherWords.size ? otherWords : words;
       const contained = Array.from(smallerWords).filter((w) =>

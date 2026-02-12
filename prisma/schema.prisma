@@ -360,9 +360,10 @@ model AgentSession {
   parentKey       String?            @map("parent_key")
   label           String?
   taskDescription String?            @map("task_description")
-  status          AgentSessionStatus @default(ACTIVE)
-  createdAt       DateTime           @default(now()) @map("created_at")
-  endedAt         DateTime?          @map("ended_at")
+  status              AgentSessionStatus @default(ACTIVE)
+  contextTokenBudget  Int?               @map("context_token_budget")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  endedAt             DateTime?          @map("ended_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
   memoryAccess MemoryAccessLog[]
@@ -1124,6 +1125,23 @@ model DreamCycleRun {
 
   @@index([status])
   @@map("dream_cycle_runs")
+}
+
+/// Eval run results for longitudinal tracking
+model EvalRun {
+  id            String   @id @default(cuid())
+  timestamp     DateTime @default(now())
+  recallScore   Float    @map("recall_score")
+  recallTotal   Int      @map("recall_total")
+  recallPassed  Int      @map("recall_passed")
+  latencyP50Ms  Int      @map("latency_p50_ms")
+  latencyP95Ms  Int?     @map("latency_p95_ms")
+  contextGrade  String?  @map("context_grade")
+  details       Json?
+  triggeredBy   String?  @map("triggered_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("eval_runs")
 }
 
 /// Monitoring metric snapshots for tracking system health over time

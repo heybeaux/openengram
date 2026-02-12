@@ -41,9 +41,24 @@ export class ConsolidationController {
 
   @Post('generate-context')
   async generateContextEndpoint(
-    @Body() body: GenerateContextOptions,
+    @Query('includeStale') includeStale?: string,
+    @Query('tokenBudget') tokenBudget?: string,
+    @Body() body?: GenerateContextOptions,
   ): Promise<GenerateContextResult> {
-    return this.generateContext.generate(body);
+    const opts: GenerateContextOptions = {
+      ...body,
+      agentId: body?.agentId ?? '',
+    };
+    if (includeStale === 'true' || includeStale === '1') {
+      opts.includeStale = true;
+    }
+    if (tokenBudget) {
+      const parsed = parseInt(tokenBudget, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        opts.tokenBudget = parsed;
+      }
+    }
+    return this.generateContext.generate(opts);
   }
 
   @Get('dream-cycle/reports')

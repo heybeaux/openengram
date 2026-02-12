@@ -48,17 +48,20 @@ export class ScopedContextService {
   async generateScopedContext(
     dto: ScopedContextRequestDto,
   ): Promise<ScopedContextResponseDto> {
-    const maxTokens = dto.maxTokens ?? 2000;
     const includeGlobal = dto.includeGlobal ?? true;
 
-    // 1. Resolve task description
+    // 1. Resolve task description and session token budget
+    const session = await this.agentSessionService.findByKey(
+      dto.agentSessionKey,
+    );
     let taskDescription: string | null = dto.taskDescription ?? null;
     if (!taskDescription) {
-      const session = await this.agentSessionService.findByKey(
-        dto.agentSessionKey,
-      );
       taskDescription = session?.taskDescription ?? null;
     }
+
+    // Use explicit maxTokens > session contextTokenBudget > default 2000
+    const maxTokens =
+      dto.maxTokens ?? (session as any)?.contextTokenBudget ?? 2000;
 
     // 2. Generate task embedding
     let taskEmbedding: number[] | null = null;

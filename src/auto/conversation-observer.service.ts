@@ -157,6 +157,9 @@ export class ConversationObserverService {
           // Source attribution
           sourceTurnIndex: memory.source.turnIndex,
           sourceTimestamp,
+          // v0.9: Pool-scoped write + session attribution
+          poolId: dto.poolId,
+          agentSessionKey: dto.agentSessionKey,
         });
         created++;
       } catch (error) {

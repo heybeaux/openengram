@@ -96,6 +96,109 @@ In `~/.openclaw/openclaw.json`:
 }
 ```
 
+## v0.9: Sub-Agent Auto-Capture (Pool-Scoped)
+
+*Added: 2026-02-11*
+
+### Overview
+
+When OpenClaw spawns a sub-agent, the hook automatically:
+1. **Registers** the session with Engram (creates task pool + grants)
+2. **Injects** scoped context (task-relevant + global memories)
+3. **Captures** messages with pool attribution (memories land in task pool)
+4. **Promotes** high-scoring memories to global pool on session completion
+
+### Flow
+
+```
+Sub-agent spawns
+  └─ agent:bootstrap (sessionKey contains "subagent")
+       ├─ POST /v1/agent-sessions  →  register session, auto-create task pool
+       └─ POST /v1/context/scoped  →  get task-scoped context, inject into prompt
+
+Sub-agent sends/receives messages
+  └─ message:sent / message:received
+       └─ POST /v1/observe { poolId, agentSessionKey }  →  memories scoped to task pool
+
+Sub-agent session ends
+  └─ session:end
+       └─ PATCH /v1/agent-sessions/:key { status: "COMPLETED" }
+            └─ Server-side: promote memories with effectiveScore ≥ 0.7 to GLOBAL pool
+```
+
+### Session Registration
+
+```
+POST /v1/agent-sessions
+{
+  "sessionKey": "agent:main:subagent:abc-123",
+  "parentKey": "agent:main:main",
+  "label": "abc-123",
+  "taskDescription": "...",
+  "userId": "Beaux"
+}
+→ { "id": "...", "poolId": "pool_xyz", ... }
+```
+
+The server auto-creates a `task:<label>` pool with:
+- WRITE grant for the sub-agent
+- READ grant for the parent session
+- READ grant for the sub-agent on GLOBAL pool
+
+### Scoped Context
+
+```
+POST /v1/context/scoped
+{
+  "userId": "Beaux",
+  "agentSessionKey": "agent:main:subagent:abc-123",
+  "taskDescription": "...",
+  "maxTokens": 2000,
+  "includeGlobal": true
+}
+→ { "context": "...", "tokenCount": 1200, "memoriesIncluded": 42, ... }
+```
+
+Falls back to main `/v1/context` if scoped context endpoint fails.
+
+### Pool-Scoped Observe
+
+Sub-agent messages include `poolId` and `agentSessionKey`:
+```
+POST /v1/observe
+{
+  "turns": [{ "role": "assistant", "content": "..." }],
+  "sessionId": "agent:main:subagent:abc-123",
+  "poolId": "pool_xyz",
+  "agentSessionKey": "agent:main:subagent:abc-123"
+}
+```
+
+### Session Completion & Memory Promotion
+
+On `session:end`, the hook calls:
+```
+PATCH /v1/agent-sessions/agent:main:subagent:abc-123
+{ "status": "COMPLETED" }
+```
+
+Server-side promotion logic:
+- Finds the `task:<label>` pool
+- Memories with `effectiveScore >= 0.7` → added to GLOBAL pool
+- Lower-scored memories stay in task pool only
+
+### Hook Events
+
+The hook now registers: `agent:bootstrap`, `message:received`, `message:sent`, `session:end`
+
+### Notes
+
+- Sub-agent detection: sessionKey contains `"subagent"`
+- Session cache is in-memory (poolId mapping) — survives within a gateway lifecycle
+- If `session:end` event is not available in your OpenClaw version, call the completion endpoint manually from the sub-agent's final message handler
+
+---
+
 ## What to Watch For
 
 ### 1. Fork Freshness

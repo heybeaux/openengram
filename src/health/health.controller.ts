@@ -1,10 +1,16 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Redirect,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
 import { MonitoringService } from '../monitoring/monitoring.service';
 
-@Controller('health')
+@Controller()
 @SkipRateLimit()
 export class HealthController {
   private readonly startTime = Date.now();
@@ -15,7 +21,15 @@ export class HealthController {
     private monitoring: MonitoringService,
   ) {}
 
-  @Get()
+  /** GET /health → redirect to canonical /v1/health */
+  @Get('health')
+  @Redirect('/v1/health', 301)
+  healthRedirect() {
+    // 301 permanent redirect to canonical endpoint
+  }
+
+  /** GET /v1/health — canonical health check endpoint */
+  @Get('v1/health')
   async check(): Promise<any> {
     const start = Date.now();
 

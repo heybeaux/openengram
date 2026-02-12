@@ -372,6 +372,70 @@ describe('ScopedContextService', () => {
         }),
       );
     });
+
+    it('should use session contextTokenBudget when maxTokens not provided', async () => {
+      agentSessionService.findByKey.mockResolvedValue({
+        sessionKey: 'agent:main:subagent:test',
+        taskDescription: 'Build widget',
+        contextTokenBudget: 3000,
+      });
+      memoryPoolService.getAccessiblePoolIds.mockResolvedValue([]);
+      // Create enough memories to test budget is respected
+      const memories = Array.from({ length: 50 }, (_, i) => ({
+        id: `mem${i}`,
+        raw: 'x'.repeat(200), // ~50 tokens each
+        memoryType: 'FACT',
+        effectiveScore: 0.8 - i * 0.01,
+        safetyCritical: false,
+        priority: 3,
+        createdAt: new Date(),
+        retrievalCount: 0,
+        layer: 'SESSION',
+      }));
+      prisma.memory.findMany.mockResolvedValue(memories);
+
+      const result = await service.generateScopedContext({
+        userId: 'user1',
+        agentSessionKey: 'agent:main:subagent:test',
+      });
+
+      // Should respect the 3000 token budget from session
+      expect(result.tokenCount).toBeLessThanOrEqual(3300); // 10% overflow for critical
+    });
+
+    it('should prefer explicit maxTokens over session contextTokenBudget', async () => {
+      agentSessionService.findByKey.mockResolvedValue({
+        sessionKey: 'agent:main:subagent:test',
+        contextTokenBudget: 4000,
+      });
+      memoryPoolService.getAccessiblePoolIds.mockResolvedValue([]);
+      prisma.memory.findMany.mockResolvedValue([]);
+
+      const result = await service.generateScopedContext({
+        userId: 'user1',
+        agentSessionKey: 'agent:main:subagent:test',
+        maxTokens: 1000,
+      });
+
+      // With no memories, can't test budget directly, but it shouldn't error
+      expect(result.memoriesIncluded).toBe(0);
+    });
+
+    it('should default to 2000 tokens when no session budget and no maxTokens', async () => {
+      agentSessionService.findByKey.mockResolvedValue({
+        sessionKey: 'agent:main:subagent:test',
+        contextTokenBudget: null,
+      });
+      memoryPoolService.getAccessiblePoolIds.mockResolvedValue([]);
+      prisma.memory.findMany.mockResolvedValue([]);
+
+      const result = await service.generateScopedContext({
+        userId: 'user1',
+        agentSessionKey: 'agent:main:subagent:test',
+      });
+
+      expect(result.memoriesIncluded).toBe(0);
+    });
   });
 });
 

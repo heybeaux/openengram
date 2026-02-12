@@ -59,6 +59,12 @@ export class QueryMemoryDto {
   @IsOptional()
   @IsString()
   agentSessionKey?: string;
+
+  // v0.9: Explicit pool filtering
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  poolIds?: string[];
 }
 
 export class LoadContextDto {

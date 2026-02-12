@@ -28,6 +28,7 @@ import { ScopedContextModule } from './scoped-context/scoped-context.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { FogIndexModule } from './fog-index/fog-index.module';
+import { EvalModule } from './eval/eval.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { FogIndexModule } from './fog-index/fog-index.module';
     FogIndexModule,
     RateLimitModule,
     MonitoringModule,
+    EvalModule,
   ],
 })
 export class AppModule {}

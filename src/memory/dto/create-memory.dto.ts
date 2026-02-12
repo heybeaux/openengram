@@ -127,6 +127,11 @@ export class CreateMemoryDto {
   @IsOptional()
   @IsString()
   agentSessionKey?: string;
+
+  // v0.9: Pool-scoped memory write
+  @IsOptional()
+  @IsString()
+  poolId?: string;
 }
 
 export class CreateMemoryBatchDto {

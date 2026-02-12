@@ -229,6 +229,21 @@ export class MemoryService {
       );
     }
 
+    // v0.9: Pool-scoped memory write — add to specified pool
+    if (dto.poolId && this.memoryPoolService) {
+      this.memoryPoolService
+        .addMemory(dto.poolId, {
+          memoryId: memory.id,
+          addedBy: dto.agentSessionKey ?? 'system',
+        })
+        .catch((err) => {
+          console.error(
+            `[Memory] Failed to add memory ${memory.id} to pool ${dto.poolId}:`,
+            err,
+          );
+        });
+    }
+
     // 8. Build extraction context
     const extractionContext: ExtractionContext = {
       userId,
@@ -483,9 +498,9 @@ export class MemoryService {
   async recall(userId: string, dto: QueryMemoryDto): Promise<QueryResult> {
     const startTime = Date.now();
 
-    // v0.7: Resolve accessible pool IDs if agentSessionKey is provided
-    let poolIds: string[] | undefined;
-    if (dto.agentSessionKey && this.memoryPoolService) {
+    // v0.9: Use explicit poolIds if provided, otherwise resolve from agentSessionKey
+    let poolIds: string[] | undefined = dto.poolIds;
+    if (!poolIds && dto.agentSessionKey && this.memoryPoolService) {
       try {
         poolIds = await this.memoryPoolService.getAccessiblePoolIds(
           dto.agentSessionKey,

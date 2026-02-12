@@ -13,6 +13,7 @@ describe('MemoryPoolService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
       poolGrant: {
         upsert: jest.fn(),
@@ -58,6 +59,85 @@ describe('MemoryPoolService', () => {
         NotFoundException,
       );
     });
+
+    it('should return pool with relations when includeRelations is true', async () => {
+      const pool = {
+        id: 'p1',
+        name: 'test',
+        memberships: [],
+        grants: [],
+      };
+      prisma.memoryPool.findUnique.mockResolvedValue(pool);
+
+      const result = await service.getById('p1', true);
+      expect(result).toEqual(pool);
+      expect(prisma.memoryPool.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            memberships: expect.any(Object),
+            grants: expect.any(Object),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('deletePool', () => {
+    it('should archive the pool', async () => {
+      prisma.memoryPool.findUnique.mockResolvedValue({ id: 'p1' });
+      prisma.memoryPool.update.mockResolvedValue({
+        id: 'p1',
+        archivedAt: new Date(),
+      });
+
+      const result = await service.deletePool('p1');
+      expect(result.archivedAt).toBeDefined();
+      expect(prisma.memoryPool.update).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+        data: { archivedAt: expect.any(Date) },
+      });
+    });
+
+    it('should throw if pool not found', async () => {
+      prisma.memoryPool.findUnique.mockResolvedValue(null);
+      await expect(service.deletePool('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('findOrCreatePool', () => {
+    it('should return existing pool if found', async () => {
+      const existing = { id: 'p1', name: 'task:test', userId: 'u1' };
+      prisma.memoryPool.findUnique.mockResolvedValue(existing);
+
+      const result = await service.findOrCreatePool({
+        name: 'task:test',
+        userId: 'u1',
+        createdBy: 'agent:sub',
+      });
+      expect(result).toEqual(existing);
+      expect(prisma.memoryPool.create).not.toHaveBeenCalled();
+    });
+
+    it('should create new pool if not found', async () => {
+      prisma.memoryPool.findUnique.mockResolvedValue(null);
+      const created = {
+        id: 'p2',
+        name: 'task:test',
+        userId: 'u1',
+        visibility: 'SHARED',
+      };
+      prisma.memoryPool.create.mockResolvedValue(created);
+
+      const result = await service.findOrCreatePool({
+        name: 'task:test',
+        userId: 'u1',
+        visibility: 'SHARED',
+        createdBy: 'agent:sub',
+      });
+      expect(result).toEqual(created);
+    });
   });
 
   describe('grantAccess', () => {
@@ -74,6 +154,49 @@ describe('MemoryPoolService', () => {
         grantedBy: 'agent:main',
       });
       expect(result.permission).toBe('READ');
+    });
+  });
+
+  describe('addMemory', () => {
+    it('should add memory to pool', async () => {
+      prisma.memoryPool.findUnique.mockResolvedValue({ id: 'p1' });
+      prisma.memoryPoolMembership.create.mockResolvedValue({
+        id: 'm1',
+        memoryId: 'mem1',
+        poolId: 'p1',
+      });
+
+      const result = await service.addMemory('p1', {
+        memoryId: 'mem1',
+        addedBy: 'agent:sub',
+      });
+      expect(result.memoryId).toBe('mem1');
+    });
+  });
+
+  describe('removeMemory', () => {
+    it('should remove memory from pool', async () => {
+      prisma.memoryPoolMembership.delete.mockResolvedValue({
+        id: 'm1',
+        memoryId: 'mem1',
+        poolId: 'p1',
+      });
+
+      const result = await service.removeMemory('p1', 'mem1');
+      expect(result.memoryId).toBe('mem1');
+    });
+  });
+
+  describe('revokeAccess', () => {
+    it('should delete the grant', async () => {
+      prisma.poolGrant.delete.mockResolvedValue({
+        id: 'g1',
+        poolId: 'p1',
+        agentSessionId: 's1',
+      });
+
+      const result = await service.revokeAccess('p1', 's1');
+      expect(result.poolId).toBe('p1');
     });
   });
 

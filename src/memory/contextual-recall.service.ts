@@ -76,7 +76,7 @@ export class ContextualRecallService {
 
     // 4. Semantic search
     const limit = dto.maxResults ?? 5;
-    const minScore = dto.minScore ?? 0.65;
+    const minScore = dto.minScore ?? 0.5;
     const excludeSet = new Set([
       ...(dto.excludeIds ?? []),
       ...session.recalledIds,
@@ -98,8 +98,18 @@ export class ContextualRecallService {
         .map((r) => r.score.toFixed(3))
         .join(', ')}], minScore: ${minScore}`,
     );
-    const filteredIds = vectorResults
-      .filter((r) => r.score >= minScore && !excludeSet.has(r.id))
+    // Filter by minimum score and exclusions
+    const candidates = vectorResults.filter(
+      (r) => r.score >= minScore && !excludeSet.has(r.id),
+    );
+
+    // Apply relative score gap: drop results scoring < 70% of the top result.
+    // This prunes irrelevant tail results that pass the absolute floor but are
+    // much weaker than the best match, improving precision without hurting recall.
+    const topScore = candidates.length > 0 ? candidates[0].score : 0;
+    const scoreFloor = topScore * 0.7;
+    const filteredIds = candidates
+      .filter((r) => r.score >= scoreFloor)
       .slice(0, limit)
       .map((r) => ({ id: r.id, score: r.score }));
 

@@ -29,10 +29,34 @@ export class MemoryPoolService {
     });
   }
 
-  async getById(id: string) {
-    const pool = await this.prisma.memoryPool.findUnique({ where: { id } });
+  async getById(id: string, includeRelations = false) {
+    const pool = await this.prisma.memoryPool.findUnique({
+      where: { id },
+      include: includeRelations
+        ? {
+            memberships: { include: { memory: { select: { id: true, raw: true, createdAt: true } } } },
+            grants: { include: { agentSession: { select: { id: true, sessionKey: true, label: true } } } },
+          }
+        : undefined,
+    });
     if (!pool) throw new NotFoundException(`Pool '${id}' not found`);
     return pool;
+  }
+
+  async findOrCreatePool(dto: CreateMemoryPoolDto) {
+    const existing = await this.prisma.memoryPool.findUnique({
+      where: { userId_name: { userId: dto.userId, name: dto.name } },
+    });
+    if (existing) return existing;
+    return this.create(dto);
+  }
+
+  async deletePool(id: string) {
+    await this.getById(id);
+    return this.prisma.memoryPool.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    });
   }
 
   async grantAccess(poolId: string, dto: GrantPoolAccessDto) {

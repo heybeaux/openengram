@@ -33,9 +33,15 @@ export class MemoryPoolController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get pool by ID' })
+  @ApiOperation({ summary: 'Get pool detail with members and grants' })
   async getById(@Param('id') id: string) {
-    return this.service.getById(id);
+    return this.service.getById(id, true);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Archive/delete a pool' })
+  async deletePool(@Param('id') id: string) {
+    return this.service.deletePool(id);
   }
 
   @Post(':id/grant')

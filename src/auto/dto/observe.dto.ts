@@ -43,6 +43,16 @@ export class ObserveDto {
   @IsOptional()
   @IsNumber()
   minImportance?: number; // 0-1, filter out low importance extractions
+
+  // v0.9: Pool-scoped memory write
+  @IsOptional()
+  @IsString()
+  poolId?: string;
+
+  // v0.9: Agent session key for attribution
+  @IsOptional()
+  @IsString()
+  agentSessionKey?: string;
 }
 
 export interface ImportanceSignal {
