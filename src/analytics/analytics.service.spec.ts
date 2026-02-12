@@ -25,6 +25,7 @@ describe('AnalyticsService', () => {
               groupBy: jest.fn(),
             },
             $queryRaw: jest.fn(),
+            $queryRawUnsafe: jest.fn(),
           },
         },
       ],
@@ -60,7 +61,7 @@ describe('AnalyticsService', () => {
         { timestamp: new Date('2026-02-01'), count: BigInt(5) },
         { timestamp: new Date('2026-02-02'), count: BigInt(10) },
       ];
-      jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockData);
+      jest.spyOn(prisma, '$queryRawUnsafe').mockResolvedValue(mockData);
 
       const result = await service.getTimeline(mockAgentId, {
         granularity: 'day',
@@ -84,7 +85,7 @@ describe('AnalyticsService', () => {
         { timestamp: new Date('2026-02-02'), count: BigInt(10) },
         { timestamp: new Date('2026-02-03'), count: BigInt(3) },
       ];
-      jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockData);
+      jest.spyOn(prisma, '$queryRawUnsafe').mockResolvedValue(mockData);
 
       const result = await service.getTimeline(mockAgentId, {
         granularity: 'day',
@@ -129,7 +130,7 @@ describe('AnalyticsService', () => {
           count: BigInt(2),
         },
       ];
-      jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockData);
+      jest.spyOn(prisma, '$queryRawUnsafe').mockResolvedValue(mockData);
 
       const result = await service.getTypeBreakdown(mockAgentId, {
         granularity: 'week',
@@ -201,10 +202,8 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      jest
-        .spyOn(prisma, '$queryRaw')
-        .mockResolvedValueOnce(mockLayerData)
-        .mockResolvedValueOnce(mockTrendData);
+      jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockLayerData);
+      jest.spyOn(prisma, '$queryRawUnsafe').mockResolvedValue(mockTrendData);
 
       const result = await service.getLayerDistribution(mockAgentId, {
         includeTrend: true,
@@ -241,6 +240,7 @@ describe('AnalyticsService', () => {
       jest.spyOn(prisma.memory, 'aggregate').mockResolvedValue({
         _avg: { importanceScore: 0.75 },
       } as any);
+      jest.spyOn(prisma, '$queryRawUnsafe').mockResolvedValue([]);
       jest.spyOn(prisma, '$queryRaw').mockResolvedValue([]);
       jest.spyOn(prisma.memory, 'groupBy').mockResolvedValue([]);
 
