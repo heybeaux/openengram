@@ -1,65 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { UnauthorizedException, ExecutionContext } from '@nestjs/common';
 import { createHash } from 'crypto';
+
+const mockPrisma = {
+  agent: { findUnique: jest.fn() },
+  user: { findUnique: jest.fn(), create: jest.fn() },
+};
+
+function createMockContext(overrides: {
+  headers?: Record<string, string>;
+  ip?: string;
+}): ExecutionContext {
+  const request = {
+    headers: overrides.headers || {},
+    ip: overrides.ip || '203.0.113.1',
+    connection: { remoteAddress: overrides.ip || '203.0.113.1' },
+  };
+  return {
+    switchToHttp: () => ({
+      getRequest: () => request,
+    }),
+  } as unknown as ExecutionContext;
+}
 
 describe('ApiKeyGuard', () => {
   let guard: ApiKeyGuard;
-  let mockPrisma: any;
-
-  const mockAgent = {
-    id: 'agent-123',
-    name: 'Test Agent',
-    apiKeyHash: createHash('sha256')
-      .update('sk-test-key-12345678')
-      .digest('hex'),
-    apiKeyHint: '5678',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-  };
-
-  const mockUser = {
-    id: 'user-456',
-    externalId: 'external-user-123',
-    agentId: 'agent-123',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-  };
-
-  function createMockContext(
-    headers: Record<string, string | undefined>,
-  ): ExecutionContext {
-    const request = {
-      headers: {
-        'x-am-api-key': headers['x-am-api-key'],
-        'x-am-user-id': headers['x-am-user-id'],
-        origin: headers['origin'] || '',
-        host: headers['host'] || '',
-      },
-      ip: headers['ip'] || '',
-      connection: { remoteAddress: headers['ip'] || '' },
-    };
-
-    return {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext;
-  }
 
   beforeEach(async () => {
-    mockPrisma = {
-      agent: {
-        findUnique: jest.fn(),
-      },
-      user: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-      },
-    };
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,286 +41,230 @@ describe('ApiKeyGuard', () => {
     guard = module.get<ApiKeyGuard>(ApiKeyGuard);
   });
 
-  describe('canActivate', () => {
-    it('should allow request with valid API key and user', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-      });
+  // --- Localhost bypass ---
 
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+  it('should allow localhost requests without auth headers', async () => {
+    const ctx = createMockContext({ ip: '127.0.0.1', headers: {} });
+    const result = await guard.canActivate(ctx);
+    expect(result).toBe(true);
+    expect(mockPrisma.agent.findUnique).not.toHaveBeenCalled();
+  });
 
-      const result = await guard.canActivate(context);
+  it('should allow ::1 (IPv6 localhost) without auth', async () => {
+    const ctx = createMockContext({ ip: '::1', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
 
-      expect(result).toBe(true);
+  it('should allow ::ffff:127.0.0.1 without auth', async () => {
+    const ctx = createMockContext({ ip: '::ffff:127.0.0.1', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should allow private network 192.168.x.x without auth', async () => {
+    const ctx = createMockContext({ ip: '192.168.1.100', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should allow private network 10.x.x.x without auth', async () => {
+    const ctx = createMockContext({ ip: '10.0.0.5', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should allow localhost origin without auth', async () => {
+    const ctx = createMockContext({
+      ip: '203.0.113.1',
+      headers: { origin: 'http://localhost:3000' },
+    });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should allow localhost host header without auth', async () => {
+    const ctx = createMockContext({
+      ip: '203.0.113.1',
+      headers: { host: 'localhost:3001' },
+    });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('should set request.agent and request.user to null for local bypass', async () => {
+    const request = {
+      headers: {},
+      ip: '127.0.0.1',
+      connection: { remoteAddress: '127.0.0.1' },
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
+
+    await guard.canActivate(ctx);
+    expect((request as any).agent).toBeNull();
+    expect((request as any).user).toBeNull();
+  });
+
+  // --- Local with API key should still authenticate ---
+
+  it('should authenticate local request if API key is provided', async () => {
+    const apiKey = 'engram_test123';
+    const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
+    const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
+    const user = { id: 'user-1', agentId: 'agent-1', externalId: 'Beaux', deletedAt: null };
+
+    mockPrisma.agent.findUnique.mockResolvedValue(agent);
+    mockPrisma.user.findUnique.mockResolvedValue(user);
+
+    const ctx = createMockContext({
+      ip: '127.0.0.1',
+      headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
     });
 
-    it('should reject request without API key', async () => {
-      const context = createMockContext({
-        'x-am-user-id': 'external-user-123',
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Missing X-AM-API-Key header'),
-      );
-    });
-
-    it('should reject request without user ID', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Missing X-AM-User-ID header'),
-      );
-    });
-
-    it('should reject invalid API key', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'invalid-key',
-        'x-am-user-id': 'external-user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue(null);
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Invalid API key'),
-      );
-    });
-
-    it('should reject deleted agent', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue({
-        ...mockAgent,
-        deletedAt: new Date(),
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Invalid API key'),
-      );
-    });
-
-    it('should create new user on first request', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'new-user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockPrisma.user.create.mockResolvedValue({
-        ...mockUser,
-        externalId: 'new-user-123',
-      });
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockPrisma.user.create).toHaveBeenCalledWith({
-        data: {
-          agentId: 'agent-123',
-          externalId: 'new-user-123',
-        },
-      });
-    });
-
-    it('should reject deleted user', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue({
-        ...mockUser,
-        deletedAt: new Date(),
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('User has been deleted'),
-      );
-    });
-
-    it('should attach agent and user to request', async () => {
-      const request = {
-        headers: {
-          'x-am-api-key': 'sk-test-key-12345678',
-          'x-am-user-id': 'external-user-123',
-        },
-      };
-      const context = {
-        switchToHttp: () => ({
-          getRequest: () => request,
-        }),
-      } as ExecutionContext;
-
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-
-      await guard.canActivate(context);
-
-      expect(request['agent']).toEqual(mockAgent);
-      expect(request['user']).toEqual(mockUser);
-    });
-
-    it('should hash API key using SHA256', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'my-secret-api-key',
-        'x-am-user-id': 'user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue(null);
-
-      try {
-        await guard.canActivate(context);
-      } catch {
-        // Expected to throw
-      }
-
-      const expectedHash = createHash('sha256')
-        .update('my-secret-api-key')
-        .digest('hex');
-
-      expect(mockPrisma.agent.findUnique).toHaveBeenCalledWith({
-        where: { apiKeyHash: expectedHash },
-      });
-    });
-
-    it('should lookup user by agentId and externalId compound key', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-      });
-
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-
-      await guard.canActivate(context);
-
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: {
-          agentId_externalId: {
-            agentId: 'agent-123',
-            externalId: 'external-user-123',
-          },
-        },
-      });
+    expect(await guard.canActivate(ctx)).toBe(true);
+    expect(mockPrisma.agent.findUnique).toHaveBeenCalledWith({
+      where: { apiKeyHash },
     });
   });
 
-  describe('localhost bypass', () => {
-    it('should allow localhost requests without API key', async () => {
-      const context = createMockContext({
-        ip: '127.0.0.1',
-      });
+  // --- Missing headers ---
 
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
+  it('should throw UnauthorizedException when API key missing on external request', async () => {
+    const ctx = createMockContext({
+      headers: { 'x-am-user-id': 'Beaux' },
+    });
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-API-Key header');
+  });
+
+  it('should throw UnauthorizedException when User-ID missing on external request', async () => {
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': 'some-key' },
+    });
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-User-ID header');
+  });
+
+  // --- Invalid API key ---
+
+  it('should throw UnauthorizedException for invalid API key', async () => {
+    mockPrisma.agent.findUnique.mockResolvedValue(null);
+
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': 'bad-key', 'x-am-user-id': 'Beaux' },
+    });
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid API key');
+  });
+
+  it('should throw UnauthorizedException for deleted agent', async () => {
+    mockPrisma.agent.findUnique.mockResolvedValue({
+      id: 'agent-1',
+      deletedAt: new Date(),
     });
 
-    it('should allow ::1 (IPv6 localhost) without API key', async () => {
-      const context = createMockContext({
-        ip: '::1',
-      });
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': 'some-key', 'x-am-user-id': 'Beaux' },
+    });
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid API key');
+  });
 
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
+  // --- User auto-creation ---
+
+  it('should auto-create user on first request', async () => {
+    const apiKey = 'engram_new';
+    const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
+    const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
+    const newUser = { id: 'user-new', agentId: 'agent-1', externalId: 'NewUser', deletedAt: null };
+
+    mockPrisma.agent.findUnique.mockResolvedValue(agent);
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.user.create.mockResolvedValue(newUser);
+
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'NewUser' },
     });
 
-    it('should allow LAN 10.x requests without API key', async () => {
-      const context = createMockContext({
-        ip: '10.0.0.108',
-      });
-
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
-    });
-
-    it('should allow LAN 192.168.x requests without API key', async () => {
-      const context = createMockContext({
-        ip: '192.168.1.100',
-      });
-
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
-    });
-
-    it('should allow localhost origin without API key', async () => {
-      const context = createMockContext({
-        origin: 'http://localhost:3000',
-      });
-
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
-    });
-
-    it('should still require auth for public IP requests', async () => {
-      const context = createMockContext({
-        ip: '203.0.113.50',
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Missing X-AM-API-Key header',
-      );
-    });
-
-    it('should use API key auth when provided even from localhost', async () => {
-      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-        ip: '127.0.0.1',
-      });
-
-      const result = await guard.canActivate(context);
-      expect(result).toBe(true);
-      expect(mockPrisma.agent.findUnique).toHaveBeenCalled();
+    expect(await guard.canActivate(ctx)).toBe(true);
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({
+      data: { agentId: 'agent-1', externalId: 'NewUser' },
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle empty string API key', async () => {
-      const context = createMockContext({
-        'x-am-api-key': '',
-        'x-am-user-id': 'user-123',
-      });
+  // --- Deleted user ---
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Missing X-AM-API-Key header',
-      );
+  it('should throw UnauthorizedException for deleted user', async () => {
+    const apiKey = 'engram_del';
+    const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
+    const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
+    const user = { id: 'user-del', deletedAt: new Date() };
+
+    mockPrisma.agent.findUnique.mockResolvedValue(agent);
+    mockPrisma.user.findUnique.mockResolvedValue(user);
+
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
+    });
+    await expect(guard.canActivate(ctx)).rejects.toThrow('User has been deleted');
+  });
+
+  // --- Successful auth attaches request context ---
+
+  it('should attach agent and user to request on success', async () => {
+    const apiKey = 'engram_ok';
+    const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
+    const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
+    const user = { id: 'user-1', agentId: 'agent-1', externalId: 'Beaux', deletedAt: null };
+
+    mockPrisma.agent.findUnique.mockResolvedValue(agent);
+    mockPrisma.user.findUnique.mockResolvedValue(user);
+
+    const request = {
+      headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
+      ip: '203.0.113.1',
+      connection: { remoteAddress: '203.0.113.1' },
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
+
+    await guard.canActivate(ctx);
+    expect((request as any).agent).toEqual(agent);
+    expect((request as any).user).toEqual(user);
+  });
+
+  // --- API key hashing ---
+
+  it('should hash the API key with SHA-256 for lookup', async () => {
+    const apiKey = 'engram_test_hash';
+    const expectedHash = createHash('sha256').update(apiKey).digest('hex');
+
+    mockPrisma.agent.findUnique.mockResolvedValue(null);
+
+    const ctx = createMockContext({
+      headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
     });
 
-    it('should handle empty string user ID', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key',
-        'x-am-user-id': '',
-      });
+    try { await guard.canActivate(ctx); } catch {}
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Missing X-AM-User-ID header',
-      );
+    expect(mockPrisma.agent.findUnique).toHaveBeenCalledWith({
+      where: { apiKeyHash: expectedHash },
     });
+  });
 
-    it('should handle database errors gracefully', async () => {
-      const context = createMockContext({
-        'x-am-api-key': 'sk-test-key-12345678',
-        'x-am-user-id': 'external-user-123',
-      });
+  // --- IPv6-mapped private IPs ---
 
-      mockPrisma.agent.findUnique.mockRejectedValue(
-        new Error('DB connection failed'),
-      );
+  it('should allow ::ffff:10.0.0.1 without auth', async () => {
+    const ctx = createMockContext({ ip: '::ffff:10.0.0.1', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'DB connection failed',
-      );
+  it('should allow ::ffff:192.168.0.1 without auth', async () => {
+    const ctx = createMockContext({ ip: '::ffff:192.168.0.1', headers: {} });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  // --- Public IP requires auth ---
+
+  it('should require auth for public IP without local indicators', async () => {
+    const ctx = createMockContext({
+      ip: '203.0.113.50',
+      headers: {},
     });
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-API-Key header');
   });
 });
