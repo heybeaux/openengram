@@ -49,7 +49,7 @@ export class PrefetchCacheService {
 
     // Resize if needed
     while (this.cache.size > this.config.maxSize) {
-      this.evictLRU();
+      if (!this.evictLRU()) break;
     }
   }
 
@@ -140,9 +140,12 @@ export class PrefetchCacheService {
    * Set a memory in the cache
    */
   set(memory: CachedMemory): void {
+    // Don't cache if maxSize is 0
+    if (this.config.maxSize <= 0) return;
+
     // Evict if at capacity
     while (this.cache.size >= this.config.maxSize) {
-      this.evictLRU();
+      if (!this.evictLRU()) break;
     }
 
     // Update or create entry

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ClusteringController } from './clustering.controller';
 import { ClusteringService } from './clustering.service';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 describe('ClusteringController', () => {
   let controller: ClusteringController;
@@ -17,7 +18,10 @@ describe('ClusteringController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ClusteringController],
       providers: [{ provide: ClusteringService, useValue: mockService }],
-    }).compile();
+    })
+      .overrideGuard(ApiKeyGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ClusteringController>(ClusteringController);
     service = module.get(ClusteringService);

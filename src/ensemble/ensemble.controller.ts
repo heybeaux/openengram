@@ -18,7 +18,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
-import { IsOptional, IsArray, IsString, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsArray,
+  IsString,
+  IsIn,
+  IsNumber,
+  IsObject,
+} from 'class-validator';
 import { EnsembleService } from './ensemble.service';
 import { NightlyReembedService } from './nightly-reembed.service';
 import { DriftDetectionService } from './drift-detection.service';
@@ -40,24 +47,53 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
 // ============================================================================
 
 class EnsembleQueryDto {
+  @IsString()
   query: string;
+
+  @IsString()
   userId: string;
+
+  @IsOptional()
+  @IsNumber()
   limit?: number;
+
+  @IsOptional()
+  @IsNumber()
   k?: number;
+
+  @IsOptional()
+  @IsArray()
   models?: ModelId[];
+
+  @IsOptional()
+  @IsObject()
   weights?: Record<ModelId, number>;
 }
 
 class EnsembleUpsertDto {
+  @IsString()
   memoryId: string;
+
+  @IsString()
   content: string;
+
+  @IsString()
   userId: string;
+
+  @IsOptional()
+  @IsObject()
   metadata?: Record<string, any>;
 }
 
 class CompareQueryDto {
+  @IsString()
   query: string;
+
+  @IsString()
   userId: string;
+
+  @IsOptional()
+  @IsNumber()
   limit?: number;
 }
 
