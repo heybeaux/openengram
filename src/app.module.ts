@@ -30,6 +30,8 @@ import { MonitoringModule } from './monitoring/monitoring.module';
 import { FogIndexModule } from './fog-index/fog-index.module';
 import { EvalModule } from './eval/eval.module';
 import { EmbeddingModule } from './embedding/embedding.module';
+import { EventModule } from './events/event.module';
+import { WebhookModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
         index: false, // Don't serve index.html for /
       },
     }),
+    EventModule,
     EmbeddingModule,
     PrismaModule,
     LLMModule,
@@ -72,6 +75,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
     RateLimitModule,
     MonitoringModule,
     EvalModule,
+    WebhookModule,
   ],
 })
 export class AppModule {}

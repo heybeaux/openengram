@@ -1,0 +1,2 @@
+-- Add GIT_HISTORY to MemorySource enum
+ALTER TYPE "MemorySource" ADD VALUE IF NOT EXISTS 'GIT_HISTORY';

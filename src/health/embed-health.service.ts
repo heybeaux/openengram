@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { HealthDegradedEvent, HealthRecoveredEvent } from '../events/event-types';
 
 export interface EmbedHealthStatus {
   status: 'up' | 'down';
@@ -21,7 +23,10 @@ export class EmbedHealthService {
   private cachedStatus: EmbedHealthStatus | null = null;
   private lastLoggedStatus: 'up' | 'down' | null = null;
 
-  constructor(private embeddingService: EmbeddingService) {}
+  constructor(
+    private embeddingService: EmbeddingService,
+    @Optional() private eventEmitter?: EventEmitter2,
+  ) {}
 
   /**
    * Get embed health status (cached for 30s)
@@ -70,14 +75,28 @@ export class EmbedHealthService {
       };
     }
 
-    // Log state changes only once
+    // Log state changes only once + emit events
     if (this.lastLoggedStatus !== status.status) {
       if (status.status === 'down') {
         this.logger.warn(
           'Embedding service is DOWN — memories will be created without embeddings',
         );
+        try {
+          this.eventEmitter?.emit(
+            'health.degraded',
+            new HealthDegradedEvent('embedding', 'Embedding service is down'),
+          );
+        } catch {}
       } else {
         this.logger.log('Embedding service is UP');
+        if (this.lastLoggedStatus === 'down') {
+          try {
+            this.eventEmitter?.emit(
+              'health.recovered',
+              new HealthRecoveredEvent('embedding'),
+            );
+          } catch {}
+        }
       }
       this.lastLoggedStatus = status.status;
     }

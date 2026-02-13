@@ -1,4 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  DreamStartedEvent,
+  DreamCompletedEvent,
+  DreamPatternFoundEvent,
+} from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConsolidationService } from '../memory/consolidation.service';
 import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
@@ -75,6 +81,7 @@ export class DreamCycleService {
     @Optional() private clusteringService?: ClusteringService,
     @Optional() private ensembleService?: EnsembleService,
     @Optional() private fogIndexService?: FogIndexService,
+    @Optional() private eventEmitter?: EventEmitter2,
   ) {
     this.dedupThreshold = parseFloat(
       this.config.get('DREAM_DEDUP_THRESHOLD') ?? '0.85',
@@ -266,6 +273,8 @@ export class DreamCycleService {
       stages,
       reportId: report.id,
     });
+
+    this.emitSafe('dream.started', new DreamStartedEvent());
 
     try {
       // Stage 1: Semantic dedup
@@ -477,6 +486,11 @@ export class DreamCycleService {
         memoriesArchived,
         errors: errors.length,
       });
+
+      this.emitSafe(
+        'dream.completed',
+        new DreamCompletedEvent(duplicatesMerged, memoriesArchived, patternsCreated, durationMs),
+      );
 
       return {
         id: report.id,
@@ -948,6 +962,14 @@ export class DreamCycleService {
             }
           }
           patternsCreated++;
+
+            // Emit pattern found event
+            if (patternMemory) {
+              this.emitSafe(
+                'dream.pattern_found',
+                new DreamPatternFoundEvent(patternMemory.id, pattern.summary),
+              );
+            }
         }
       } catch (err) {
         this.log(
@@ -1047,6 +1069,14 @@ export class DreamCycleService {
     }
 
     return { modelsAnalyzed: models.length, snapshotsPersisted, alerts };
+  }
+
+  private emitSafe(eventName: string, payload: any): void {
+    try {
+      this.eventEmitter?.emit(eventName, payload);
+    } catch (err) {
+      this.log(`Failed to emit ${eventName}: ${err}`, undefined, 'error');
+    }
   }
 
   private log(

@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { ContextRegeneratedEvent } from '../events/event-types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -64,7 +66,10 @@ const STALENESS_DAYS = 14;
 export class GenerateContextService {
   private readonly logger = new Logger(GenerateContextService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private eventEmitter?: EventEmitter2,
+  ) {}
 
   async generate(
     options: GenerateContextOptions,
@@ -543,6 +548,14 @@ export class GenerateContextService {
         this.logger.error(`Failed to write context file: ${err}`);
       }
     }
+
+    // Emit context.regenerated event
+    try {
+      this.eventEmitter?.emit(
+        'context.regenerated',
+        new ContextRegeneratedEvent(writtenTo, Math.round(totalTokens)),
+      );
+    } catch {}
 
     return {
       markdown,

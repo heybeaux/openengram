@@ -331,6 +331,42 @@ model WebhookDelivery {
   @@map("webhook_deliveries")
 }
 
+/// Webhook subscription (v2 — event bus driven)
+model WebhookSubscription {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  url                 String
+  events              String[] // array of event type strings
+  secret              String?  // HMAC signing key
+  active              Boolean  @default(true)
+  maxRetries          Int      @default(3) @map("max_retries")
+  backoffMs           Int      @default(1000) @map("backoff_ms")
+  filterLayers        String[] @default([]) @map("filter_layers")
+  filterTags          String[] @default([]) @map("filter_tags")
+  filterMinImportance Float?   @map("filter_min_importance")
+  failureCount        Int      @default(0) @map("failure_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("webhook_subscriptions")
+}
+
+/// Webhook delivery log (v2)
+model WebhookDeliveryLog {
+  id             String   @id @default(uuid())
+  subscriptionId String   @map("subscription_id")
+  eventType      String   @map("event_type")
+  payload        Json
+  statusCode     Int?     @map("status_code")
+  error          String?
+  attempt        Int      @default(1)
+  deliveredAt    DateTime @default(now()) @map("delivered_at")
+
+  @@index([subscriptionId, deliveredAt])
+  @@map("webhook_delivery_logs")
+}
+
 /// Audit log for compliance
 model AuditLog {
   id         String   @id @default(cuid())
@@ -507,6 +543,7 @@ enum MemorySource {
   CORRECTION
   PATTERN_DETECTED
   SYSTEM
+  GIT_HISTORY
 }
 
 /// Importance hint from API caller

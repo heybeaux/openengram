@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { MemoryMergedEvent, DedupClusterFoundEvent } from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SimilarityService,
@@ -79,6 +81,7 @@ export class DeduplicationService {
     private merge: MergeService,
     private lineage: LineageService,
     private review: ReviewService,
+    @Optional() private eventEmitter?: EventEmitter2,
   ) {
     this.config = {
       autoMergeThreshold: 0.95,
@@ -272,6 +275,16 @@ export class DeduplicationService {
 
       console.log(`[DeduplicationService] Found ${clusters.length} clusters`);
 
+      // Emit cluster found events
+      for (const cluster of clusters) {
+        try {
+          this.eventEmitter?.emit(
+            'dedup.cluster_found',
+            new DedupClusterFoundEvent(cluster.id, cluster.memoryIds, cluster.avgSimilarity),
+          );
+        } catch {}
+      }
+
       // Process each cluster
       for (const cluster of clusters) {
         try {
@@ -404,6 +417,14 @@ export class DeduplicationService {
       similarity,
       approvedBy,
     );
+
+    try {
+      this.eventEmitter?.emit(
+        'memory.merged',
+        new MemoryMergedEvent(result.absorbedIds, result.survivorId, userId),
+      );
+    } catch {}
+
     return result;
   }
 

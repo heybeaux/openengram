@@ -1,4 +1,10 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+} from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ExtractionService,
@@ -106,6 +112,7 @@ export class MemoryService {
     @Optional() private correctionService?: CorrectionService,
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
+    @Optional() private eventEmitter?: EventEmitter2,
   ) {}
 
   /**
@@ -263,7 +270,20 @@ export class MemoryService {
       console.error(`Extraction failed for memory ${memory.id}:`, err);
     });
 
-    // 10. Check for contradictions with existing memories (async, best-effort)
+    // 10. Emit memory.created event
+    this.emitEvent(
+      'memory.created',
+      new MemoryCreatedEvent(
+        memory.id,
+        memory.layer,
+        importanceScore,
+        [],
+        userId,
+        rawContent.substring(0, 200),
+      ),
+    );
+
+    // 11. Check for contradictions with existing memories (async, best-effort)
     if (this.correctionService) {
       this.correctionService
         .checkForContradictions(memory.id, userId, rawContent)
@@ -1108,11 +1128,16 @@ export class MemoryService {
   /**
    * Soft delete a memory
    */
-  async delete(memoryId: string): Promise<void> {
+  async delete(memoryId: string, userId?: string): Promise<void> {
     await this.prisma.memory.update({
       where: { id: memoryId },
       data: { deletedAt: new Date() },
     });
+
+    this.emitEvent(
+      'memory.deleted',
+      new MemoryDeletedEvent(memoryId, userId ?? 'unknown'),
+    );
   }
 
   /**
@@ -1175,6 +1200,12 @@ export class MemoryService {
       data: updateData,
       include: { extraction: true },
     });
+
+    // Emit memory.updated event
+    this.emitEvent(
+      'memory.updated',
+      new MemoryUpdatedEvent(memoryId, updateData, userId),
+    );
 
     // 4. Update extraction fields if provided
     if (dto.extraction && memory.extraction) {
@@ -1559,6 +1590,17 @@ export class MemoryService {
     console.log(
       `[LESSON→CONSTRAINT] Auto-promoted critical lesson: ${memoryId}`,
     );
+  }
+
+  /**
+   * Fire-and-forget event emission. Never throws.
+   */
+  private emitEvent(eventName: string, payload: any): void {
+    try {
+      this.eventEmitter?.emit(eventName, payload);
+    } catch (err) {
+      console.error(`[Memory] Failed to emit ${eventName}:`, err);
+    }
   }
 
   // =========================================================================
