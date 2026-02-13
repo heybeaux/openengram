@@ -282,7 +282,7 @@ export class DeduplicationService {
             'dedup.cluster_found',
             new DedupClusterFoundEvent(cluster.id, cluster.memoryIds, cluster.avgSimilarity),
           );
-        } catch {}
+        } catch { /* intentionally empty */ }
       }
 
       // Process each cluster
@@ -423,7 +423,7 @@ export class DeduplicationService {
         'memory.merged',
         new MemoryMergedEvent(result.absorbedIds, result.survivorId, userId),
       );
-    } catch {}
+    } catch { /* intentionally empty */ }
 
     return result;
   }

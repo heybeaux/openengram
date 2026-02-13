@@ -86,7 +86,7 @@ export class EmbedHealthService {
             'health.degraded',
             new HealthDegradedEvent('embedding', 'Embedding service is down'),
           );
-        } catch {}
+        } catch { /* intentionally empty */ }
       } else {
         this.logger.log('Embedding service is UP');
         if (this.lastLoggedStatus === 'down') {
@@ -95,7 +95,7 @@ export class EmbedHealthService {
               'health.recovered',
               new HealthRecoveredEvent('embedding'),
             );
-          } catch {}
+          } catch { /* intentionally empty */ }
         }
       }
       this.lastLoggedStatus = status.status;

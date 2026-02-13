@@ -555,7 +555,7 @@ export class GenerateContextService {
         'context.regenerated',
         new ContextRegeneratedEvent(writtenTo, Math.round(totalTokens)),
       );
-    } catch {}
+    } catch { /* intentionally empty */ }
 
     return {
       markdown,
