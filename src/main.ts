@@ -32,25 +32,27 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Engram API')
     .setDescription(
-      'Agent Memory Service — semantic memory storage, retrieval, and management',
+      'Memory infrastructure for AI agents that actually works.',
     )
-    .setVersion('0.8.0')
+    .setVersion('1.0.0')
     .addApiKey(
       { type: 'apiKey', name: 'X-AM-API-Key', in: 'header' },
       'api-key',
     )
-    .addTag('Memory', 'Core memory CRUD and recall')
-    .addTag('Ensemble', 'Multi-model embedding and RRF fusion')
-    .addTag('Graph', 'Knowledge graph extraction and querying')
-    .addTag('Dashboard', 'Analytics and visualization data')
-    .addTag('Monitoring', 'Health checks and system metrics')
-    .addTag('Consolidation', 'Memory consolidation and dream cycle')
-    .addTag('Agents', 'Agent self-memory and reflection')
-    .addTag('Context', 'Context loading for agent bootstrap')
+    .addApiKey(
+      { type: 'apiKey', name: 'X-AM-User-ID', in: 'header' },
+      'user-id',
+    )
+    .addTag('memories', 'Core memory operations')
+    .addTag('search', 'Semantic search and recall')
+    .addTag('context', 'Context generation')
+    .addTag('dedup', 'Deduplication management')
+    .addTag('health', 'Health and monitoring')
+    .addTag('webhooks', 'Webhook subscriptions')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('v1/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

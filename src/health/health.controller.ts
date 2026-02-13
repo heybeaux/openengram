@@ -5,11 +5,13 @@ import {
   HttpStatus,
   Redirect,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
 import { MonitoringService } from '../monitoring/monitoring.service';
 
+@ApiTags('health')
 @Controller()
 @SkipRateLimit()
 export class HealthController {
@@ -30,6 +32,9 @@ export class HealthController {
 
   /** GET /v1/health — canonical health check endpoint */
   @Get('v1/health')
+  @ApiOperation({ summary: 'Health check', description: 'Returns system health including database, embedding service, and monitoring status.' })
+  @ApiResponse({ status: 200, description: 'System is healthy.' })
+  @ApiResponse({ status: 503, description: 'System is unhealthy (database down).' })
   async check(): Promise<any> {
     const start = Date.now();
 

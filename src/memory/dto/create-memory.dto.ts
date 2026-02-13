@@ -8,6 +8,7 @@ import {
   IsDate,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ImportanceHint,
   MemoryLayer,
@@ -45,16 +46,19 @@ function mapImportanceToHint(
 
 export class CreateMemoryDto {
   // Primary field name (transforms content -> raw for backward compatibility)
+  @ApiPropertyOptional({ description: 'Memory content text', example: 'User prefers dark mode in all apps.' })
   @IsOptional()
   @IsString()
   @Transform(({ value, obj }) => value ?? obj.content)
   raw?: string;
 
   // Legacy alias: content -> raw (accepted but transformed to raw)
+  @ApiPropertyOptional({ description: 'Alias for raw (backward compatibility)' })
   @IsOptional()
   @IsString()
   content?: string;
 
+  @ApiPropertyOptional({ description: 'Memory layer', enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'] })
   @IsOptional()
   @IsEnum(MemoryLayer)
   @Transform(({ value, obj }) => value ?? mapMemoryType(obj.memoryType))
