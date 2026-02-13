@@ -1,71 +1,76 @@
 # Architecture
 
-## Overview
-Engram is a NestJS monolith with ~30 domain modules. Each module follows the NestJS pattern: Module → Controller → Service → PrismaService. PostgreSQL with pgvector handles both relational data and vector similarity search.
+## Stack
+- **Runtime**: NestJS (Node.js)
+- **ORM**: Prisma
+- **Database**: PostgreSQL + pgvector extension
+- **Embeddings**: OpenAI, local models via ensemble system
+- **Testing**: Jest
 
-## Domain Map
+## Module Map
 
-### Core Memory
-- **memory** — CRUD, semantic search, extraction, embedding, importance scoring, temporal parsing
-- **session** — Conversation session tracking
-- **agent** / **agent-session** — Agent identity and session management
-- **user** — User management
+### Core
+| Module | Purpose |
+|---|---|
+| `memory` | CRUD, embedding generation, recall, temporal parsing, search |
+| `prisma` | PrismaService singleton (wraps @prisma/client) |
+| `vector` | pgvector provider for similarity search |
+| `llm` | LLM abstraction layer (OpenAI, structured output) |
 
 ### Intelligence
-- **ensemble** — Multi-model embeddings with RRF (Reciprocal Rank Fusion) for retrieval
-- **graph** — Knowledge graph extraction from memories
-- **hierarchy** — Memory consolidation across layers (session → core → archetype)
-- **consolidation** — Merges redundant memories
-- **deduplication** — Near-duplicate detection (MinHash, semantic similarity)
-- **clustering** — Groups related memories
+| Module | Purpose |
+|---|---|
+| `ensemble` | Multi-model RRF fusion, drift detection, nightly re-embed, model registry |
+| `correction` | Contradiction detection, memory superseding chains |
+| `consolidation` | Merge duplicate/related memories |
+| `deduplication` | Exact/near-duplicate detection |
+| `clustering` | Memory clustering |
+| `hierarchy` | Hierarchical memory organization |
+| `summarization` | Memory summarization |
+| `fog-index` | Memory fog/decay scoring |
+| `reembedding` | Re-embed memories with updated models |
 
-### Retrieval
-- **vector** — pgvector operations, embedding storage
-- **multi-query** — Query expansion for better recall
-- **prefetch** — Predictive cache warming
-- **scoped-context** — Context window management
-- **memory-pool** — Shared memory pools across agents
+### Access & Context
+| Module | Purpose |
+|---|---|
+| `scoped-context` | Context scoping for recall |
+| `multi-query` | Multi-query retrieval |
+| `prefetch` | Predictive cache (⚠️ maxSize=0 bug) |
+| `memory-access-log` | Track memory access patterns |
+| `memory-pool` | Memory pooling |
+| `graph` | Relationship graph between memories |
 
-### Operations
-- **eval** — Recall and latency benchmarks
-- **analytics** — Usage metrics
-- **monitoring** — Health and performance
-- **fog-index** — Readability scoring
-- **reembedding** — Background re-embedding with new models
+### Platform
+| Module | Purpose |
+|---|---|
+| `agent` | Agent profiles and config |
+| `agent-session` | Session management |
+| `session` | Session utilities |
+| `user` | User management |
+| `project` | Multi-project support |
+| `config` | App configuration |
+| `common` | Shared decorators, pipes, guards |
+| `utils` | Utility functions |
 
-### Infrastructure
-- **prisma** — Database client (shared singleton)
-- **config** — Environment configuration
-- **common** — Guards (ApiKeyGuard), shared utilities
-- **llm** — LLM provider abstraction (OpenAI)
-- **rate-limit** — Request throttling
-- **webhook** — Event notifications
-- **health** — Health check endpoints
+### Ops
+| Module | Purpose |
+|---|---|
+| `analytics` | Usage analytics |
+| `monitoring` | Health/perf monitoring snapshots |
+| `health` | Health check endpoints |
+| `dashboard` | Static dashboard UI |
+| `webhook` | Webhook delivery |
+| `rate-limit` | Rate limiting |
+| `eval` | Evaluation framework |
+| `feedback` | User feedback on recall quality |
+| `auto` | Automated maintenance tasks |
 
 ## Layer Rules
-```
-Controller  →  Service  →  PrismaService
-     ↓             ↓
-   DTOs        Types/Interfaces
-```
+1. **Controllers** handle HTTP, validate DTOs, delegate to services
+2. **Services** contain business logic, call Prisma/providers
+3. **Providers** wrap external systems (pgvector, OpenAI)
+4. Controllers never call Prisma directly
+5. Services don't import from other module's internals — use NestJS DI
 
-- **Controllers**: HTTP only. Validate input (DTOs + ValidationPipe), call service, return response.
-- **Services**: All business logic. May call other services. Never import controllers.
-- **PrismaService**: Data access only. Injected into services, never into controllers directly.
-- **DTOs**: Request/response shapes with class-validator decorators. Always in `dto/` subdirectory.
-
-## Dependency Direction
-Dependencies flow downward only:
-1. Types/Interfaces (no dependencies)
-2. Config
-3. Repository layer (PrismaService)
-4. Service layer
-5. Controller layer
-
-Cross-module dependencies: Import the **module**, inject the **service**. Never reach into another module's internals.
-
-## Database
-- PostgreSQL 16 with pgvector extension
-- Prisma ORM with raw SQL for vector operations
-- Schema: `prisma/schema.prisma`
-- Migrations: `prisma/migrations/` (must be idempotent)
+## Entry Point
+`src/main.ts` → `src/app.module.ts` imports all feature modules.

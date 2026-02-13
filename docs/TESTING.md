@@ -1,60 +1,75 @@
 # Testing Guide
 
-## Overview
-- **Framework**: Jest 30 with ts-jest
-- **Tests**: 1,100+ across 57 suites
-- **Convention**: Co-located — `foo.service.spec.ts` next to `foo.service.ts`
-- **Config**: In `package.json` under `"jest"` key
-- **Setup**: `src/test-setup.ts` auto-closes NestJS TestingModules
-
 ## Running Tests
 ```bash
-npm test                    # All tests
-npm test -- --watch         # Watch mode
-npm test -- path/to/file    # Single file
-npm run test:cov            # With coverage
+npm test                          # All tests
+npm test -- --testPathPattern=correction  # Single module
+npm test -- --forceExit --ci      # CI mode
 ```
 
-## Test Structure
+## Pattern: TestingModule with Manual Mocks
+
+Every spec file follows this pattern:
+
 ```typescript
 import { Test, TestingModule } from '@nestjs/testing';
-import { MyService } from './my.service';
-import { PrismaService } from '../prisma/prisma.service';
+
+// 1. Define mocks at top level
+const mockPrisma = {
+  memory: { findMany: jest.fn(), update: jest.fn() },
+  $queryRaw: jest.fn(),
+  $transaction: jest.fn((fn) => fn(mockPrisma)),
+};
+
+const mockConfig = {
+  get: jest.fn((key: string, defaultValue?: any) => {
+    const config = { SOME_KEY: 'value' };
+    return config[key] ?? defaultValue;
+  }),
+};
 
 describe('MyService', () => {
   let service: MyService;
-  let mockPrisma: any;
 
   beforeEach(async () => {
-    mockPrisma = {
-      memory: {
-        create: jest.fn(),
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        update: jest.fn(),
-      },
-      $queryRaw: jest.fn(),
-      $transaction: jest.fn((fn) => fn(mockPrisma)),
-    };
+    jest.clearAllMocks();  // Always clear between tests
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MyService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test') } },
+        { provide: ConfigService, useValue: mockConfig },
       ],
     }).compile();
 
     service = module.get<MyService>(MyService);
   });
 
-  it('should do the thing', async () => {
-    mockPrisma.memory.findMany.mockResolvedValue([{ id: '1', raw: 'test' }]);
-    const result = await service.findAll('user-1');
-    expect(result).toHaveLength(1);
-    expect(mockPrisma.memory.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: 'user-1' } })
-    );
+  it('should do something', async () => {
+    mockPrisma.memory.findMany.mockResolvedValue([{ id: '1' }]);
+    const result = await service.doSomething();
+    expect(result).toBeDefined();
+    expect(mockPrisma.memory.findMany).toHaveBeenCalled();
+  });
+});
+```
+
+## Pattern: Pure Service (No DI)
+
+For services with no injected dependencies:
+
+```typescript
+describe('TemporalParserService', () => {
+  let service: TemporalParserService;
+  const NOW = new Date('2026-02-05T10:00:00.000Z');
+
+  beforeEach(() => {
+    service = new TemporalParserService();
+  });
+
+  it('should parse "yesterday"', () => {
+    const result = service.parse('What happened yesterday?', NOW);
+    expect(result.temporalFilter).not.toBeNull();
   });
 });
 ```
@@ -62,36 +77,29 @@ describe('MyService', () => {
 ## Common Mocks
 
 ### PrismaService
+Mock each model's methods individually. Include `$queryRaw`, `$queryRawUnsafe`, `$executeRaw`, `$executeRawUnsafe`, `$transaction` as needed.
+
+### LLMService
 ```typescript
-const mockPrisma = {
-  memory: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
-  memoryExtraction: { create: jest.fn() },
-  $queryRaw: jest.fn(),
-  $queryRawUnsafe: jest.fn(),
-  $executeRaw: jest.fn(),
-  $executeRawUnsafe: jest.fn(),
-  $transaction: jest.fn((fn) => fn(mockPrisma)),
+const mockLLM = { json: jest.fn() };
+```
+
+### EmbeddingService
+```typescript
+const mockEmbedding = {
+  generate: jest.fn(),
+  search: jest.fn(),
+  store: jest.fn(),
 };
 ```
 
 ### ConfigService
-```typescript
-{ provide: ConfigService, useValue: { get: jest.fn((key: string) => {
-  const config = { DATABASE_URL: 'test', OPENAI_API_KEY: 'sk-test' };
-  return config[key];
-}) } }
-```
+Use a map-based mock with `get()` returning known test values.
 
-### LlmService
-```typescript
-{ provide: LlmService, useValue: { generateCompletion: jest.fn(), generateEmbedding: jest.fn() } }
-```
-
-## Auto-Cleanup
-`src/test-setup.ts` monkey-patches `Test.createTestingModule` to track all compiled modules and close them in `afterEach`. You don't need manual cleanup.
-
-## Tips
-- Always mock external services (LLM, Prisma) — tests must run without a database
-- Set `x-am-user-id` in request mocks for controller tests
-- Use `jest.fn().mockResolvedValue()` for async mocks
-- `$transaction` mock should invoke the callback with the mock prisma instance
+## Key Conventions
+- Spec files live alongside source: `foo.service.ts` → `foo.service.spec.ts`
+- 57 spec files across the codebase
+- `jest.clearAllMocks()` in every `beforeEach`
+- Use `mockResolvedValue` / `mockRejectedValue` for async
+- Test error paths — services should handle LLM timeouts, missing data gracefully
+- BigInt from raw queries: remember to handle in assertions
