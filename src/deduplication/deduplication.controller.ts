@@ -69,19 +69,19 @@ export class DeduplicationController {
    */
   @Post('scan')
   @ApiOperation({ summary: 'Trigger batch deduplication scan' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ScanResponseDto })
   @ApiResponse({
     status: 400,
     description: 'Deduplication disabled or job already running',
   })
   async scan(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Body() dto: TriggerScanDto,
   ): Promise<ScanResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -138,15 +138,15 @@ export class DeduplicationController {
    */
   @Get('candidates')
   @ApiOperation({ summary: 'List merge candidates' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ListCandidatesResponseDto })
   async getCandidates(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Query() query: ListCandidatesQueryDto,
   ): Promise<ListCandidatesResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -277,7 +277,7 @@ export class DeduplicationController {
    */
   @Post('merge')
   @ApiOperation({ summary: 'Manually merge memories' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiHeader({
     name: 'x-approver-id',
     required: false,
@@ -286,13 +286,13 @@ export class DeduplicationController {
   @ApiResponse({ status: 200, type: MergeResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   async merge(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Body() dto: ManualMergeDto,
     @Headers('x-approver-id') approverId?: string,
   ): Promise<MergeResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -340,20 +340,20 @@ export class DeduplicationController {
    */
   @Get('history')
   @ApiOperation({ summary: 'Get merge history' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   @ApiQuery({ name: 'survivorId', required: false, type: String })
   @ApiResponse({ status: 200 })
   async getHistory(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
     @Query('survivorId') survivorId?: string,
   ): Promise<{ events: MergeEventDto[]; total: number }> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -408,19 +408,19 @@ export class DeduplicationController {
    */
   @Get('similar/:memoryId')
   @ApiOperation({ summary: 'Find similar memories' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiQuery({ name: 'topK', required: false, type: Number })
   @ApiQuery({ name: 'minSimilarity', required: false, type: Number })
   @ApiResponse({ status: 200, type: [SimilarMemoryDto] })
   async findSimilar(
     @Param('memoryId') memoryId: string,
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Query('topK') topK?: number,
     @Query('minSimilarity') minSimilarity?: number,
   ): Promise<SimilarMemoryDto[]> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -440,14 +440,14 @@ export class DeduplicationController {
    */
   @Get('config')
   @ApiOperation({ summary: 'Get deduplication configuration' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
   async getConfig(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
   ): Promise<ConfigResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -460,15 +460,15 @@ export class DeduplicationController {
    */
   @Patch('config')
   @ApiOperation({ summary: 'Update deduplication configuration' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
   async updateConfig(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
     @Body() dto: UpdateConfigDto,
   ): Promise<ConfigResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -485,14 +485,14 @@ export class DeduplicationController {
    */
   @Get('stats')
   @ApiOperation({ summary: 'Get deduplication statistics' })
-  @ApiHeader({ name: 'x-user-id', required: true, description: 'User ID' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: StatsResponseDto })
   async getStats(
-    @Headers('x-user-id') userId: string,
+    @Headers('x-am-user-id') userId: string,
   ): Promise<StatsResponseDto> {
     if (!userId) {
       throw new HttpException(
-        'x-user-id header required',
+        'x-am-user-id header required',
         HttpStatus.BAD_REQUEST,
       );
     }
