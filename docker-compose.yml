@@ -31,13 +31,41 @@ services:
     networks:
       - engram-network
 
+  # ── Optional services (uncomment to enable) ──────────────────
+
   # engram-embed:
-  #   image: ghcr.io/heybeaux/engram-embed:latest  # Rust embedding service (optional)
+  #   build: ../engram-embed
   #   ports:
   #     - "8080:8080"
   #   networks:
   #     - engram-network
-  #   # If not using engram-embed, set EMBEDDING_PROVIDER=openai and provide OPENAI_API_KEY in .env
+  #   # Local embeddings on Metal GPU — set EMBEDDING_PROVIDER=local in .env
+
+  # engram-code:
+  #   build: ../engram-code
+  #   ports:
+  #     - "3002:3002"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
+  #   networks:
+  #     - engram-network
+
+  # dashboard:
+  #   build: ../engram-dashboard
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NEXT_PUBLIC_ENGRAM_API_URL: http://engram:3001
+  #     NEXT_PUBLIC_ENGRAM_CODE_URL: http://engram-code:3002
+  #   depends_on:
+  #     - engram
+  #   networks:
+  #     - engram-network
 
 volumes:
   pgdata:
