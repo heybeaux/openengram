@@ -6,10 +6,15 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { MemoryDedupService } from './memory-dedup.service';
+import { MemoryQueryService } from './memory-query.service';
+import { MemoryPipelineService } from './memory-pipeline.service';
+import { MemoryGraphService } from './memory-graph.service';
 import { ImportanceHint, MemoryLayer, MemorySource } from '@prisma/client';
 
 describe('MemoryService', () => {
   let service: MemoryService;
+  let module: TestingModule;
   let mockPrisma: any;
   let mockExtraction: any;
   let mockEmbedding: any;
@@ -142,7 +147,34 @@ describe('MemoryService', () => {
       }),
     } as any;
 
-    const module: TestingModule = await Test.createTestingModule({
+    const mockDedupService = {
+      findDuplicate: jest.fn().mockResolvedValue(null),
+      findDuplicateV2: jest.fn().mockResolvedValue({ action: 'create' }),
+      autoMergeMemory: jest.fn().mockResolvedValue(undefined),
+      reinforceMemory: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const mockQueryService = {
+      recall: jest.fn().mockResolvedValue({ memories: [], queryTokens: 0, latencyMs: 0 }),
+      loadContext: jest.fn().mockResolvedValue({ context: '', tokenCount: 0, memoriesIncluded: 0, layers: { identity: 0, project: 0, session: 0 } }),
+      shouldUseMultiQuery: jest.fn().mockReturnValue(false),
+      selectMemoriesForBudget: jest.fn().mockReturnValue({ selected: [], evicted: [] }),
+      buildSubjectTypeFilter: jest.fn().mockReturnValue({}),
+      formatContext: jest.fn().mockReturnValue({ text: '', tokens: 0 }),
+    };
+
+    const mockPipelineService = {
+      extractAndEmbed: jest.fn().mockResolvedValue(undefined),
+      storeEntities: jest.fn().mockResolvedValue(undefined),
+      linkRelatedMemories: jest.fn().mockResolvedValue(undefined),
+      promoteToConstraint: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const mockGraphService = {
+      getGraphData: jest.fn().mockResolvedValue({ nodes: [], edges: [], entities: [] }),
+    };
+
+    module = await Test.createTestingModule({
       providers: [
         MemoryService,
         { provide: PrismaService, useValue: mockPrisma },
@@ -151,6 +183,10 @@ describe('MemoryService', () => {
         { provide: ImportanceService, useValue: mockImportance },
         { provide: TemporalParserService, useValue: mockTemporalParser },
         { provide: HierarchyService, useValue: mockHierarchyService },
+        { provide: MemoryDedupService, useValue: mockDedupService },
+        { provide: MemoryQueryService, useValue: mockQueryService },
+        { provide: MemoryPipelineService, useValue: mockPipelineService },
+        { provide: MemoryGraphService, useValue: mockGraphService },
       ],
     }).compile();
 
@@ -243,47 +279,26 @@ describe('MemoryService', () => {
       });
     });
 
-    it('should trigger async extraction without blocking', async () => {
+    it('should trigger async extraction via pipeline service', async () => {
       mockImportance.calculate.mockReturnValue(0.5);
       mockPrisma.memory.create.mockResolvedValue(mockMemory);
 
-      // Mock extraction to take some time
-      let extractionStarted = false;
-      mockExtraction.extract.mockImplementation(() => {
-        extractionStarted = true;
-        return Promise.resolve({
-          who: null,
-          what: 'Test',
-          when: null,
-          where: null,
-          why: null,
-          how: null,
-          topics: [],
-          entities: [],
-          memoryType: null,
-          typeConfidence: null,
-          confidence: {
-            whoConfidence: null,
-            whatConfidence: null,
-            whenConfidence: null,
-            whereConfidence: null,
-            whyConfidence: null,
-            howConfidence: null,
-          },
-          lesson: null,
-        });
-      });
-      mockEmbedding.generate.mockResolvedValue([0.1, 0.2]);
-      mockEmbedding.store.mockResolvedValue('embed-123');
-
       const result = await service.remember('user-456', { raw: 'Test' });
 
-      // Result should be returned before extraction completes
+      // Result should be returned immediately
       expect(result).toEqual(mockMemory);
 
-      // Wait for async extraction to start
+      // Wait for async call to fire
       await new Promise((r) => setTimeout(r, 10));
-      expect(extractionStarted).toBe(true);
+
+      // Pipeline service should have been called for extraction
+      const pipelineService = module.get(MemoryPipelineService);
+      expect(pipelineService.extractAndEmbed).toHaveBeenCalledWith(
+        mockMemory.id,
+        'Test',
+        'user-456',
+        expect.any(Object),
+      );
     });
   });
 
@@ -345,196 +360,79 @@ describe('MemoryService', () => {
   });
 
   describe('recall', () => {
-    it('should perform semantic search and return memories', async () => {
-      const queryEmbedding = [0.1, 0.2, 0.3];
-      mockEmbedding.generate.mockResolvedValue(queryEmbedding);
-      mockEmbedding.search.mockResolvedValue([
-        { id: 'mem-1', score: 0.95 },
-        { id: 'mem-2', score: 0.88 },
-      ]);
-      mockPrisma.memory.findMany.mockResolvedValue([
-        { ...mockMemory, id: 'mem-1' },
-        { ...mockMemory, id: 'mem-2' },
-      ]);
-      mockPrisma.memory.updateMany.mockResolvedValue({ count: 2 });
+    it('should delegate to MemoryQueryService', async () => {
+      const queryService = module.get(MemoryQueryService);
+      const mockResult = {
+        memories: [{ ...mockMemory, id: 'mem-1', score: 0.95 }],
+        queryTokens: 2,
+        latencyMs: 10,
+      };
+      (queryService.recall as jest.Mock).mockResolvedValue(mockResult);
 
       const result = await service.recall('user-456', {
         query: 'test query',
         limit: 10,
       });
 
-      expect(mockEmbedding.generate).toHaveBeenCalledWith('test query');
-      expect(mockEmbedding.search).toHaveBeenCalledWith(
-        'user-456',
-        queryEmbedding,
-        10,
-        undefined,
-        undefined,
-        undefined,
-      );
-      expect(result.memories).toHaveLength(2);
-      expect(result.queryTokens).toBeGreaterThan(0);
-      expect(result.latencyMs).toBeDefined();
+      expect(queryService.recall).toHaveBeenCalledWith('user-456', {
+        query: 'test query',
+        limit: 10,
+      });
+      expect(result).toEqual(mockResult);
     });
 
-    it('should filter by layers when specified', async () => {
-      mockEmbedding.generate.mockResolvedValue([0.1]);
-      mockEmbedding.search.mockResolvedValue([]);
-      mockPrisma.memory.findMany.mockResolvedValue([]);
-      mockPrisma.memory.updateMany.mockResolvedValue({ count: 0 });
+    it('should pass through layers filter', async () => {
+      const queryService = module.get(MemoryQueryService);
 
       await service.recall('user-456', {
         query: 'test',
         layers: [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
       });
 
-      expect(mockEmbedding.search).toHaveBeenCalledWith(
-        'user-456',
-        expect.any(Array),
-        10,
-        [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
-        undefined,
-        undefined,
-      );
-    });
-
-    it('should update retrieval counts', async () => {
-      mockEmbedding.generate.mockResolvedValue([0.1]);
-      mockEmbedding.search.mockResolvedValue([
-        { id: 'mem-1', score: 0.9 },
-        { id: 'mem-2', score: 0.8 },
-      ]);
-      mockPrisma.memory.findMany.mockResolvedValue([
-        { ...mockMemory, id: 'mem-1' },
-        { ...mockMemory, id: 'mem-2' },
-      ]);
-      mockPrisma.memory.updateMany.mockResolvedValue({ count: 2 });
-
-      await service.recall('user-456', { query: 'test' });
-
-      expect(mockPrisma.memory.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['mem-1', 'mem-2'] } },
-        data: {
-          retrievalCount: { increment: 1 },
-          lastRetrievedAt: expect.any(Date),
-        },
+      expect(queryService.recall).toHaveBeenCalledWith('user-456', {
+        query: 'test',
+        layers: [MemoryLayer.IDENTITY, MemoryLayer.PROJECT],
       });
     });
 
     it('should handle empty search results', async () => {
-      mockEmbedding.generate.mockResolvedValue([0.1]);
-      mockEmbedding.search.mockResolvedValue([]);
-      mockPrisma.memory.findMany.mockResolvedValue([]);
-      mockPrisma.memory.updateMany.mockResolvedValue({ count: 0 });
-
       const result = await service.recall('user-456', { query: 'test' });
-
       expect(result.memories).toEqual([]);
     });
   });
 
   describe('loadContext', () => {
-    it('should load memories from all layers', async () => {
-      const identityMemories = [
-        {
-          ...mockMemory,
-          id: 'id-1',
-          layer: MemoryLayer.IDENTITY,
-          raw: 'Identity fact',
-        },
-      ];
-      const projectMemories = [
-        {
-          ...mockMemory,
-          id: 'proj-1',
-          layer: MemoryLayer.PROJECT,
-          raw: 'Project info',
-        },
-      ];
-      const sessionMemories = [
-        {
-          ...mockMemory,
-          id: 'sess-1',
-          layer: MemoryLayer.SESSION,
-          raw: 'Session info',
-        },
-      ];
-
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce(identityMemories)
-        .mockResolvedValueOnce(projectMemories)
-        .mockResolvedValueOnce(sessionMemories);
+    it('should delegate to MemoryQueryService', async () => {
+      const queryService = module.get(MemoryQueryService);
+      const mockResult = {
+        context: '## User Identity\n- Identity fact',
+        tokenCount: 5,
+        memoriesIncluded: 3,
+        layers: { identity: 1, project: 1, session: 1 },
+      };
+      (queryService.loadContext as jest.Mock).mockResolvedValue(mockResult);
 
       const result = await service.loadContext('user-456', {
         projectId: 'project-123',
       });
 
+      expect(queryService.loadContext).toHaveBeenCalledWith('user-456', {
+        projectId: 'project-123',
+      });
       expect(result.layers.identity).toBe(1);
       expect(result.layers.project).toBe(1);
       expect(result.layers.session).toBe(1);
       expect(result.memoriesIncluded).toBe(3);
     });
 
-    it('should format context with layer headers', async () => {
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce([
-          { ...mockMemory, layer: MemoryLayer.IDENTITY, raw: 'User is John' },
-        ])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+    it('should pass through maxTokens', async () => {
+      const queryService = module.get(MemoryQueryService);
 
-      const result = await service.loadContext('user-456', {});
+      await service.loadContext('user-456', { maxTokens: 100 });
 
-      expect(result.context).toContain('## User Identity');
-      expect(result.context).toContain('User is John');
-    });
-
-    it('should not include project memories when projectId not specified', async () => {
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce([]) // identity
-        .mockResolvedValueOnce([]); // session
-
-      const result = await service.loadContext('user-456', {});
-
-      expect(mockPrisma.memory.findMany).toHaveBeenCalledTimes(2);
-      expect(result.layers.project).toBe(0);
-    });
-
-    it('should respect maxTokens limit', async () => {
-      const longMemories = Array.from({ length: 100 }, (_, i) => ({
-        ...mockMemory,
-        id: `mem-${i}`,
-        layer: MemoryLayer.IDENTITY,
-        raw: 'A'.repeat(100),
-      }));
-
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce(longMemories)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-
-      const result = await service.loadContext('user-456', { maxTokens: 100 });
-
-      // Token count should be around the limit
-      expect(result.tokenCount).toBeLessThanOrEqual(200); // Some margin for overhead
-    });
-
-    it('should query recent session memories from last 7 days', async () => {
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-
-      await service.loadContext('user-456', {});
-
-      // Session memories query
-      expect(mockPrisma.memory.findMany).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            layer: MemoryLayer.SESSION,
-            createdAt: { gte: expect.any(Date) },
-          }),
-        }),
-      );
+      expect(queryService.loadContext).toHaveBeenCalledWith('user-456', {
+        maxTokens: 100,
+      });
     });
   });
 
