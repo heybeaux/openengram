@@ -27,7 +27,7 @@ check_service() {
 
 ENGRAM=$(check_service "engram-api" "http://localhost:3001/v1/health")
 EMBED=$(check_service "embed-service" "http://127.0.0.1:8080/health")
-CODESEARCH=$(check_service "code-search" "http://localhost:3002/v1/health")
+CODESEARCH=$(check_service "code-search" "http://localhost:3002/v1/projects")
 DASHBOARD=$(check_service "dashboard" "http://localhost:3000")
 
 END_TIME=$(date +%s)

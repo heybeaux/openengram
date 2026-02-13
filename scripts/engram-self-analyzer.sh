@@ -45,7 +45,7 @@ echo "" >> "$REPORT"
 
 # --- Fog Index ---
 echo "## Fog Index" >> "$REPORT"
-FOG=$(curl -s --max-time 10 -H "X-AM-API-Key: $API_KEY" http://localhost:3001/v1/fog-index 2>&1) || FOG="UNREACHABLE"
+FOG=$(curl -s --max-time 10 "${HEADERS[@]}" http://localhost:3001/v1/fog-index 2>&1) || FOG="UNREACHABLE"
 echo '```json' >> "$REPORT"
 echo "$FOG" >> "$REPORT"
 echo '```' >> "$REPORT"
