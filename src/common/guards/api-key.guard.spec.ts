@@ -36,7 +36,11 @@ describe('ApiKeyGuard', () => {
       headers: {
         'x-am-api-key': headers['x-am-api-key'],
         'x-am-user-id': headers['x-am-user-id'],
+        origin: headers['origin'] || '',
+        host: headers['host'] || '',
       },
+      ip: headers['ip'] || '',
+      connection: { remoteAddress: headers['ip'] || '' },
     };
 
     return {
@@ -236,6 +240,60 @@ describe('ApiKeyGuard', () => {
           },
         },
       });
+    });
+  });
+
+  describe('localhost bypass', () => {
+    it('should allow localhost requests without API key', async () => {
+      const context = createMockContext({
+        ip: '127.0.0.1',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should allow ::1 (IPv6 localhost) without API key', async () => {
+      const context = createMockContext({
+        ip: '::1',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should allow localhost origin without API key', async () => {
+      const context = createMockContext({
+        origin: 'http://localhost:3000',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should still require auth for non-localhost requests', async () => {
+      const context = createMockContext({
+        ip: '192.168.1.100',
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Missing X-AM-API-Key header',
+      );
+    });
+
+    it('should use API key auth when provided even from localhost', async () => {
+      mockPrisma.agent.findUnique.mockResolvedValue(mockAgent);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+
+      const context = createMockContext({
+        'x-am-api-key': 'sk-test-key-12345678',
+        'x-am-user-id': 'external-user-123',
+        ip: '127.0.0.1',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(mockPrisma.agent.findUnique).toHaveBeenCalled();
     });
   });
 

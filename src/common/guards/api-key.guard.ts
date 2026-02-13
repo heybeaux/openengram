@@ -14,6 +14,24 @@ export class ApiKeyGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
+    // Allow localhost/dashboard requests without auth
+    const origin = request.headers['origin'] || '';
+    const host = request.headers['host'] || '';
+    const ip = request.ip || request.connection?.remoteAddress || '';
+    const isLocalhost =
+      ip === '127.0.0.1' ||
+      ip === '::1' ||
+      ip === '::ffff:127.0.0.1' ||
+      host.startsWith('localhost') ||
+      origin.includes('localhost');
+
+    if (isLocalhost && !request.headers['x-am-api-key']) {
+      // Dashboard access — no auth required, set default context
+      request.agent = null;
+      request.user = null;
+      return true;
+    }
+
     // Extract headers
     const apiKey = request.headers['x-am-api-key'];
     const userId = request.headers['x-am-user-id'];
