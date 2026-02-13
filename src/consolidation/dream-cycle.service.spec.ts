@@ -1,0 +1,267 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { DreamCycleService } from './dream-cycle.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { ConsolidationService } from '../memory/consolidation.service';
+import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
+import { EmbeddingService } from '../memory/embedding.service';
+import { LLMService } from '../llm/llm.service';
+import { ConfigService } from '@nestjs/config';
+
+const mockPrisma = {
+  $queryRawUnsafe: jest.fn(),
+  memory: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    count: jest.fn(),
+    aggregate: jest.fn(),
+    update: jest.fn(),
+    create: jest.fn(),
+  },
+  dreamCycleRun: { create: jest.fn(), update: jest.fn() },
+  dreamCycleReport: { create: jest.fn(), update: jest.fn() },
+  consolidationJob: { create: jest.fn(), update: jest.fn() },
+  mergeCandidate: { create: jest.fn() },
+  memoryMergeEvent: { create: jest.fn() },
+  memoryChainLink: { create: jest.fn() },
+};
+
+const mockConsolidation = {
+  promoteRecurringPatterns: jest.fn(),
+};
+
+const mockScorer = {
+  computeScore: jest.fn(),
+};
+
+const mockEmbedding = {
+  search: jest.fn(),
+};
+
+const mockLlm = {
+  json: jest.fn(),
+};
+
+const mockConfig = {
+  get: jest.fn((key: string, defaultValue?: any) => {
+    const config: Record<string, string> = {
+      DREAM_DEDUP_THRESHOLD: '0.85',
+      DREAM_STALENESS_SCORE: '0.35',
+      DREAM_STALENESS_DAYS: '21',
+      DREAM_MAX_MERGES: '200',
+      DREAM_MAX_ARCHIVALS: '50',
+      DREAM_MAX_LLM_CALLS: '100',
+      DREAM_PATTERN_MIN_CLUSTER: '3',
+      DEFAULT_USER_ID: 'test-user',
+    };
+    return config[key] ?? defaultValue;
+  }),
+};
+
+describe('DreamCycleService', () => {
+  let service: DreamCycleService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DreamCycleService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ConsolidationService, useValue: mockConsolidation },
+        { provide: ImportanceScorerService, useValue: mockScorer },
+        { provide: EmbeddingService, useValue: mockEmbedding },
+        { provide: LLMService, useValue: mockLlm },
+        { provide: ConfigService, useValue: mockConfig },
+      ],
+    }).compile();
+
+    service = module.get<DreamCycleService>(DreamCycleService);
+  });
+
+  // --- Lock acquisition ---
+
+  describe('acquireLock', () => {
+    it('should return true when lock is acquired', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: true }]);
+      expect(await service.acquireLock()).toBe(true);
+    });
+
+    it('should return false when lock is held by another', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: false }]);
+      expect(await service.acquireLock()).toBe(false);
+    });
+
+    it('should return false on empty result', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+      expect(await service.acquireLock()).toBe(false);
+    });
+  });
+
+  describe('releaseLock', () => {
+    it('should call pg_advisory_unlock', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+      await service.releaseLock();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        expect.stringContaining('pg_advisory_unlock'),
+      );
+    });
+  });
+
+  // --- run() ---
+
+  describe('run', () => {
+    it('should return SKIPPED when lock cannot be acquired', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: false }]);
+
+      const result = await service.run();
+      expect(result.status).toBe('SKIPPED');
+      expect(result.errors).toContainEqual(
+        expect.stringContaining('another Dream Cycle instance'),
+      );
+    });
+
+    it('should create run record and execute stages when lock acquired', async () => {
+      // Lock acquired
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+
+      // Run record
+      mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
+      mockPrisma.dreamCycleRun.update.mockResolvedValue({});
+
+      // Report + job records
+      mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
+      mockPrisma.consolidationJob.create.mockResolvedValue({ id: 'job-1' });
+
+      // Dedup stage: no memories
+      mockPrisma.memory.findMany.mockResolvedValue([]);
+
+      // Staleness stage: no memories
+      // (already empty from above)
+
+      // Patterns stage
+      mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
+        clustersFound: 0,
+        details: [],
+      });
+
+      // Report stage
+      mockPrisma.memory.count.mockResolvedValue(0);
+      mockPrisma.memory.aggregate.mockResolvedValue({
+        _avg: { effectiveScore: 0 },
+      });
+
+      // Update records
+      mockPrisma.dreamCycleReport.update.mockResolvedValue({});
+      mockPrisma.consolidationJob.update.mockResolvedValue({});
+
+      // Release lock
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+
+      const result = await service.run({ userId: 'test-user' });
+      expect(result.status).toBe('COMPLETED');
+      expect(mockPrisma.dreamCycleRun.create).toHaveBeenCalled();
+    });
+
+    it('should release lock even on failure', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
+
+      // Make internal run fail
+      mockPrisma.dreamCycleReport.create.mockRejectedValue(new Error('DB error'));
+      mockPrisma.dreamCycleRun.update.mockResolvedValue({});
+
+      await expect(service.run({ userId: 'test-user' })).rejects.toThrow('DB error');
+
+      // Lock should still be released (last call to $queryRawUnsafe)
+      const calls = mockPrisma.$queryRawUnsafe.mock.calls;
+      expect(calls[calls.length - 1][0]).toContain('pg_advisory_unlock');
+    });
+
+    it('should support dryRun mode', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
+      mockPrisma.dreamCycleRun.update.mockResolvedValue({});
+      mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
+      mockPrisma.consolidationJob.create.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.memory.findMany.mockResolvedValue([]);
+      mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
+        clustersFound: 0,
+        details: [],
+      });
+      mockPrisma.memory.count.mockResolvedValue(5);
+      mockPrisma.memory.aggregate.mockResolvedValue({
+        _avg: { effectiveScore: 0.7 },
+      });
+      mockPrisma.dreamCycleReport.update.mockResolvedValue({});
+      mockPrisma.consolidationJob.update.mockResolvedValue({});
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+
+      const result = await service.run({ dryRun: true, userId: 'test-user' });
+      expect(result.status).toBe('DRY_RUN');
+    });
+
+    it('should run only specified stages', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
+      mockPrisma.dreamCycleRun.update.mockResolvedValue({});
+      mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
+      mockPrisma.consolidationJob.create.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.memory.count.mockResolvedValue(10);
+      mockPrisma.memory.aggregate.mockResolvedValue({
+        _avg: { effectiveScore: 0.5 },
+      });
+      mockPrisma.dreamCycleReport.update.mockResolvedValue({});
+      mockPrisma.consolidationJob.update.mockResolvedValue({});
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+
+      const result = await service.run({
+        stages: ['report'],
+        userId: 'test-user',
+      });
+      expect(result.status).toBe('COMPLETED');
+      // Dedup not called since not in stages
+      expect(mockPrisma.memory.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Staleness stage error isolation ---
+
+  describe('stage error isolation', () => {
+    it('should continue to next stage when one fails', async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
+      mockPrisma.dreamCycleRun.update.mockResolvedValue({});
+      mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
+      mockPrisma.consolidationJob.create.mockResolvedValue({ id: 'job-1' });
+
+      // Dedup fails
+      mockPrisma.memory.findMany
+        .mockRejectedValueOnce(new Error('Dedup DB error'))
+        // Staleness succeeds with empty
+        .mockResolvedValueOnce([]);
+
+      // Patterns
+      mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
+        clustersFound: 0,
+        details: [],
+      });
+
+      // Report stage
+      mockPrisma.memory.count.mockResolvedValue(10);
+      mockPrisma.memory.aggregate.mockResolvedValue({
+        _avg: { effectiveScore: 0.5 },
+      });
+
+      mockPrisma.dreamCycleReport.update.mockResolvedValue({});
+      mockPrisma.consolidationJob.update.mockResolvedValue({});
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+
+      const result = await service.run({ userId: 'test-user' });
+      expect(result.status).toBe('COMPLETED');
+      expect(result.errors).toContainEqual(
+        expect.stringContaining('Dedup stage failed'),
+      );
+    });
+  });
+});
