@@ -43,6 +43,23 @@ Built for developers who are tired of agents that can't remember what happened f
 - 📈 **Eval Framework** — 25 recall scenarios, latency benchmarks, regression detection built in
 - 🛡️ **Production-Ready** — Rate limiting, advisory locks, daily backups, Swagger docs (120+ endpoints)
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-overview.jpg" alt="Dashboard Overview" width="700" /><br />
+  <em>Dashboard — Memory stats, Fog Index, API request volume, layer breakdown</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/knowledge-graph.jpg" alt="Knowledge Graph" width="700" /><br />
+  <em>Knowledge Graph — Entities, relationships, and memory links visualized with D3</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/memories.jpg" alt="Memory Browser" width="700" /><br />
+  <em>Memory Browser — Semantic search, layer filtering, importance scores</em>
+</p>
+
 ## Architecture
 
 ```
