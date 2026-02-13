@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+*.md
+docs/
+reports/
+worktrees/
+scripts/
+.env*

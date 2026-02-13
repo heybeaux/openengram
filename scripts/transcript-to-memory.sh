@@ -29,7 +29,7 @@ fi
 # Do everything in Python for safe JSON handling
 export STATE_FILE REPORT_FILE TODAY ENGRAM_URL API_KEY USER_ID
 export FULL_MODE="$FULL_MODE"
-python3 << 'PYEOF'
+python3 -u << 'PYEOF'
 import json, os, sys, time, subprocess, glob
 
 TRANSCRIPT_DIR = os.path.expanduser("~/.openclaw/agents/main/sessions")
@@ -79,14 +79,16 @@ def extract_conversation(filepath):
     with open(filepath) as f:
         for line in f:
             try:
-                msg = json.loads(line.strip())
+                entry = json.loads(line.strip())
+                # OpenClaw format: {"type":"message","message":{"role":...,"content":...}}
+                msg = entry.get("message", entry)
                 role = msg.get("role", "")
                 if role in ("user", "assistant"):
                     content = msg.get("content", "")
                     if isinstance(content, list):
                         texts = [c.get("text", "") for c in content if c.get("type") == "text"]
                         content = " ".join(texts)
-                    if content and len(content) > 20:
+                    if isinstance(content, str) and len(content) > 20:
                         lines.append(f"{role}: {content[:500]}")
             except:
                 pass
@@ -106,7 +108,6 @@ def chunk_text(text, size=CHUNK_SIZE):
     return chunks
 
 def post_memory(raw, session_file):
-    import urllib.request
     payload = json.dumps({
         "raw": raw,
         "source": "AGENT_OBSERVATION",
@@ -117,20 +118,23 @@ def post_memory(raw, session_file):
             "sessionFile": session_file,
             "date": TODAY
         }
-    }).encode()
-    req = urllib.request.Request(ENGRAM_URL, data=payload, method="POST")
-    req.add_header("X-AM-API-Key", API_KEY)
-    req.add_header("X-AM-User-ID", USER_ID)
-    req.add_header("Content-Type", "application/json")
+    })
     try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        return resp.status
+        result = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+             "-X", "POST", ENGRAM_URL,
+             "-H", f"X-AM-API-Key: {API_KEY}",
+             "-H", f"X-AM-User-ID: {USER_ID}",
+             "-H", "Content-Type: application/json",
+             "-d", payload,
+             "--connect-timeout", "5",
+             "--max-time", "15"],
+            capture_output=True, text=True, timeout=20
+        )
+        return int(result.stdout.strip() or "0")
     except Exception as e:
-        code = getattr(getattr(e, 'response', None) or getattr(e, 'fp', None), 'status', 0) or 0
-        if hasattr(e, 'code'):
-            code = e.code
         print(f"  WARN: API error: {e}")
-        return code or 0
+        return 0
 
 for filepath in files:
     fname = os.path.basename(filepath)

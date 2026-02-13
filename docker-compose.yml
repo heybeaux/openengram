@@ -1,74 +1,46 @@
-version: "3.8"
-
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: engram
+      POSTGRES_DB: engram
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_DB: engram
-      POSTGRES_USER: ${POSTGRES_USER:-engram}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-engram} -d engram"]
+      test: ["CMD-SHELL", "pg_isready -U engram"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+    networks:
+      - engram-network
 
   engram:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     ports:
-      - "${PORT:-3001}:3001"
+      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?schema=public
-      PORT: "3001"
-      NODE_ENV: ${NODE_ENV:-production}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
-      LOCAL_EMBED_URL: http://engram-embed:8080
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
-      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
-      PINECONE_INDEX: ${PINECONE_INDEX:-engram}
-      GRAPH_ENABLED: ${GRAPH_ENABLED:-true}
-      REEMBEDDING_ENABLED: ${REEMBEDDING_ENABLED:-true}
-      ENSEMBLE_ENABLED: ${ENSEMBLE_ENABLED:-true}
-      ENSEMBLE_MODELS: ${ENSEMBLE_MODELS:-bge-base,minilm,nomic,gte-base}
-      MULTIQUERY_ENABLED: ${MULTIQUERY_ENABLED:-true}
-      PREFETCH_ENABLED: ${PREFETCH_ENABLED:-true}
-      DEDUP_ENABLED: ${DEDUP_ENABLED:-true}
-    command: >
-      sh -c "npx prisma migrate deploy && node dist/src/main.js"
+      DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
+    networks:
+      - engram-network
 
-  # engram-embed: Rust/Candle local embedding server
-  # Source: ~/projects/engram-embed/
-  # Note: Uses Metal acceleration on macOS - Docker build uses CPU fallback
-  engram-embed:
-    build:
-      context: ../../../engram-embed
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-
-  # engram-dashboard: Next.js UI
-  # Source: ~/projects/agent-memory/engram-dashboard/
-  dashboard:
-    build:
-      context: ../engram-dashboard
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://engram:3001
-    depends_on:
-      - engram
+  # engram-embed:
+  #   image: ghcr.io/heybeaux/engram-embed:latest  # Rust embedding service (optional)
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - engram-network
+  #   # If not using engram-embed, set EMBEDDING_PROVIDER=openai and provide OPENAI_API_KEY in .env
 
 volumes:
   pgdata:
+
+networks:
+  engram-network:
