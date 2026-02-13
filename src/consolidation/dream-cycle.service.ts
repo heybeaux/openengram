@@ -959,17 +959,15 @@ export class DreamCycleService {
                   })
                   .catch(() => {}); // Ignore if link already exists
               }
-            }
-          }
-          patternsCreated++;
 
-            // Emit pattern found event
-            if (patternMemory) {
+              // Emit pattern found event
               this.emitSafe(
                 'dream.pattern_found',
                 new DreamPatternFoundEvent(patternMemory.id, pattern.summary),
               );
             }
+          }
+          patternsCreated++;
         }
       } catch (err) {
         this.log(
