@@ -156,7 +156,7 @@ export class GenerateContextService {
 
     // === 4.1 Staleness Detection ===
     // Find memories older than STALENESS_DAYS with no access in memory_access_logs
-    let staleMemoryIds = new Set<string>();
+    const staleMemoryIds = new Set<string>();
     let memoriesStale = 0;
     if (!includeStale) {
       const oldMemoryIds = filtered
@@ -555,7 +555,9 @@ export class GenerateContextService {
         'context.regenerated',
         new ContextRegeneratedEvent(writtenTo, Math.round(totalTokens)),
       );
-    } catch { /* intentionally empty */ }
+    } catch {
+      // fire-and-forget
+    }
 
     return {
       markdown,

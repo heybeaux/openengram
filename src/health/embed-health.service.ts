@@ -1,7 +1,10 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EmbeddingService } from '../embedding/embedding.service';
-import { HealthDegradedEvent, HealthRecoveredEvent } from '../events/event-types';
+import {
+  HealthDegradedEvent,
+  HealthRecoveredEvent,
+} from '../events/event-types';
 
 export interface EmbedHealthStatus {
   status: 'up' | 'down';
@@ -86,7 +89,9 @@ export class EmbedHealthService {
             'health.degraded',
             new HealthDegradedEvent('embedding', 'Embedding service is down'),
           );
-        } catch { /* intentionally empty */ }
+        } catch {
+          // fire-and-forget
+        }
       } else {
         this.logger.log('Embedding service is UP');
         if (this.lastLoggedStatus === 'down') {
@@ -95,7 +100,9 @@ export class EmbedHealthService {
               'health.recovered',
               new HealthRecoveredEvent('embedding'),
             );
-          } catch { /* intentionally empty */ }
+          } catch {
+            // fire-and-forget
+          }
         }
       }
       this.lastLoggedStatus = status.status;

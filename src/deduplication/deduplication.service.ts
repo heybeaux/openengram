@@ -1,7 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { MemoryMergedEvent, DedupClusterFoundEvent } from '../events/event-types';
+import {
+  MemoryMergedEvent,
+  DedupClusterFoundEvent,
+} from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SimilarityService,
@@ -280,9 +283,15 @@ export class DeduplicationService {
         try {
           this.eventEmitter?.emit(
             'dedup.cluster_found',
-            new DedupClusterFoundEvent(cluster.id, cluster.memoryIds, cluster.avgSimilarity),
+            new DedupClusterFoundEvent(
+              cluster.id,
+              cluster.memoryIds,
+              cluster.avgSimilarity,
+            ),
           );
-        } catch { /* intentionally empty */ }
+        } catch {
+          // fire-and-forget
+        }
       }
 
       // Process each cluster
@@ -423,7 +432,9 @@ export class DeduplicationService {
         'memory.merged',
         new MemoryMergedEvent(result.absorbedIds, result.survivorId, userId),
       );
-    } catch { /* intentionally empty */ }
+    } catch {
+      // fire-and-forget
+    }
 
     return result;
   }
