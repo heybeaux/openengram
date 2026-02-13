@@ -262,6 +262,24 @@ describe('ApiKeyGuard', () => {
       expect(result).toBe(true);
     });
 
+    it('should allow LAN 10.x requests without API key', async () => {
+      const context = createMockContext({
+        ip: '10.0.0.108',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should allow LAN 192.168.x requests without API key', async () => {
+      const context = createMockContext({
+        ip: '192.168.1.100',
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
     it('should allow localhost origin without API key', async () => {
       const context = createMockContext({
         origin: 'http://localhost:3000',
@@ -271,9 +289,9 @@ describe('ApiKeyGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should still require auth for non-localhost requests', async () => {
+    it('should still require auth for public IP requests', async () => {
       const context = createMockContext({
-        ip: '192.168.1.100',
+        ip: '203.0.113.50',
       });
 
       await expect(guard.canActivate(context)).rejects.toThrow(

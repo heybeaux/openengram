@@ -18,15 +18,19 @@ export class ApiKeyGuard implements CanActivate {
     const origin = request.headers['origin'] || '';
     const host = request.headers['host'] || '';
     const ip = request.ip || request.connection?.remoteAddress || '';
-    const isLocalhost =
+    const isLocal =
       ip === '127.0.0.1' ||
       ip === '::1' ||
       ip === '::ffff:127.0.0.1' ||
+      ip.startsWith('10.') ||
+      ip.startsWith('192.168.') ||
+      ip.startsWith('::ffff:10.') ||
+      ip.startsWith('::ffff:192.168.') ||
       host.startsWith('localhost') ||
       origin.includes('localhost');
 
-    if (isLocalhost && !request.headers['x-am-api-key']) {
-      // Dashboard access — no auth required, set default context
+    if (isLocal && !request.headers['x-am-api-key']) {
+      // LAN/dashboard access — no auth required, set default context
       request.agent = null;
       request.user = null;
       return true;
