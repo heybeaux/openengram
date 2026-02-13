@@ -26,13 +26,13 @@ Every AI agent wakes up blank. It doesn't remember your name, your allergies, yo
 
 Engram is real memory infrastructure. It extracts structured knowledge from conversations, classifies it by type (facts, preferences, constraints, tasks, events), scores it by importance, and consolidates it over time — like how your brain moves short-term memories into long-term storage while you sleep. Safety-critical information (allergies, medications, emergency contacts) is detected automatically and **never forgotten**.
 
-Built for developers who are tired of agents that can't remember what happened five minutes ago. Engram runs fully local — PostgreSQL for storage, pgvector for search, local Rust embeddings at zero cost — or connects to OpenAI, Anthropic, Ollama, or LM Studio. It's been running in production with 2,300+ memories, 88% recall accuracy, and sub-200ms latency. This isn't a prototype.
+Built in under two weeks by one developer who was tired of agents that can't remember what happened five minutes ago. Engram runs fully local — PostgreSQL for storage, pgvector for search, local Rust embeddings on Apple Silicon Metal GPU at zero cost — or connects to OpenAI, Anthropic, Ollama, or LM Studio. It's running in production right now with **2,777 memories**, 96% extraction success, sub-200ms latency, and an 89.4 Fog Index (Clear). **1,114 tests passing across 57 suites.** This isn't a prototype.
 
 ## Key Features
 
 - 🧠 **Smart Extraction** — Auto-extracts 5W1H structure, types, importance, and confidence scores from raw text
 - 🔒 **Safety-Critical Detection** — 16 patterns catch allergies, medications, DNR directives — never evicted from context
-- 🎯 **Multi-Model Ensemble** — 4 embedding models (bge-base, minilm, nomic, gte-base) with RRF fusion for better recall
+- 🎯 **Multi-Model Ensemble** — 4 embedding models (bge-base, minilm, nomic, gte-base) on Metal GPU with RRF fusion for better recall
 - 🌙 **Dream Cycle** — 4-stage consolidation pipeline: dedup → staleness → patterns → report (inspired by sleep neuroscience)
 - 🏊 **Memory Pools** — Scoped, shared memory spaces for multi-agent collaboration with grant-based access control
 - 🌫️ **Fog Index** — 6-component cognitive health score that tells you how "clear" your agent's memory is
@@ -284,9 +284,7 @@ We'd love your help. See [CONTRIBUTING.md](./CONTRIBUTING.md) for dev environmen
 
 ## Roadmap
 
-Engram is at **v0.9** heading to v1.0. Here's what's coming:
-
-**v1.0** (Feb 2026) — Open source launch, Docker one-click, CI, benchmarks, security audit
+Engram is at **v1.0.0** 🎉 — shipped February 2026. Here's what's next:
 
 **v2.0 and beyond:**
 - 🔌 **Plugin System** — Swap embedding providers, hook into any AI framework, pluggable storage backends
