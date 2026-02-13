@@ -1,6 +1,10 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MemoryService } from './memory.service';
 import { MemoryController } from './memory.controller';
+import { MemoryDedupService } from './memory-dedup.service';
+import { MemoryQueryService } from './memory-query.service';
+import { MemoryPipelineService } from './memory-pipeline.service';
+import { MemoryGraphService } from './memory-graph.service';
 import { ExtractionService } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
@@ -26,6 +30,10 @@ import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.mo
   controllers: [MemoryController],
   providers: [
     MemoryService,
+    MemoryDedupService,
+    MemoryQueryService,
+    MemoryPipelineService,
+    MemoryGraphService,
     ExtractionService,
     EmbeddingService,
     ImportanceService,
