@@ -41,7 +41,7 @@ export class MemoryDedupService {
     text: string,
     threshold: number = DEDUP_SIMILARITY_THRESHOLD,
   ): Promise<Memory | null> {
-    const result = await this.findDuplicateV2(userId, text);
+    const result = await this.findDuplicateV2(userId, text, threshold);
     return result.existingMemory ?? null;
   }
 
@@ -51,7 +51,11 @@ export class MemoryDedupService {
    * - ≥0.85: reinforce (increment accessCount, update lastAccessedAt)
    * - ≥0.78: flag for review (add to MergeCandidate table)
    */
-  async findDuplicateV2(userId: string, text: string): Promise<DedupResult> {
+  async findDuplicateV2(
+    userId: string,
+    text: string,
+    threshold: number = DEDUP_SIMILARITY_THRESHOLD,
+  ): Promise<DedupResult> {
     try {
       const embedding = await this.embedding.generate(text);
       const similar = await this.embedding.search(userId, embedding, 5);
@@ -65,7 +69,7 @@ export class MemoryDedupService {
       if (!existingMemory || existingMemory.deletedAt)
         return { action: 'create' };
 
-      if (bestMatch.score >= DEDUP_AUTO_MERGE_THRESHOLD) {
+      if (bestMatch.score >= threshold) {
         console.log(
           `[Dedup] Auto-merge: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
         );

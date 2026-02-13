@@ -26,7 +26,7 @@ export class MemoryGraphService {
         where: { id: userId },
       });
 
-      if (currentUser) {
+      if (currentUser?.agentId) {
         const agentUser = await this.prisma.user.findFirst({
           where: {
             agentId: currentUser.agentId,

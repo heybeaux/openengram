@@ -204,7 +204,7 @@ export class MemoryPipelineService {
       try {
         const normalizedName = entity.name.toLowerCase().trim();
 
-        const existingEntity = await this.prisma.entity.findUnique({
+        const upsertedEntity = await this.prisma.entity.upsert({
           where: {
             userId_normalizedName_type: {
               userId,
@@ -212,23 +212,16 @@ export class MemoryPipelineService {
               type: entity.type,
             },
           },
+          create: {
+            userId,
+            name: entity.name,
+            normalizedName,
+            type: entity.type,
+          },
+          update: {},
         });
 
-        let entityId: string;
-
-        if (existingEntity) {
-          entityId = existingEntity.id;
-        } else {
-          const newEntity = await this.prisma.entity.create({
-            data: {
-              userId,
-              name: entity.name,
-              normalizedName,
-              type: entity.type,
-            },
-          });
-          entityId = newEntity.id;
-        }
+        const entityId = upsertedEntity.id;
 
         await this.prisma.memoryEntity.upsert({
           where: {

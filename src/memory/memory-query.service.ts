@@ -577,9 +577,56 @@ export class MemoryQueryService {
 
   private async attachChains(
     memories: MemoryWithExtraction[],
+    maxDepth: number = 3,
   ): Promise<MemoryWithExtraction[]> {
-    // TODO: Implement chain traversal
-    return memories;
+    const memoryIds = memories.map((m) => m.id);
+    if (memoryIds.length === 0) return memories;
+
+    const chainLinks = await this.prisma.memoryChainLink.findMany({
+      where: {
+        OR: [
+          { sourceId: { in: memoryIds } },
+          { targetId: { in: memoryIds } },
+        ],
+      },
+      include: {
+        source: true,
+        target: true,
+      },
+    });
+
+    if (chainLinks.length === 0) return memories;
+
+    // Build chain map per memory
+    const chainMap = new Map<string, Array<{ memory: any; linkType: string; confidence: number }>>();
+
+    for (const link of chainLinks) {
+      for (const memoryId of memoryIds) {
+        if (link.sourceId === memoryId) {
+          const arr = chainMap.get(memoryId) ?? [];
+          arr.push({
+            memory: link.target,
+            linkType: link.linkType,
+            confidence: link.confidence,
+          });
+          chainMap.set(memoryId, arr);
+        }
+        if (link.targetId === memoryId) {
+          const arr = chainMap.get(memoryId) ?? [];
+          arr.push({
+            memory: link.source,
+            linkType: link.linkType,
+            confidence: link.confidence,
+          });
+          chainMap.set(memoryId, arr);
+        }
+      }
+    }
+
+    return memories.map((m) => ({
+      ...m,
+      chainedMemories: chainMap.get(m.id) ?? [],
+    }));
   }
 
   formatContext(
