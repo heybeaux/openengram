@@ -10,8 +10,10 @@
   </p>
   <p align="center">
     <a href="https://github.com/heybeaux/engram">Core API</a> •
+    <a href="https://github.com/heybeaux/engram-mcp">MCP Server</a> •
     <a href="https://github.com/heybeaux/engram-dashboard">Dashboard</a> •
     <a href="https://github.com/heybeaux/engram-embed">Local Embeddings</a> •
+    <a href="https://github.com/heybeaux/engram-client">TypeScript SDK</a> •
     <a href="https://github.com/heybeaux/engram/blob/main/docs/API.md">API Docs</a>
   </p>
 </p>
@@ -200,6 +202,28 @@ The [Engram Dashboard](https://github.com/heybeaux/engram-dashboard) is a Next.j
 - **Dream Cycle Status** — Consolidation history and health reports
 
 ## Integration
+
+### Claude Desktop / Cursor / Any MCP Client
+
+Install the [MCP server](https://github.com/heybeaux/engram-mcp) and your AI assistant gets persistent memory:
+
+```bash
+npm install -g @engram/mcp-server
+```
+
+Add to your Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "engram-mcp",
+      "env": { "ENGRAM_API_URL": "http://localhost:3001" }
+    }
+  }
+}
+```
+
+6 tools: `engram_remember`, `engram_recall`, `engram_search`, `engram_context`, `engram_observe`, `engram_forget`
 
 ### Any AI Framework
 
