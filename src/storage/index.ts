@@ -1,8 +1,8 @@
 export { StorageModule } from './storage.module';
 export { StorageService } from './storage.service';
-export {
+export { STORAGE_PROVIDER_TOKEN } from './storage-provider.interface';
+export type {
   StorageProvider,
-  STORAGE_PROVIDER_TOKEN,
   CreateMemoryData,
   UpdateMemoryData,
   IncrementMemoryData,
