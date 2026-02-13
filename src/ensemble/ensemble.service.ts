@@ -15,6 +15,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmbeddingService } from '../embedding/embedding.service';
 import {
   PgVectorEnsembleProvider,
   EnsembleEmbeddingRecord,
@@ -48,6 +49,7 @@ export class EnsembleService implements OnModuleInit {
     private configService: ConfigService,
     private pgvectorProvider: PgVectorEnsembleProvider,
     private prisma: PrismaService,
+    private embeddingService: EmbeddingService,
   ) {
     // Load configuration
     // Models can be configured via ENSEMBLE_MODELS env var (comma-separated)
@@ -169,10 +171,16 @@ export class EnsembleService implements OnModuleInit {
 
   /**
    * Generate embedding for a specific model
+   *
+   * Note: For single-model embedding when using the default provider,
+   * this delegates to EmbeddingService. For ensemble-specific multi-model
+   * requests, embedAll() still uses the local embed server directly.
    */
   async embed(text: string, model: ModelId): Promise<EmbeddingResult> {
     const start = Date.now();
 
+    // Use local embed server directly for model-specific requests
+    // (ensemble models are always local)
     const response = await fetch(`${this.config.localEmbedUrl}/v1/embeddings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { EmbeddingService } from '../embedding/embedding.service';
 
 export interface EmbedHealthStatus {
   status: 'up' | 'down';
@@ -9,25 +9,19 @@ export interface EmbedHealthStatus {
 }
 
 /**
- * Cached health check for engram-embed service.
+ * Cached health check for embedding service.
  * - Caches status for 30 seconds
  * - Logs state changes once (not every request)
  */
 @Injectable()
 export class EmbedHealthService {
   private readonly logger = new Logger(EmbedHealthService.name);
-  private readonly embedUrl: string;
   private readonly cacheTtlMs = 30_000;
 
   private cachedStatus: EmbedHealthStatus | null = null;
   private lastLoggedStatus: 'up' | 'down' | null = null;
 
-  constructor(private configService: ConfigService) {
-    this.embedUrl = this.configService.get<string>(
-      'LOCAL_EMBED_URL',
-      'http://127.0.0.1:8080',
-    );
-  }
+  constructor(private embeddingService: EmbeddingService) {}
 
   /**
    * Get embed health status (cached for 30s)
@@ -58,32 +52,14 @@ export class EmbedHealthService {
     let status: EmbedHealthStatus;
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`${this.embedUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      }).catch(() =>
-        // /health might not exist, try a lightweight embeddings call
-        fetch(`${this.embedUrl}/v1/embeddings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: 'health check', model: 'minilm' }),
-          signal: controller.signal,
-        }),
-      );
-
-      clearTimeout(timeout);
-
+      const isHealthy = await this.embeddingService.healthCheck();
       const latencyMs = Date.now() - start;
-      const isUp = response.ok;
 
       status = {
-        status: isUp ? 'up' : 'down',
-        latencyMs: isUp ? latencyMs : null,
+        status: isHealthy ? 'up' : 'down',
+        latencyMs: isHealthy ? latencyMs : null,
         lastChecked: new Date(),
-        lastUp: isUp ? new Date() : (this.cachedStatus?.lastUp ?? null),
+        lastUp: isHealthy ? new Date() : (this.cachedStatus?.lastUp ?? null),
       };
     } catch {
       status = {
@@ -98,10 +74,10 @@ export class EmbedHealthService {
     if (this.lastLoggedStatus !== status.status) {
       if (status.status === 'down') {
         this.logger.warn(
-          'engram-embed is DOWN — memories will be created without embeddings',
+          'Embedding service is DOWN — memories will be created without embeddings',
         );
       } else {
-        this.logger.log('engram-embed is UP');
+        this.logger.log('Embedding service is UP');
       }
       this.lastLoggedStatus = status.status;
     }

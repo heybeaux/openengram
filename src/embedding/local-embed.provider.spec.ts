@@ -1,0 +1,130 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { LocalEmbedProvider } from './local-embed.provider';
+
+// Mock global fetch
+const mockFetch = jest.fn();
+global.fetch = mockFetch as any;
+
+const mockConfig = {
+  get: jest.fn((key: string, defaultValue?: any) => {
+    const config: Record<string, any> = {
+      LOCAL_EMBED_URL: 'http://localhost:8080',
+      LOCAL_EMBED_MODEL: 'bge-base-en-v1.5',
+      LOCAL_EMBED_DIMENSIONS: 768,
+    };
+    return config[key] ?? defaultValue;
+  }),
+};
+
+describe('LocalEmbedProvider', () => {
+  let provider: LocalEmbedProvider;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LocalEmbedProvider,
+        { provide: ConfigService, useValue: mockConfig },
+      ],
+    }).compile();
+
+    provider = module.get<LocalEmbedProvider>(LocalEmbedProvider);
+  });
+
+  it('should be defined', () => {
+    expect(provider).toBeDefined();
+    expect(provider.name).toBe('local');
+  });
+
+  it('should return model name and dimensions', () => {
+    expect(provider.getModelName()).toBe('bge-base-en-v1.5');
+    expect(provider.getDimensions()).toBe(768);
+  });
+
+  describe('embed', () => {
+    it('should embed a single text', async () => {
+      const mockEmbedding = [0.1, 0.2, 0.3];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [{ embedding: mockEmbedding }],
+        }),
+      });
+
+      const result = await provider.embed(['hello']);
+      expect(result).toEqual([mockEmbedding]);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/v1/embeddings',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ input: 'hello', model: 'bge-base-en-v1.5' }),
+        }),
+      );
+    });
+
+    it('should embed multiple texts', async () => {
+      const mockEmbeddings = [
+        { embedding: [0.1, 0.2] },
+        { embedding: [0.3, 0.4] },
+      ];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: mockEmbeddings }),
+      });
+
+      const result = await provider.embed(['hello', 'world']);
+      expect(result).toEqual([[0.1, 0.2], [0.3, 0.4]]);
+      // Multiple texts should send as array
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/v1/embeddings',
+        expect.objectContaining({
+          body: JSON.stringify({
+            input: ['hello', 'world'],
+            model: 'bge-base-en-v1.5',
+          }),
+        }),
+      );
+    });
+
+    it('should throw on API error', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => 'Internal Server Error',
+      });
+
+      await expect(provider.embed(['test'])).rejects.toThrow(
+        'Local embedding API error: 500',
+      );
+    });
+
+    it('should throw on invalid response', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+
+      await expect(provider.embed(['test'])).rejects.toThrow(
+        'Invalid response',
+      );
+    });
+  });
+
+  describe('healthCheck', () => {
+    it('should return true when healthy', async () => {
+      mockFetch.mockResolvedValue({ ok: true });
+
+      const result = await provider.healthCheck();
+      expect(result).toBe(true);
+    });
+
+    it('should return false when down', async () => {
+      mockFetch.mockRejectedValue(new Error('Connection refused'));
+
+      const result = await provider.healthCheck();
+      expect(result).toBe(false);
+    });
+  });
+});

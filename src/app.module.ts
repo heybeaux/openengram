@@ -29,6 +29,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { FogIndexModule } from './fog-index/fog-index.module';
 import { EvalModule } from './eval/eval.module';
+import { EmbeddingModule } from './embedding/embedding.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { EvalModule } from './eval/eval.module';
         index: false, // Don't serve index.html for /
       },
     }),
+    EmbeddingModule,
     PrismaModule,
     LLMModule,
     VectorModule,

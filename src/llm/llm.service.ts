@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   LLMProvider,
@@ -13,6 +13,7 @@ import { AnthropicProvider } from './providers/anthropic.provider';
 import { OllamaProvider } from './providers/ollama.provider';
 import { LMStudioProvider } from './providers/lmstudio.provider';
 import { LocalProvider } from './providers/local.provider';
+import { EmbeddingService } from '../embedding/embedding.service';
 
 /**
  * LLM Service
@@ -26,7 +27,10 @@ export class LLMService {
   private embeddingProvider: LLMProvider;
   private providers: Map<string, LLMProvider> = new Map();
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    @Optional() private embeddingServiceRef?: EmbeddingService,
+  ) {
     this.initializeProviders();
   }
 
@@ -159,12 +163,24 @@ export class LLMService {
 
   /**
    * Generate an embedding
-   * Uses the embedding provider (defaults to OpenAI)
+   *
+   * Delegates to EmbeddingService when available (preferred path).
+   * Falls back to legacy LLM provider embed for backward compatibility.
    */
   async embed(
     text: string,
     options?: { provider?: string },
   ): Promise<EmbeddingResponse> {
+    // Prefer EmbeddingService when available and no specific provider requested
+    if (this.embeddingServiceRef && !options?.provider) {
+      const embedding = await this.embeddingServiceRef.embedOne(text);
+      return {
+        embedding,
+        model: this.embeddingServiceRef.getModelName(),
+        dimensions: embedding.length,
+      };
+    }
+
     const provider = options?.provider
       ? this.providers.get(options.provider) || this.embeddingProvider
       : this.embeddingProvider;
