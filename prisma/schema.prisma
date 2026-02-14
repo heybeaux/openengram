@@ -19,6 +19,8 @@ model Account {
   memoriesUsed     Int       @default(0) @map("memories_used")
   apiCallsToday    Int       @default(0) @map("api_calls_today")
   apiCallsResetAt  DateTime? @map("api_calls_reset_at")
+  resetToken       String?   @map("reset_token")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   agents           Agent[]

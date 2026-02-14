@@ -2,15 +2,23 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   UseGuards,
   Req,
   HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AccountService } from './account.service.js';
 import { AccountJwtGuard } from './account.guard.js';
-import { RegisterDto, LoginDto } from './account.dto.js';
+import {
+  RegisterDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ChangePasswordDto,
+} from './account.dto.js';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
@@ -37,6 +45,24 @@ export class AccountController {
     return this.accountService.login(body.email, body.password);
   }
 
+  @Post('auth/forgot-password')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit(3)
+  @ApiOperation({ summary: 'Request password reset email' })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.accountService.forgotPassword(body.email);
+  }
+
+  @Post('auth/reset-password')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit(3)
+  @ApiOperation({ summary: 'Reset password with token' })
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.accountService.resetPassword(body.token, body.newPassword);
+  }
+
   @Get('account')
   @UseGuards(AccountJwtGuard)
   @ApiBearerAuth()
@@ -51,6 +77,28 @@ export class AccountController {
   @ApiOperation({ summary: 'List API keys (agents)' })
   async listApiKeys(@Req() req: any) {
     return this.accountService.listApiKeys(req.accountId);
+  }
+
+  @Post('account/change-password')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Change password (authenticated)' })
+  async changePassword(@Req() req: any, @Body() body: ChangePasswordDto) {
+    return this.accountService.changePassword(
+      req.accountId,
+      body.currentPassword,
+      body.newPassword,
+    );
+  }
+
+  @Delete('account')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete account and all data' })
+  async deleteAccount(@Req() req: any) {
+    await this.accountService.deleteAccount(req.accountId);
   }
 
   @Post('account/api-keys')

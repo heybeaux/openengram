@@ -41,6 +41,7 @@
     "cohere-ai": "^7.20.0",
     "date-fns": "^4.1.0",
     "helmet": "^8.1.0",
+    "nodemailer": "^8.0.1",
     "openai": "^6.17.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -63,6 +64,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^7.0.9",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^11.0.0",
@@ -98,6 +100,9 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^(\\.\\.?/.+)\\.js$": "$1"
+    },
     "setupFilesAfterEnv": [
       "<rootDir>/test-setup.ts"
     ]

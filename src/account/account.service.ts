@@ -3,13 +3,16 @@ import {
   ConflictException,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { Account, Plan } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
+import * as nodemailer from 'nodemailer';
 import { PLAN_LIMITS } from './plan-limits.js';
 
 @Injectable()
@@ -19,6 +22,7 @@ export class AccountService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private config: ConfigService,
   ) {}
 
   async register(email: string, password: string, name?: string) {
@@ -149,6 +153,129 @@ export class AccountService {
       apiKey: rawKey,
       agent: { id: agent.id, name: agent.name, apiKeyHint: agent.apiKeyHint },
     };
+  }
+
+  async forgotPassword(email: string) {
+    const account = await this.prisma.account.findUnique({ where: { email } });
+    // Always return success to prevent email enumeration
+    if (!account) {
+      return { message: 'If that email is registered, a reset link has been sent.' };
+    }
+
+    // Generate token and store hash
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.prisma.account.update({
+      where: { id: account.id },
+      data: { resetToken: tokenHash, resetTokenExpiresAt: expiresAt },
+    });
+
+    const resetUrl = `https://openengram.ai/reset-password?token=${rawToken}`;
+
+    // Try to send email
+    const smtpHost = this.config.get<string>('SMTP_HOST');
+    if (smtpHost) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: parseInt(this.config.get<string>('SMTP_PORT', '587'), 10),
+          auth: {
+            user: this.config.get<string>('SMTP_USER'),
+            pass: this.config.get<string>('SMTP_PASS'),
+          },
+        });
+
+        await transporter.sendMail({
+          from: this.config.get<string>('SMTP_FROM', 'noreply@openengram.ai'),
+          to: email,
+          subject: 'Reset your Engram password',
+          text: `Reset your password: ${resetUrl}\n\nThis link expires in 1 hour.`,
+          html: `<p>Reset your password: <a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 1 hour.</p>`,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to send reset email: ${err.message}`);
+      }
+    } else {
+      this.logger.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+    }
+
+    return { message: 'If that email is registered, a reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    const account = await this.prisma.account.findFirst({
+      where: { resetToken: tokenHash },
+    });
+
+    if (!account || !account.resetTokenExpiresAt || account.resetTokenExpiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.account.update({
+      where: { id: account.id },
+      data: { passwordHash, resetToken: null, resetTokenExpiresAt: null },
+    });
+
+    return { message: 'Password has been reset successfully.' };
+  }
+
+  async changePassword(accountId: string, currentPassword: string, newPassword: string) {
+    const account = await this.prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+    });
+
+    const valid = await bcrypt.compare(currentPassword, account.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { passwordHash },
+    });
+
+    return { message: 'Password changed successfully.' };
+  }
+
+  async deleteAccount(accountId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      // Get all agents for this account
+      const agents = await tx.agent.findMany({
+        where: { accountId },
+        select: { id: true },
+      });
+      const agentIds = agents.map((a) => a.id);
+
+      if (agentIds.length > 0) {
+        // Get all users for these agents
+        const users = await tx.user.findMany({
+          where: { agentId: { in: agentIds } },
+          select: { id: true },
+        });
+        const userIds = users.map((u) => u.id);
+
+        if (userIds.length > 0) {
+          // Delete memories and related data (cascade handles most)
+          await tx.memory.deleteMany({ where: { userId: { in: userIds } } });
+          await tx.session.deleteMany({ where: { userId: { in: userIds } } });
+          await tx.project.deleteMany({ where: { userId: { in: userIds } } });
+          await tx.user.deleteMany({ where: { id: { in: userIds } } });
+        }
+
+        // Delete agents (cascades webhooks etc)
+        await tx.agent.deleteMany({ where: { accountId } });
+      }
+
+      // Delete the account
+      await tx.account.delete({ where: { id: accountId } });
+    });
   }
 
   private signToken(account: Account): string {
