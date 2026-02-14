@@ -24,6 +24,7 @@ model Account {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   agents           Agent[]
+  uxFeedback       UxFeedback[]
 
   @@map("accounts")
 }
@@ -210,6 +211,22 @@ model Memory {
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
   @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
   @@map("memories")
+}
+
+/// UX feedback from dashboard users (in-app widget + NPS)
+model UxFeedback {
+  id        String   @id @default(cuid())
+  accountId String   @map("account_id")
+  rating    Int      // 1-5 for widget, 0-10 for NPS
+  text      String?
+  category  String   // bug, feature, general, nps
+  page      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@map("ux_feedback")
 }
 
 /// Extracted structure from memory (5W1H + Classification)
