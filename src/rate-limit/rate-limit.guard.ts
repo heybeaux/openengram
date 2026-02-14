@@ -55,13 +55,16 @@ export class RateLimitGuard implements CanActivate {
     );
 
     // Always set rate limit headers
+    const resetTime = Math.ceil((Date.now() + RateLimitGuard.WINDOW_MS) / 1000);
     response.set('X-RateLimit-Limit', String(limit));
     response.set('X-RateLimit-Remaining', String(result.remaining));
+    response.set('X-RateLimit-Reset', String(resetTime));
 
     if (!result.allowed) {
       const retryAfterSecs = Math.ceil(result.retryAfterMs / 1000);
       response.set('Retry-After', String(retryAfterSecs));
       response.set('X-RateLimit-Remaining', '0');
+      response.set('X-RateLimit-Reset', String(Math.ceil((Date.now() + result.retryAfterMs) / 1000)));
       throw new HttpException(
         {
           statusCode: 429,

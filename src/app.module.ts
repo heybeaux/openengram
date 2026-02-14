@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
@@ -41,6 +42,33 @@ import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL || 'info',
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty', options: { colorize: true } }
+            : undefined,
+        customProps: (req: any) => ({
+          accountId: req.headers?.['x-am-api-key']
+            ? req.headers['x-am-api-key'].slice(0, 8) + '...'
+            : undefined,
+          userId: req.headers?.['x-am-user-id'] || undefined,
+        }),
+        autoLogging: {
+          ignore: (req: any) => req.url === '/v1/health',
+        },
+        serializers: {
+          req: (req: any) => ({
+            method: req.method,
+            url: req.url,
+          }),
+          res: (res: any) => ({
+            statusCode: res.statusCode,
+          }),
+        },
+      },
     }),
     ServeStaticModule.forRoot({
       // Works for both ts-node (src/) and compiled (dist/src/) by resolving from project root

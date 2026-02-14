@@ -1,11 +1,28 @@
 import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { initSentry } from './common/sentry';
+import { SentryExceptionFilter } from './common/sentry-exception.filter';
+
+// Initialize Sentry before anything else
+initSentry();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+    bufferLogs: true,
+  });
+
+  // Use Pino logger
+  app.useLogger(app.get(Logger));
+
+  // Sentry global exception filter
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
 
   // Security headers (HSTS, X-Content-Type-Options, X-Frame-Options, hides X-Powered-By)
   app.use(helmet());
