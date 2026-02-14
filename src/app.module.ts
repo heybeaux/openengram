@@ -33,6 +33,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
 import { EventModule } from './events/event.module';
 import { WebhookModule } from './webhooks/webhook.module';
 import { AccountModule } from './account/account.module';
+import { StripeModule } from './stripe/stripe.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
@@ -80,6 +81,7 @@ import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware
     EvalModule,
     WebhookModule,
     AccountModule,
+    StripeModule,
   ],
 })
 export class AppModule implements NestModule {
