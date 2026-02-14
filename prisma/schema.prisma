@@ -7,6 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Account represents a paying customer (SaaS layer)
+model Account {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  name             String?
+  stripeCustomerId String?   @unique @map("stripe_customer_id")
+  plan             Plan      @default(FREE)
+  planExpiresAt    DateTime? @map("plan_expires_at")
+  memoriesUsed     Int       @default(0) @map("memories_used")
+  apiCallsToday    Int       @default(0) @map("api_calls_today")
+  apiCallsResetAt  DateTime? @map("api_calls_reset_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  agents           Agent[]
+
+  @@map("accounts")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  SCALE
+}
+
 /// Agent represents an API consumer (the AI agent application)
 model Agent {
   id             String    @id @default(cuid())
@@ -15,11 +41,13 @@ model Agent {
   apiKeyHint     String    @map("api_key_hint")
   memoriesLimit  Int?      @map("memories_limit")
   requestsPerDay Int?      @map("requests_per_day")
+  accountId      String?   @map("account_id")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
   users          User[]
   webhooks       Webhook[]
+  account        Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@map("agents")
 }

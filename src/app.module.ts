@@ -32,6 +32,9 @@ import { EvalModule } from './eval/eval.module';
 import { EmbeddingModule } from './embedding/embedding.module';
 import { EventModule } from './events/event.module';
 import { WebhookModule } from './webhooks/webhook.module';
+import { AccountModule } from './account/account.module';
+import { MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
 @Module({
   imports: [
@@ -76,6 +79,11 @@ import { WebhookModule } from './webhooks/webhook.module';
     MonitoringModule,
     EvalModule,
     WebhookModule,
+    AccountModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(UsageLimitMiddleware).forRoutes('v1/*path');
+  }
+}
