@@ -31,12 +31,9 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    // Get API key for per-key limiting
+    // Get API key for per-key limiting, fall back to IP for unauthenticated endpoints
     const apiKey = request.headers['x-am-api-key'];
-    if (!apiKey) {
-      // No API key = no rate limiting (auth guard will reject anyway)
-      return true;
-    }
+    const rateLimitIdentifier = apiKey || request.ip || request.connection?.remoteAddress || 'unknown';
 
     // Check for route-specific limit via decorator
     const routeLimit = this.reflector.getAllAndOverride<number | null>(
@@ -46,9 +43,9 @@ export class RateLimitGuard implements CanActivate {
 
     const limit = routeLimit ?? RateLimitGuard.DEFAULT_LIMIT;
 
-    // Build key: apiKey + route path
+    // Build key: identifier + route path
     const routePath = request.route?.path || request.url;
-    const key = `${apiKey}:${routePath}`;
+    const key = `${rateLimitIdentifier}:${routePath}`;
 
     const result = this.rateLimitService.consume(
       key,

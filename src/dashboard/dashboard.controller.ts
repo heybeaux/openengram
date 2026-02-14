@@ -17,6 +17,7 @@ import {
   HealthResponse,
 } from './dashboard.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { InternalOnlyGuard } from '../common/guards/internal-only.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { ListMemoriesDto } from './dto/list-memories.dto';
 
@@ -55,7 +56,7 @@ export class DashboardController {
    * List all users with memory stats
    */
   @Get('users')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
   async listUsers(@Agent() agent: any): Promise<UsersListResponse> {
     return this.dashboardService.listUsers(agent.id);
   }
@@ -65,7 +66,7 @@ export class DashboardController {
    * User detail with stats
    */
   @Get('users/:id')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
   async getUserDetail(@Param('id') id: string): Promise<UserDetailResponse> {
     const user = await this.dashboardService.getUserDetail(id);
     if (!user) {
@@ -79,7 +80,7 @@ export class DashboardController {
    * Delete a user and optionally their memories
    */
   @Delete('users/:id')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
   async deleteUser(
     @Param('id') id: string,
     @Query('deleteMemories') deleteMemories?: string,

@@ -1,10 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  // Security headers (HSTS, X-Content-Type-Options, X-Frame-Options, hides X-Powered-By)
+  app.use(helmet());
 
   // Enable global validation pipe with transform
   app.useGlobalPipes(
@@ -15,9 +19,25 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for dashboard and visualization
+  // CORS whitelist — configurable via CORS_ORIGINS env var (comma-separated)
+  const allowedOrigins = (() => {
+    const envOrigins = process.env.CORS_ORIGINS;
+    if (envOrigins) {
+      return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+    }
+    const origins = [
+      'https://openengram.ai',
+      'https://www.openengram.ai',
+      'https://app.openengram.ai',
+    ];
+    if (process.env.NODE_ENV !== 'production') {
+      origins.push('http://localhost:3000');
+    }
+    return origins;
+  })();
+
   app.enableCors({
-    origin: true, // Allow all origins (including file://)
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: [
       'Content-Type',

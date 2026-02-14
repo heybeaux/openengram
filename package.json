@@ -40,6 +40,7 @@
     "class-validator": "^0.14.3",
     "cohere-ai": "^7.20.0",
     "date-fns": "^4.1.0",
+    "helmet": "^8.1.0",
     "openai": "^6.17.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

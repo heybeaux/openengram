@@ -6,6 +6,8 @@ import {
   IsNumber,
   IsArray,
   IsDate,
+  IsNotEmpty,
+  ValidateIf,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -49,6 +51,7 @@ export class CreateMemoryDto {
   @ApiPropertyOptional({ description: 'Memory content text', example: 'User prefers dark mode in all apps.' })
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Memory content cannot be empty' })
   @Transform(({ value, obj }) => value ?? obj.content)
   raw?: string;
 
@@ -56,6 +59,7 @@ export class CreateMemoryDto {
   @ApiPropertyOptional({ description: 'Alias for raw (backward compatibility)' })
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Memory content cannot be empty' })
   content?: string;
 
   @ApiPropertyOptional({ description: 'Memory layer', enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'] })

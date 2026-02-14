@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   MemoryService,
@@ -40,10 +41,12 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
+import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 
 @ApiTags('memories')
 @Controller('v1')
 @UseGuards(ApiKeyGuard, RateLimitGuard)
+@UseInterceptors(SanitizeInterceptor)
 export class MemoryController {
   constructor(
     private readonly memoryService: MemoryService,
@@ -141,9 +144,10 @@ export class MemoryController {
   @Get('memories/:id')
   @ApiOperation({ summary: 'Get a memory by ID' })
   async getMemory(
+    @UserId() userId: string,
     @Param('id') id: string,
   ): Promise<MemoryWithExtraction | null> {
-    return this.memoryService.getById(id);
+    return this.memoryService.getById(id, userId);
   }
 
   /**
@@ -179,8 +183,11 @@ export class MemoryController {
   @ApiOperation({ summary: 'Delete a memory', description: 'Soft-delete a memory by ID.' })
   @ApiResponse({ status: 204, description: 'Memory deleted.' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteMemory(@Param('id') id: string): Promise<void> {
-    return this.memoryService.delete(id);
+  async deleteMemory(
+    @UserId() userId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.memoryService.delete(id, userId);
   }
 
   // =========================================================================
@@ -193,8 +200,11 @@ export class MemoryController {
    */
   @Post('memories/:id/used')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async markUsed(@Param('id') id: string): Promise<void> {
-    return this.memoryService.markUsed(id);
+  async markUsed(
+    @UserId() userId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.memoryService.markUsed(id, userId);
   }
 
   /**
@@ -203,7 +213,10 @@ export class MemoryController {
    */
   @Post('memories/:id/helpful')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async markHelpful(@Param('id') id: string): Promise<void> {
+  async markHelpful(
+    @UserId() userId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
     // TODO: Implement feedback service
     return;
   }

@@ -1,4 +1,4 @@
-import { Injectable, Inject, Optional } from '@nestjs/common';
+import { Injectable, Inject, Optional, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   MemoryCreatedEvent,
@@ -336,9 +336,28 @@ export class MemoryService {
   }
 
   /**
+   * Verify memory ownership. Throws if not found or not owned by userId.
+   */
+  private async verifyOwnership(memoryId: string, userId: string): Promise<void> {
+    const memory = await this.prisma.memory.findUnique({
+      where: { id: memoryId },
+      select: { userId: true },
+    });
+    if (!memory) {
+      throw new NotFoundException(`Memory not found: ${memoryId}`);
+    }
+    if (memory.userId !== userId) {
+      throw new ForbiddenException('Access denied: Memory belongs to another user');
+    }
+  }
+
+  /**
    * Mark a memory as used
    */
-  async markUsed(memoryId: string): Promise<void> {
+  async markUsed(memoryId: string, userId?: string): Promise<void> {
+    if (userId) {
+      await this.verifyOwnership(memoryId, userId);
+    }
     await this.prisma.memory.update({
       where: { id: memoryId },
       data: {
@@ -349,19 +368,27 @@ export class MemoryService {
   }
 
   /**
-   * Get a single memory by ID
+   * Get a single memory by ID (with ownership check)
    */
-  async getById(memoryId: string): Promise<MemoryWithExtraction | null> {
-    return this.prisma.memory.findUnique({
+  async getById(memoryId: string, userId?: string): Promise<MemoryWithExtraction | null> {
+    const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
       include: { extraction: true },
     });
+    if (!memory) return null;
+    if (userId && memory.userId !== userId) {
+      throw new ForbiddenException('Access denied: Memory belongs to another user');
+    }
+    return memory;
   }
 
   /**
-   * Soft delete a memory
+   * Soft delete a memory (with ownership check)
    */
   async delete(memoryId: string, userId?: string): Promise<void> {
+    if (userId) {
+      await this.verifyOwnership(memoryId, userId);
+    }
     await this.prisma.memory.update({
       where: { id: memoryId },
       data: { deletedAt: new Date() },

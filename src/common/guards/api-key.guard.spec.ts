@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ApiKeyGuard } from './api-key.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UnauthorizedException, ExecutionContext } from '@nestjs/common';
@@ -35,6 +36,7 @@ describe('ApiKeyGuard', () => {
       providers: [
         ApiKeyGuard,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ConfigService, useValue: { get: (key: string, def: string) => key === 'TRUST_LOCAL_NETWORK' ? 'true' : def } },
       ],
     }).compile();
 
@@ -70,20 +72,20 @@ describe('ApiKeyGuard', () => {
     expect(await guard.canActivate(ctx)).toBe(true);
   });
 
-  it('should allow localhost origin without auth', async () => {
+  it('should reject localhost origin without local IP (no header-based bypass)', async () => {
     const ctx = createMockContext({
       ip: '203.0.113.1',
       headers: { origin: 'http://localhost:3000' },
     });
-    expect(await guard.canActivate(ctx)).toBe(true);
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should allow localhost host header without auth', async () => {
+  it('should reject localhost host header without local IP (no header-based bypass)', async () => {
     const ctx = createMockContext({
       ip: '203.0.113.1',
       headers: { host: 'localhost:3001' },
     });
-    expect(await guard.canActivate(ctx)).toBe(true);
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
   it('should set request.agent and request.user to null for local bypass', async () => {
