@@ -40,6 +40,7 @@ import {
   MergeEventDto,
 } from './dto/deduplication.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { UserId } from '../common/decorators/user-id.decorator';
 
 /**
  * Deduplication Controller
@@ -76,16 +77,9 @@ export class DeduplicationController {
     description: 'Deduplication disabled or job already running',
   })
   async scan(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Body() dto: TriggerScanDto,
   ): Promise<ScanResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     try {
       return await this.dedupService.runBatchDedup(dto.userId || userId, {
         dryRun: dto.dryRun,
@@ -141,16 +135,9 @@ export class DeduplicationController {
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ListCandidatesResponseDto })
   async getCandidates(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Query() query: ListCandidatesQueryDto,
   ): Promise<ListCandidatesResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.reviewService.getCandidates(query.userId || userId, {
       status: query.status,
       minSimilarity: query.minSimilarity,
@@ -286,17 +273,10 @@ export class DeduplicationController {
   @ApiResponse({ status: 200, type: MergeResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   async merge(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Body() dto: ManualMergeDto,
     @Headers('x-approver-id') approverId?: string,
   ): Promise<MergeResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     try {
       return await this.dedupService.manualMerge(dto, userId, approverId);
     } catch (error) {
@@ -346,18 +326,11 @@ export class DeduplicationController {
   @ApiQuery({ name: 'survivorId', required: false, type: String })
   @ApiResponse({ status: 200 })
   async getHistory(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
     @Query('survivorId') survivorId?: string,
   ): Promise<{ events: MergeEventDto[]; total: number }> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.lineageService.getMergeHistory(userId, {
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
@@ -414,17 +387,10 @@ export class DeduplicationController {
   @ApiResponse({ status: 200, type: [SimilarMemoryDto] })
   async findSimilar(
     @Param('memoryId') memoryId: string,
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Query('topK') topK?: number,
     @Query('minSimilarity') minSimilarity?: number,
   ): Promise<SimilarMemoryDto[]> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.dedupService.findSimilar(memoryId, userId, {
       topK: topK ? Number(topK) : undefined,
       minSimilarity: minSimilarity ? Number(minSimilarity) : undefined,
@@ -443,15 +409,8 @@ export class DeduplicationController {
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
   async getConfig(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
   ): Promise<ConfigResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.dedupService.getConfig(userId);
   }
 
@@ -463,16 +422,9 @@ export class DeduplicationController {
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
   async updateConfig(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
     @Body() dto: UpdateConfigDto,
   ): Promise<ConfigResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.dedupService.updateConfig(userId, dto);
   }
 
@@ -488,15 +440,8 @@ export class DeduplicationController {
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: StatsResponseDto })
   async getStats(
-    @Headers('x-am-user-id') userId: string,
+    @UserId() userId: string,
   ): Promise<StatsResponseDto> {
-    if (!userId) {
-      throw new HttpException(
-        'x-am-user-id header required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     return this.dedupService.getStats(userId);
   }
 

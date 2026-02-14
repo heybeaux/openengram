@@ -25,12 +25,27 @@ import { MemoryCluster } from './similarity.service';
  */
 @Injectable()
 export class ReviewService {
-  constructor(
+    constructor(
     private prisma: PrismaService,
     private mergeService: MergeService,
     private lineageService: LineageService,
     private safetyService: SafetyService,
   ) {}
+
+  /**
+   * Resolve a userId to an internal CUID.
+   * If the value is already a CUID (starts with 'cm'), return as-is.
+   * Otherwise look it up as an externalId.
+   */
+  private async resolveUserId(userId: string): Promise<string> {
+    if (!userId) return userId;
+    if (userId.startsWith('cm')) return userId;
+    const user = await this.prisma.user.findFirst({
+      where: { externalId: userId, deletedAt: null },
+      select: { id: true },
+    });
+    return user?.id ?? userId;
+  }
 
   /**
    * Queue a pair of memories for review
@@ -169,9 +184,10 @@ export class ReviewService {
     } = {},
   ): Promise<ListCandidatesResponseDto> {
     const { status, minSimilarity, limit = 50, offset = 0 } = options;
+    const resolvedUserId = await this.resolveUserId(userId);
 
     const where: any = {
-      userId,
+      userId: resolvedUserId,
       ...(status ? { status } : {}),
       ...(minSimilarity ? { similarity: { gte: minSimilarity } } : {}),
       // Exclude skipped candidates whose skip time hasn't passed
@@ -191,7 +207,7 @@ export class ReviewService {
       }),
       this.prisma.mergeCandidate.count({ where }),
       this.prisma.mergeCandidate.count({
-        where: { userId, status: CandidateStatus.PENDING },
+        where: { userId: resolvedUserId, status: CandidateStatus.PENDING },
       }),
     ]);
 

@@ -22,9 +22,13 @@ export class MemoryPoolService {
     });
   }
 
-  async listByUser(userId: string) {
+  async listByUser(userId: string, visibility?: string) {
     return this.prisma.memoryPool.findMany({
-      where: { userId, archivedAt: null },
+      where: {
+        userId,
+        archivedAt: null,
+        ...(visibility ? { visibility: visibility as any } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

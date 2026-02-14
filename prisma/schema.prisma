@@ -1070,6 +1070,7 @@ model DedupConfig {
   
   batchSchedule                String    @default("0 3 * * *") @map("batch_schedule")
   maxMemoriesPerBatch          Int       @default(5000) @map("max_memories_per_batch")
+  autoResolveThreshold         Float     @default(0.92) @map("auto_resolve_threshold")
   batchEnabled                 Boolean   @default(true) @map("batch_enabled")
   
   lastBatchRunAt               DateTime? @map("last_batch_run_at")

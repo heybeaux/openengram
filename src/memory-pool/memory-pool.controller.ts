@@ -31,14 +31,31 @@ export class MemoryPoolController {
 
   @Get()
   @ApiOperation({ summary: 'List pools for a user' })
-  async list(@Query('userId') userId: string) {
-    return this.service.listByUser(userId);
+  async list(
+    @Query('userId') userId: string,
+    @Query('visibility') visibility?: string,
+  ) {
+    return this.service.listByUser(userId, visibility);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get pool detail with members and grants' })
   async getById(@Param('id') id: string) {
     return this.service.getById(id, true);
+  }
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'Get pool members (memories)' })
+  async getMembers(@Param('id') id: string) {
+    const pool = await this.service.getById(id, true) as any;
+    return pool.memberships ?? [];
+  }
+
+  @Get(':id/grants')
+  @ApiOperation({ summary: 'Get pool grants' })
+  async getGrants(@Param('id') id: string) {
+    const pool = await this.service.getById(id, true) as any;
+    return pool.grants ?? [];
   }
 
   @Delete(':id')

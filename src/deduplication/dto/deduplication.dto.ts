@@ -235,6 +235,16 @@ export class UpdateConfigDto {
   @Max(1)
   protectedImportanceThreshold?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Auto-resolve threshold (0.0-1.0). Candidates at or above this similarity with no safety flags are auto-approved. Set to 0 to disable.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  autoResolveThreshold?: number;
+
   @ApiPropertyOptional({ description: 'Enable batch deduplication' })
   @IsOptional()
   @IsBoolean()
@@ -437,6 +447,12 @@ export class ConfigResponseDto {
 
   @ApiProperty()
   protectedImportanceThreshold: number;
+
+  @ApiProperty({
+    description:
+      'Auto-resolve threshold. Candidates at or above this with no safety flags are auto-approved. 0 = disabled.',
+  })
+  autoResolveThreshold: number;
 
   @ApiProperty()
   batchEnabled: boolean;

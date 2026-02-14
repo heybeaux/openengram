@@ -39,6 +39,7 @@ import { randomUUID } from 'crypto';
 interface DedupConfig {
   autoMergeThreshold: number;
   reviewSuggestThreshold: number;
+  autoResolveThreshold: number;
   defaultStrategy: MergeStrategy;
   batchEnabled: boolean;
   incrementalEnabled: boolean;
@@ -89,12 +90,26 @@ export class DeduplicationService {
     this.config = {
       autoMergeThreshold: 0.95,
       reviewSuggestThreshold: 0.85,
+      autoResolveThreshold: 0.92,
       defaultStrategy: MergeStrategy.KEEP_DETAILED,
       batchEnabled: true,
       incrementalEnabled: true,
       incrementalAutoMerge: true,
     };
     this.safetyConfig = { ...DEFAULT_SAFETY_CONFIG };
+  }
+
+  /**
+   * Resolve a userId to an internal CUID.
+   */
+  private async resolveUserId(userId: string): Promise<string> {
+    if (!userId) return userId;
+    if (userId.startsWith('cm')) return userId;
+    const user = await this.prisma.user.findFirst({
+      where: { externalId: userId, deletedAt: null },
+      select: { id: true },
+    });
+    return user?.id ?? userId;
   }
 
   /**
@@ -231,6 +246,8 @@ export class DeduplicationService {
       }
     }
 
+    userId = await this.resolveUserId(userId);
+
     const {
       dryRun = false,
       minSimilarity = this.config.reviewSuggestThreshold,
@@ -257,8 +274,14 @@ export class DeduplicationService {
     this.currentJob = jobId;
 
     try {
+      // Load user-specific config (auto-resolve threshold, etc.)
+      const userConfig = await this.getConfig(userId);
+      this.config.autoResolveThreshold = userConfig.autoResolveThreshold;
+      this.config.autoMergeThreshold = userConfig.autoMergeThreshold;
+
       console.log(
-        `[DeduplicationService] Starting batch job ${jobId} for user ${userId}`,
+        `[DeduplicationService] Starting batch job ${jobId} for user ${userId}` +
+          ` (autoResolve=${this.config.autoResolveThreshold}, autoMerge=${this.config.autoMergeThreshold})`,
       );
 
       // Compute pairwise similarities
@@ -314,7 +337,7 @@ export class DeduplicationService {
 
       console.log(
         `[DeduplicationService] Batch job ${jobId} completed: ` +
-          `${job.autoMerged} auto-merged, ${job.queuedForReview} queued`,
+          `${job.autoMerged} auto-merged (incl. auto-resolved), ${job.queuedForReview} queued for review`,
       );
 
       // Record batch run in database
@@ -400,6 +423,19 @@ export class DeduplicationService {
         cluster.avgSimilarity,
       );
       job.autoMerged++;
+    } else if (
+      this.config.autoResolveThreshold > 0 &&
+      cluster.minSimilarity >= this.config.autoResolveThreshold &&
+      safetyResults.every((r) => r.reasons.length === 0)
+    ) {
+      // Auto-resolve: high confidence, no safety flags at all
+      // Queue then immediately approve (creates audit trail)
+      const candidate = await this.review.queueClusterForReview(
+        userId,
+        cluster,
+      );
+      await this.review.approve(candidate.id, {}, 'auto-resolve');
+      job.autoMerged++;
     } else {
       // Queue for review
       await this.review.queueClusterForReview(userId, cluster);
@@ -447,6 +483,7 @@ export class DeduplicationService {
     userId: string,
     approvedBy?: string,
   ): Promise<MergeResponseDto> {
+    userId = await this.resolveUserId(userId);
     if (!this.isEnabled()) {
       throw new Error('Deduplication is disabled');
     }
@@ -485,6 +522,7 @@ export class DeduplicationService {
    * Get deduplication configuration
    */
   async getConfig(userId: string): Promise<ConfigResponseDto> {
+    userId = await this.resolveUserId(userId);
     // Try to get user-specific config from database
     const dbConfig = await this.prisma.dedupConfig.findUnique({
       where: { userId },
@@ -494,6 +532,7 @@ export class DeduplicationService {
       return {
         autoMergeThreshold: dbConfig.autoMergeThreshold,
         reviewSuggestThreshold: dbConfig.reviewSuggestThreshold,
+        autoResolveThreshold: dbConfig.autoResolveThreshold,
         defaultStrategy: dbConfig.defaultStrategy as MergeStrategy,
         protectedTypes: dbConfig.protectedTypes,
         protectedKeywords: dbConfig.protectedKeywords,
@@ -507,6 +546,7 @@ export class DeduplicationService {
     return {
       autoMergeThreshold: this.config.autoMergeThreshold,
       reviewSuggestThreshold: this.config.reviewSuggestThreshold,
+      autoResolveThreshold: this.config.autoResolveThreshold,
       defaultStrategy: this.config.defaultStrategy,
       protectedTypes: this.safetyConfig.protectedTypes,
       protectedKeywords: this.safetyConfig.protectedKeywords,
@@ -523,6 +563,7 @@ export class DeduplicationService {
     userId: string,
     dto: UpdateConfigDto,
   ): Promise<ConfigResponseDto> {
+    userId = await this.resolveUserId(userId);
     const existing = await this.prisma.dedupConfig.findUnique({
       where: { userId },
     });
@@ -536,6 +577,10 @@ export class DeduplicationService {
         dto.reviewSuggestThreshold ??
         existing?.reviewSuggestThreshold ??
         this.config.reviewSuggestThreshold,
+      autoResolveThreshold:
+        dto.autoResolveThreshold ??
+        existing?.autoResolveThreshold ??
+        this.config.autoResolveThreshold,
       defaultStrategy:
         dto.defaultStrategy ??
         existing?.defaultStrategy ??
@@ -575,9 +620,13 @@ export class DeduplicationService {
       });
     }
 
+    // Sync auto-resolve threshold to in-memory config
+    this.config.autoResolveThreshold = config.autoResolveThreshold;
+
     return {
       autoMergeThreshold: config.autoMergeThreshold,
       reviewSuggestThreshold: config.reviewSuggestThreshold,
+      autoResolveThreshold: config.autoResolveThreshold,
       defaultStrategy: config.defaultStrategy as MergeStrategy,
       protectedTypes: config.protectedTypes,
       protectedKeywords: config.protectedKeywords,
@@ -591,6 +640,7 @@ export class DeduplicationService {
    * Get deduplication statistics
    */
   async getStats(userId: string): Promise<StatsResponseDto> {
+    userId = await this.resolveUserId(userId);
     const now = new Date();
     const todayStart = new Date(
       now.getFullYear(),
@@ -651,6 +701,7 @@ export class DeduplicationService {
     userId: string,
     options: { topK?: number; minSimilarity?: number } = {},
   ): Promise<SimilarMemoryDto[]> {
+    userId = await this.resolveUserId(userId);
     return this.similarity.findSimilarMemories(memoryId, userId, options);
   }
 

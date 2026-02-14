@@ -43,7 +43,7 @@ ingest_repo() {
 
     # Dedup check
     local search_result
-    search_result=$(curl -s "${ENGRAM_URL}?search=${short_hash}&limit=1" \
+    search_result=$(curl -s --max-time 10 "${ENGRAM_URL}?search=${short_hash}&limit=1" \
       -H "X-AM-API-Key: $API_KEY" -H "X-AM-User-ID: $USER_ID" 2>/dev/null || echo '{"memories":[]}')
 
     if echo "$search_result" | grep -q "$short_hash"; then
@@ -88,7 +88,7 @@ ingest_repo() {
       }')
 
     local response
-    response=$(curl -s -w "\n%{http_code}" -X POST "$ENGRAM_URL" \
+    response=$(curl -s --max-time 30 -w "\n%{http_code}" -X POST "$ENGRAM_URL" \
       -H "X-AM-API-Key: $API_KEY" \
       -H "X-AM-User-ID: $USER_ID" \
       -H "Content-Type: application/json" \

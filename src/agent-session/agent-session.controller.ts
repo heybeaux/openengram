@@ -42,8 +42,20 @@ export class AgentSessionController {
 
   @Get()
   @ApiOperation({ summary: 'List agent sessions' })
-  async list(@Query('parentKey') parentKey?: string) {
-    if (parentKey) return this.service.listByParent(parentKey);
-    return this.service.list();
+  async list(
+    @Query('parentKey') parentKey?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    if (parentKey) {
+      const sessions = await this.service.listByParent(parentKey);
+      return { sessions, total: sessions.length };
+    }
+    return this.service.list({
+      status: status as any,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
   }
 }

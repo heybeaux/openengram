@@ -210,11 +210,17 @@ export class AgentSessionService {
     });
   }
 
-  async list(options?: { status?: AgentSessionStatus; limit?: number }) {
-    return this.prisma.agentSession.findMany({
-      where: options?.status ? { status: options.status } : undefined,
-      orderBy: { createdAt: 'desc' },
-      take: options?.limit ?? 50,
-    });
+  async list(options?: { status?: AgentSessionStatus; limit?: number; offset?: number }) {
+    const where = options?.status ? { status: options.status } : {};
+    const [sessions, total] = await Promise.all([
+      this.prisma.agentSession.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: options?.limit ?? 50,
+        skip: options?.offset ?? 0,
+      }),
+      this.prisma.agentSession.count({ where }),
+    ]);
+    return { sessions, total };
   }
 }
