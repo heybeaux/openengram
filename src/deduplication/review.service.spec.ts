@@ -15,6 +15,9 @@ describe('ReviewService', () => {
   let safetyService: jest.Mocked<SafetyService>;
 
   const mockPrisma = {
+    user: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     memory: {
       findMany: jest.fn(),
     },

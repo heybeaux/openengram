@@ -12,12 +12,9 @@ OFFSITE_REPO="$HOME/engram-backups-offsite"
 RETENTION_DAYS=30
 MIN_SIZE_BYTES=1000000  # 1MB minimum — anything less is suspicious
 
-PSQL="/Applications/Postgres.app/Contents/Versions/latest/bin/psql"
-PG_DUMP="/Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump"
-
-# Fallback to PATH
-command -v psql >/dev/null 2>&1 && PSQL="psql"
-command -v pg_dump >/dev/null 2>&1 && PG_DUMP="pg_dump"
+export PATH="/Applications/Postgres.app/Contents/Versions/latest/bin:$PATH"
+PSQL="psql"
+PG_DUMP="pg_dump"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 

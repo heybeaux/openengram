@@ -16,6 +16,7 @@ import { ModelRegistryService } from './model-registry.service';
 import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { CloudEnsembleService } from '../embedding/cloud-ensemble.service';
 import {
   ModelId,
   ModelSearchResult,
@@ -86,6 +87,13 @@ const mockEmbeddingService = {
   getProvider: jest.fn(),
 };
 
+const mockCloudEnsembleService = {
+  isAvailable: jest.fn().mockReturnValue(false),
+  embed: jest.fn(),
+  embedBatch: jest.fn(),
+  getAvailableModels: jest.fn().mockReturnValue([]),
+};
+
 const mockConfigService = {
   get: jest.fn((key: string, defaultValue?: any) => {
     const config: Record<string, any> = {
@@ -118,6 +126,7 @@ describe('EnsembleService', () => {
         { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 
@@ -467,6 +476,7 @@ describe('DriftDetectionService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 
@@ -689,6 +699,7 @@ describe('CheckpointService', () => {
         CheckpointService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 
@@ -824,6 +835,7 @@ describe('ModelRegistryService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 
@@ -1081,6 +1093,7 @@ describe('NightlyReembedService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         { provide: EnsembleService, useValue: mockEnsembleService },
         { provide: DriftDetectionService, useValue: mockDriftService },
         { provide: CheckpointService, useValue: mockCheckpointService },
@@ -1161,6 +1174,7 @@ describe('PgVectorEnsembleProvider', () => {
         PgVectorEnsembleProvider,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 
@@ -1279,6 +1293,7 @@ describe('Ensemble Integration Tests', () => {
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 
@@ -1326,6 +1341,7 @@ describe('Ensemble Integration Tests', () => {
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 
@@ -1394,6 +1410,7 @@ describe('Ensemble Integration Tests', () => {
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 
@@ -1442,6 +1459,7 @@ describe('Edge Cases', () => {
         { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
+        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
     }).compile();
 

@@ -69,6 +69,9 @@ describe('DeduplicationService', () => {
   };
 
   const mockPrisma = {
+    user: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     memory: {
       count: jest.fn(),
       findMany: jest.fn(),
