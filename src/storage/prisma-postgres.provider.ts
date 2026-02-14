@@ -55,7 +55,10 @@ export class PrismaPostgresProvider implements StorageProvider {
     return memory as StoredMemory;
   }
 
-  async getMemory(id: string, include?: MemoryInclude): Promise<StoredMemory | null> {
+  async getMemory(
+    id: string,
+    include?: MemoryInclude,
+  ): Promise<StoredMemory | null> {
     const result = await this.prisma.memory.findUnique({
       where: { id },
       include: this.buildInclude(include),
@@ -63,7 +66,10 @@ export class PrismaPostgresProvider implements StorageProvider {
     return result as StoredMemory | null;
   }
 
-  async updateMemory(id: string, data: UpdateMemoryData): Promise<StoredMemory> {
+  async updateMemory(
+    id: string,
+    data: UpdateMemoryData,
+  ): Promise<StoredMemory> {
     const { embedding, ...prismaData } = data;
     const result = await this.prisma.memory.update({
       where: { id },
@@ -134,7 +140,10 @@ export class PrismaPostgresProvider implements StorageProvider {
     return this.prisma.memory.count({ where });
   }
 
-  async updateManyMemories(filters: MemoryFilters, data: UpdateMemoryData): Promise<number> {
+  async updateManyMemories(
+    filters: MemoryFilters,
+    data: UpdateMemoryData,
+  ): Promise<number> {
     const where = this.buildWhere(filters);
     const { embedding, ...prismaData } = data;
     const result = await this.prisma.memory.updateMany({
@@ -174,7 +183,10 @@ export class PrismaPostgresProvider implements StorageProvider {
     const { limit, threshold, filters } = options;
 
     // Build WHERE clause parts
-    const conditions: string[] = ['m.embedding IS NOT NULL', 'm.deleted_at IS NULL'];
+    const conditions: string[] = [
+      'm.embedding IS NOT NULL',
+      'm.deleted_at IS NULL',
+    ];
     const params: any[] = [vectorStr];
     let paramIdx = 2;
 
@@ -217,9 +229,7 @@ export class PrismaPostgresProvider implements StorageProvider {
   }
 
   async getMemoryEmbedding(memoryId: string): Promise<number[] | null> {
-    const raw = await this.prisma.$queryRawUnsafe<
-      Array<{ embedding: string }>
-    >(
+    const raw = await this.prisma.$queryRawUnsafe<Array<{ embedding: string }>>(
       `SELECT embedding::text FROM memories WHERE id = $1 AND embedding IS NOT NULL`,
       memoryId,
     );
@@ -283,7 +293,9 @@ export class PrismaPostgresProvider implements StorageProvider {
     const [total, active, deleted, consolidated] = await Promise.all([
       this.prisma.memory.count({ where: baseWhere }),
       this.prisma.memory.count({ where: { ...baseWhere, deletedAt: null } }),
-      this.prisma.memory.count({ where: { ...baseWhere, deletedAt: { not: null } } }),
+      this.prisma.memory.count({
+        where: { ...baseWhere, deletedAt: { not: null } },
+      }),
       this.prisma.memory.count({ where: { ...baseWhere, consolidated: true } }),
     ]);
 
@@ -400,7 +412,8 @@ export class PrismaPostgresProvider implements StorageProvider {
     if (filters.agentId) where.agentId = filters.agentId;
     if (filters.memoryType) where.memoryType = filters.memoryType;
     if (filters.memoryTypes) where.memoryType = { in: filters.memoryTypes };
-    if (filters.consolidated !== undefined) where.consolidated = filters.consolidated;
+    if (filters.consolidated !== undefined)
+      where.consolidated = filters.consolidated;
     if (filters.ids) where.id = { in: filters.ids };
     if (filters.excludeIds) {
       where.id = { ...where.id, notIn: filters.excludeIds };
@@ -409,7 +422,8 @@ export class PrismaPostgresProvider implements StorageProvider {
     // Explicit null checks
     if (filters.deletedAt === null) where.deletedAt = null;
     if (filters.deletedAt instanceof Date) where.deletedAt = filters.deletedAt;
-    if ('deletedAt' in filters && filters.deletedAt === null) where.deletedAt = null;
+    if ('deletedAt' in filters && filters.deletedAt === null)
+      where.deletedAt = null;
     if (filters.supersededById === null) where.supersededById = null;
     if (filters.consolidatedInto === null) where.consolidatedInto = null;
 

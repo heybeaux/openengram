@@ -64,7 +64,11 @@ export class MemoryController {
    * Create a single memory
    */
   @Post('memories')
-  @ApiOperation({ summary: 'Create a memory', description: 'Store a single memory with automatic extraction and embedding.' })
+  @ApiOperation({
+    summary: 'Create a memory',
+    description:
+      'Store a single memory with automatic extraction and embedding.',
+  })
   @ApiResponse({ status: 201, description: 'Memory created successfully.' })
   async remember(
     @UserId() userId: string,
@@ -78,7 +82,11 @@ export class MemoryController {
    * Create multiple memories (for conversation import)
    */
   @Post('memories/batch')
-  @ApiOperation({ summary: 'Create memories in batch', description: 'Import multiple memories at once (e.g., conversation history).' })
+  @ApiOperation({
+    summary: 'Create memories in batch',
+    description:
+      'Import multiple memories at once (e.g., conversation history).',
+  })
   async rememberAll(
     @UserId() userId: string,
     @Body() dto: CreateMemoryBatchDto,
@@ -91,7 +99,11 @@ export class MemoryController {
    * Semantic search for memories
    */
   @Post('memories/query')
-  @ApiOperation({ summary: 'Search memories', description: 'Semantic search across memories using natural language queries.' })
+  @ApiOperation({
+    summary: 'Search memories',
+    description:
+      'Semantic search across memories using natural language queries.',
+  })
   @ApiTags('search')
   @RateLimit(60)
   async recall(
@@ -166,7 +178,11 @@ export class MemoryController {
    * For factual corrections that should preserve history, use POST /:id/correct instead.
    */
   @Patch('memories/:id')
-  @ApiOperation({ summary: 'Update a memory', description: 'Edit content, layer, importance, or extraction fields. Triggers re-embedding if content changes.' })
+  @ApiOperation({
+    summary: 'Update a memory',
+    description:
+      'Edit content, layer, importance, or extraction fields. Triggers re-embedding if content changes.',
+  })
   async updateMemory(
     @UserId() userId: string,
     @Param('id') id: string,
@@ -180,7 +196,10 @@ export class MemoryController {
    * Soft delete a memory
    */
   @Delete('memories/:id')
-  @ApiOperation({ summary: 'Delete a memory', description: 'Soft-delete a memory by ID.' })
+  @ApiOperation({
+    summary: 'Delete a memory',
+    description: 'Soft-delete a memory by ID.',
+  })
   @ApiResponse({ status: 204, description: 'Memory deleted.' })
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteMemory(
@@ -233,7 +252,10 @@ export class MemoryController {
    * Load context for session start
    */
   @Post('context')
-  @ApiOperation({ summary: 'Load context', description: 'Load relevant context for an agent session bootstrap.' })
+  @ApiOperation({
+    summary: 'Load context',
+    description: 'Load relevant context for an agent session bootstrap.',
+  })
   @ApiTags('context')
   async loadContext(
     @UserId() userId: string,

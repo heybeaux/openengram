@@ -21,9 +21,14 @@ export class StripeController {
     @Body() body: { plan: 'STARTER' | 'PRO' | 'SCALE' },
   ) {
     if (!['STARTER', 'PRO', 'SCALE'].includes(body.plan)) {
-      throw new BadRequestException('Invalid plan. Must be STARTER, PRO, or SCALE.');
+      throw new BadRequestException(
+        'Invalid plan. Must be STARTER, PRO, or SCALE.',
+      );
     }
-    const url = await this.stripeService.createCheckoutSession(req.accountId, body.plan);
+    const url = await this.stripeService.createCheckoutSession(
+      req.accountId,
+      body.plan,
+    );
     return { url };
   }
 

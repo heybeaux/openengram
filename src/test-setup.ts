@@ -7,11 +7,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 const originalCreateTestingModule = Test.createTestingModule.bind(Test);
 const activeModules: TestingModule[] = [];
 
-Test.createTestingModule = function (...args: Parameters<typeof Test.createTestingModule>) {
+Test.createTestingModule = function (
+  ...args: Parameters<typeof Test.createTestingModule>
+) {
   const builder = originalCreateTestingModule(...args);
   const originalCompile = builder.compile.bind(builder);
 
-  builder.compile = async function (...compileArgs: Parameters<typeof builder.compile>) {
+  builder.compile = async function (
+    ...compileArgs: Parameters<typeof builder.compile>
+  ) {
     const module = await originalCompile(...compileArgs);
     activeModules.push(module);
     return module;

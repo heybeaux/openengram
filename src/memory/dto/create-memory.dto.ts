@@ -48,7 +48,10 @@ function mapImportanceToHint(
 
 export class CreateMemoryDto {
   // Primary field name (transforms content -> raw for backward compatibility)
-  @ApiPropertyOptional({ description: 'Memory content text', example: 'User prefers dark mode in all apps.' })
+  @ApiPropertyOptional({
+    description: 'Memory content text',
+    example: 'User prefers dark mode in all apps.',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'Memory content cannot be empty' })
@@ -56,13 +59,18 @@ export class CreateMemoryDto {
   raw?: string;
 
   // Legacy alias: content -> raw (accepted but transformed to raw)
-  @ApiPropertyOptional({ description: 'Alias for raw (backward compatibility)' })
+  @ApiPropertyOptional({
+    description: 'Alias for raw (backward compatibility)',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'Memory content cannot be empty' })
   content?: string;
 
-  @ApiPropertyOptional({ description: 'Memory layer', enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'] })
+  @ApiPropertyOptional({
+    description: 'Memory layer',
+    enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'],
+  })
   @IsOptional()
   @IsEnum(MemoryLayer)
   @Transform(({ value, obj }) => value ?? mapMemoryType(obj.memoryType))

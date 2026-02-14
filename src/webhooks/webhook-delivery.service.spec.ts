@@ -54,7 +54,9 @@ describe('WebhookDeliveryService', () => {
   describe('handleEvent', () => {
     it('skips events without type', async () => {
       await service.handleEvent({});
-      expect(mockWebhookService.getMatchingSubscriptions).not.toHaveBeenCalled();
+      expect(
+        mockWebhookService.getMatchingSubscriptions,
+      ).not.toHaveBeenCalled();
     });
 
     it('fetches matching subscriptions for typed events', async () => {
@@ -94,7 +96,11 @@ describe('WebhookDeliveryService', () => {
 
   describe('matchesFilters', () => {
     it('passes when no filters set', () => {
-      const sub = { filterLayers: [], filterTags: [], filterMinImportance: null };
+      const sub = {
+        filterLayers: [],
+        filterTags: [],
+        filterMinImportance: null,
+      };
       expect((service as any).matchesFilters(sub, {})).toBe(true);
     });
 
@@ -104,12 +110,12 @@ describe('WebhookDeliveryService', () => {
         filterTags: [],
         filterMinImportance: null,
       };
-      expect(
-        (service as any).matchesFilters(sub, { layer: 'SESSION' }),
-      ).toBe(true);
-      expect(
-        (service as any).matchesFilters(sub, { layer: 'IDENTITY' }),
-      ).toBe(false);
+      expect((service as any).matchesFilters(sub, { layer: 'SESSION' })).toBe(
+        true,
+      );
+      expect((service as any).matchesFilters(sub, { layer: 'IDENTITY' })).toBe(
+        false,
+      );
     });
 
     it('filters by importance', () => {
@@ -118,12 +124,12 @@ describe('WebhookDeliveryService', () => {
         filterTags: [],
         filterMinImportance: 0.7,
       };
-      expect(
-        (service as any).matchesFilters(sub, { importance: 0.8 }),
-      ).toBe(true);
-      expect(
-        (service as any).matchesFilters(sub, { importance: 0.5 }),
-      ).toBe(false);
+      expect((service as any).matchesFilters(sub, { importance: 0.8 })).toBe(
+        true,
+      );
+      expect((service as any).matchesFilters(sub, { importance: 0.5 })).toBe(
+        false,
+      );
     });
   });
 

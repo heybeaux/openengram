@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Plan } from '@prisma/client';
 import Stripe from 'stripe';
 
-const PLAN_PRICES: Record<string, { plan: Plan; amount: number; name: string }> = {
+const PLAN_PRICES: Record<
+  string,
+  { plan: Plan; amount: number; name: string }
+> = {
   STARTER: { plan: Plan.STARTER, amount: 900, name: 'Engram Starter' },
   PRO: { plan: Plan.PRO, amount: 3900, name: 'Engram Pro' },
   SCALE: { plan: Plan.SCALE, amount: 9900, name: 'Engram Scale' },
@@ -24,13 +27,18 @@ export class StripeService implements OnModuleInit {
     this.stripe = new Stripe(this.config.get<string>('STRIPE_SECRET_KEY', ''), {
       apiVersion: '2025-01-27.acacia' as any,
     });
-    this.frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    this.frontendUrl = this.config.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
   }
 
   async onModuleInit() {
     const key = this.config.get<string>('STRIPE_SECRET_KEY');
     if (!key) {
-      this.logger.warn('STRIPE_SECRET_KEY not set — Stripe integration disabled');
+      this.logger.warn(
+        'STRIPE_SECRET_KEY not set — Stripe integration disabled',
+      );
       return;
     }
     await this.ensureProductsAndPrices();
@@ -38,7 +46,10 @@ export class StripeService implements OnModuleInit {
 
   private async ensureProductsAndPrices() {
     // Look for existing products with our metadata
-    const products = await this.stripe.products.list({ limit: 100, active: true });
+    const products = await this.stripe.products.list({
+      limit: 100,
+      active: true,
+    });
 
     for (const [key, config] of Object.entries(PLAN_PRICES)) {
       let product = products.data.find((p) => p.metadata?.plan === key);
@@ -57,7 +68,8 @@ export class StripeService implements OnModuleInit {
         limit: 10,
       });
       let price = prices.data.find(
-        (p) => p.unit_amount === config.amount && p.recurring?.interval === 'month',
+        (p) =>
+          p.unit_amount === config.amount && p.recurring?.interval === 'month',
       );
       if (!price) {
         price = await this.stripe.prices.create({
@@ -67,7 +79,9 @@ export class StripeService implements OnModuleInit {
           recurring: { interval: 'month' },
           metadata: { plan: key },
         });
-        this.logger.log(`Created Stripe price: ${config.name} $${config.amount / 100}/mo`);
+        this.logger.log(
+          `Created Stripe price: ${config.name} $${config.amount / 100}/mo`,
+        );
       }
 
       this.priceMap[key] = price.id;
@@ -76,7 +90,10 @@ export class StripeService implements OnModuleInit {
     this.logger.log('Stripe products/prices synced');
   }
 
-  async createCheckoutSession(accountId: string, plan: string): Promise<string> {
+  async createCheckoutSession(
+    accountId: string,
+    plan: string,
+  ): Promise<string> {
     const priceId = this.priceMap[plan];
     if (!priceId) throw new Error(`Unknown plan: ${plan}`);
 
@@ -127,33 +144,50 @@ export class StripeService implements OnModuleInit {
 
   async handleWebhookEvent(rawBody: Buffer, signature: string) {
     const webhookSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET', '');
-    const event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    const event = this.stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      webhookSecret,
+    );
 
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         if (session.customer) {
-          await this.syncSubscription(session.customer as string, session.subscription as string);
+          await this.syncSubscription(
+            session.customer as string,
+            session.subscription as string,
+          );
         }
         break;
       }
       case 'customer.subscription.updated': {
-        const sub = event.data.object as Stripe.Subscription;
+        const sub = event.data.object;
         await this.syncSubscriptionFromObject(sub);
         break;
       }
       case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription;
+        const sub = event.data.object;
+        const customerId =
+          typeof sub.customer === 'string'
+            ? sub.customer
+            : (sub.customer?.id ?? 'unknown');
         await this.prisma.account.updateMany({
-          where: { stripeCustomerId: sub.customer as string },
+          where: { stripeCustomerId: customerId },
           data: { plan: Plan.FREE, planExpiresAt: null },
         });
-        this.logger.log(`Subscription deleted for customer ${sub.customer} — downgraded to FREE`);
+        this.logger.log(
+          `Subscription deleted for customer ${customerId} — downgraded to FREE`,
+        );
         break;
       }
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
-        this.logger.warn(`Payment failed for customer ${invoice.customer}`);
+        const invoice = event.data.object;
+        const invoiceCustomerId =
+          typeof invoice.customer === 'string'
+            ? invoice.customer
+            : (invoice.customer?.id ?? 'unknown');
+        this.logger.warn(`Payment failed for customer ${invoiceCustomerId}`);
         break;
       }
       default:
@@ -175,7 +209,9 @@ export class StripeService implements OnModuleInit {
     const price = await this.stripe.prices.retrieve(priceId);
     const planKey = price.metadata?.plan as Plan | undefined;
     if (!planKey || !Object.values(Plan).includes(planKey)) {
-      this.logger.warn(`Unknown plan in price metadata: ${price.metadata?.plan}`);
+      this.logger.warn(
+        `Unknown plan in price metadata: ${price.metadata?.plan}`,
+      );
       return;
     }
 
@@ -186,6 +222,8 @@ export class StripeService implements OnModuleInit {
       data: { plan: planKey, planExpiresAt: periodEnd },
     });
 
-    this.logger.log(`Synced subscription for customer ${customerId} → ${planKey}`);
+    this.logger.log(
+      `Synced subscription for customer ${customerId} → ${planKey}`,
+    );
   }
 }

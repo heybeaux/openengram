@@ -13,7 +13,12 @@
  * - Health checks
  */
 
-import { MemoryLayer, MemorySource, MemoryType, SubjectType } from '@prisma/client';
+import {
+  MemoryLayer,
+  MemorySource,
+  MemoryType,
+  SubjectType,
+} from '@prisma/client';
 
 // ─── Token for DI ───────────────────────────────────────────────────────────
 
@@ -222,7 +227,11 @@ export interface StorageProvider {
   updateMemory(id: string, data: UpdateMemoryData): Promise<StoredMemory>;
 
   /** Update a memory with increment operations (e.g., usedCount += 1) */
-  incrementMemory(id: string, increments: IncrementMemoryData, data?: UpdateMemoryData): Promise<StoredMemory>;
+  incrementMemory(
+    id: string,
+    increments: IncrementMemoryData,
+    data?: UpdateMemoryData,
+  ): Promise<StoredMemory>;
 
   /** Soft-delete a memory */
   deleteMemory(id: string): Promise<void>;
@@ -240,7 +249,10 @@ export interface StorageProvider {
   countMemories(filters: MemoryFilters): Promise<number>;
 
   /** Update many memories matching filters */
-  updateManyMemories(filters: MemoryFilters, data: UpdateMemoryData): Promise<number>;
+  updateManyMemories(
+    filters: MemoryFilters,
+    data: UpdateMemoryData,
+  ): Promise<number>;
 
   /** Update many memories with increment operations */
   incrementManyMemories(

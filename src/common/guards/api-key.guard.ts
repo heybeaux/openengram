@@ -23,7 +23,8 @@ export class ApiKeyGuard implements CanActivate {
 
     // LAN bypass: IP-only check, no spoofable headers.
     // Disabled by default in production (TRUST_LOCAL_NETWORK=false).
-    const trustLocal = this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
+    const trustLocal =
+      this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
 
     if (trustLocal && this.isLocalIp(request)) {
       // LAN access — try to resolve agent context if key provided

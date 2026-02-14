@@ -22,7 +22,7 @@ export function sanitizeMemoryOutput<T>(obj: T): T {
   if (typeof obj === 'object') {
     const result: any = {};
     for (const [key, value] of Object.entries(obj as any)) {
-      if ((key === 'raw') && typeof value === 'string') {
+      if (key === 'raw' && typeof value === 'string') {
         result[key] = escapeHtml(value);
       } else if (typeof value === 'object') {
         result[key] = sanitizeMemoryOutput(value);

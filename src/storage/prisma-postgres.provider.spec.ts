@@ -47,7 +47,11 @@ describe('PrismaPostgresProvider', () => {
 
   describe('createMemory', () => {
     it('should create a memory without embedding', async () => {
-      const data = { userId: 'u1', raw: 'hello world', layer: 'IDENTITY' as any };
+      const data = {
+        userId: 'u1',
+        raw: 'hello world',
+        layer: 'IDENTITY' as any,
+      };
       const mockResult = { id: 'm1', ...data, createdAt: new Date() };
       mockPrisma.memory.create.mockResolvedValue(mockResult);
 
@@ -58,8 +62,18 @@ describe('PrismaPostgresProvider', () => {
     });
 
     it('should create a memory with embedding', async () => {
-      const data = { userId: 'u1', raw: 'hello', layer: 'IDENTITY' as any, embedding: [0.1, 0.2] };
-      const mockResult = { id: 'm1', userId: 'u1', raw: 'hello', layer: 'IDENTITY' };
+      const data = {
+        userId: 'u1',
+        raw: 'hello',
+        layer: 'IDENTITY' as any,
+        embedding: [0.1, 0.2],
+      };
+      const mockResult = {
+        id: 'm1',
+        userId: 'u1',
+        raw: 'hello',
+        layer: 'IDENTITY',
+      };
       mockPrisma.memory.create.mockResolvedValue(mockResult);
 
       await provider.createMemory(data);
@@ -88,7 +102,10 @@ describe('PrismaPostgresProvider', () => {
     });
 
     it('should get a memory with extraction included', async () => {
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'm1', extraction: { who: 'user' } });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        id: 'm1',
+        extraction: { who: 'user' },
+      });
 
       const result = await provider.getMemory('m1', { extraction: true });
       expect(result?.extraction).toBeDefined();
@@ -118,7 +135,10 @@ describe('PrismaPostgresProvider', () => {
     it('should update embedding separately', async () => {
       mockPrisma.memory.update.mockResolvedValue({ id: 'm1' });
 
-      await provider.updateMemory('m1', { raw: 'updated', embedding: [0.3, 0.4] });
+      await provider.updateMemory('m1', {
+        raw: 'updated',
+        embedding: [0.3, 0.4],
+      });
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
         'UPDATE memories SET embedding = $1::vector WHERE id = $2',
         '[0.3,0.4]',
@@ -131,7 +151,11 @@ describe('PrismaPostgresProvider', () => {
     it('should increment fields', async () => {
       mockPrisma.memory.update.mockResolvedValue({ id: 'm1', usedCount: 2 });
 
-      await provider.incrementMemory('m1', { usedCount: 1 }, { lastUsedAt: new Date() });
+      await provider.incrementMemory(
+        'm1',
+        { usedCount: 1 },
+        { lastUsedAt: new Date() },
+      );
       expect(mockPrisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'm1' },
         data: expect.objectContaining({
@@ -143,7 +167,10 @@ describe('PrismaPostgresProvider', () => {
 
   describe('deleteMemory', () => {
     it('should soft-delete a memory', async () => {
-      mockPrisma.memory.update.mockResolvedValue({ id: 'm1', deletedAt: new Date() });
+      mockPrisma.memory.update.mockResolvedValue({
+        id: 'm1',
+        deletedAt: new Date(),
+      });
 
       await provider.deleteMemory('m1');
       expect(mockPrisma.memory.update).toHaveBeenCalledWith({
@@ -157,7 +184,10 @@ describe('PrismaPostgresProvider', () => {
 
   describe('findMemories', () => {
     it('should find memories with filters', async () => {
-      mockPrisma.memory.findMany.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        { id: 'm1' },
+        { id: 'm2' },
+      ]);
 
       const result = await provider.findMemories(
         { userId: 'u1', deletedAt: null },
@@ -213,7 +243,10 @@ describe('PrismaPostgresProvider', () => {
     it('should count memories', async () => {
       mockPrisma.memory.count.mockResolvedValue(42);
 
-      const result = await provider.countMemories({ userId: 'u1', deletedAt: null });
+      const result = await provider.countMemories({
+        userId: 'u1',
+        deletedAt: null,
+      });
       expect(result).toBe(42);
     });
   });
@@ -265,7 +298,9 @@ describe('PrismaPostgresProvider', () => {
 
   describe('getMemoryEmbedding', () => {
     it('should return parsed embedding', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1,0.2,0.3]' }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { embedding: '[0.1,0.2,0.3]' },
+      ]);
 
       const result = await provider.getMemoryEmbedding('m1');
       expect(result).toEqual([0.1, 0.2, 0.3]);
@@ -291,7 +326,8 @@ describe('PrismaPostgresProvider', () => {
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const tx = {
           memory: {
-            create: jest.fn()
+            create: jest
+              .fn()
               .mockResolvedValueOnce({ id: 'm1', ...data[0] })
               .mockResolvedValueOnce({ id: 'm2', ...data[1] }),
           },
@@ -310,19 +346,17 @@ describe('PrismaPostgresProvider', () => {
   describe('getStats', () => {
     it('should return storage stats', async () => {
       mockPrisma.memory.count
-        .mockResolvedValueOnce(100)  // total
-        .mockResolvedValueOnce(90)   // active
-        .mockResolvedValueOnce(10)   // deleted
-        .mockResolvedValueOnce(5);   // consolidated
+        .mockResolvedValueOnce(100) // total
+        .mockResolvedValueOnce(90) // active
+        .mockResolvedValueOnce(10) // deleted
+        .mockResolvedValueOnce(5); // consolidated
 
       mockPrisma.memory.groupBy
         .mockResolvedValueOnce([
           { layer: 'IDENTITY', _count: { _all: 30 } },
           { layer: 'SESSION', _count: { _all: 60 } },
         ])
-        .mockResolvedValueOnce([
-          { memoryType: 'FACT', _count: { _all: 40 } },
-        ]);
+        .mockResolvedValueOnce([{ memoryType: 'FACT', _count: { _all: 40 } }]);
 
       const result = await provider.getStats('u1');
       expect(result.totalMemories).toBe(100);
@@ -351,9 +385,13 @@ describe('PrismaPostgresProvider', () => {
 
   describe('aggregate', () => {
     it('should aggregate numeric field', async () => {
-      mockPrisma.memory.aggregate.mockResolvedValue({ _avg: { importanceScore: 0.75 } });
+      mockPrisma.memory.aggregate.mockResolvedValue({
+        _avg: { importanceScore: 0.75 },
+      });
 
-      const result = await provider.aggregate('importanceScore', 'avg', { userId: 'u1' });
+      const result = await provider.aggregate('importanceScore', 'avg', {
+        userId: 'u1',
+      });
       expect(result).toBe(0.75);
     });
   });
@@ -370,7 +408,10 @@ describe('PrismaPostgresProvider', () => {
         suggestedSurvivorId: 'm1',
         status: 'PENDING',
       };
-      mockPrisma.mergeCandidate.create.mockResolvedValue({ id: 'mc1', ...data });
+      mockPrisma.mergeCandidate.create.mockResolvedValue({
+        id: 'mc1',
+        ...data,
+      });
 
       const result = await provider.createMergeCandidate(data);
       expect(result.id).toBe('mc1');

@@ -408,9 +408,7 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Get deduplication configuration' })
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: ConfigResponseDto })
-  async getConfig(
-    @UserId() userId: string,
-  ): Promise<ConfigResponseDto> {
+  async getConfig(@UserId() userId: string): Promise<ConfigResponseDto> {
     return this.dedupService.getConfig(userId);
   }
 
@@ -439,9 +437,7 @@ export class DeduplicationController {
   @ApiOperation({ summary: 'Get deduplication statistics' })
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
   @ApiResponse({ status: 200, type: StatsResponseDto })
-  async getStats(
-    @UserId() userId: string,
-  ): Promise<StatsResponseDto> {
+  async getStats(@UserId() userId: string): Promise<StatsResponseDto> {
     return this.dedupService.getStats(userId);
   }
 

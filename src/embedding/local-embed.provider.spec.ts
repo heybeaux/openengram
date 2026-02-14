@@ -75,7 +75,10 @@ describe('LocalEmbedProvider', () => {
       });
 
       const result = await provider.embed(['hello', 'world']);
-      expect(result).toEqual([[0.1, 0.2], [0.3, 0.4]]);
+      expect(result).toEqual([
+        [0.1, 0.2],
+        [0.3, 0.4],
+      ]);
       // Multiple texts should send as array
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8080/v1/embeddings',

@@ -16,7 +16,14 @@ import {
 
 describe('Event Types', () => {
   it('MemoryCreatedEvent has correct type and fields', () => {
-    const evt = new MemoryCreatedEvent('m1', 'SESSION', 0.8, ['tag'], 'u1', 'preview');
+    const evt = new MemoryCreatedEvent(
+      'm1',
+      'SESSION',
+      0.8,
+      ['tag'],
+      'u1',
+      'preview',
+    );
     expect(evt.type).toBe('memory.created');
     expect(evt.memoryId).toBe('m1');
     expect(evt.layer).toBe('SESSION');

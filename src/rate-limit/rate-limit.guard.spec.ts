@@ -56,7 +56,10 @@ describe('RateLimitGuard', () => {
 
     expect(guard.canActivate(mockContext)).toBe(true);
     expect(mockResponse.set).toHaveBeenCalledWith('X-RateLimit-Limit', '100');
-    expect(mockResponse.set).toHaveBeenCalledWith('X-RateLimit-Remaining', '99');
+    expect(mockResponse.set).toHaveBeenCalledWith(
+      'X-RateLimit-Remaining',
+      '99',
+    );
   });
 
   // Rate limit exceeded
@@ -82,8 +85,7 @@ describe('RateLimitGuard', () => {
   it('should skip rate limiting when @SkipRateLimit is applied', () => {
     createGuard();
     // First call returns skip=true, second would return route limit
-    reflector.getAllAndOverride
-      .mockReturnValueOnce(true); // skip
+    reflector.getAllAndOverride.mockReturnValueOnce(true); // skip
 
     expect(guard.canActivate(mockContext)).toBe(true);
     expect(rateLimitService.consume).not.toHaveBeenCalled();
@@ -94,7 +96,7 @@ describe('RateLimitGuard', () => {
     createGuard();
     reflector.getAllAndOverride
       .mockReturnValueOnce(false) // skip = false
-      .mockReturnValueOnce(20);  // route limit = 20
+      .mockReturnValueOnce(20); // route limit = 20
     rateLimitService.consume.mockReturnValue({
       allowed: true,
       remaining: 19,

@@ -38,8 +38,18 @@ export class MemoryPoolService {
       where: { id },
       include: includeRelations
         ? {
-            memberships: { include: { memory: { select: { id: true, raw: true, createdAt: true } } } },
-            grants: { include: { agentSession: { select: { id: true, sessionKey: true, label: true } } } },
+            memberships: {
+              include: {
+                memory: { select: { id: true, raw: true, createdAt: true } },
+              },
+            },
+            grants: {
+              include: {
+                agentSession: {
+                  select: { id: true, sessionKey: true, label: true },
+                },
+              },
+            },
           }
         : undefined,
     });

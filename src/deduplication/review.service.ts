@@ -25,7 +25,7 @@ import { MemoryCluster } from './similarity.service';
  */
 @Injectable()
 export class ReviewService {
-    constructor(
+  constructor(
     private prisma: PrismaService,
     private mergeService: MergeService,
     private lineageService: LineageService,

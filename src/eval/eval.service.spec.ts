@@ -30,7 +30,15 @@ describe('EvalService', () => {
 
     contextualRecall = {
       recall: jest.fn().mockResolvedValue({
-        memories: [{ id: '1', raw: 'Deanna is the wife', layer: 'IDENTITY', score: 0.9, topics: [] }],
+        memories: [
+          {
+            id: '1',
+            raw: 'Deanna is the wife',
+            layer: 'IDENTITY',
+            score: 0.9,
+            topics: [],
+          },
+        ],
         topicShift: true,
         tokenCount: 50,
         latencyMs: 100,
@@ -97,7 +105,9 @@ describe('EvalService', () => {
       prisma.evalRun.findMany.mockResolvedValue([]);
       const result = await service.detectRegression();
       expect(result.hasRegression).toBe(false);
-      expect(result.flags).toContain('Insufficient data (need at least 2 runs)');
+      expect(result.flags).toContain(
+        'Insufficient data (need at least 2 runs)',
+      );
     });
 
     it('should detect recall regression > 5%', async () => {
@@ -123,7 +133,9 @@ describe('EvalService', () => {
 
       const result = await service.detectRegression();
       expect(result.hasRegression).toBe(true);
-      expect(result.flags.some((f) => f.includes('Latency increased'))).toBe(true);
+      expect(result.flags.some((f) => f.includes('Latency increased'))).toBe(
+        true,
+      );
     });
 
     it('should not flag when metrics are stable', async () => {

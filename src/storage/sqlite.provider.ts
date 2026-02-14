@@ -52,20 +52,32 @@ export class SqliteProvider implements StorageProvider {
 
   async createMemory(data: CreateMemoryData): Promise<StoredMemory> {
     // TODO: Implement with better-sqlite3 or Prisma SQLite client
-    throw new Error('SQLite provider: createMemory not yet implemented. Configure STORAGE_PROVIDER=prisma-postgres for full functionality.');
+    throw new Error(
+      'SQLite provider: createMemory not yet implemented. Configure STORAGE_PROVIDER=prisma-postgres for full functionality.',
+    );
   }
 
-  async getMemory(id: string, include?: MemoryInclude): Promise<StoredMemory | null> {
+  async getMemory(
+    id: string,
+    include?: MemoryInclude,
+  ): Promise<StoredMemory | null> {
     // TODO: Implement — simple SELECT by id
     throw new Error('SQLite provider: getMemory not yet implemented.');
   }
 
-  async updateMemory(id: string, data: UpdateMemoryData): Promise<StoredMemory> {
+  async updateMemory(
+    id: string,
+    data: UpdateMemoryData,
+  ): Promise<StoredMemory> {
     // TODO: Implement — UPDATE by id
     throw new Error('SQLite provider: updateMemory not yet implemented.');
   }
 
-  async incrementMemory(id: string, increments: IncrementMemoryData, data?: UpdateMemoryData): Promise<StoredMemory> {
+  async incrementMemory(
+    id: string,
+    increments: IncrementMemoryData,
+    data?: UpdateMemoryData,
+  ): Promise<StoredMemory> {
     // TODO: Implement — UPDATE with SET field = field + increment
     throw new Error('SQLite provider: incrementMemory not yet implemented.');
   }
@@ -92,7 +104,10 @@ export class SqliteProvider implements StorageProvider {
     throw new Error('SQLite provider: countMemories not yet implemented.');
   }
 
-  async updateManyMemories(filters: MemoryFilters, data: UpdateMemoryData): Promise<number> {
+  async updateManyMemories(
+    filters: MemoryFilters,
+    data: UpdateMemoryData,
+  ): Promise<number> {
     // TODO: Implement — UPDATE with WHERE clause
     throw new Error('SQLite provider: updateManyMemories not yet implemented.');
   }
@@ -103,7 +118,9 @@ export class SqliteProvider implements StorageProvider {
     data?: UpdateMemoryData,
   ): Promise<number> {
     // TODO: Implement
-    throw new Error('SQLite provider: incrementManyMemories not yet implemented.');
+    throw new Error(
+      'SQLite provider: incrementManyMemories not yet implemented.',
+    );
   }
 
   // ── Vector Search ────────────────────────────────────────────────────
@@ -141,7 +158,9 @@ export class SqliteProvider implements StorageProvider {
     //   }
     //   return dot / (Math.sqrt(magA) * Math.sqrt(magB));
     // };
-    throw new Error('SQLite provider: vectorSearch not yet implemented. See code comments for approach.');
+    throw new Error(
+      'SQLite provider: vectorSearch not yet implemented. See code comments for approach.',
+    );
   }
 
   async getMemoryEmbedding(memoryId: string): Promise<number[] | null> {
@@ -189,7 +208,9 @@ export class SqliteProvider implements StorageProvider {
 
   async createMergeCandidate(data: CreateMergeCandidateData): Promise<any> {
     // TODO: Implement — simple INSERT
-    throw new Error('SQLite provider: createMergeCandidate not yet implemented.');
+    throw new Error(
+      'SQLite provider: createMergeCandidate not yet implemented.',
+    );
   }
 
   // ── Health ───────────────────────────────────────────────────────────
@@ -201,13 +222,17 @@ export class SqliteProvider implements StorageProvider {
     try {
       const fs = await import('fs');
       // Check if db file exists or directory is writable
-      const dir = this.dbPath.substring(0, this.dbPath.lastIndexOf('/') || 1) || '.';
+      const dir =
+        this.dbPath.substring(0, this.dbPath.lastIndexOf('/') || 1) || '.';
       fs.accessSync(dir, fs.constants.W_OK);
       return {
         healthy: true,
         latencyMs: Date.now() - start,
         provider: this.name,
-        details: { path: this.dbPath, note: 'stub — only checks directory writability' },
+        details: {
+          path: this.dbPath,
+          note: 'stub — only checks directory writability',
+        },
       };
     } catch (error: any) {
       return {

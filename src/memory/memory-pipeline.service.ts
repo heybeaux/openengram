@@ -8,7 +8,10 @@ import {
 import { EmbeddingService } from './embedding.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { parseFlexibleDate } from '../utils/date-parser';
-import { RELATED_SIMILARITY_THRESHOLD, DEDUP_SIMILARITY_THRESHOLD } from './memory-dedup.service';
+import {
+  RELATED_SIMILARITY_THRESHOLD,
+  DEDUP_SIMILARITY_THRESHOLD,
+} from './memory-dedup.service';
 
 @Injectable()
 export class MemoryPipelineService {

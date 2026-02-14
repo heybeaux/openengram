@@ -79,7 +79,11 @@ export class StorageService implements OnModuleInit {
     return this.provider.updateMemory(id, data);
   }
 
-  incrementMemory(id: string, increments: IncrementMemoryData, data?: UpdateMemoryData): Promise<StoredMemory> {
+  incrementMemory(
+    id: string,
+    increments: IncrementMemoryData,
+    data?: UpdateMemoryData,
+  ): Promise<StoredMemory> {
     return this.provider.incrementMemory(id, increments, data);
   }
 
@@ -99,7 +103,10 @@ export class StorageService implements OnModuleInit {
     return this.provider.countMemories(filters);
   }
 
-  updateManyMemories(filters: MemoryFilters, data: UpdateMemoryData): Promise<number> {
+  updateManyMemories(
+    filters: MemoryFilters,
+    data: UpdateMemoryData,
+  ): Promise<number> {
     return this.provider.updateManyMemories(filters, data);
   }
 
@@ -111,7 +118,10 @@ export class StorageService implements OnModuleInit {
     return this.provider.incrementManyMemories(filters, increments, data);
   }
 
-  vectorSearch(embedding: number[], options: VectorSearchOptions): Promise<VectorSearchResult[]> {
+  vectorSearch(
+    embedding: number[],
+    options: VectorSearchOptions,
+  ): Promise<VectorSearchResult[]> {
     return this.provider.vectorSearch(embedding, options);
   }
 

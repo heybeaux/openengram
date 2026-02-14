@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { AgentSessionStatus } from '@prisma/client';
 
 export class CreateAgentSessionDto {

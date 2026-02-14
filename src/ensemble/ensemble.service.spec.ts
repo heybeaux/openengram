@@ -1292,8 +1292,8 @@ describe('Ensemble Integration Tests', () => {
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
-        { provide: EmbeddingService, useValue: mockEmbeddingService },
-        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
+          { provide: EmbeddingService, useValue: mockEmbeddingService },
+          { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 
@@ -1340,8 +1340,8 @@ describe('Ensemble Integration Tests', () => {
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
-        { provide: EmbeddingService, useValue: mockEmbeddingService },
-        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
+          { provide: EmbeddingService, useValue: mockEmbeddingService },
+          { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 
@@ -1409,8 +1409,8 @@ describe('Ensemble Integration Tests', () => {
           { provide: ConfigService, useValue: mockConfigService },
           { provide: PgVectorEnsembleProvider, useValue: mockPgVectorProvider },
           { provide: PrismaService, useValue: mockPrismaService },
-        { provide: EmbeddingService, useValue: mockEmbeddingService },
-        { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
+          { provide: EmbeddingService, useValue: mockEmbeddingService },
+          { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         ],
       }).compile();
 

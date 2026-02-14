@@ -261,9 +261,7 @@ describe('DashboardService', () => {
         .mockResolvedValueOnce(60); // what
       mockPrisma.entity.count.mockResolvedValue(10);
       mockPrisma.memoryChainLink.count.mockResolvedValue(5);
-      mockPrisma.memory.count
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(0);
+      mockPrisma.memory.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
 
       const result = await service.getHealth();
 

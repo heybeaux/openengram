@@ -83,8 +83,7 @@ export class MemoryGraphService {
       raw: m.raw,
       layer: m.layer,
       source: m.source,
-      memorySource:
-        agentUserId && m.userId === agentUserId ? 'agent' : 'human',
+      memorySource: agentUserId && m.userId === agentUserId ? 'agent' : 'human',
       importanceScore: m.importanceScore,
       effectiveScore: m.effectiveScore,
       safetyCritical: m.safetyCritical,

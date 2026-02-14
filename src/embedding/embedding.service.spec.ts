@@ -58,7 +58,10 @@ describe('EmbeddingService', () => {
     });
 
     it('should embed texts', async () => {
-      const mockEmbeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]];
+      const mockEmbeddings = [
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+      ];
       mockLocalProvider.embed.mockResolvedValue(mockEmbeddings);
 
       const result = await service.embed(['hello', 'world']);

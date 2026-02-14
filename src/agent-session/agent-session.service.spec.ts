@@ -64,12 +64,23 @@ describe('AgentSessionService', () => {
         label: 'v09-test',
         userId: 'u1',
       };
-      const session = { id: 'sess1', ...dto, status: 'ACTIVE', createdAt: new Date() };
+      const session = {
+        id: 'sess1',
+        ...dto,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+      };
       prisma.agentSession.upsert.mockResolvedValue(session);
-      poolService.findOrCreatePool.mockResolvedValue({ id: 'pool1', name: 'task:v09-test' });
+      poolService.findOrCreatePool.mockResolvedValue({
+        id: 'pool1',
+        name: 'task:v09-test',
+      });
       poolService.grantAccess.mockResolvedValue({});
       // Parent lookup
-      prisma.agentSession.findUnique.mockResolvedValue({ id: 'parent-id', sessionKey: 'agent:main' });
+      prisma.agentSession.findUnique.mockResolvedValue({
+        id: 'parent-id',
+        sessionKey: 'agent:main',
+      });
       // Global pool lookup
       prisma.memoryPool.findFirst.mockResolvedValue(null);
 
@@ -85,12 +96,18 @@ describe('AgentSessionService', () => {
       // WRITE grant to sub-agent
       expect(poolService.grantAccess).toHaveBeenCalledWith(
         'pool1',
-        expect.objectContaining({ agentSessionId: 'sess1', permission: 'WRITE' }),
+        expect.objectContaining({
+          agentSessionId: 'sess1',
+          permission: 'WRITE',
+        }),
       );
       // READ grant to parent
       expect(poolService.grantAccess).toHaveBeenCalledWith(
         'pool1',
-        expect.objectContaining({ agentSessionId: 'parent-id', permission: 'READ' }),
+        expect.objectContaining({
+          agentSessionId: 'parent-id',
+          permission: 'READ',
+        }),
       );
     });
 
@@ -169,9 +186,17 @@ describe('AgentSessionService', () => {
 
     it('should promote high-scoring memories to global pool on COMPLETED', async () => {
       const sessionKey = 'agent:main:subagent:abc';
-      const session = { id: 'sess1', sessionKey, label: 'test-task', status: 'ACTIVE' };
+      const session = {
+        id: 'sess1',
+        sessionKey,
+        label: 'test-task',
+        status: 'ACTIVE',
+      };
       prisma.agentSession.findUnique.mockResolvedValue(session);
-      prisma.agentSession.update.mockResolvedValue({ ...session, status: 'COMPLETED' });
+      prisma.agentSession.update.mockResolvedValue({
+        ...session,
+        status: 'COMPLETED',
+      });
 
       // Task pool with 3 memories: 2 high-scoring, 1 low
       prisma.memoryPool.findFirst.mockResolvedValue({
@@ -194,14 +219,24 @@ describe('AgentSessionService', () => {
       expect(prisma.memoryPoolMembership.upsert).toHaveBeenCalledTimes(2);
       expect(prisma.memoryPoolMembership.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { memoryId_poolId: { memoryId: 'm1', poolId: 'global-pool-1' } },
-          create: expect.objectContaining({ memoryId: 'm1', poolId: 'global-pool-1' }),
+          where: {
+            memoryId_poolId: { memoryId: 'm1', poolId: 'global-pool-1' },
+          },
+          create: expect.objectContaining({
+            memoryId: 'm1',
+            poolId: 'global-pool-1',
+          }),
         }),
       );
       expect(prisma.memoryPoolMembership.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { memoryId_poolId: { memoryId: 'm2', poolId: 'global-pool-1' } },
-          create: expect.objectContaining({ memoryId: 'm2', poolId: 'global-pool-1' }),
+          where: {
+            memoryId_poolId: { memoryId: 'm2', poolId: 'global-pool-1' },
+          },
+          create: expect.objectContaining({
+            memoryId: 'm2',
+            poolId: 'global-pool-1',
+          }),
         }),
       );
     });
@@ -209,9 +244,14 @@ describe('AgentSessionService', () => {
     it('should NOT promote memories when status is TERMINATED', async () => {
       const sessionKey = 'agent:main:subagent:abc';
       prisma.agentSession.findUnique.mockResolvedValue({
-        id: 'sess1', sessionKey, label: 'test-task',
+        id: 'sess1',
+        sessionKey,
+        label: 'test-task',
       });
-      prisma.agentSession.update.mockResolvedValue({ id: 'sess1', status: 'TERMINATED' });
+      prisma.agentSession.update.mockResolvedValue({
+        id: 'sess1',
+        status: 'TERMINATED',
+      });
 
       await service.updateStatus(sessionKey, { status: 'TERMINATED' as any });
 
@@ -221,9 +261,14 @@ describe('AgentSessionService', () => {
     it('should handle no task pool gracefully', async () => {
       const sessionKey = 'agent:main:subagent:abc';
       prisma.agentSession.findUnique.mockResolvedValue({
-        id: 'sess1', sessionKey, label: 'test-task',
+        id: 'sess1',
+        sessionKey,
+        label: 'test-task',
       });
-      prisma.agentSession.update.mockResolvedValue({ id: 'sess1', status: 'COMPLETED' });
+      prisma.agentSession.update.mockResolvedValue({
+        id: 'sess1',
+        status: 'COMPLETED',
+      });
       prisma.memoryPool.findFirst.mockResolvedValue(null);
 
       // Should not throw
@@ -234,9 +279,14 @@ describe('AgentSessionService', () => {
     it('should handle session without label (no promotion)', async () => {
       const sessionKey = 'agent:main:subagent:abc';
       prisma.agentSession.findUnique.mockResolvedValue({
-        id: 'sess1', sessionKey, label: null,
+        id: 'sess1',
+        sessionKey,
+        label: null,
       });
-      prisma.agentSession.update.mockResolvedValue({ id: 'sess1', status: 'COMPLETED' });
+      prisma.agentSession.update.mockResolvedValue({
+        id: 'sess1',
+        status: 'COMPLETED',
+      });
 
       await service.updateStatus(sessionKey, { status: 'COMPLETED' as any });
       expect(prisma.memoryPool.findFirst).not.toHaveBeenCalled();

@@ -132,7 +132,9 @@ describe('BackfillService', () => {
           what: 'user_123 prefers dark mode for all applications',
         },
       };
-      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithUserPattern]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([memoryWithUserPattern]);
       prisma.memory.update = jest.fn().mockResolvedValue({});
       prisma.memoryExtraction.update = jest.fn().mockResolvedValue({});
 
@@ -199,7 +201,9 @@ describe('BackfillService', () => {
       const memoryWithUserPattern = {
         ...mockMemories[1],
       };
-      prisma.memory.findMany = jest.fn().mockResolvedValue([memoryWithUserPattern]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([memoryWithUserPattern]);
 
       const result = await service.backfillUserIdentity('user-123', 'Beaux', {
         dryRun: true,

@@ -1,10 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmbeddingProvider } from './embedding-provider.interface';
-import {
-  OpenAIEmbeddingProvider,
-  CohereEmbeddingProvider,
-} from './providers';
+import { OpenAIEmbeddingProvider, CohereEmbeddingProvider } from './providers';
 import {
   ModelId,
   EmbeddingResult,
@@ -36,7 +33,10 @@ export class CloudEnsembleService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
-    const provider = this.configService.get<string>('EMBEDDING_PROVIDER', 'local');
+    const provider = this.configService.get<string>(
+      'EMBEDDING_PROVIDER',
+      'local',
+    );
     if (provider !== 'cloud-ensemble') return;
 
     await this.initialize();
@@ -90,7 +90,9 @@ export class CloudEnsembleService implements OnModuleInit {
     this.initialized = true;
 
     const modelNames = this.models.map((m) => m.modelId).join(', ');
-    this.logger.log(`Cloud ensemble initialized with ${this.models.length} models: ${modelNames}`);
+    this.logger.log(
+      `Cloud ensemble initialized with ${this.models.length} models: ${modelNames}`,
+    );
   }
 
   /**

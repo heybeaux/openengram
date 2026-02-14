@@ -23,7 +23,11 @@ const mockPrismaPostgresProvider = {
   groupBy: jest.fn(),
   aggregate: jest.fn(),
   createMergeCandidate: jest.fn(),
-  healthCheck: jest.fn().mockResolvedValue({ healthy: true, latencyMs: 1, provider: 'prisma-postgres' }),
+  healthCheck: jest.fn().mockResolvedValue({
+    healthy: true,
+    latencyMs: 1,
+    provider: 'prisma-postgres',
+  }),
 };
 
 const mockSqliteProvider = {
@@ -45,7 +49,9 @@ const mockSqliteProvider = {
   groupBy: jest.fn(),
   aggregate: jest.fn(),
   createMergeCandidate: jest.fn(),
-  healthCheck: jest.fn().mockResolvedValue({ healthy: true, latencyMs: 1, provider: 'sqlite' }),
+  healthCheck: jest
+    .fn()
+    .mockResolvedValue({ healthy: true, latencyMs: 1, provider: 'sqlite' }),
 };
 
 describe('StorageService', () => {
@@ -58,7 +64,10 @@ describe('StorageService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           StorageService,
-          { provide: PrismaPostgresProvider, useValue: mockPrismaPostgresProvider },
+          {
+            provide: PrismaPostgresProvider,
+            useValue: mockPrismaPostgresProvider,
+          },
           { provide: SqliteProvider, useValue: mockSqliteProvider },
           {
             provide: ConfigService,
@@ -90,7 +99,9 @@ describe('StorageService', () => {
 
       const result = await service.createMemory(data);
       expect(result).toEqual(mockResult);
-      expect(mockPrismaPostgresProvider.createMemory).toHaveBeenCalledWith(data);
+      expect(mockPrismaPostgresProvider.createMemory).toHaveBeenCalledWith(
+        data,
+      );
     });
 
     it('should delegate getMemory', async () => {
@@ -99,7 +110,10 @@ describe('StorageService', () => {
 
       const result = await service.getMemory('m1');
       expect(result).toEqual(mockResult);
-      expect(mockPrismaPostgresProvider.getMemory).toHaveBeenCalledWith('m1', undefined);
+      expect(mockPrismaPostgresProvider.getMemory).toHaveBeenCalledWith(
+        'm1',
+        undefined,
+      );
     });
 
     it('should delegate getMemory with include', async () => {
@@ -107,7 +121,10 @@ describe('StorageService', () => {
       mockPrismaPostgresProvider.getMemory.mockResolvedValue(null);
 
       await service.getMemory('m1', include);
-      expect(mockPrismaPostgresProvider.getMemory).toHaveBeenCalledWith('m1', include);
+      expect(mockPrismaPostgresProvider.getMemory).toHaveBeenCalledWith(
+        'm1',
+        include,
+      );
     });
 
     it('should delegate updateMemory', async () => {
@@ -117,33 +134,48 @@ describe('StorageService', () => {
 
       const result = await service.updateMemory('m1', data);
       expect(result).toEqual(mockResult);
-      expect(mockPrismaPostgresProvider.updateMemory).toHaveBeenCalledWith('m1', data);
+      expect(mockPrismaPostgresProvider.updateMemory).toHaveBeenCalledWith(
+        'm1',
+        data,
+      );
     });
 
     it('should delegate incrementMemory', async () => {
       const increments = { usedCount: 1 };
       const data = { lastUsedAt: new Date() };
-      mockPrismaPostgresProvider.incrementMemory.mockResolvedValue({ id: 'm1' });
+      mockPrismaPostgresProvider.incrementMemory.mockResolvedValue({
+        id: 'm1',
+      });
 
       await service.incrementMemory('m1', increments, data);
-      expect(mockPrismaPostgresProvider.incrementMemory).toHaveBeenCalledWith('m1', increments, data);
+      expect(mockPrismaPostgresProvider.incrementMemory).toHaveBeenCalledWith(
+        'm1',
+        increments,
+        data,
+      );
     });
 
     it('should delegate deleteMemory', async () => {
       mockPrismaPostgresProvider.deleteMemory.mockResolvedValue(undefined);
 
       await service.deleteMemory('m1');
-      expect(mockPrismaPostgresProvider.deleteMemory).toHaveBeenCalledWith('m1');
+      expect(mockPrismaPostgresProvider.deleteMemory).toHaveBeenCalledWith(
+        'm1',
+      );
     });
 
     it('should delegate findMemories', async () => {
-      const filters = { userId: 'u1', deletedAt: null as null };
+      const filters = { userId: 'u1', deletedAt: null };
       const pagination = { limit: 10 };
       mockPrismaPostgresProvider.findMemories.mockResolvedValue([]);
 
       const result = await service.findMemories(filters, pagination);
       expect(result).toEqual([]);
-      expect(mockPrismaPostgresProvider.findMemories).toHaveBeenCalledWith(filters, pagination, undefined);
+      expect(mockPrismaPostgresProvider.findMemories).toHaveBeenCalledWith(
+        filters,
+        pagination,
+        undefined,
+      );
     });
 
     it('should delegate countMemories', async () => {
@@ -161,7 +193,10 @@ describe('StorageService', () => {
 
       const result = await service.vectorSearch(embedding, options);
       expect(result).toEqual(mockResults);
-      expect(mockPrismaPostgresProvider.vectorSearch).toHaveBeenCalledWith(embedding, options);
+      expect(mockPrismaPostgresProvider.vectorSearch).toHaveBeenCalledWith(
+        embedding,
+        options,
+      );
     });
 
     it('should delegate bulkCreate', async () => {
@@ -169,7 +204,9 @@ describe('StorageService', () => {
         { userId: 'u1', raw: 'a', layer: 'IDENTITY' as any },
         { userId: 'u1', raw: 'b', layer: 'SESSION' as any },
       ];
-      mockPrismaPostgresProvider.bulkCreate.mockResolvedValue(data.map((d, i) => ({ id: `m${i}`, ...d })));
+      mockPrismaPostgresProvider.bulkCreate.mockResolvedValue(
+        data.map((d, i) => ({ id: `m${i}`, ...d })),
+      );
 
       const result = await service.bulkCreate(data);
       expect(result).toHaveLength(2);
@@ -184,7 +221,13 @@ describe('StorageService', () => {
     });
 
     it('should delegate getStats', async () => {
-      const stats = { totalMemories: 100, activeMemories: 90, deletedMemories: 10, consolidatedMemories: 5, layerDistribution: { IDENTITY: 30 } };
+      const stats = {
+        totalMemories: 100,
+        activeMemories: 90,
+        deletedMemories: 10,
+        consolidatedMemories: 5,
+        layerDistribution: { IDENTITY: 30 },
+      };
       mockPrismaPostgresProvider.getStats.mockResolvedValue(stats);
 
       const result = await service.getStats('u1');
@@ -192,7 +235,9 @@ describe('StorageService', () => {
     });
 
     it('should delegate groupBy', async () => {
-      mockPrismaPostgresProvider.groupBy.mockResolvedValue([{ value: 'IDENTITY', count: 30 }]);
+      mockPrismaPostgresProvider.groupBy.mockResolvedValue([
+        { value: 'IDENTITY', count: 30 },
+      ]);
 
       const result = await service.groupBy('layer', { userId: 'u1' });
       expect(result).toEqual([{ value: 'IDENTITY', count: 30 }]);
@@ -201,16 +246,30 @@ describe('StorageService', () => {
     it('should delegate aggregate', async () => {
       mockPrismaPostgresProvider.aggregate.mockResolvedValue(0.75);
 
-      const result = await service.aggregate('importanceScore', 'avg', { userId: 'u1' });
+      const result = await service.aggregate('importanceScore', 'avg', {
+        userId: 'u1',
+      });
       expect(result).toBe(0.75);
     });
 
     it('should delegate createMergeCandidate', async () => {
-      const data = { userId: 'u1', memoryIds: ['m1', 'm2'], similarity: 0.95, suggestedStrategy: 'MERGE', suggestedSurvivorId: 'm1', status: 'PENDING' };
-      mockPrismaPostgresProvider.createMergeCandidate.mockResolvedValue({ id: 'mc1', ...data });
+      const data = {
+        userId: 'u1',
+        memoryIds: ['m1', 'm2'],
+        similarity: 0.95,
+        suggestedStrategy: 'MERGE',
+        suggestedSurvivorId: 'm1',
+        status: 'PENDING',
+      };
+      mockPrismaPostgresProvider.createMergeCandidate.mockResolvedValue({
+        id: 'mc1',
+        ...data,
+      });
 
       await service.createMergeCandidate(data);
-      expect(mockPrismaPostgresProvider.createMergeCandidate).toHaveBeenCalledWith(data);
+      expect(
+        mockPrismaPostgresProvider.createMergeCandidate,
+      ).toHaveBeenCalledWith(data);
     });
 
     it('should delegate healthCheck', async () => {
@@ -241,7 +300,9 @@ describe('StorageService', () => {
     });
 
     it('should delegate getMemoryEmbedding', async () => {
-      mockPrismaPostgresProvider.getMemoryEmbedding.mockResolvedValue([0.1, 0.2]);
+      mockPrismaPostgresProvider.getMemoryEmbedding.mockResolvedValue([
+        0.1, 0.2,
+      ]);
 
       const result = await service.getMemoryEmbedding('m1');
       expect(result).toEqual([0.1, 0.2]);
@@ -259,7 +320,10 @@ describe('StorageService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           StorageService,
-          { provide: PrismaPostgresProvider, useValue: mockPrismaPostgresProvider },
+          {
+            provide: PrismaPostgresProvider,
+            useValue: mockPrismaPostgresProvider,
+          },
           { provide: SqliteProvider, useValue: mockSqliteProvider },
           {
             provide: ConfigService,
@@ -285,7 +349,11 @@ describe('StorageService', () => {
     it('should delegate to sqlite provider', async () => {
       mockSqliteProvider.createMemory.mockResolvedValue({ id: 'm1' });
 
-      await service.createMemory({ userId: 'u1', raw: 'test', layer: 'IDENTITY' as any });
+      await service.createMemory({
+        userId: 'u1',
+        raw: 'test',
+        layer: 'IDENTITY' as any,
+      });
       expect(mockSqliteProvider.createMemory).toHaveBeenCalled();
       expect(mockPrismaPostgresProvider.createMemory).not.toHaveBeenCalled();
     });
@@ -298,7 +366,10 @@ describe('StorageService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           StorageService,
-          { provide: PrismaPostgresProvider, useValue: mockPrismaPostgresProvider },
+          {
+            provide: PrismaPostgresProvider,
+            useValue: mockPrismaPostgresProvider,
+          },
           { provide: SqliteProvider, useValue: mockSqliteProvider },
           {
             provide: ConfigService,

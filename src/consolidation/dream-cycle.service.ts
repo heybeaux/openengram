@@ -489,7 +489,12 @@ export class DreamCycleService {
 
       this.emitSafe(
         'dream.completed',
-        new DreamCompletedEvent(duplicatesMerged, memoriesArchived, patternsCreated, durationMs),
+        new DreamCompletedEvent(
+          duplicatesMerged,
+          memoriesArchived,
+          patternsCreated,
+          durationMs,
+        ),
       );
 
       return {

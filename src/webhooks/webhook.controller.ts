@@ -42,10 +42,7 @@ export class WebhookController {
     try {
       return await this.webhookService.create(userId, dto);
     } catch (err: any) {
-      throw new HttpException(
-        err.message,
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
     }
   }
 

@@ -15,8 +15,6 @@ import { sanitizeMemoryOutput } from '../../utils/html-sanitize';
 @Injectable()
 export class SanitizeInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(
-      map((data) => sanitizeMemoryOutput(data)),
-    );
+    return next.handle().pipe(map((data) => sanitizeMemoryOutput(data)));
   }
 }

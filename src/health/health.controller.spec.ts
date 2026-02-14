@@ -62,7 +62,9 @@ describe('HealthController', () => {
     });
 
     it('should throw 503 when database is down', async () => {
-      mockPrisma.memory.count.mockRejectedValue(new Error('Connection refused'));
+      mockPrisma.memory.count.mockRejectedValue(
+        new Error('Connection refused'),
+      );
 
       await expect(controller.check()).rejects.toThrow(HttpException);
       try {

@@ -23,7 +23,10 @@ async function bootstrap() {
   const allowedOrigins = (() => {
     const envOrigins = process.env.CORS_ORIGINS;
     if (envOrigins) {
-      return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+      return envOrigins
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
     }
     const origins = [
       'https://openengram.ai',
@@ -51,9 +54,7 @@ async function bootstrap() {
   // Swagger / OpenAPI documentation
   const config = new DocumentBuilder()
     .setTitle('Engram API')
-    .setDescription(
-      'Memory infrastructure for AI agents that actually works.',
-    )
+    .setDescription('Memory infrastructure for AI agents that actually works.')
     .setVersion('1.0.0')
     .addApiKey(
       { type: 'apiKey', name: 'X-AM-API-Key', in: 'header' },

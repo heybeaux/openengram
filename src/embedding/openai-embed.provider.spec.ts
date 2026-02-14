@@ -56,7 +56,10 @@ describe('OpenAIEmbedProvider', () => {
       });
 
       const result = await provider.embed(['hello', 'world']);
-      expect(result).toEqual([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]);
+      expect(result).toEqual([
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+      ]);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.openai.com/v1/embeddings',
         expect.objectContaining({
@@ -81,7 +84,10 @@ describe('OpenAIEmbedProvider', () => {
       });
 
       const result = await provider.embed(['a', 'b']);
-      expect(result).toEqual([[0.1, 0.2], [0.4, 0.5]]);
+      expect(result).toEqual([
+        [0.1, 0.2],
+        [0.4, 0.5],
+      ]);
     });
 
     it('should throw on API error', async () => {

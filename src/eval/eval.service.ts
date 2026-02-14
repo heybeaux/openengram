@@ -159,8 +159,7 @@ export class EvalService {
     const baselineRuns = runs.slice(1, 4); // up to 3 previous runs
 
     const avgRecallScore =
-      baselineRuns.reduce((s, r) => s + r.recallScore, 0) /
-      baselineRuns.length;
+      baselineRuns.reduce((s, r) => s + r.recallScore, 0) / baselineRuns.length;
     const avgLatencyP50Ms =
       baselineRuns.reduce((s, r) => s + r.latencyP50Ms, 0) /
       baselineRuns.length;
@@ -237,13 +236,16 @@ export class EvalService {
       ? fragmentsFound.length > 0
       : fragmentsFound.length === totalFragments;
 
-    const recall = totalFragments > 0 ? fragmentsFound.length / totalFragments : 0;
+    const recall =
+      totalFragments > 0 ? fragmentsFound.length / totalFragments : 0;
 
     // Precision: how many returned memories contain at least one expected fragment
     let relevantCount = 0;
     for (const m of memories) {
       const mLower = m.raw.toLowerCase();
-      if (testCase.expectedFragments.some((f) => mLower.includes(f.toLowerCase()))) {
+      if (
+        testCase.expectedFragments.some((f) => mLower.includes(f.toLowerCase()))
+      ) {
         relevantCount++;
       }
     }

@@ -30,27 +30,29 @@ export class AccountService {
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Create account + default agent in a transaction
-    const { account, agent, apiKey } = await this.prisma.$transaction(async (tx) => {
-      const account = await tx.account.create({
-        data: { email, passwordHash, name },
-      });
+    const { account, agent, apiKey } = await this.prisma.$transaction(
+      async (tx) => {
+        const account = await tx.account.create({
+          data: { email, passwordHash, name },
+        });
 
-      // Generate API key
-      const rawKey = `eng_${randomBytes(24).toString('hex')}`;
-      const apiKeyHash = createHash('sha256').update(rawKey).digest('hex');
-      const apiKeyHint = rawKey.slice(0, 8) + '...' + rawKey.slice(-4);
+        // Generate API key
+        const rawKey = `eng_${randomBytes(24).toString('hex')}`;
+        const apiKeyHash = createHash('sha256').update(rawKey).digest('hex');
+        const apiKeyHint = rawKey.slice(0, 8) + '...' + rawKey.slice(-4);
 
-      const agent = await tx.agent.create({
-        data: {
-          name: name ? `${name}'s Agent` : 'Default Agent',
-          apiKeyHash,
-          apiKeyHint,
-          accountId: account.id,
-        },
-      });
+        const agent = await tx.agent.create({
+          data: {
+            name: name ? `${name}'s Agent` : 'Default Agent',
+            apiKeyHash,
+            apiKeyHint,
+            accountId: account.id,
+          },
+        });
 
-      return { account, agent, apiKey: rawKey };
-    });
+        return { account, agent, apiKey: rawKey };
+      },
+    );
 
     const token = this.signToken(account);
 

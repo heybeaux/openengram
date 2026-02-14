@@ -108,16 +108,28 @@ describe('MemoryController', () => {
 
       const result = await controller.getGraph(userId);
 
-      expect(memoryService.getGraphData).toHaveBeenCalledWith(userId, 500, false);
+      expect(memoryService.getGraphData).toHaveBeenCalledWith(
+        userId,
+        500,
+        false,
+      );
       expect(result).toEqual(expected);
     });
 
     it('should parse limit and includeAgent params', async () => {
-      memoryService.getGraphData.mockResolvedValue({ nodes: [], edges: [], entities: [] } as any);
+      memoryService.getGraphData.mockResolvedValue({
+        nodes: [],
+        edges: [],
+        entities: [],
+      } as any);
 
       await controller.getGraph(userId, '100', 'true');
 
-      expect(memoryService.getGraphData).toHaveBeenCalledWith(userId, 100, true);
+      expect(memoryService.getGraphData).toHaveBeenCalledWith(
+        userId,
+        100,
+        true,
+      );
     });
   });
 
@@ -186,7 +198,11 @@ describe('MemoryController', () => {
 
   describe('getBackfillStatus', () => {
     it('should return count of memories needing backfill', async () => {
-      backfillService.findMemoriesNeedingBackfill.mockResolvedValue([{}, {}, {}] as any);
+      backfillService.findMemoriesNeedingBackfill.mockResolvedValue([
+        {},
+        {},
+        {},
+      ] as any);
 
       const result = await controller.getBackfillStatus();
 
@@ -260,25 +276,35 @@ describe('MemoryController', () => {
 
   describe('consolidate', () => {
     it('should run consolidation with defaults', async () => {
-      consolidationService.promoteRecurringPatterns.mockResolvedValue({} as any);
+      consolidationService.promoteRecurringPatterns.mockResolvedValue(
+        {} as any,
+      );
 
       await controller.consolidate(userId);
 
-      expect(consolidationService.promoteRecurringPatterns).toHaveBeenCalledWith(
-        userId,
-        { dryRun: false, minOccurrences: undefined, similarityThreshold: undefined },
-      );
+      expect(
+        consolidationService.promoteRecurringPatterns,
+      ).toHaveBeenCalledWith(userId, {
+        dryRun: false,
+        minOccurrences: undefined,
+        similarityThreshold: undefined,
+      });
     });
 
     it('should parse query params', async () => {
-      consolidationService.promoteRecurringPatterns.mockResolvedValue({} as any);
+      consolidationService.promoteRecurringPatterns.mockResolvedValue(
+        {} as any,
+      );
 
       await controller.consolidate(userId, 'true', '5', '0.9');
 
-      expect(consolidationService.promoteRecurringPatterns).toHaveBeenCalledWith(
-        userId,
-        { dryRun: true, minOccurrences: 5, similarityThreshold: 0.9 },
-      );
+      expect(
+        consolidationService.promoteRecurringPatterns,
+      ).toHaveBeenCalledWith(userId, {
+        dryRun: true,
+        minOccurrences: 5,
+        similarityThreshold: 0.9,
+      });
     });
   });
 

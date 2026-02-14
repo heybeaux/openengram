@@ -1,4 +1,10 @@
-import { Injectable, Inject, Optional, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Optional,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   MemoryCreatedEvent,
@@ -6,22 +12,14 @@ import {
   MemoryDeletedEvent,
 } from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  ExtractionService,
-  ExtractionContext,
-} from './extraction.service';
+import { ExtractionService, ExtractionContext } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
-import {
-  Memory,
-  MemoryLayer,
-  MemorySource,
-  SubjectType,
-} from '@prisma/client';
+import { Memory, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 import { CorrectionService } from '../correction/correction.service';
 import {
@@ -117,7 +115,10 @@ export class MemoryService {
     const source = dto.source ?? MemorySource.EXPLICIT_STATEMENT;
 
     // 3. Check for duplicates (three-tier dedup v2)
-    const dedupResult = await this.dedupService.findDuplicateV2(userId, rawContent);
+    const dedupResult = await this.dedupService.findDuplicateV2(
+      userId,
+      rawContent,
+    );
     if (dedupResult.action !== 'create' && dedupResult.existingMemory) {
       if (dedupResult.action === 'merged') {
         await this.dedupService.autoMergeMemory(
@@ -338,7 +339,10 @@ export class MemoryService {
   /**
    * Verify memory ownership. Throws if not found or not owned by userId.
    */
-  private async verifyOwnership(memoryId: string, userId: string): Promise<void> {
+  private async verifyOwnership(
+    memoryId: string,
+    userId: string,
+  ): Promise<void> {
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
       select: { userId: true },
@@ -347,7 +351,9 @@ export class MemoryService {
       throw new NotFoundException(`Memory not found: ${memoryId}`);
     }
     if (memory.userId !== userId) {
-      throw new ForbiddenException('Access denied: Memory belongs to another user');
+      throw new ForbiddenException(
+        'Access denied: Memory belongs to another user',
+      );
     }
   }
 
@@ -370,14 +376,19 @@ export class MemoryService {
   /**
    * Get a single memory by ID (with ownership check)
    */
-  async getById(memoryId: string, userId?: string): Promise<MemoryWithExtraction | null> {
+  async getById(
+    memoryId: string,
+    userId?: string,
+  ): Promise<MemoryWithExtraction | null> {
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
       include: { extraction: true },
     });
     if (!memory) return null;
     if (userId && memory.userId !== userId) {
-      throw new ForbiddenException('Access denied: Memory belongs to another user');
+      throw new ForbiddenException(
+        'Access denied: Memory belongs to another user',
+      );
     }
     return memory;
   }
@@ -507,7 +518,11 @@ export class MemoryService {
         importance: updated.importanceScore,
       });
 
-      await this.pipelineService.linkRelatedMemories(memoryId, embedding, userId);
+      await this.pipelineService.linkRelatedMemories(
+        memoryId,
+        embedding,
+        userId,
+      );
 
       const context: ExtractionContext = {
         userId,

@@ -152,10 +152,7 @@ export class MemoryDedupService {
   /**
    * Reinforce an existing memory (boost importance, track sessions)
    */
-  async reinforceMemory(
-    memoryId: string,
-    sessionId?: string,
-  ): Promise<void> {
+  async reinforceMemory(memoryId: string, sessionId?: string): Promise<void> {
     await this.prisma.memory.update({
       where: { id: memoryId },
       data: {

@@ -91,7 +91,10 @@ export class EnsembleService implements OnModuleInit {
     }
 
     // Check if cloud ensemble should be used
-    const provider = this.configService.get<string>('EMBEDDING_PROVIDER', 'local');
+    const provider = this.configService.get<string>(
+      'EMBEDDING_PROVIDER',
+      'local',
+    );
     if (provider === 'cloud-ensemble') {
       await this.cloudEnsemble.initialize();
       if (this.cloudEnsemble.isAvailable()) {
@@ -106,7 +109,9 @@ export class EnsembleService implements OnModuleInit {
         );
         return;
       }
-      this.logger.warn('Cloud ensemble requested but no providers available, falling back to local');
+      this.logger.warn(
+        'Cloud ensemble requested but no providers available, falling back to local',
+      );
     }
 
     // pgvector is always available if database is configured
@@ -132,7 +137,10 @@ export class EnsembleService implements OnModuleInit {
   /**
    * Generate embeddings for text using all configured models
    */
-  async embedAll(text: string, mode: 'document' | 'query' = 'document'): Promise<MultiEmbedResponse> {
+  async embedAll(
+    text: string,
+    mode: 'document' | 'query' = 'document',
+  ): Promise<MultiEmbedResponse> {
     // Route to cloud providers if active
     if (this.useCloud) {
       return this.cloudEnsemble.embedAll(text, mode);

@@ -102,7 +102,9 @@ describe('StripeService', () => {
         ...mockAccount,
         stripeCustomerId: 'cus_existing',
       });
-      mockStripe.checkout.sessions.create.mockResolvedValue({ url: 'https://checkout.stripe.com/x' });
+      mockStripe.checkout.sessions.create.mockResolvedValue({
+        url: 'https://checkout.stripe.com/x',
+      });
 
       await service.createCheckoutSession('acc_123', 'PRO');
 
@@ -113,7 +115,9 @@ describe('StripeService', () => {
     });
 
     it('throws on unknown plan', async () => {
-      await expect(service.createCheckoutSession('acc_123', 'INVALID')).rejects.toThrow('Unknown plan');
+      await expect(
+        service.createCheckoutSession('acc_123', 'INVALID'),
+      ).rejects.toThrow('Unknown plan');
     });
   });
 
@@ -195,9 +199,9 @@ describe('StripeService', () => {
         throw new Error('Invalid signature');
       });
 
-      await expect(service.handleWebhookEvent(Buffer.from('body'), 'bad_sig')).rejects.toThrow(
-        'Invalid signature',
-      );
+      await expect(
+        service.handleWebhookEvent(Buffer.from('body'), 'bad_sig'),
+      ).rejects.toThrow('Invalid signature');
     });
   });
 });

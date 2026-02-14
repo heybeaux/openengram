@@ -171,9 +171,7 @@ describe('GenerateContextService', () => {
       prisma.memory.findMany.mockResolvedValue(memories);
       prisma.$queryRawUnsafe
         .mockResolvedValueOnce([]) // clusters
-        .mockResolvedValueOnce(
-          memories.map((m) => ({ memory_id: m.id })),
-        ); // all accessed recently
+        .mockResolvedValueOnce(memories.map((m) => ({ memory_id: m.id }))); // all accessed recently
 
       // Use a very small budget so only critical fits
       const result = await service.generate({
@@ -182,7 +180,9 @@ describe('GenerateContextService', () => {
       });
 
       // Critical should be included, background might not fit
-      expect(result.categories.keyLessons + result.categories.userIdentity).toBeGreaterThan(0);
+      expect(
+        result.categories.keyLessons + result.categories.userIdentity,
+      ).toBeGreaterThan(0);
     });
 
     it('should default to 4000 tokens when no budget specified', async () => {
@@ -191,7 +191,11 @@ describe('GenerateContextService', () => {
 
       const result = await service.generate({ agentId: 'agent-1' });
 
-      expect(result.budgetAllocation.critical + result.budgetAllocation.relevant + result.budgetAllocation.background).toBe(4000);
+      expect(
+        result.budgetAllocation.critical +
+          result.budgetAllocation.relevant +
+          result.budgetAllocation.background,
+      ).toBe(4000);
     });
   });
 
@@ -279,7 +283,9 @@ describe('GenerateContextService', () => {
   describe('estimateTokens', () => {
     it('should estimate tokens as word count * 1.3', () => {
       expect(service.estimateTokens('hello world')).toBeCloseTo(2.6);
-      expect(service.estimateTokens('one two three four five')).toBeCloseTo(6.5);
+      expect(service.estimateTokens('one two three four five')).toBeCloseTo(
+        6.5,
+      );
     });
   });
 

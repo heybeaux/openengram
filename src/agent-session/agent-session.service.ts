@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, Inject, Optional, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  Optional,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateAgentSessionDto,
@@ -11,7 +17,9 @@ import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 export class AgentSessionService {
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @Inject(forwardRef(() => MemoryPoolService)) private readonly memoryPoolService?: MemoryPoolService,
+    @Optional()
+    @Inject(forwardRef(() => MemoryPoolService))
+    private readonly memoryPoolService?: MemoryPoolService,
   ) {}
 
   /**
@@ -77,14 +85,21 @@ export class AgentSessionService {
 
         // Grant READ to sub-agent on GLOBAL pool (if exists)
         const globalPool = await this.prisma.memoryPool.findFirst({
-          where: { userId: dto.userId, name: 'global', visibility: 'GLOBAL', archivedAt: null },
+          where: {
+            userId: dto.userId,
+            name: 'global',
+            visibility: 'GLOBAL',
+            archivedAt: null,
+          },
         });
         if (globalPool) {
-          await this.memoryPoolService.grantAccess(globalPool.id, {
-            agentSessionId: session.id,
-            permission: 'READ',
-            grantedBy: dto.sessionKey,
-          }).catch(() => {}); // Ignore if already granted
+          await this.memoryPoolService
+            .grantAccess(globalPool.id, {
+              agentSessionId: session.id,
+              permission: 'READ',
+              grantedBy: dto.sessionKey,
+            })
+            .catch(() => {}); // Ignore if already granted
         }
       } catch (err) {
         console.error('[AgentSession] Auto-pool creation failed:', err);
@@ -151,7 +166,11 @@ export class AgentSessionService {
       where: { name: poolName, createdBy: sessionKey, archivedAt: null },
       include: {
         memberships: {
-          include: { memory: { select: { id: true, effectiveScore: true, userId: true } } },
+          include: {
+            memory: {
+              select: { id: true, effectiveScore: true, userId: true },
+            },
+          },
         },
       },
     });
@@ -210,7 +229,11 @@ export class AgentSessionService {
     });
   }
 
-  async list(options?: { status?: AgentSessionStatus; limit?: number; offset?: number }) {
+  async list(options?: {
+    status?: AgentSessionStatus;
+    limit?: number;
+    offset?: number;
+  }) {
     const where = options?.status ? { status: options.status } : {};
     const [sessions, total] = await Promise.all([
       this.prisma.agentSession.findMany({

@@ -10,11 +10,7 @@ import {
   MultiQueryMetadataDto,
   ResultExplanationDto,
 } from '../multi-query/dto/multi-query.dto';
-import {
-  Memory,
-  MemoryLayer,
-  SubjectType,
-} from '@prisma/client';
+import { Memory, MemoryLayer, SubjectType } from '@prisma/client';
 import {
   MemoryWithExtraction,
   MemoryWithScore,
@@ -584,10 +580,7 @@ export class MemoryQueryService {
 
     const chainLinks = await this.prisma.memoryChainLink.findMany({
       where: {
-        OR: [
-          { sourceId: { in: memoryIds } },
-          { targetId: { in: memoryIds } },
-        ],
+        OR: [{ sourceId: { in: memoryIds } }, { targetId: { in: memoryIds } }],
       },
       include: {
         source: true,
@@ -598,7 +591,10 @@ export class MemoryQueryService {
     if (chainLinks.length === 0) return memories;
 
     // Build chain map per memory
-    const chainMap = new Map<string, Array<{ memory: any; linkType: string; confidence: number }>>();
+    const chainMap = new Map<
+      string,
+      Array<{ memory: any; linkType: string; confidence: number }>
+    >();
 
     for (const link of chainLinks) {
       for (const memoryId of memoryIds) {

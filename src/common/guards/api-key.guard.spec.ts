@@ -36,7 +36,13 @@ describe('ApiKeyGuard', () => {
       providers: [
         ApiKeyGuard,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: ConfigService, useValue: { get: (key: string, def: string) => key === 'TRUST_LOCAL_NETWORK' ? 'true' : def } },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string, def: string) =>
+              key === 'TRUST_LOCAL_NETWORK' ? 'true' : def,
+          },
+        },
       ],
     }).compile();
 
@@ -109,7 +115,12 @@ describe('ApiKeyGuard', () => {
     const apiKey = 'engram_test123';
     const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
     const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
-    const user = { id: 'user-1', agentId: 'agent-1', externalId: 'Beaux', deletedAt: null };
+    const user = {
+      id: 'user-1',
+      agentId: 'agent-1',
+      externalId: 'Beaux',
+      deletedAt: null,
+    };
 
     mockPrisma.agent.findUnique.mockResolvedValue(agent);
     mockPrisma.user.findUnique.mockResolvedValue(user);
@@ -132,14 +143,18 @@ describe('ApiKeyGuard', () => {
       headers: { 'x-am-user-id': 'Beaux' },
     });
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-API-Key header');
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'Missing X-AM-API-Key header',
+    );
   });
 
   it('should throw UnauthorizedException when User-ID missing on external request', async () => {
     const ctx = createMockContext({
       headers: { 'x-am-api-key': 'some-key' },
     });
-    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-User-ID header');
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'Missing X-AM-User-ID header',
+    );
   });
 
   // --- Invalid API key ---
@@ -171,7 +186,12 @@ describe('ApiKeyGuard', () => {
     const apiKey = 'engram_new';
     const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
     const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
-    const newUser = { id: 'user-new', agentId: 'agent-1', externalId: 'NewUser', deletedAt: null };
+    const newUser = {
+      id: 'user-new',
+      agentId: 'agent-1',
+      externalId: 'NewUser',
+      deletedAt: null,
+    };
 
     mockPrisma.agent.findUnique.mockResolvedValue(agent);
     mockPrisma.user.findUnique.mockResolvedValue(null);
@@ -201,7 +221,9 @@ describe('ApiKeyGuard', () => {
     const ctx = createMockContext({
       headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
     });
-    await expect(guard.canActivate(ctx)).rejects.toThrow('User has been deleted');
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'User has been deleted',
+    );
   });
 
   // --- Successful auth attaches request context ---
@@ -210,7 +232,12 @@ describe('ApiKeyGuard', () => {
     const apiKey = 'engram_ok';
     const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
     const agent = { id: 'agent-1', apiKeyHash, deletedAt: null };
-    const user = { id: 'user-1', agentId: 'agent-1', externalId: 'Beaux', deletedAt: null };
+    const user = {
+      id: 'user-1',
+      agentId: 'agent-1',
+      externalId: 'Beaux',
+      deletedAt: null,
+    };
 
     mockPrisma.agent.findUnique.mockResolvedValue(agent);
     mockPrisma.user.findUnique.mockResolvedValue(user);
@@ -241,7 +268,11 @@ describe('ApiKeyGuard', () => {
       headers: { 'x-am-api-key': apiKey, 'x-am-user-id': 'Beaux' },
     });
 
-    try { await guard.canActivate(ctx); } catch {}
+    try {
+      await guard.canActivate(ctx);
+    } catch {
+      // expected to throw
+    }
 
     expect(mockPrisma.agent.findUnique).toHaveBeenCalledWith({
       where: { apiKeyHash: expectedHash },
@@ -267,6 +298,8 @@ describe('ApiKeyGuard', () => {
       ip: '203.0.113.50',
       headers: {},
     });
-    await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-AM-API-Key header');
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'Missing X-AM-API-Key header',
+    );
   });
 });

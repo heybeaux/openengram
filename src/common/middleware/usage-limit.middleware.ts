@@ -1,4 +1,9 @@
-import { Injectable, NestMiddleware, HttpException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PLAN_LIMITS } from '../../account/plan-limits.js';
@@ -48,7 +53,10 @@ export class UsageLimitMiddleware implements NestMiddleware {
     }
 
     // Check API calls limit
-    if (limits.apiCallsPerDay !== -1 && apiCallsToday >= limits.apiCallsPerDay) {
+    if (
+      limits.apiCallsPerDay !== -1 &&
+      apiCallsToday >= limits.apiCallsPerDay
+    ) {
       throw new HttpException(
         {
           statusCode: 429,
@@ -62,7 +70,11 @@ export class UsageLimitMiddleware implements NestMiddleware {
     // Check memory limit on creation endpoints
     const isMemoryCreation =
       req.method === 'POST' && req.path.includes('/memories');
-    if (isMemoryCreation && limits.memories !== -1 && account.memoriesUsed >= limits.memories) {
+    if (
+      isMemoryCreation &&
+      limits.memories !== -1 &&
+      account.memoriesUsed >= limits.memories
+    ) {
       throw new HttpException(
         {
           statusCode: 429,

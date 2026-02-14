@@ -32,9 +32,16 @@ export class HealthController {
 
   /** GET /v1/health — canonical health check endpoint */
   @Get('v1/health')
-  @ApiOperation({ summary: 'Health check', description: 'Returns system health including database, embedding service, and monitoring status.' })
+  @ApiOperation({
+    summary: 'Health check',
+    description:
+      'Returns system health including database, embedding service, and monitoring status.',
+  })
   @ApiResponse({ status: 200, description: 'System is healthy.' })
-  @ApiResponse({ status: 503, description: 'System is unhealthy (database down).' })
+  @ApiResponse({
+    status: 503,
+    description: 'System is unhealthy (database down).',
+  })
   async check(): Promise<any> {
     const start = Date.now();
 

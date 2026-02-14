@@ -48,14 +48,14 @@ export class MemoryPoolController {
   @Get(':id/members')
   @ApiOperation({ summary: 'Get pool members (memories)' })
   async getMembers(@Param('id') id: string) {
-    const pool = await this.service.getById(id, true) as any;
+    const pool = (await this.service.getById(id, true)) as any;
     return pool.memberships ?? [];
   }
 
   @Get(':id/grants')
   @ApiOperation({ summary: 'Get pool grants' })
   async getGrants(@Param('id') id: string) {
-    const pool = await this.service.getById(id, true) as any;
+    const pool = (await this.service.getById(id, true)) as any;
     return pool.grants ?? [];
   }
 

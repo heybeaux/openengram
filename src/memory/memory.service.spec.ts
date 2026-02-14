@@ -155,10 +155,19 @@ describe('MemoryService', () => {
     };
 
     const mockQueryService = {
-      recall: jest.fn().mockResolvedValue({ memories: [], queryTokens: 0, latencyMs: 0 }),
-      loadContext: jest.fn().mockResolvedValue({ context: '', tokenCount: 0, memoriesIncluded: 0, layers: { identity: 0, project: 0, session: 0 } }),
+      recall: jest
+        .fn()
+        .mockResolvedValue({ memories: [], queryTokens: 0, latencyMs: 0 }),
+      loadContext: jest.fn().mockResolvedValue({
+        context: '',
+        tokenCount: 0,
+        memoriesIncluded: 0,
+        layers: { identity: 0, project: 0, session: 0 },
+      }),
       shouldUseMultiQuery: jest.fn().mockReturnValue(false),
-      selectMemoriesForBudget: jest.fn().mockReturnValue({ selected: [], evicted: [] }),
+      selectMemoriesForBudget: jest
+        .fn()
+        .mockReturnValue({ selected: [], evicted: [] }),
       buildSubjectTypeFilter: jest.fn().mockReturnValue({}),
       formatContext: jest.fn().mockReturnValue({ text: '', tokens: 0 }),
     };
@@ -171,7 +180,9 @@ describe('MemoryService', () => {
     };
 
     const mockGraphService = {
-      getGraphData: jest.fn().mockResolvedValue({ nodes: [], edges: [], entities: [] }),
+      getGraphData: jest
+        .fn()
+        .mockResolvedValue({ nodes: [], edges: [], entities: [] }),
     };
 
     module = await Test.createTestingModule({

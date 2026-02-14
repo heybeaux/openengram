@@ -168,10 +168,14 @@ describe('DreamCycleService', () => {
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
 
       // Make internal run fail
-      mockPrisma.dreamCycleReport.create.mockRejectedValue(new Error('DB error'));
+      mockPrisma.dreamCycleReport.create.mockRejectedValue(
+        new Error('DB error'),
+      );
       mockPrisma.dreamCycleRun.update.mockResolvedValue({});
 
-      await expect(service.run({ userId: 'test-user' })).rejects.toThrow('DB error');
+      await expect(service.run({ userId: 'test-user' })).rejects.toThrow(
+        'DB error',
+      );
 
       // Lock should still be released (last call to $queryRawUnsafe)
       const calls = mockPrisma.$queryRawUnsafe.mock.calls;
