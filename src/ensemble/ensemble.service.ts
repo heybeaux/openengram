@@ -16,6 +16,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { CloudEnsembleService } from '../embedding/cloud-ensemble.service';
+import { CohereEmbeddingProvider } from '../embedding/providers';
 import {
   PgVectorEnsembleProvider,
   EnsembleEmbeddingRecord,
@@ -45,11 +47,14 @@ export class EnsembleService implements OnModuleInit {
   private readonly logger = new Logger(EnsembleService.name);
   private config: EnsembleConfig;
 
+  private useCloud = false;
+
   constructor(
     private configService: ConfigService,
     private pgvectorProvider: PgVectorEnsembleProvider,
     private prisma: PrismaService,
     private embeddingService: EmbeddingService,
+    private cloudEnsemble: CloudEnsembleService,
   ) {
     // Load configuration
     // Models can be configured via ENSEMBLE_MODELS env var (comma-separated)
@@ -85,6 +90,25 @@ export class EnsembleService implements OnModuleInit {
       return;
     }
 
+    // Check if cloud ensemble should be used
+    const provider = this.configService.get<string>('EMBEDDING_PROVIDER', 'local');
+    if (provider === 'cloud-ensemble') {
+      await this.cloudEnsemble.initialize();
+      if (this.cloudEnsemble.isAvailable()) {
+        this.useCloud = true;
+        this.config.models = this.cloudEnsemble.getModelIds();
+        // Set weights for cloud models
+        for (const modelId of this.config.models) {
+          this.config.weights[modelId] = MODEL_CONFIGS[modelId]?.weight ?? 1.0;
+        }
+        this.logger.log(
+          `Ensemble initialized with CLOUD providers, models: ${this.config.models.join(', ')}`,
+        );
+        return;
+      }
+      this.logger.warn('Cloud ensemble requested but no providers available, falling back to local');
+    }
+
     // pgvector is always available if database is configured
     this.logger.log(
       `Ensemble initialized with pgvector storage, models: ${this.config.models.join(', ')}`,
@@ -108,7 +132,12 @@ export class EnsembleService implements OnModuleInit {
   /**
    * Generate embeddings for text using all configured models
    */
-  async embedAll(text: string): Promise<MultiEmbedResponse> {
+  async embedAll(text: string, mode: 'document' | 'query' = 'document'): Promise<MultiEmbedResponse> {
+    // Route to cloud providers if active
+    if (this.useCloud) {
+      return this.cloudEnsemble.embedAll(text, mode);
+    }
+
     const start = Date.now();
     const embeddings: EmbeddingResult[] = [];
 
@@ -179,8 +208,25 @@ export class EnsembleService implements OnModuleInit {
   async embed(text: string, model: ModelId): Promise<EmbeddingResult> {
     const start = Date.now();
 
+    // Use cloud provider if available for this model
+    if (this.useCloud) {
+      const provider = this.cloudEnsemble.getProvider(model);
+      if (provider) {
+        // Set Cohere input type for single embeds
+        if (provider instanceof CohereEmbeddingProvider) {
+          provider.setInputType('search_document');
+        }
+        const vectors = await provider.embed([text]);
+        return {
+          model,
+          dimensions: provider.getDimensions(),
+          embedding: vectors[0],
+          latencyMs: Date.now() - start,
+        };
+      }
+    }
+
     // Use local embed server directly for model-specific requests
-    // (ensemble models are always local)
     const response = await fetch(`${this.config.localEmbedUrl}/v1/embeddings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -327,7 +373,7 @@ export class EnsembleService implements OnModuleInit {
     const k = options.k ?? this.config.rrfK;
 
     // Generate query embeddings for all models
-    const { embeddings } = await this.embedAll(options.query);
+    const { embeddings } = await this.embedAll(options.query, 'query');
     const embeddingMap = new Map(embeddings.map((e) => [e.model, e.embedding]));
 
     // Query each model using pgvector
@@ -365,7 +411,7 @@ export class EnsembleService implements OnModuleInit {
   reciprocalRankFusion(
     modelResults: Map<ModelId, ModelSearchResult[]>,
     k: number = 60,
-    weights: Record<ModelId, number> = {
+    weights: Partial<Record<ModelId, number>> = {
       'bge-base': 1.0,
       nomic: 0.8,
       'gte-base': 0.7,
@@ -436,6 +482,11 @@ export class EnsembleService implements OnModuleInit {
     texts: string[],
     models: ModelId[],
   ): Promise<MultiEmbedResponse> {
+    // Route to cloud providers if active
+    if (this.useCloud) {
+      return this.cloudEnsemble.embedBatch(texts, models);
+    }
+
     const start = Date.now();
     const embeddings: EmbeddingResult[] = [];
     const errors: EmbedError[] = [];

@@ -173,7 +173,7 @@ describe('EnsembleService', () => {
       ]);
 
       // Give BGE 2x weight
-      const weights: Record<ModelId, number> = {
+      const weights: Partial<Record<ModelId, number>> = {
         'bge-base': 2.0,
         minilm: 1.0,
         nomic: 1.0,
@@ -319,7 +319,7 @@ describe('EnsembleService', () => {
         { memoryId: 'mem-2', model: 'minilm', rank: 1, score: 0.95 },
       ]);
 
-      const weights: Record<ModelId, number> = {
+      const weights: Partial<Record<ModelId, number>> = {
         'bge-base': 1.0,
         minilm: 0.0,
         nomic: 1.0,
@@ -1344,7 +1344,7 @@ describe('Ensemble Integration Tests', () => {
       ]);
 
       // Entity query should boost minilm
-      const weights: Record<ModelId, number> = {
+      const weights: Partial<Record<ModelId, number>> = {
         'bge-base': 0.9,
         minilm: 1.4,
         nomic: 0.8,
@@ -1369,7 +1369,7 @@ describe('Ensemble Integration Tests', () => {
       ]);
 
       // Conversational query should boost nomic
-      const weights: Record<ModelId, number> = {
+      const weights: Partial<Record<ModelId, number>> = {
         'bge-base': 0.9,
         nomic: 1.4,
         minilm: 0.7,
@@ -1485,7 +1485,7 @@ describe('Edge Cases', () => {
     ]);
 
     // Negative weight (edge case)
-    const weights: Record<ModelId, number> = {
+    const weights: Partial<Record<ModelId, number>> = {
       'bge-base': -1.0,
       minilm: 1.0,
       nomic: 1.0,

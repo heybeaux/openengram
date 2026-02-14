@@ -8,7 +8,14 @@
 /**
  * Supported embedding models
  */
-export type ModelId = 'bge-base' | 'nomic' | 'minilm' | 'gte-base';
+export type ModelId =
+  | 'bge-base'
+  | 'nomic'
+  | 'minilm'
+  | 'gte-base'
+  | 'openai-small'
+  | 'openai-large'
+  | 'cohere-v3';
 
 /**
  * Model status in the registry
@@ -87,6 +94,29 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
     weight: 1.0,
     maxTokens: 512,
   },
+  'openai-small': {
+    id: 'openai-small',
+    dimensions: 1536,
+    namespace: 'openai-small',
+    weight: 1.0,
+    maxTokens: 8191,
+  },
+  'openai-large': {
+    id: 'openai-large',
+    dimensions: 3072,
+    namespace: 'openai-large',
+    weight: 1.2,
+    maxTokens: 8191,
+  },
+  'cohere-v3': {
+    id: 'cohere-v3',
+    dimensions: 1024,
+    namespace: 'cohere-v3',
+    weight: 1.0,
+    maxTokens: 512,
+    queryPrefix: '',
+    documentPrefix: '',
+  },
 };
 
 /**
@@ -97,6 +127,9 @@ export const ALL_MODELS: ModelId[] = [
   'nomic',
   'minilm',
   'gte-base',
+  'openai-small',
+  'openai-large',
+  'cohere-v3',
 ];
 
 /**
@@ -198,7 +231,7 @@ export interface EnsembleUpsertOptions {
 export interface EnsembleConfig {
   enabled: boolean;
   models: ModelId[];
-  weights: Record<ModelId, number>;
+  weights: Partial<Record<ModelId, number>>;
   rrfK: number; // RRF constant
   localEmbedUrl: string;
   consensusBoostEnabled: boolean;

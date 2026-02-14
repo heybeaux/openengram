@@ -12,11 +12,17 @@ import { ConfigModule } from '@nestjs/config';
 import { EmbeddingService } from './embedding.service';
 import { LocalEmbedProvider } from './local-embed.provider';
 import { OpenAIEmbedProvider } from './openai-embed.provider';
+import { CloudEnsembleService } from './cloud-ensemble.service';
 
 @Global()
 @Module({
   imports: [ConfigModule],
-  providers: [LocalEmbedProvider, OpenAIEmbedProvider, EmbeddingService],
-  exports: [EmbeddingService],
+  providers: [
+    LocalEmbedProvider,
+    OpenAIEmbedProvider,
+    CloudEnsembleService,
+    EmbeddingService,
+  ],
+  exports: [EmbeddingService, CloudEnsembleService],
 })
 export class EmbeddingModule {}
