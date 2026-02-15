@@ -37,3 +37,4 @@ prisma/migrations/**/migration_lock.toml
 reports/
 node_modules
 worktrees/
+.env.cloud
