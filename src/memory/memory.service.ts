@@ -17,6 +17,7 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
+import { ExportedMemory, ImportMemoryItemDto, ImportResult } from './dto/export-import.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 import { Memory, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
@@ -731,6 +732,190 @@ export class MemoryService {
     } catch (err) {
       console.error(`[Memory] Failed to emit ${eventName}:`, err);
     }
+  }
+
+  // =========================================================================
+  // EXPORT / IMPORT (HEY-55)
+  // =========================================================================
+
+  /**
+   * Export all user memories for migration.
+   * Returns an array of ExportedMemory objects.
+   */
+  async exportMemories(userId: string): Promise<ExportedMemory[]> {
+    const memories = await this.prisma.memory.findMany({
+      where: { userId, deletedAt: null },
+      include: { extraction: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Batch-fetch ensemble embeddings
+    const memoryIds = memories.map((m) => m.id);
+    const ensembleRows = memoryIds.length
+      ? await (this.prisma as any).ensembleEmbedding?.findMany({
+          where: { memoryId: { in: memoryIds } },
+          select: { memoryId: true, provider: true, vector: true },
+        }).catch(() => [] as any[]) ?? []
+      : [];
+
+    const ensembleMap = new Map<string, Record<string, number[]>>();
+    for (const row of ensembleRows) {
+      if (!ensembleMap.has(row.memoryId)) {
+        ensembleMap.set(row.memoryId, {});
+      }
+      ensembleMap.get(row.memoryId)![row.provider] = row.vector;
+    }
+
+    return memories.map((m) => ({
+      id: m.id,
+      raw: m.raw,
+      layer: m.layer,
+      importance: m.importanceScore,
+      tags: m.extraction?.topics ?? [],
+      metadata: {
+        source: m.source,
+        confidence: m.confidence,
+        subjectType: m.subjectType,
+        subjectId: m.subjectId,
+        projectId: m.projectId,
+        sessionId: m.sessionId,
+        extraction: m.extraction
+          ? {
+              who: m.extraction.who,
+              what: m.extraction.what,
+              when: m.extraction.when,
+              where: m.extraction.whereCtx,
+              why: m.extraction.why,
+              how: m.extraction.how,
+              topics: m.extraction.topics,
+            }
+          : null,
+      },
+      createdAt: m.createdAt.toISOString(),
+      updatedAt: m.updatedAt.toISOString(),
+      ...(ensembleMap.has(m.id)
+        ? { ensembleEmbeddings: ensembleMap.get(m.id) }
+        : {}),
+    }));
+  }
+
+  /**
+   * Import memories with dedup and plan limit enforcement.
+   */
+  async importMemories(
+    userId: string,
+    items: ImportMemoryItemDto[],
+  ): Promise<ImportResult> {
+    // 1. Resolve account and check plan limits
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        externalId: true,
+        displayName: true,
+        agent: { select: { accountId: true, account: true } },
+      },
+    });
+
+    const account = user?.agent?.account as any;
+    let memoriesUsed = account?.memoriesUsed ?? 0;
+    let memoryLimit = Infinity;
+
+    if (account) {
+      const { PLAN_LIMITS } = await import('../account/plan-limits.js');
+      const limits = PLAN_LIMITS[account.plan as keyof typeof PLAN_LIMITS];
+      if (limits && limits.memories !== -1) {
+        memoryLimit = limits.memories;
+      }
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const item of items) {
+      try {
+        // Check plan limit
+        if (memoriesUsed + imported >= memoryLimit) {
+          errors += items.length - imported - skipped - errors;
+          break;
+        }
+
+        // Dedup check
+        const dedupResult = await this.dedupService.findDuplicateV2(
+          userId,
+          item.raw,
+        );
+
+        if (dedupResult.action !== 'create') {
+          skipped++;
+          continue;
+        }
+
+        // Determine layer
+        const layer =
+          item.layer && Object.values(MemoryLayer).includes(item.layer as MemoryLayer)
+            ? (item.layer as MemoryLayer)
+            : this.extraction.classifyLayer(item.raw);
+
+        // Calculate importance
+        const importanceScore = item.importance != null
+          ? Math.max(0, Math.min(1, item.importance))
+          : this.importance.calculate({ layer });
+
+        // Create memory
+        const memory = await this.prisma.memory.create({
+          data: {
+            userId,
+            raw: item.raw,
+            layer,
+            source: MemorySource.EXPLICIT_STATEMENT,
+            importanceScore,
+            confidence: 1.0,
+          },
+        });
+
+        // Extract and embed asynchronously (generates NEW embeddings)
+        const extractionContext: ExtractionContext = {
+          userId,
+          userName: user?.displayName || user?.externalId,
+          timestamp: item.createdAt ? new Date(item.createdAt) : new Date(),
+        };
+
+        this.pipelineService
+          .extractAndEmbed(memory.id, item.raw, userId, extractionContext)
+          .catch((err) => {
+            console.error(`[Import] Extraction failed for ${memory.id}:`, err);
+          });
+
+        // Emit memory.created so ensemble embeddings get generated
+        this.emitEvent(
+          'memory.created',
+          new MemoryCreatedEvent(
+            memory.id,
+            memory.layer,
+            importanceScore,
+            [],
+            userId,
+            item.raw.substring(0, 200),
+          ),
+        );
+
+        imported++;
+      } catch (err) {
+        console.error('[Import] Failed to import memory:', err);
+        errors++;
+      }
+    }
+
+    // Increment memoriesUsed in bulk
+    if (imported > 0) {
+      this.incrementMemoriesUsed(userId, imported).catch((err) => {
+        console.error(`[Import] Failed to increment memoriesUsed:`, err);
+      });
+    }
+
+    return { imported, skipped, errors };
   }
 
   /**

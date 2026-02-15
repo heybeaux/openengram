@@ -8,11 +8,13 @@ import {
   Param,
   Headers,
   Query,
+  Res,
   HttpCode,
   HttpStatus,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   MemoryService,
   MemoryWithExtraction,
@@ -29,6 +31,7 @@ import {
   ConsolidationResult,
 } from './consolidation.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
+import { ExportQueryDto, ImportMemoriesDto, ImportResult } from './dto/export-import.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
 import { ContextualRecallService } from './contextual-recall.service';
@@ -154,6 +157,64 @@ export class MemoryController {
     @Body() dto: ContextualRecallDto,
   ): Promise<ContextualRecallResponseDto> {
     return this.contextualRecallService.recall(userId, dto);
+  }
+
+  // =========================================================================
+  // EXPORT / IMPORT (HEY-55)
+  // =========================================================================
+
+  /**
+   * GET /v1/memories/export
+   * Export all user memories as JSON or NDJSON for migration.
+   */
+  @Get('memories/export')
+  @ApiOperation({
+    summary: 'Export all memories',
+    description:
+      'Export all memories as a downloadable JSON or NDJSON file for migration.',
+  })
+  async exportMemories(
+    @UserId() userId: string,
+    @Query() query: ExportQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const memories = await this.memoryService.exportMemories(userId);
+    const format = query.format || 'json';
+    const date = new Date().toISOString().split('T')[0];
+    const ext = format === 'ndjson' ? 'ndjson' : 'json';
+
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="engram-export-${date}.${ext}"`,
+    );
+
+    if (format === 'ndjson') {
+      res.setHeader('Content-Type', 'application/x-ndjson');
+      for (const memory of memories) {
+        res.write(JSON.stringify(memory) + '\n');
+      }
+      res.end();
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.json(memories);
+    }
+  }
+
+  /**
+   * POST /v1/memories/import
+   * Import memories with dedup and plan limit enforcement.
+   */
+  @Post('memories/import')
+  @ApiOperation({
+    summary: 'Import memories',
+    description:
+      'Import memories from an export file. Deduplicates and respects plan limits.',
+  })
+  async importMemories(
+    @UserId() userId: string,
+    @Body() dto: ImportMemoriesDto,
+  ): Promise<ImportResult> {
+    return this.memoryService.importMemories(userId, dto.memories);
   }
 
   /**
