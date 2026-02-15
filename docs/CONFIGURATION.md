@@ -16,7 +16,65 @@ OPENAI_API_KEY="sk-..."
 
 # Vector Store (optional, defaults to pgvector)
 VECTOR_PROVIDER="pgvector"
+
+# Deployment Mode (optional, defaults to self-hosted)
+DEPLOYMENT_MODE="self-hosted"  # or "cloud"
 ```
+
+---
+
+## Deployment Mode
+
+### DEPLOYMENT_MODE
+
+Controls whether this instance runs as cloud SaaS or self-hosted. **Default: `self-hosted`** (auto-detected if not set).
+
+| Value | Description |
+|-------|-------------|
+| `self-hosted` | Local deployment. All local features unlocked. No plan limits. |
+| `cloud` | Managed SaaS at app.openengram.ai. Plan-gated features, billing enabled. |
+
+```bash
+DEPLOYMENT_MODE="self-hosted"
+```
+
+The API exposes the current mode via `GET /v1/instance/info`. The dashboard adapts its UI automatically based on this.
+
+### ENCRYPTION_KEY
+
+Encryption key for securing cloud link credentials and sensitive config stored in the database.
+
+```bash
+ENCRYPTION_KEY="your-32-char-secret-key-here"
+```
+
+Generate one: `openssl rand -hex 16`
+
+### ENSEMBLE_ENABLED
+
+Enable multi-model ensemble search. Default: `true` for self-hosted (local models), plan-gated for cloud.
+
+```bash
+ENSEMBLE_ENABLED=true
+```
+
+### CLOUD_API_URL
+
+URL of the OpenEngram Cloud API. Used by self-hosted instances when linked to cloud.
+
+```bash
+CLOUD_API_URL="https://api.openengram.ai"
+```
+
+### AUTO_SYNC_ENABLED
+
+Enable automatic background sync of memories to cloud (requires cloud link). Default: `false`.
+
+```bash
+AUTO_SYNC_ENABLED=false
+```
+
+See the [Deployment Architecture doc](./architecture-deployment.md) for details on how mode detection, feature gating, and cloud linking work.
 
 ---
 

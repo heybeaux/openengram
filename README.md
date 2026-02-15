@@ -35,12 +35,16 @@ Engram is a memory layer for AI agents — store, recall, and evolve memories wi
 - 🔒 **Multi-tenant with API key auth** — cryptographic user isolation
 - 💳 **SaaS-ready** — Stripe billing, usage limits, and tiered pricing built in
 - 🐳 **Docker Compose** for easy self-hosting — up and running in 3 commands
+- 🔗 **Hybrid mode** — self-hosted + cloud link for backup, sync, and cloud ensemble models
+- 🏠 **Self-hosted setup wizard** — first-run detection, guided setup, zero config
 - 📡 **Webhooks with HMAC signing** — real-time event notifications
 - 🛡️ **Safety-critical detection** — 16 patterns for allergies, medications, legal directives
 - ⏰ **Temporal reasoning** — understands "yesterday," "last week," natural language time
 - 📊 **Fog Index** — cognitive health scoring to monitor memory drift
 
 ## Quick Start
+
+### Self-Hosted
 
 ```bash
 git clone https://github.com/heybeaux/engram && cd engram
@@ -50,9 +54,17 @@ docker compose up -d
 
 API at `localhost:3001` · Dashboard at `localhost:3000`
 
-## Hosted Version
+On first run, the **setup wizard** walks you through creating an admin account and choosing your mode (local-only or linked to OpenEngram Cloud). No manual config needed — just open the dashboard.
 
-Don't want to self-host? Use the managed version at **[openengram.ai](https://openengram.ai)** — sign up, get an API key, and start building in minutes.
+### Cloud
+
+Sign up at **[app.openengram.ai](https://app.openengram.ai)**, choose a plan, get your API key, and start building in minutes.
+
+### Hybrid Mode
+
+Run self-hosted with full local features, then **link to OpenEngram Cloud** from Settings to unlock cloud ensemble models, backup, and cross-device sync. Best of both worlds — your data stays local, premium features from the cloud.
+
+See the [Getting Started Guide](./docs/getting-started.md) for detailed walkthroughs.
 
 ## API Example
 
@@ -89,7 +101,10 @@ curl -X POST https://api.openengram.ai/v1/memories/search \
 
 ## Documentation
 
+- [Getting Started](./docs/getting-started.md) — Self-hosted, cloud, and hybrid setup
 - [API Reference](./docs/API.md) — Full endpoint documentation
+- [Deployment Architecture](./docs/architecture-deployment.md) — Mode detection, feature gating, cloud link, sync
+- [Configuration](./docs/CONFIGURATION.md) — All environment variables and deployment modes
 - [Swagger UI](http://localhost:3001/v1/docs) — Interactive API explorer (when running locally)
 - [Online Docs](https://openengram.ai/docs) — Hosted documentation
 

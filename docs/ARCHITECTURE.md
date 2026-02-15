@@ -74,3 +74,9 @@
 
 ## Entry Point
 `src/main.ts` → `src/app.module.ts` imports all feature modules.
+
+---
+
+## Deployment Modes & Cloud Link
+
+For details on mode detection, feature gating, cloud link architecture, and backup sync protocol, see [Deployment Architecture](./architecture-deployment.md).

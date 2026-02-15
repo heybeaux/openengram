@@ -464,6 +464,215 @@ POST /v1/memories/clx1abc123/correct
 
 ---
 
+## Instance & Setup
+
+### Get Instance Info
+
+Returns deployment mode and feature flags. Called by the dashboard on load.
+
+```
+GET /v1/instance/info
+```
+
+**Response:**
+
+```json
+{
+  "mode": "self-hosted",
+  "features": {
+    "localEmbeddings": true,
+    "cloudEnsemble": false,
+    "codeSearch": true,
+    "cloudBackup": false,
+    "crossDeviceSync": false,
+    "billing": false
+  },
+  "cloudLinked": false
+}
+```
+
+### Get Setup Status
+
+Detect first-run state (no accounts in database).
+
+```
+GET /v1/auth/setup-status
+```
+
+**Response:**
+
+```json
+{
+  "setupRequired": true
+}
+```
+
+When `setupRequired` is `true`, the dashboard shows the setup wizard instead of the login screen.
+
+---
+
+## Cloud Link
+
+Manage the connection between a self-hosted instance and OpenEngram Cloud. These endpoints are only available in self-hosted mode.
+
+### Link to Cloud
+
+```
+POST /v1/cloud/link
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `apiKey` | string | ✓ | OpenEngram Cloud API key |
+
+**Example:**
+
+```json
+{ "apiKey": "eg_sk_cloud_abc123" }
+```
+
+**Response (200):**
+
+```json
+{
+  "linked": true,
+  "subscription": {
+    "plan": "PRO",
+    "status": "active",
+    "features": ["cloudEnsemble", "cloudBackup", "crossDeviceSync"]
+  }
+}
+```
+
+### Unlink from Cloud
+
+```
+DELETE /v1/cloud/link
+```
+
+**Response (200):**
+
+```json
+{ "linked": false }
+```
+
+### Get Cloud Status
+
+```
+GET /v1/cloud/status
+```
+
+**Response:**
+
+```json
+{
+  "linked": true,
+  "subscription": {
+    "plan": "PRO",
+    "status": "active",
+    "expiresAt": "2026-03-15T00:00:00.000Z"
+  },
+  "lastSync": "2026-02-15T10:30:00.000Z"
+}
+```
+
+### Refresh Cloud Subscription
+
+Re-validate the cloud API key and refresh subscription status.
+
+```
+POST /v1/cloud/refresh
+```
+
+**Response (200):**
+
+```json
+{
+  "subscription": {
+    "plan": "PRO",
+    "status": "active",
+    "expiresAt": "2026-03-15T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+## Cloud Sync
+
+Sync local memories to OpenEngram Cloud for backup and cross-device access. Requires an active cloud link.
+
+### Trigger Sync
+
+```
+POST /v1/cloud/sync
+```
+
+**Response (202):**
+
+```json
+{
+  "syncId": "sync_abc123",
+  "status": "in_progress",
+  "memoriesQueued": 42
+}
+```
+
+### Get Sync Status
+
+```
+GET /v1/cloud/sync/status
+```
+
+**Response:**
+
+```json
+{
+  "lastSync": "2026-02-15T10:30:00.000Z",
+  "status": "idle",
+  "memoriesSynced": 1234,
+  "memoriesPending": 0,
+  "autoSync": {
+    "enabled": false,
+    "intervalMinutes": 60
+  }
+}
+```
+
+### Configure Auto-Sync
+
+```
+PUT /v1/cloud/sync/auto-sync
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | ✓ | Enable or disable auto-sync |
+| `intervalMinutes` | number | | Sync interval in minutes (default: 60) |
+
+**Example:**
+
+```json
+{ "enabled": true, "intervalMinutes": 30 }
+```
+
+**Response (200):**
+
+```json
+{
+  "autoSync": {
+    "enabled": true,
+    "intervalMinutes": 30
+  }
+}
+```
+
+---
+
 ## Error Responses
 
 All errors follow this format:
