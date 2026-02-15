@@ -14,14 +14,21 @@
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { CloudEnsembleService } from '../embedding/cloud-ensemble.service';
 import { CohereEmbeddingProvider } from '../embedding/providers';
 import {
+  MemoryCreatedEvent,
+  MemoryDeletedEvent,
+} from '../events/event-types';
+import {
   PgVectorEnsembleProvider,
   EnsembleEmbeddingRecord,
 } from './pgvector-ensemble.provider';
+import { PLAN_LIMITS } from '../account/plan-limits';
+import { Plan } from '@prisma/client';
 import {
   ModelId,
   ModelConfig,
@@ -121,6 +128,84 @@ export class EnsembleService implements OnModuleInit {
   }
 
   /**
+   * Handle memory.created events — generate ensemble embeddings
+   * for newly created memories so they're immediately searchable
+   * via multi-model RRF fusion.
+   */
+  @OnEvent('memory.created', { async: true })
+  async handleMemoryCreated(event: MemoryCreatedEvent): Promise<void> {
+    if (!this.config.enabled) return;
+
+    try {
+      // Fetch the full memory content
+      const memory = await this.prisma.memory.findUnique({
+        where: { id: event.memoryId },
+        select: { id: true, raw: true },
+      });
+
+      if (!memory) {
+        this.logger.warn(
+          `Memory ${event.memoryId} not found for ensemble embedding`,
+        );
+        return;
+      }
+
+      await this.upsert({
+        memoryId: memory.id,
+        content: memory.raw,
+        userId: event.userId,
+      });
+
+      this.logger.debug(
+        `Ensemble embeddings created for memory ${event.memoryId}`,
+      );
+    } catch (err) {
+      // Non-fatal — memory exists with single embedding, ensemble can be backfilled
+      this.logger.error(
+        `Failed to create ensemble embeddings for ${event.memoryId}: ${err}`,
+      );
+    }
+  }
+
+  /**
+   * Handle memory.deleted events — clean up ensemble embeddings
+   */
+  @OnEvent('memory.deleted', { async: true })
+  async handleMemoryDeleted(event: MemoryDeletedEvent): Promise<void> {
+    if (!this.config.enabled) return;
+
+    try {
+      await this.delete(event.memoryId);
+    } catch (err) {
+      this.logger.error(
+        `Failed to delete ensemble embeddings for ${event.memoryId}: ${err}`,
+      );
+    }
+  }
+
+  /**
+   * Look up a user's plan and return the allowed ensemble model count.
+   * Returns undefined if not using cloud (local always uses all models).
+   */
+  private async getEnsembleModelCount(userId?: string): Promise<number | undefined> {
+    if (!this.useCloud || !userId) return undefined;
+
+    try {
+      // User → Agent → Account
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { agent: { select: { account: { select: { plan: true } } } } },
+      });
+      const account = user?.agent?.account;
+      const plan: Plan = account?.plan ?? 'FREE';
+      return PLAN_LIMITS[plan].ensembleModels;
+    } catch (err) {
+      this.logger.warn(`Failed to look up plan for user ${userId}, defaulting to FREE limits: ${err}`);
+      return PLAN_LIMITS.FREE.ensembleModels;
+    }
+  }
+
+  /**
    * Check if ensemble is enabled
    */
   isEnabled(): boolean {
@@ -135,14 +220,25 @@ export class EnsembleService implements OnModuleInit {
   }
 
   /**
-   * Generate embeddings for text using all configured models
+   * Generate embeddings for text using all configured models.
+   * When using cloud providers, respects plan-based ensemble model limits.
+   * @param userId Used to look up plan limits for cloud ensemble (ignored for local)
    */
   async embedAll(
     text: string,
     mode: 'document' | 'query' = 'document',
+    userId?: string,
   ): Promise<MultiEmbedResponse> {
-    // Route to cloud providers if active
+    // Route to cloud providers if active (with plan limits)
     if (this.useCloud) {
+      const modelCount = await this.getEnsembleModelCount(userId);
+      if (modelCount !== undefined) {
+        if (modelCount === 0) {
+          // FREE plan: no ensemble embedding
+          return { embeddings: [], totalMs: 0 };
+        }
+        return this.cloudEnsemble.embedAllForPlan(text, modelCount, mode);
+      }
       return this.cloudEnsemble.embedAll(text, mode);
     }
 
@@ -274,8 +370,8 @@ export class EnsembleService implements OnModuleInit {
       return;
     }
 
-    // Generate embeddings from all models
-    const { embeddings, errors } = await this.embedAll(options.content);
+    // Generate embeddings from all models (plan-limited for cloud)
+    const { embeddings, errors } = await this.embedAll(options.content, 'document', options.userId);
 
     if (embeddings.length === 0) {
       this.logger.warn(
@@ -380,8 +476,8 @@ export class EnsembleService implements OnModuleInit {
     const topKPerModel = Math.ceil(limit * 2.5); // Fetch more for fusion
     const k = options.k ?? this.config.rrfK;
 
-    // Generate query embeddings for all models
-    const { embeddings } = await this.embedAll(options.query, 'query');
+    // Generate query embeddings for all models (plan-limited for cloud)
+    const { embeddings } = await this.embedAll(options.query, 'query', options.userId);
     const embeddingMap = new Map(embeddings.map((e) => [e.model, e.embedding]));
 
     // Query each model using pgvector

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 ENGRAM_DIR="$HOME/projects/agent-memory/engram"
 DATE=$(date +%Y-%m-%d)

@@ -9,6 +9,16 @@ import {
   EmbedError,
 } from '../ensemble/ensemble.types';
 
+/**
+ * Priority-ordered list of cloud ensemble models.
+ * When limiting by plan, models are selected from the top of this list.
+ */
+export const CLOUD_MODEL_PRIORITY: ModelId[] = [
+  'openai-small',
+  'openai-large',
+  'cohere-v3',
+];
+
 export interface CloudModel {
   modelId: ModelId;
   provider: EmbeddingProvider;
@@ -148,6 +158,34 @@ export class CloudEnsembleService implements OnModuleInit {
   }
 
   /**
+   * Get a subset of available cloud models based on allowed count.
+   * Models are selected in priority order: openai-small, openai-large, cohere-v3.
+   */
+  getModelsForCount(count: number): CloudModel[] {
+    if (count <= 0) return [];
+    const prioritized = CLOUD_MODEL_PRIORITY
+      .map((id) => this.models.find((m) => m.modelId === id))
+      .filter((m): m is CloudModel => m !== undefined);
+    return prioritized.slice(0, count);
+  }
+
+  /**
+   * Generate embeddings using a plan-limited subset of cloud models.
+   * @param ensembleModelCount Number of ensemble models allowed (from PlanLimit.ensembleModels)
+   */
+  async embedAllForPlan(
+    text: string,
+    ensembleModelCount: number,
+    mode: 'document' | 'query' = 'document',
+  ): Promise<MultiEmbedResponse> {
+    const allowedModels = this.getModelsForCount(ensembleModelCount);
+    if (allowedModels.length === 0) {
+      return { embeddings: [], totalMs: 0 };
+    }
+    return this.embedAllWithModels(text, allowedModels, mode);
+  }
+
+  /**
    * Generate embeddings for text using all cloud models
    * Compatible with EnsembleService.embedAll() response format
    */
@@ -155,12 +193,23 @@ export class CloudEnsembleService implements OnModuleInit {
     text: string,
     mode: 'document' | 'query' = 'document',
   ): Promise<MultiEmbedResponse> {
+    return this.embedAllWithModels(text, this.models, mode);
+  }
+
+  /**
+   * Internal: generate embeddings using a specific set of cloud models
+   */
+  private async embedAllWithModels(
+    text: string,
+    targetModels: CloudModel[],
+    mode: 'document' | 'query' = 'document',
+  ): Promise<MultiEmbedResponse> {
     const start = Date.now();
     const embeddings: EmbeddingResult[] = [];
     const errors: EmbedError[] = [];
 
     // Set Cohere input type before embedding
-    for (const { provider } of this.models) {
+    for (const { provider } of targetModels) {
       if (provider instanceof CohereEmbeddingProvider) {
         provider.setInputType(
           mode === 'query' ? 'search_query' : 'search_document',
@@ -170,7 +219,7 @@ export class CloudEnsembleService implements OnModuleInit {
 
     // Embed in parallel across all models
     const results = await Promise.allSettled(
-      this.models.map(async ({ modelId, provider }) => {
+      targetModels.map(async ({ modelId, provider }) => {
         const modelStart = Date.now();
         const vectors = await provider.embed([text]);
         return {
@@ -187,7 +236,7 @@ export class CloudEnsembleService implements OnModuleInit {
       if (result.status === 'fulfilled') {
         embeddings.push(result.value);
       } else {
-        const modelId = this.models[i].modelId;
+        const modelId = targetModels[i].modelId;
         this.logger.error(
           `Cloud embed failed for ${modelId}: ${result.reason}`,
         );

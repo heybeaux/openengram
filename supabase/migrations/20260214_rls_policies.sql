@@ -32,6 +32,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'engram_admin') THEN
     ALTER ROLE engram_admin BYPASSRLS;
   END IF;
+
+  -- Grant BYPASSRLS to clawdbot (local dev app role) if it exists
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clawdbot') THEN
+    ALTER ROLE clawdbot BYPASSRLS;
+  END IF;
 END $$;
 
 -- =============================================================================

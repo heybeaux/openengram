@@ -148,13 +148,15 @@ describe('ApiKeyGuard', () => {
     );
   });
 
-  it('should throw UnauthorizedException when User-ID missing on external request', async () => {
+  it('should default User-ID to "default" when missing on external request', async () => {
+    // Guard should hash API key and look up agent
+    mockPrisma.agent.findUnique.mockResolvedValue(null);
+
     const ctx = createMockContext({
       headers: { 'x-am-api-key': 'some-key' },
     });
-    await expect(guard.canActivate(ctx)).rejects.toThrow(
-      'Missing X-AM-User-ID header',
-    );
+    // Should throw for invalid key, not missing user-id
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid API key');
   });
 
   // --- Invalid API key ---
