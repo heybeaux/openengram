@@ -7,9 +7,12 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { MemoryCreatedEvent } from '../events/event-types';
+import { decrypt } from '../common/encryption.util';
+import { randomUUID } from 'crypto';
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 500;
+const MAX_SYNC_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface SyncResult {
   syncedCount: number;
@@ -23,6 +26,8 @@ export interface SyncStatus {
   syncedCount: number;
   pendingCount: number;
   autoSync: boolean;
+  syncing: boolean;
+  progress?: { synced: number; total: number };
 }
 
 @Injectable()
@@ -30,6 +35,8 @@ export class CloudSyncService {
   private readonly logger = new Logger(CloudSyncService.name);
   private readonly CLOUD_API_BASE = 'https://api.openengram.ai';
   private syncing = false;
+  private syncAbortController: AbortController | null = null;
+  private syncProgress = { synced: 0, total: 0 };
 
   constructor(
     private readonly prisma: PrismaService,
@@ -45,11 +52,29 @@ export class CloudSyncService {
     const apiKey = this.decryptApiKey(link.cloudApiKey);
 
     this.syncing = true;
+    this.syncAbortController = new AbortController();
+    this.syncProgress = { synced: 0, total: 0 };
     try {
-      return await this.performSync(apiKey);
+      return await this.performSync(apiKey, this.syncAbortController.signal);
     } finally {
       this.syncing = false;
+      this.syncAbortController = null;
     }
+  }
+
+  cancelSync(): void {
+    if (this.syncAbortController) {
+      this.syncAbortController.abort();
+      this.logger.log('Sync cancellation requested');
+    }
+  }
+
+  isSyncing(): boolean {
+    return this.syncing;
+  }
+
+  getSyncProgress(): { synced: number; total: number } {
+    return { ...this.syncProgress };
   }
 
   async getSyncStatus(accountId: string): Promise<SyncStatus> {
@@ -79,6 +104,8 @@ export class CloudSyncService {
       syncedCount,
       pendingCount: totalMemories - syncedCount,
       autoSync: link.autoSync,
+      syncing: this.syncing,
+      ...(this.syncing ? { progress: this.getSyncProgress() } : {}),
     };
   }
 
@@ -119,14 +146,33 @@ export class CloudSyncService {
     }
   }
 
-  private async performSync(apiKey: string): Promise<SyncResult> {
+  private async performSync(apiKey: string, signal: AbortSignal): Promise<SyncResult> {
     let syncedCount = 0;
     let errorCount = 0;
     let lastSyncedAt: string | null = null;
+    const startTime = Date.now();
+
+    // Count total pending for progress tracking
+    const totalPending = await this.prisma.memory.count({
+      where: { deletedAt: null, cloudSyncedAt: null },
+    });
+    this.syncProgress = { synced: 0, total: totalPending };
 
     // Process in batches
     let cursor: string | undefined;
     while (true) {
+      // Check cancellation
+      if (signal.aborted) {
+        this.logger.log(`Sync cancelled. Synced ${syncedCount} memories before cancellation.`);
+        break;
+      }
+
+      // Check timeout
+      if (Date.now() - startTime > MAX_SYNC_DURATION_MS) {
+        this.logger.warn(`Sync timed out after ${MAX_SYNC_DURATION_MS / 1000}s. Synced ${syncedCount} memories.`);
+        break;
+      }
+
       const batch = await this.prisma.memory.findMany({
         where: {
           deletedAt: null,
@@ -141,11 +187,14 @@ export class CloudSyncService {
       if (batch.length === 0) break;
 
       for (const memory of batch) {
+        if (signal.aborted) break;
+
         try {
           await this.syncSingleMemory(memory, apiKey);
           syncedCount++;
+          this.syncProgress.synced = syncedCount;
           lastSyncedAt = new Date().toISOString();
-        } catch (error) {
+        } catch (error: any) {
           errorCount++;
           this.logger.warn(
             `Failed to sync memory ${memory.id}: ${error.message}`,
@@ -164,13 +213,23 @@ export class CloudSyncService {
     return { syncedCount, errorCount, lastSyncedAt };
   }
 
+  private async getInstanceId(): Promise<string | null> {
+    const link = await this.prisma.cloudLink.findFirst({
+      select: { instanceId: true },
+    });
+    return link?.instanceId ?? null;
+  }
+
   private async syncSingleMemory(memory: any, apiKey: string): Promise<void> {
+    const instanceId = await this.getInstanceId();
     const payload = {
       content: memory.raw,
       layer: memory.layer,
       source: memory.source,
       metadata: {
         originalId: memory.id,
+        originalMemoryId: memory.id,
+        sourceInstanceId: instanceId,
         createdAt: memory.createdAt.toISOString(),
         importanceScore: memory.importanceScore,
         effectiveScore: memory.effectiveScore,
@@ -198,11 +257,13 @@ export class CloudSyncService {
       throw new Error(`Cloud API error ${response.status}: ${body}`);
     }
 
-    // Mark as synced
-    await this.prisma.memory.update({
-      where: { id: memory.id },
-      data: { cloudSyncedAt: new Date() },
-    });
+    // Only mark as synced after verified 2xx response
+    if (response.status >= 200 && response.status < 300) {
+      await this.prisma.memory.update({
+        where: { id: memory.id },
+        data: { cloudSyncedAt: new Date() },
+      });
+    }
   }
 
   private async getCloudLink(accountId: string) {
@@ -216,15 +277,7 @@ export class CloudSyncService {
   }
 
   private decryptApiKey(encrypted: string): string {
-    // Use the same decryption as CloudLinkService
-    const { createDecipheriv, scryptSync } = require('crypto');
-    const key = process.env.ENCRYPTION_KEY || 'engram-default-encryption-key-change-me';
-    const derivedKey = scryptSync(key, 'engram-salt', 32);
-    const [ivHex, encHex] = encrypted.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const enc = Buffer.from(encHex, 'hex');
-    const decipher = createDecipheriv('aes-256-cbc', derivedKey, iv);
-    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+    return decrypt(encrypted);
   }
 
   private delay(ms: number): Promise<void> {

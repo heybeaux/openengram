@@ -7,9 +7,15 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { initSentry } from './common/sentry';
 import { SentryExceptionFilter } from './common/sentry-exception.filter';
+import { validateEncryptionKey } from './common/encryption.util';
 
 // Initialize Sentry before anything else
 initSentry();
+
+// Validate encryption key is set (skip in test environment)
+if (process.env.NODE_ENV !== 'test') {
+  validateEncryptionKey();
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

@@ -5,7 +5,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { encrypt, decrypt } from '../common/encryption.util';
+import { randomUUID } from 'crypto';
 
 interface CloudAuthResponse {
   id: string;
@@ -25,6 +26,8 @@ export interface CloudStatus {
 export class CloudLinkService {
   private readonly logger = new Logger(CloudLinkService.name);
   private readonly CLOUD_API_BASE = 'https://api.openengram.ai';
+  private consecutiveAuthFailures = 0;
+  private static readonly MAX_AUTH_FAILURES = 3;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -33,9 +36,15 @@ export class CloudLinkService {
     const cloudUser = await this.validateCloudApiKey(apiKey);
 
     // Encrypt the API key
-    const encryptedKey = this.encrypt(apiKey);
+    const encryptedKey = encrypt(apiKey);
 
-    // Upsert the cloud link
+    // Upsert the cloud link (generate instanceId on first link)
+    const existing = await this.prisma.cloudLink.findUnique({
+      where: { accountId },
+      select: { instanceId: true },
+    });
+    const instanceId = existing?.instanceId ?? randomUUID();
+
     await this.prisma.cloudLink.upsert({
       where: { accountId },
       create: {
@@ -44,6 +53,7 @@ export class CloudLinkService {
         cloudAccountId: cloudUser.id,
         cloudEmail: cloudUser.email,
         cloudPlan: cloudUser.plan,
+        instanceId,
         lastVerifiedAt: new Date(),
       },
       update: {
@@ -51,6 +61,7 @@ export class CloudLinkService {
         cloudAccountId: cloudUser.id,
         cloudEmail: cloudUser.email,
         cloudPlan: cloudUser.plan,
+        instanceId,
         lastVerifiedAt: new Date(),
       },
     });
@@ -100,6 +111,9 @@ export class CloudLinkService {
 
   /**
    * Re-validates the cloud API key. Call on-demand or via cron.
+   * Distinguishes network errors from auth errors:
+   * - Network errors: log warning, keep the link intact
+   * - Auth errors (401/403): only unlink after 3 consecutive failures
    */
   async refreshSubscription(accountId: string): Promise<CloudStatus> {
     const link = await this.prisma.cloudLink.findUnique({
@@ -110,37 +124,93 @@ export class CloudLinkService {
       return { linked: false };
     }
 
-    const apiKey = this.decrypt(link.cloudApiKey);
+    const apiKey = decrypt(link.cloudApiKey);
 
+    let response: Response;
     try {
-      const cloudUser = await this.validateCloudApiKey(apiKey);
-
-      await this.prisma.cloudLink.update({
-        where: { accountId },
-        data: {
-          cloudPlan: cloudUser.plan,
-          cloudEmail: cloudUser.email,
-          cloudAccountId: cloudUser.id,
-          lastVerifiedAt: new Date(),
-        },
+      response = await fetch(`${this.CLOUD_API_BASE}/v1/auth/me`, {
+        headers: { 'X-AM-API-Key': apiKey },
       });
-
+    } catch (error: any) {
+      // Network error / timeout — do NOT delete the link
+      this.logger.warn(
+        `Cloud API network error for account ${accountId}: ${error.message}. Keeping link intact.`,
+      );
       return {
         linked: true,
-        plan: cloudUser.plan,
-        email: cloudUser.email,
-        lastVerified: new Date().toISOString(),
+        plan: link.cloudPlan ?? undefined,
+        email: link.cloudEmail ?? undefined,
+        lastVerified: link.lastVerifiedAt?.toISOString(),
       };
-    } catch (error) {
-      this.logger.warn(
-        `Cloud API key validation failed for account ${accountId}: ${error.message}`,
-      );
-
-      // Key is invalid — remove the link
-      await this.prisma.cloudLink.delete({ where: { accountId } });
-
-      return { linked: false };
     }
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        this.consecutiveAuthFailures++;
+        this.logger.warn(
+          `Cloud API auth failure ${this.consecutiveAuthFailures}/${CloudLinkService.MAX_AUTH_FAILURES} for account ${accountId}`,
+        );
+
+        if (this.consecutiveAuthFailures >= CloudLinkService.MAX_AUTH_FAILURES) {
+          this.logger.warn(
+            `Unlinking cloud for account ${accountId} after ${CloudLinkService.MAX_AUTH_FAILURES} consecutive auth failures`,
+          );
+          this.consecutiveAuthFailures = 0;
+          await this.prisma.cloudLink.delete({ where: { accountId } });
+          return { linked: false };
+        }
+
+        // Not enough failures yet — keep the link
+        return {
+          linked: true,
+          plan: link.cloudPlan ?? undefined,
+          email: link.cloudEmail ?? undefined,
+          lastVerified: link.lastVerifiedAt?.toISOString(),
+        };
+      }
+
+      // Other HTTP errors (500, 502, etc.) — treat like network issues
+      this.logger.warn(
+        `Cloud API returned ${response.status} for account ${accountId}. Keeping link intact.`,
+      );
+      return {
+        linked: true,
+        plan: link.cloudPlan ?? undefined,
+        email: link.cloudEmail ?? undefined,
+        lastVerified: link.lastVerifiedAt?.toISOString(),
+      };
+    }
+
+    // Success — reset failure counter
+    this.consecutiveAuthFailures = 0;
+
+    const cloudUser = (await response.json()) as CloudAuthResponse;
+    if (!cloudUser.id || !cloudUser.email) {
+      this.logger.warn(`Invalid response from cloud API for account ${accountId}`);
+      return {
+        linked: true,
+        plan: link.cloudPlan ?? undefined,
+        email: link.cloudEmail ?? undefined,
+        lastVerified: link.lastVerifiedAt?.toISOString(),
+      };
+    }
+
+    await this.prisma.cloudLink.update({
+      where: { accountId },
+      data: {
+        cloudPlan: cloudUser.plan,
+        cloudEmail: cloudUser.email,
+        cloudAccountId: cloudUser.id,
+        lastVerifiedAt: new Date(),
+      },
+    });
+
+    return {
+      linked: true,
+      plan: cloudUser.plan,
+      email: cloudUser.email,
+      lastVerified: new Date().toISOString(),
+    };
   }
 
   private async validateCloudApiKey(apiKey: string): Promise<CloudAuthResponse> {
@@ -160,26 +230,5 @@ export class CloudLinkService {
     return data;
   }
 
-  // Simple AES-256-CBC encryption with ENCRYPTION_KEY from env
-  private getEncryptionKey(): Buffer {
-    const key = process.env.ENCRYPTION_KEY || 'engram-default-encryption-key-change-me';
-    return scryptSync(key, 'engram-salt', 32);
-  }
-
-  private encrypt(text: string): string {
-    const key = this.getEncryptionKey();
-    const iv = randomBytes(16);
-    const cipher = createCipheriv('aes-256-cbc', key, iv);
-    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
-  }
-
-  private decrypt(encrypted: string): string {
-    const key = this.getEncryptionKey();
-    const [ivHex, encHex] = encrypted.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const enc = Buffer.from(encHex, 'hex');
-    const decipher = createDecipheriv('aes-256-cbc', key, iv);
-    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
-  }
+  // Encryption now handled by shared encryption.util.ts
 }

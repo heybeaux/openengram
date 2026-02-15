@@ -12,6 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CloudLinkService } from './cloud-link.service';
 import { AccountJwtGuard } from '../account/account.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 @ApiTags('cloud')
 @Controller('v1/cloud')
@@ -22,14 +23,16 @@ export class CloudLinkController {
 
   @Post('link')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Link instance to OpenEngram Cloud' })
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Link instance to OpenEngram Cloud (admin only)' })
   async link(@Req() req: any, @Body() body: { apiKey: string }) {
     return this.cloudLinkService.linkCloud(req.accountId, body.apiKey);
   }
 
   @Delete('link')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Unlink instance from OpenEngram Cloud' })
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Unlink instance from OpenEngram Cloud (admin only)' })
   async unlink(@Req() req: any) {
     await this.cloudLinkService.unlinkCloud(req.accountId);
   }
@@ -42,7 +45,8 @@ export class CloudLinkController {
 
   @Post('refresh')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Refresh cloud subscription status' })
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Refresh cloud subscription status (admin only)' })
   async refresh(@Req() req: any) {
     return this.cloudLinkService.refreshSubscription(req.accountId);
   }

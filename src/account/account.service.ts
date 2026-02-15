@@ -61,6 +61,10 @@ export class AccountService {
   }
 
   async getSetupStatus(): Promise<{ needsSetup: boolean }> {
+    // Cloud deployments never expose the setup wizard
+    if (!this.isSelfHosted()) {
+      return { needsSetup: false };
+    }
     const count = await this.prisma.account.count();
     return { needsSetup: count === 0 };
   }
@@ -71,8 +75,8 @@ export class AccountService {
 
   async register(email: string, password: string, name?: string, plan?: string, accessCode?: string) {
     // Self-hosted first-run: allow registration without plan/accessCode
-    const { needsSetup } = await this.getSetupStatus();
     const selfHosted = this.isSelfHosted();
+    const { needsSetup } = await this.getSetupStatus();
 
     if (!needsSetup || !selfHosted) {
       // Normal cloud registration rules
@@ -81,7 +85,7 @@ export class AccountService {
       }
 
       if (plan && plan.toUpperCase() === 'FREE') {
-        throw new BadRequestException('Free tier is available via self-hosting. Cloud plans start at $9/mo');
+        throw new BadRequestException('Registration requires a valid access code. Visit openengram.ai for cloud plans.');
       }
     }
 
@@ -123,6 +127,8 @@ export class AccountService {
             passwordHash,
             name,
             plan: activatedByCode ? (resolvedPlan as any) : 'FREE',
+            // First account created via setup wizard gets admin privileges
+            isAdmin: needsSetup && selfHosted,
             ...(activatedByCode && accessCode ? { accessCode } : {}),
           },
         });

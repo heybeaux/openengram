@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Body,
   UseGuards,
   Req,
@@ -11,6 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CloudSyncService } from './cloud-sync.service';
 import { AccountJwtGuard } from '../account/account.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 @ApiTags('cloud')
 @Controller('v1/cloud/sync')
@@ -32,9 +34,18 @@ export class CloudSyncController {
     return this.cloudSyncService.getSyncStatus(req.accountId);
   }
 
+  @Delete()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel in-progress sync' })
+  async cancelSync() {
+    this.cloudSyncService.cancelSync();
+    return { cancelled: true };
+  }
+
   @Put('auto-sync')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Toggle auto-sync' })
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Toggle auto-sync (admin only)' })
   async setAutoSync(@Req() req: any, @Body() body: { enabled: boolean }) {
     await this.cloudSyncService.setAutoSync(req.accountId, body.enabled);
     return { autoSync: body.enabled };

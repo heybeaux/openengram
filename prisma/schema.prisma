@@ -15,6 +15,7 @@ model Account {
   passwordHash        String       @map("password_hash")
   name                String?
   stripeCustomerId    String?      @unique @map("stripe_customer_id")
+  isAdmin             Boolean      @default(false) @map("is_admin")
   plan                Plan         @default(FREE)
   planExpiresAt       DateTime?    @map("plan_expires_at")
   memoriesUsed        Int          @default(0) @map("memories_used")
@@ -1264,6 +1265,7 @@ model MonitoringSnapshot {
 model CloudLink {
   id              String   @id @default(cuid())
   accountId       String   @unique @map("account_id")
+  instanceId      String?  @map("instance_id") // UUID identifying this self-hosted instance for dedup
   cloudApiKey     String   @map("cloud_api_key") // encrypted
   cloudAccountId  String?  @map("cloud_account_id")
   cloudEmail      String?  @map("cloud_email")

@@ -1,5 +1,6 @@
 import { CloudLinkService } from './cloud-link.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { encrypt, decrypt } from '../common/encryption.util';
 
 const mockPrisma = {
   cloudLink: {
@@ -28,6 +29,7 @@ describe('CloudLinkService', () => {
         ok: true,
         json: async () => ({ id: 'cloud-123', email: 'test@example.com', plan: 'PRO' }),
       });
+      mockPrisma.cloudLink.findUnique.mockResolvedValue(null);
       mockPrisma.cloudLink.upsert.mockResolvedValue({});
 
       const result = await service.linkCloud('acc-1', 'valid-key');
@@ -92,14 +94,27 @@ describe('CloudLinkService', () => {
   });
 
   describe('encryption', () => {
-    it('should encrypt and decrypt roundtrip', () => {
-      // Access private methods via any cast
-      const svc = service as any;
+    it('should encrypt and decrypt roundtrip with new format', () => {
       const original = 'my-secret-api-key-12345';
-      const encrypted = svc.encrypt(original);
+      const encrypted = encrypt(original);
       expect(encrypted).not.toBe(original);
-      expect(encrypted).toContain(':');
-      const decrypted = svc.decrypt(encrypted);
+      expect(encrypted.split(':')).toHaveLength(3); // salt:iv:encrypted
+      const decrypted = decrypt(encrypted);
+      expect(decrypted).toBe(original);
+    });
+
+    it('should decrypt legacy format (hex iv:encrypted)', () => {
+      // Create a legacy-format encrypted value using the old method
+      const { createCipheriv, scryptSync, randomBytes } = require('crypto');
+      const key = process.env.ENCRYPTION_KEY!;
+      const derivedKey = scryptSync(key, 'engram-salt', 32);
+      const iv = randomBytes(16);
+      const cipher = createCipheriv('aes-256-cbc', derivedKey, iv);
+      const original = 'legacy-secret-key';
+      const enc = Buffer.concat([cipher.update(original, 'utf8'), cipher.final()]);
+      const legacyEncrypted = iv.toString('hex') + ':' + enc.toString('hex');
+
+      const decrypted = decrypt(legacyEncrypted);
       expect(decrypted).toBe(original);
     });
   });
