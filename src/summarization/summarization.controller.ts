@@ -1,11 +1,11 @@
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { SummarizationService } from './summarization.service';
 import { SummarizeDto, SummarizeResult } from './dto/summarize.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 
 @Controller('v1/summarize')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class SummarizationController {
   constructor(private readonly summarizationService: SummarizationService) {}
 

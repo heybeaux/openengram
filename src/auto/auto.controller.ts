@@ -1,13 +1,13 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ConversationObserverService } from './conversation-observer.service';
 import { ObserveDto, ObserveResult } from './dto/observe.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 @Controller('v1')
-@UseGuards(ApiKeyGuard, RateLimitGuard)
+@UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
 export class AutoController {
   constructor(private readonly observer: ConversationObserverService) {}
 

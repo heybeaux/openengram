@@ -3,10 +3,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MonitoringService } from './monitoring.service';
 import { MonitoringController } from './monitoring.controller';
 import { MonitoringInterceptor } from './monitoring.interceptor';
+import { AccountModule } from '../account/account.module';
 
 @Global()
 @Module({
-  imports: [PrismaModule],
+  imports: [AccountModule, PrismaModule],
   controllers: [MonitoringController],
   providers: [MonitoringService, MonitoringInterceptor],
   exports: [MonitoringService, MonitoringInterceptor],

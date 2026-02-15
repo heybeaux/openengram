@@ -20,6 +20,8 @@ export function sanitizeMemoryOutput<T>(obj: T): T {
     return obj.map(sanitizeMemoryOutput) as T;
   }
   if (typeof obj === 'object') {
+    // Preserve Date instances (and other built-in types) as-is
+    if (obj instanceof Date) return obj;
     const result: any = {};
     for (const [key, value] of Object.entries(obj as any)) {
       if (key === 'raw' && typeof value === 'string') {

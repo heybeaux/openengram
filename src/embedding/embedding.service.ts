@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmbeddingProvider } from './embedding-provider.interface';
 import { LocalEmbedProvider } from './local-embed.provider';
 import { OpenAIEmbedProvider } from './openai-embed.provider';
+import { CloudEnsembleEmbedProvider } from './cloud-ensemble-embed.provider';
 
 /**
  * Embedding Service
@@ -22,6 +23,7 @@ export class EmbeddingService implements OnModuleInit {
     private configService: ConfigService,
     private localProvider: LocalEmbedProvider,
     private openaiProvider: OpenAIEmbedProvider,
+    private cloudEnsembleProvider: CloudEnsembleEmbedProvider,
   ) {
     const providerName = this.configService.get<string>(
       'EMBEDDING_PROVIDER',
@@ -92,6 +94,8 @@ export class EmbeddingService implements OnModuleInit {
         return this.localProvider;
       case 'openai':
         return this.openaiProvider;
+      case 'cloud-ensemble':
+        return this.cloudEnsembleProvider;
       default:
         this.logger.warn(
           `Unknown embedding provider '${name}', falling back to 'local'`,

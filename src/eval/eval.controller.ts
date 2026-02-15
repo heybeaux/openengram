@@ -1,11 +1,11 @@
 import { Controller, Post, Get, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { EvalService } from './eval.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @ApiTags('Eval')
 @Controller('v1/eval')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class EvalController {
   constructor(private readonly evalService: EvalService) {}
 

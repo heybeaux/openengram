@@ -230,6 +230,11 @@ export class MemoryService {
         console.error(`Extraction failed for memory ${memory.id}:`, err);
       });
 
+    // 10a. Increment account memoriesUsed
+    this.incrementMemoriesUsed(userId, 1).catch((err) => {
+      console.error(`[Memory] Failed to increment memoriesUsed:`, err);
+    });
+
     // 10. Emit memory.created event
     this.emitEvent(
       'memory.created',
@@ -404,6 +409,13 @@ export class MemoryService {
       where: { id: memoryId },
       data: { deletedAt: new Date() },
     });
+
+    // Decrement account memoriesUsed
+    if (userId) {
+      this.incrementMemoriesUsed(userId, -1).catch((err) => {
+        console.error(`[Memory] Failed to decrement memoriesUsed:`, err);
+      });
+    }
 
     this.emitEvent(
       'memory.deleted',
@@ -657,6 +669,11 @@ export class MemoryService {
         );
       });
 
+    // Increment memoriesUsed for the correction
+    this.incrementMemoriesUsed(userId, 1).catch((err) => {
+      console.error(`[Memory] Failed to increment memoriesUsed for correction:`, err);
+    });
+
     console.log(
       `[Memory] Created correction: ${correction.id} supersedes ${memoryId}`,
     );
@@ -673,6 +690,36 @@ export class MemoryService {
     includeAgent: boolean = false,
   ) {
     return this.graphService.getGraphData(userId, limit, includeAgent);
+  }
+
+  /**
+   * Increment (or decrement) memoriesUsed on the account that owns this user.
+   * Resolves accountId via user → agent → account chain.
+   */
+  private async incrementMemoriesUsed(
+    userId: string,
+    delta: number,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { agent: { select: { accountId: true } } },
+    });
+    const accountId = user?.agent?.accountId;
+    if (!accountId) return;
+
+    if (delta > 0) {
+      await this.prisma.account.update({
+        where: { id: accountId },
+        data: { memoriesUsed: { increment: delta } },
+      });
+    } else {
+      // Decrement but don't go below 0
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE accounts SET memories_used = GREATEST(0, memories_used + $1) WHERE id = $2`,
+        delta,
+        accountId,
+      );
+    }
   }
 
   /**

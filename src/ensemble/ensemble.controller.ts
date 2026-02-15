@@ -40,7 +40,7 @@ import {
   MemoryEmbeddingStatus,
   ABTestResult,
 } from './ensemble.types';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 // ============================================================================
 // DTOs
@@ -135,7 +135,7 @@ class ReembedDto {
 }
 
 @ApiTags('ensemble')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/ensemble')
 export class EnsembleController {
   constructor(

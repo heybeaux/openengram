@@ -7,6 +7,7 @@ import { HierarchyService } from './hierarchy.service';
 import { HierarchyController } from './hierarchy.controller';
 import { SegmentationService } from './segmentation.service';
 import { QueryRouterService } from './query-router.service';
+import { AccountModule } from '../account/account.module';
 
 /**
  * Hierarchical Embeddings Module
@@ -20,7 +21,7 @@ import { QueryRouterService } from './query-router.service';
  * Feature flag: HIERARCHY_ENABLED (default: true)
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, LLMModule, VectorModule],
+  imports: [AccountModule, ConfigModule, PrismaModule, LLMModule, VectorModule],
   providers: [HierarchyService, SegmentationService, QueryRouterService],
   controllers: [HierarchyController],
   exports: [HierarchyService, QueryRouterService],

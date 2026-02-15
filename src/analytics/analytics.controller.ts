@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { TimelineQueryDto, TimelineResponse } from './dto/timeline-query.dto';
 import {
@@ -12,7 +12,7 @@ import {
 import { AnalyticsSummaryResponse } from './dto/summary.dto';
 
 @Controller('v1/analytics')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

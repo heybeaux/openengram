@@ -33,8 +33,14 @@ export class RateLimitGuard implements CanActivate {
 
     // Get API key for per-key limiting, fall back to IP for unauthenticated endpoints
     const apiKey = request.headers['x-am-api-key'];
-    const rateLimitIdentifier =
-      apiKey || request.ip || request.connection?.remoteAddress || 'unknown';
+    // Behind reverse proxies (Railway, etc.), request.ip requires trust proxy.
+    // Explicitly check X-Forwarded-For as fallback.
+    const clientIp =
+      request.ip ||
+      (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      request.connection?.remoteAddress ||
+      'unknown';
+    const rateLimitIdentifier = apiKey || clientIp;
 
     // Check for route-specific limit via decorator
     const routeLimit = this.reflector.getAllAndOverride<number | null>(

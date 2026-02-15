@@ -3,6 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { EmbeddingService } from './embedding.service';
 import { LocalEmbedProvider } from './local-embed.provider';
 import { OpenAIEmbedProvider } from './openai-embed.provider';
+import { CloudEnsembleEmbedProvider } from './cloud-ensemble-embed.provider';
+
+const mockCloudEnsembleProvider = {
+  name: 'cloud-ensemble',
+  embed: jest.fn(),
+  getModelName: jest.fn().mockReturnValue('cloud-ensemble (openai-small)'),
+  getDimensions: jest.fn().mockReturnValue(1536),
+  healthCheck: jest.fn(),
+};
 
 const mockLocalProvider = {
   name: 'local',
@@ -32,6 +41,7 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
+          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
           {
             provide: ConfigService,
             useValue: {
@@ -94,6 +104,7 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
+          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
           {
             provide: ConfigService,
             useValue: {
@@ -135,6 +146,7 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
+          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
           {
             provide: ConfigService,
             useValue: {

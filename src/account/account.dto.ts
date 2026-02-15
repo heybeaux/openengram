@@ -22,6 +22,16 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   name?: string;
+
+  @ApiPropertyOptional({ example: 'STARTER', enum: ['STARTER', 'PRO', 'SCALE'] })
+  @IsOptional()
+  @IsString()
+  plan?: string;
+
+  @ApiPropertyOptional({ example: 'ENGRAM-FOUNDER-2026' })
+  @IsOptional()
+  @IsString()
+  accessCode?: string;
 }
 
 export class LoginDto {
@@ -51,6 +61,14 @@ export class ResetPasswordDto {
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   newPassword: string;
+}
+
+export class UpdateAccountDto {
+  @ApiPropertyOptional({ example: 'Jane Doe' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
 }
 
 export class ChangePasswordDto {

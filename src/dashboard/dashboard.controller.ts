@@ -16,7 +16,7 @@ import {
   UserDetailResponse,
   HealthResponse,
 } from './dashboard.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { InternalOnlyGuard } from '../common/guards/internal-only.guard';
 import { Agent } from '../common/decorators/user-id.decorator';
 import { ListMemoriesDto } from './dto/list-memories.dto';
@@ -33,7 +33,7 @@ export class DashboardController {
    * Dashboard overview statistics
    */
   @Get('stats')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(ApiKeyOrJwtGuard)
   async getStats(@Agent() agent: any): Promise<StatsResponse> {
     return this.dashboardService.getStats(agent.id);
   }
@@ -43,7 +43,7 @@ export class DashboardController {
    * List memories with pagination and filters
    */
   @Get('memories')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(ApiKeyOrJwtGuard)
   async listMemories(
     @Agent() agent: any,
     @Query() dto: ListMemoriesDto,
@@ -56,7 +56,7 @@ export class DashboardController {
    * List all users with memory stats
    */
   @Get('users')
-  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
   async listUsers(@Agent() agent: any): Promise<UsersListResponse> {
     return this.dashboardService.listUsers(agent.id);
   }
@@ -66,7 +66,7 @@ export class DashboardController {
    * User detail with stats
    */
   @Get('users/:id')
-  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
   async getUserDetail(@Param('id') id: string): Promise<UserDetailResponse> {
     const user = await this.dashboardService.getUserDetail(id);
     if (!user) {
@@ -80,7 +80,7 @@ export class DashboardController {
    * Delete a user and optionally their memories
    */
   @Delete('users/:id')
-  @UseGuards(InternalOnlyGuard, ApiKeyGuard)
+  @UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
   async deleteUser(
     @Param('id') id: string,
     @Query('deleteMemories') deleteMemories?: string,

@@ -17,6 +17,10 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
+  // Trust Railway's reverse proxy so request.ip returns the real client IP
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', true);
+
   // Use Pino logger
   app.useLogger(app.get(Logger));
 
@@ -25,7 +29,22 @@ async function bootstrap() {
   app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
 
   // Security headers (HSTS, X-Content-Type-Options, X-Frame-Options, hides X-Powered-By)
-  app.use(helmet());
+  // Relax CSP for the memory-graph static page (needs inline scripts/styles + d3 CDN)
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://d3js.org"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        fontSrc: ["'self'", "https:", "data:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'", "https://openengram.ai", "https://app.openengram.ai", "https://*.vercel.app"],
+      },
+    },
+  }));
 
   // Enable global validation pipe with transform
   app.useGlobalPipes(

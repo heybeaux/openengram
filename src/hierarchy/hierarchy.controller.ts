@@ -15,7 +15,7 @@ import {
   QueryAnalysis,
   HierarchyLevel,
 } from './query-router.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 import {
   HierarchySearchDto,
@@ -31,7 +31,7 @@ import {
  * - Get hierarchy statistics
  */
 @Controller('v1/hierarchy')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class HierarchyController {
   constructor(
     private readonly hierarchyService: HierarchyService,

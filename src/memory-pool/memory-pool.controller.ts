@@ -15,11 +15,11 @@ import {
   GrantPoolAccessDto,
   AddMemoryToPoolDto,
 } from './dto/memory-pool.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { InternalOnlyGuard } from '../common/guards/internal-only.guard';
 
 @ApiTags('memory-pools')
-@UseGuards(InternalOnlyGuard, ApiKeyGuard)
+@UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
 @Controller('v1/pools')
 export class MemoryPoolController {
   constructor(private readonly service: MemoryPoolService) {}

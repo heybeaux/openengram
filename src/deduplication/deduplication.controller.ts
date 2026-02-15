@@ -39,7 +39,7 @@ import {
   SimilarMemoryDto,
   MergeEventDto,
 } from './dto/deduplication.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 
 /**
@@ -52,7 +52,7 @@ import { UserId } from '../common/decorators/user-id.decorator';
  * - Configuration and statistics
  */
 @ApiTags('deduplication')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/dedup')
 export class DeduplicationController {
   constructor(

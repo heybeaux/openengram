@@ -80,13 +80,18 @@ export class FogIndexService {
   async snapshot(userId?: string): Promise<FogIndexResult> {
     const result = await this.compute(userId);
 
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO fog_index_snapshots (id, score, tier, components, computed_at)
-       VALUES (gen_random_uuid(), $1, $2, $3::jsonb, NOW())`,
-      result.score,
-      result.tier,
-      JSON.stringify(result.components),
-    );
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO fog_index_snapshots (id, score, tier, components, computed_at)
+         VALUES (gen_random_uuid(), $1, $2, $3::jsonb, NOW())`,
+        result.score,
+        result.tier,
+        JSON.stringify(result.components),
+      );
+    } catch (error) {
+      // Table may not exist yet — log but don't fail the snapshot
+      console.warn('Failed to persist fog index snapshot:', error?.message);
+    }
 
     return result;
   }
@@ -94,19 +99,25 @@ export class FogIndexService {
   async getHistory(
     limit = 30,
   ): Promise<Array<{ score: number; tier: string; computedAt: string }>> {
-    const rows = await this.prisma.$queryRawUnsafe<
-      Array<{ score: number; tier: string; computed_at: Date }>
-    >(
-      `SELECT score, tier, computed_at FROM fog_index_snapshots
-       ORDER BY computed_at DESC LIMIT $1`,
-      limit,
-    );
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<
+        Array<{ score: number; tier: string; computed_at: Date }>
+      >(
+        `SELECT score, tier, computed_at FROM fog_index_snapshots
+         ORDER BY computed_at DESC LIMIT $1`,
+        limit,
+      );
 
-    return rows.map((r) => ({
-      score: Number(r.score),
-      tier: r.tier,
-      computedAt: r.computed_at.toISOString(),
-    }));
+      return rows.map((r) => ({
+        score: Number(r.score),
+        tier: r.tier,
+        computedAt: r.computed_at.toISOString(),
+      }));
+    } catch (error) {
+      // Table may not exist yet — return empty array gracefully
+      console.warn('Failed to query fog index history:', error?.message);
+      return [];
+    }
   }
 
   // ─── Components ──────────────────────────────────────────────────

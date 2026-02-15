@@ -6,10 +6,10 @@ import {
   MonitoringAlert,
 } from './monitoring.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @ApiTags('Monitoring')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/monitoring')
 @SkipRateLimit()
 export class MonitoringController {

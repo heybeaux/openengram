@@ -18,10 +18,10 @@ import {
 import { MemoryLayer } from '@prisma/client';
 import { AgentService } from './agent.service';
 import { ReflectDto, ReflectionResultDto } from './dto/reflect.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @ApiTags('agents')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/agents')
 export class AgentController {
   constructor(private readonly agentService: AgentService) {}

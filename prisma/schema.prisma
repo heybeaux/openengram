@@ -3,28 +3,30 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 /// Account represents a paying customer (SaaS layer)
 model Account {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  passwordHash     String    @map("password_hash")
-  name             String?
-  stripeCustomerId String?   @unique @map("stripe_customer_id")
-  plan             Plan      @default(FREE)
-  planExpiresAt    DateTime? @map("plan_expires_at")
-  memoriesUsed     Int       @default(0) @map("memories_used")
-  apiCallsToday    Int       @default(0) @map("api_calls_today")
-  apiCallsResetAt  DateTime? @map("api_calls_reset_at")
-  resetToken       String?   @map("reset_token")
-  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  agents           Agent[]
-  uxFeedback       UxFeedback[]
+  id                  String       @id @default(cuid())
+  email               String       @unique
+  passwordHash        String       @map("password_hash")
+  name                String?
+  stripeCustomerId    String?      @unique @map("stripe_customer_id")
+  plan                Plan         @default(FREE)
+  planExpiresAt       DateTime?    @map("plan_expires_at")
+  memoriesUsed        Int          @default(0) @map("memories_used")
+  apiCallsToday       Int          @default(0) @map("api_calls_today")
+  apiCallsResetAt     DateTime?    @map("api_calls_reset_at")
+  resetToken          String?      @map("reset_token")
+  resetTokenExpiresAt DateTime?    @map("reset_token_expires_at")
+  accessCode          String?      @map("access_code")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+  agents              Agent[]
+  uxFeedback          UxFeedback[]
 
   @@map("accounts")
 }
@@ -68,11 +70,11 @@ model User {
   projects   Project[]
   sessions   Session[]
   agent      Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  
+
   // Semantic Memory Graph relations
-  graphEntities     GraphEntity[]
+  graphEntities      GraphEntity[]
   graphRelationships GraphRelationship[]
-  graphMentions     GraphEntityMention[]
+  graphMentions      GraphEntityMention[]
 
   @@unique([agentId, externalId])
   @@map("users")
@@ -99,20 +101,20 @@ model Project {
 
 /// Session represents a conversation or work session
 model Session {
-  id             String    @id @default(cuid())
-  userId         String    @map("user_id")
-  projectId      String?   @map("project_id")
-  externalId     String?   @map("external_id")
-  startedAt      DateTime  @default(now()) @map("started_at")
-  endedAt        DateTime? @map("ended_at")
-  consolidated   Boolean   @default(false)
-  consolidatedAt DateTime? @map("consolidated_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  projectId       String?   @map("project_id")
+  externalId      String?   @map("external_id")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  consolidated    Boolean   @default(false)
+  consolidatedAt  DateTime? @map("consolidated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
   agentSessionKey String?   @map("agent_session_key")
-  memories       Memory[]
-  project        Project?  @relation(fields: [projectId], references: [id])
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memories        Memory[]
+  project         Project?  @relation(fields: [projectId], references: [id])
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -131,7 +133,7 @@ model Memory {
   typeConfidence Float?      @map("type_confidence") // 0.0-1.0 from LLM
   priority       Int         @default(3) // 1=CONSTRAINT, 2=PREF/TASK, 3=FACT, 4=EVENT
 
-  promotedFrom   String?   @map("promoted_from")  // Source memory ID when promoted (e.g., LESSON → CONSTRAINT)
+  promotedFrom String? @map("promoted_from") // Source memory ID when promoted (e.g., LESSON → CONSTRAINT)
 
   // User controls for manual override
   userPinned Boolean @default(false) @map("user_pinned")
@@ -179,23 +181,23 @@ model Memory {
   entities         MemoryEntity[]
   extraction       MemoryExtraction?
   hierarchyUnits   HierarchyUnit[]
-  
+
   // Multi-agent attribution
-  createdBySession  String?   @map("created_by_session")
-  poolMemberships   MemoryPoolMembership[]
+  createdBySession String?                @map("created_by_session")
+  poolMemberships  MemoryPoolMembership[]
 
   // Dream Cycle additions
-  archivedReason    String?   @map("archived_reason")
-  lastDreamCycleAt  DateTime? @map("last_dream_cycle_at")
-  patternSourceIds  String[]  @default([]) @map("pattern_source_ids")
+  archivedReason   String?   @map("archived_reason")
+  lastDreamCycleAt DateTime? @map("last_dream_cycle_at")
+  patternSourceIds String[]  @default([]) @map("pattern_source_ids")
 
   // Semantic Memory Graph relations
-  graphMentions    GraphEntityMention[]
-  graphEntityFirstSeen GraphEntity[] @relation("GraphEntityFirstSeen")
-  
+  graphMentions        GraphEntityMention[]
+  graphEntityFirstSeen GraphEntity[]        @relation("GraphEntityFirstSeen")
+
   // Clustering
-  clusterId         String?   @map("cluster_id")
-  cluster           MemoryCluster? @relation(fields: [clusterId], references: [id])
+  clusterId String?        @map("cluster_id")
+  cluster   MemoryCluster? @relation(fields: [clusterId], references: [id])
 
   // Multi-model ensemble embeddings
   ensembleEmbeddings MemoryEmbedding[]
@@ -217,9 +219,9 @@ model Memory {
 model UxFeedback {
   id        String   @id @default(cuid())
   accountId String   @map("account_id")
-  rating    Int      // 1-5 for widget, 0-10 for NPS
+  rating    Int // 1-5 for widget, 0-10 for NPS
   text      String?
-  category  String   // bug, feature, general, nps
+  category  String // bug, feature, general, nps
   page      String?
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -384,7 +386,7 @@ model WebhookSubscription {
   userId              String   @map("user_id")
   url                 String
   events              String[] // array of event type strings
-  secret              String?  // HMAC signing key
+  secret              String? // HMAC signing key
   active              Boolean  @default(true)
   maxRetries          Int      @default(3) @map("max_retries")
   backoffMs           Int      @default(1000) @map("backoff_ms")
@@ -438,16 +440,16 @@ model AuditLog {
 
 /// Tracks agent identities that interact with memory
 model AgentSession {
-  id              String             @id @default(cuid())
-  sessionKey      String             @unique @map("session_key")
-  parentKey       String?            @map("parent_key")
-  label           String?
-  taskDescription String?            @map("task_description")
-  status              AgentSessionStatus @default(ACTIVE)
-  contextTokenBudget  Int?               @map("context_token_budget")
-  createdAt           DateTime           @default(now()) @map("created_at")
-  endedAt             DateTime?          @map("ended_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
+  id                 String             @id @default(cuid())
+  sessionKey         String             @unique @map("session_key")
+  parentKey          String?            @map("parent_key")
+  label              String?
+  taskDescription    String?            @map("task_description")
+  status             AgentSessionStatus @default(ACTIVE)
+  contextTokenBudget Int?               @map("context_token_budget")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  endedAt            DateTime?          @map("ended_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   memoryAccess MemoryAccessLog[]
   poolGrants   PoolGrant[]
@@ -641,26 +643,26 @@ enum WebhookEvent {
 /// GraphEntity represents a semantic node in the knowledge graph
 /// Examples: people, places, organizations, concepts
 model GraphEntity {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  name            String
-  type            GraphEntityType
-  aliases         String[] @default([])
-  description     String?
-  metadata        Json     @default("{}")
-  mentionCount    Int      @default(1) @map("mention_count")
-  firstSeenMemoryId String? @map("first_seen_memory_id")
-  embeddingId     String?  @unique @map("embedding_id") // Pinecone vector ID
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
+  id                String          @id @default(cuid())
+  userId            String          @map("user_id")
+  name              String
+  type              GraphEntityType
+  aliases           String[]        @default([])
+  description       String?
+  metadata          Json            @default("{}")
+  mentionCount      Int             @default(1) @map("mention_count")
+  firstSeenMemoryId String?         @map("first_seen_memory_id")
+  embeddingId       String?         @unique @map("embedding_id") // Pinecone vector ID
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
   // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstSeenMemory Memory?  @relation("GraphEntityFirstSeen", fields: [firstSeenMemoryId], references: [id], onDelete: SetNull)
-  outgoingRelationships GraphRelationship[] @relation("GraphRelationshipSource")
-  incomingRelationships GraphRelationship[] @relation("GraphRelationshipTarget")
-  mentions        GraphEntityMention[]
-  
+  user                  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstSeenMemory       Memory?              @relation("GraphEntityFirstSeen", fields: [firstSeenMemoryId], references: [id], onDelete: SetNull)
+  outgoingRelationships GraphRelationship[]  @relation("GraphRelationshipSource")
+  incomingRelationships GraphRelationship[]  @relation("GraphRelationshipTarget")
+  mentions              GraphEntityMention[]
+
   @@unique([userId, name, type])
   @@index([userId])
   @@index([type])
@@ -671,25 +673,25 @@ model GraphEntity {
 
 /// GraphRelationship represents a directed edge between two entities
 model GraphRelationship {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  sourceEntityId  String   @map("source_entity_id")
-  targetEntityId  String   @map("target_entity_id")
+  id              String                @id @default(cuid())
+  userId          String                @map("user_id")
+  sourceEntityId  String                @map("source_entity_id")
+  targetEntityId  String                @map("target_entity_id")
   type            GraphRelationshipType
-  label           String?  // For CUSTOM type
-  weight          Float    @default(1.0)
-  properties      Json     @default("{}")
-  sourceMemoryIds String[] @default([]) @map("source_memory_ids")
-  isInferred      Boolean  @default(false) @map("is_inferred")
-  lastConfirmedAt DateTime @default(now()) @map("last_confirmed_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
+  label           String? // For CUSTOM type
+  weight          Float                 @default(1.0)
+  properties      Json                  @default("{}")
+  sourceMemoryIds String[]              @default([]) @map("source_memory_ids")
+  isInferred      Boolean               @default(false) @map("is_inferred")
+  lastConfirmedAt DateTime              @default(now()) @map("last_confirmed_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
   // Relations
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceEntity  GraphEntity @relation("GraphRelationshipSource", fields: [sourceEntityId], references: [id], onDelete: Cascade)
-  targetEntity  GraphEntity @relation("GraphRelationshipTarget", fields: [targetEntityId], references: [id], onDelete: Cascade)
-  
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceEntity GraphEntity @relation("GraphRelationshipSource", fields: [sourceEntityId], references: [id], onDelete: Cascade)
+  targetEntity GraphEntity @relation("GraphRelationshipTarget", fields: [targetEntityId], references: [id], onDelete: Cascade)
+
   @@unique([userId, sourceEntityId, targetEntityId, type])
   @@index([userId])
   @@index([sourceEntityId])
@@ -700,19 +702,19 @@ model GraphRelationship {
 
 /// GraphEntityMention links entities to the memories that mention them
 model GraphEntityMention {
-  id        String    @id @default(cuid())
-  entityId  String    @map("entity_id")
-  memoryId  String    @map("memory_id")
-  userId    String    @map("user_id")
-  span      Json?     // { start: number, end: number }
+  id        String           @id @default(cuid())
+  entityId  String           @map("entity_id")
+  memoryId  String           @map("memory_id")
+  userId    String           @map("user_id")
+  span      Json? // { start: number, end: number }
   role      GraphMentionRole
-  createdAt DateTime  @default(now()) @map("created_at")
-  
+  createdAt DateTime         @default(now()) @map("created_at")
+
   // Relations
-  entity    GraphEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  memory    Memory      @relation(fields: [memoryId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  entity GraphEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  memory Memory      @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([entityId, memoryId])
   @@index([memoryId])
   @@index([entityId])
@@ -741,31 +743,31 @@ enum GraphRelationshipType {
   SIBLING_OF
   FRIEND_OF
   COLLEAGUE_OF
-  
+
   // Location
   LIVES_IN
   WORKS_AT
   LOCATED_IN
   BORN_IN
-  
+
   // Ownership/Association
   OWNS
   MEMBER_OF
   PART_OF
   INSTANCE_OF
-  
+
   // Temporal
   HAPPENED_BEFORE
   HAPPENED_AFTER
   HAPPENED_DURING
-  
+
   // Attributes
   HAS_ATTRIBUTE
-  
+
   // Causal
   CAUSED_BY
   RESULTS_IN
-  
+
   // Generic
   RELATED_TO
   CUSTOM
@@ -773,10 +775,10 @@ enum GraphRelationshipType {
 
 /// How an entity appears in a memory
 enum GraphMentionRole {
-  SUBJECT   // Entity is the main subject
-  OBJECT    // Entity is acted upon
+  SUBJECT // Entity is the main subject
+  OBJECT // Entity is acted upon
   REFERENCE // Entity is mentioned incidentally
-  LOCATION  // Entity provides location context
+  LOCATION // Entity provides location context
 }
 
 // =============================================================================
@@ -793,38 +795,38 @@ enum HierarchyLevel {
 
 /// Hierarchical embedding units for multi-granularity search
 model HierarchyUnit {
-  id              String         @id @default(cuid())
-  level           HierarchyLevel
-  
+  id    String         @id @default(cuid())
+  level HierarchyLevel
+
   /// The actual text content of this unit
-  text            String
+  text    String
   /// LLM-generated summary (used for L1+ embeddings)
-  summary         String?
-  
+  summary String?
+
   /// Link to source memory (for L0, L1)
-  sourceMemoryId  String?        @map("source_memory_id")
-  sourceMemory    Memory?        @relation(fields: [sourceMemoryId], references: [id], onDelete: Cascade)
-  
+  sourceMemoryId String? @map("source_memory_id")
+  sourceMemory   Memory? @relation(fields: [sourceMemoryId], references: [id], onDelete: Cascade)
+
   /// Link to parent unit in hierarchy (L0 -> L1, etc.)
-  parentUnitId    String?        @map("parent_unit_id")
-  parentUnit      HierarchyUnit? @relation("UnitHierarchy", fields: [parentUnitId], references: [id], onDelete: SetNull)
-  childUnits      HierarchyUnit[] @relation("UnitHierarchy")
-  
+  parentUnitId String?         @map("parent_unit_id")
+  parentUnit   HierarchyUnit?  @relation("UnitHierarchy", fields: [parentUnitId], references: [id], onDelete: SetNull)
+  childUnits   HierarchyUnit[] @relation("UnitHierarchy")
+
   /// Position within source memory
-  position        Int?
-  charStart       Int?           @map("char_start")
-  charEnd         Int?           @map("char_end")
-  
+  position  Int?
+  charStart Int? @map("char_start")
+  charEnd   Int? @map("char_end")
+
   /// Pinecone reference
-  pineconeId      String         @unique @map("pinecone_id")
-  pineconeNamespace String       @map("pinecone_namespace")
-  
+  pineconeId        String @unique @map("pinecone_id")
+  pineconeNamespace String @map("pinecone_namespace")
+
   /// Owner reference (for queries)
-  userId          String         @map("user_id")
-  
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   @@index([level])
   @@index([sourceMemoryId])
   @@index([userId, level])
@@ -838,37 +840,37 @@ model HierarchyUnit {
 
 /// Track nightly/manual re-embedding jobs
 model EnsembleReembedJob {
-  id              String    @id @default(cuid())
-  jobId           String    @unique @map("job_id")
-  startedAt       DateTime  @default(now()) @map("started_at")
-  completedAt     DateTime? @map("completed_at")
-  status          EnsembleJobStatus @default(PENDING)
-  mode            EnsembleReembedMode
-  models          String[]
-  
+  id          String              @id @default(cuid())
+  jobId       String              @unique @map("job_id")
+  startedAt   DateTime            @default(now()) @map("started_at")
+  completedAt DateTime?           @map("completed_at")
+  status      EnsembleJobStatus   @default(PENDING)
+  mode        EnsembleReembedMode
+  models      String[]
+
   // Progress tracking
-  totalMemories   Int       @default(0) @map("total_memories")
-  processedMemories Int     @default(0) @map("processed_memories")
-  failedMemories  Int       @default(0) @map("failed_memories")
-  skippedMemories Int       @default(0) @map("skipped_memories")
-  
+  totalMemories     Int @default(0) @map("total_memories")
+  processedMemories Int @default(0) @map("processed_memories")
+  failedMemories    Int @default(0) @map("failed_memories")
+  skippedMemories   Int @default(0) @map("skipped_memories")
+
   // Metrics (JSON)
-  metrics         Json?
-  
+  metrics Json?
+
   // Drift detection results
-  avgDrift        Float?    @map("avg_drift")
-  maxDrift        Float?    @map("max_drift")
-  driftFlags      Int       @default(0) @map("drift_flags")
-  
+  avgDrift   Float? @map("avg_drift")
+  maxDrift   Float? @map("max_drift")
+  driftFlags Int    @default(0) @map("drift_flags")
+
   // Error info
-  error           String?
-  
+  error String?
+
   // Triggering info
-  triggeredBy     String    @default("cron") @map("triggered_by")  // cron, manual, event
-  triggeredReason String?   @map("triggered_reason")
-  
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  triggeredBy     String  @default("cron") @map("triggered_by") // cron, manual, event
+  triggeredReason String? @map("triggered_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([startedAt])
@@ -878,36 +880,36 @@ model EnsembleReembedJob {
 
 /// Checkpoint for resumable re-embedding
 model EnsembleReembedCheckpoint {
-  id              String    @id @default(cuid())
-  jobId           String    @unique @map("job_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  lastProcessedId String    @map("last_processed_id")
-  progress        Json                            // ReembedProgress JSON
-  completedModels String[]  @map("completed_models")
+  id              String   @id @default(cuid())
+  jobId           String   @unique @map("job_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  lastProcessedId String   @map("last_processed_id")
+  progress        Json // ReembedProgress JSON
+  completedModels String[] @map("completed_models")
   metrics         Json?
-  
+
   @@index([jobId])
   @@map("ensemble_reembed_checkpoints")
 }
 
 /// Event-triggered re-embedding queue
 model EnsembleReembedEvent {
-  id              String    @id @default(cuid())
-  eventId         String    @unique @map("event_id")
-  type            String                          // lesson_created, user_correction, etc.
-  priority        String    @default("normal")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  processedAt     DateTime? @map("processed_at")
-  status          String    @default("pending")
-  
+  id          String    @id @default(cuid())
+  eventId     String    @unique @map("event_id")
+  type        String // lesson_created, user_correction, etc.
+  priority    String    @default("normal")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at")
+  status      String    @default("pending")
+
   // Scope
-  scope           Json
-  
+  scope Json
+
   // Metadata
-  triggeredBy     String    @map("triggered_by")
-  reason          String
-  error           String?
-  
+  triggeredBy String  @map("triggered_by")
+  reason      String
+  error       String?
+
   @@index([status])
   @@index([priority])
   @@index([createdAt])
@@ -916,15 +918,15 @@ model EnsembleReembedEvent {
 
 /// Track embedding versions for rollback capability
 model EnsembleEmbeddingVersion {
-  id              String    @id @default(cuid())
-  versionId       String    @unique @map("version_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  createdBy       String    @map("created_by")  // nightly, manual, model-upgrade
-  status          EnsembleVersionStatus @default(CREATING)
-  memoriesEmbedded Int      @default(0) @map("memories_embedded")
-  previousVersion String?   @map("previous_version")
-  modelVersions   Json                            // Array of { modelId, modelVersion, checksum }
-  
+  id               String                @id @default(cuid())
+  versionId        String                @unique @map("version_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  createdBy        String                @map("created_by") // nightly, manual, model-upgrade
+  status           EnsembleVersionStatus @default(CREATING)
+  memoriesEmbedded Int                   @default(0) @map("memories_embedded")
+  previousVersion  String?               @map("previous_version")
+  modelVersions    Json // Array of { modelId, modelVersion, checksum }
+
   @@index([status])
   @@index([createdAt])
   @@map("ensemble_embedding_versions")
@@ -932,25 +934,25 @@ model EnsembleEmbeddingVersion {
 
 /// Model configuration in the ensemble registry
 model EnsembleModelConfig {
-  id              String    @id @default(cuid())
-  modelId         String    @unique @map("model_id")
-  status          EnsembleModelStatus @default(SHADOW)
-  addedAt         DateTime  @default(now()) @map("added_at")
-  promotedAt      DateTime? @map("promoted_at")
-  deprecatedAt    DateTime? @map("deprecated_at")
-  
+  id           String              @id @default(cuid())
+  modelId      String              @unique @map("model_id")
+  status       EnsembleModelStatus @default(SHADOW)
+  addedAt      DateTime            @default(now()) @map("added_at")
+  promotedAt   DateTime?           @map("promoted_at")
+  deprecatedAt DateTime?           @map("deprecated_at")
+
   // Weights
-  weight          Float     @default(1.0)
-  queryTypeWeights Json?    @map("query_type_weights")
-  
+  weight           Float @default(1.0)
+  queryTypeWeights Json? @map("query_type_weights")
+
   // Quality metrics
-  qualityMetrics  Json?     @map("quality_metrics")
-  
+  qualityMetrics Json? @map("quality_metrics")
+
   // Promotion thresholds
   promotionThresholds Json? @map("promotion_thresholds")
-  
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@map("ensemble_model_configs")
@@ -958,13 +960,13 @@ model EnsembleModelConfig {
 
 /// A/B test results for model comparison
 model EnsembleABTestResult {
-  id              String    @id @default(cuid())
-  testId          String    @map("test_id")
-  config          String                          // control, treatment
-  queryId         String    @map("query_id")
-  metrics         Json
-  timestamp       DateTime  @default(now())
-  
+  id        String   @id @default(cuid())
+  testId    String   @map("test_id")
+  config    String // control, treatment
+  queryId   String   @map("query_id")
+  metrics   Json
+  timestamp DateTime @default(now())
+
   @@index([testId])
   @@index([timestamp])
   @@map("ensemble_ab_test_results")
@@ -975,18 +977,18 @@ model EnsembleABTestResult {
 model MemoryEmbedding {
   id         String   @id @default(cuid())
   memoryId   String   @map("memory_id")
-  modelId    String   @map("model_id")  // "bge-base", "minilm", "nomic", "gte-base"
+  modelId    String   @map("model_id") // "bge-base", "minilm", "nomic", "gte-base"
   dimensions Int      @default(768)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-  
+
   // Store embedding as raw vector - pgvector handles variable dimensions
   // Using Unsupported because Prisma doesn't natively support vector type
   // We use raw SQL for queries
-  embedding  Unsupported("vector")?
-  
-  memory     Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
-  
+  embedding Unsupported("vector")?
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
   @@unique([memoryId, modelId])
   @@index([modelId])
   @@index([memoryId])
@@ -1045,26 +1047,26 @@ enum EnsembleModelStatus {
 
 /// Tracks merge events for lineage and rollback
 model MemoryMergeEvent {
-  id                  String    @id @default(cuid())
-  userId              String    @map("user_id")
-  
-  survivorMemoryId    String    @map("survivor_memory_id")
-  absorbedMemoryIds   String[]  @map("absorbed_memory_ids")
-  strategy            String
-  similarity          Float
-  
-  triggeredBy         String    @map("triggered_by")  // auto, batch, manual
-  approvedBy          String?   @map("approved_by")
-  
-  originalContents    String    @map("original_contents")  // JSON array
-  mergedContent       String    @map("merged_content")
-  contentChanged      Boolean   @default(false) @map("content_changed")
-  
-  canRollback         Boolean   @default(true) @map("can_rollback")
-  rolledBackAt        DateTime? @map("rolled_back_at")
-  
-  createdAt           DateTime  @default(now()) @map("created_at")
-  
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  survivorMemoryId  String   @map("survivor_memory_id")
+  absorbedMemoryIds String[] @map("absorbed_memory_ids")
+  strategy          String
+  similarity        Float
+
+  triggeredBy String  @map("triggered_by") // auto, batch, manual
+  approvedBy  String? @map("approved_by")
+
+  originalContents String  @map("original_contents") // JSON array
+  mergedContent    String  @map("merged_content")
+  contentChanged   Boolean @default(false) @map("content_changed")
+
+  canRollback  Boolean   @default(true) @map("can_rollback")
+  rolledBackAt DateTime? @map("rolled_back_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   @@index([userId])
   @@index([survivorMemoryId])
   @@index([createdAt])
@@ -1073,25 +1075,25 @@ model MemoryMergeEvent {
 
 /// Pending merge candidates for review
 model MergeCandidate {
-  id                  String    @id @default(cuid())
-  userId              String    @map("user_id")
-  
-  memoryIds           String[]  @map("memory_ids")
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  memoryIds           String[] @map("memory_ids")
   similarity          Float
-  suggestedStrategy   String    @map("suggested_strategy")
-  suggestedSurvivorId String    @map("suggested_survivor_id")
-  
-  safetyFlags         String    @default("[]") @map("safety_flags")  // JSON array
-  
-  status              String    @default("PENDING")
-  reviewedBy          String?   @map("reviewed_by")
-  reviewedAt          DateTime? @map("reviewed_at")
-  reviewNotes         String?   @map("review_notes")
-  
-  skipUntil           DateTime? @map("skip_until")
-  
-  createdAt           DateTime  @default(now()) @map("created_at")
-  
+  suggestedStrategy   String   @map("suggested_strategy")
+  suggestedSurvivorId String   @map("suggested_survivor_id")
+
+  safetyFlags String @default("[]") @map("safety_flags") // JSON array
+
+  status      String    @default("PENDING")
+  reviewedBy  String?   @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
+  reviewNotes String?   @map("review_notes")
+
+  skipUntil DateTime? @map("skip_until")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   @@index([userId, status])
   @@index([createdAt])
   @@map("merge_candidates")
@@ -1099,53 +1101,53 @@ model MergeCandidate {
 
 /// User-specific deduplication configuration
 model DedupConfig {
-  id                           String    @id @default(cuid())
-  userId                       String    @unique @map("user_id")
-  
-  autoMergeThreshold           Float     @default(0.95) @map("auto_merge_threshold")
-  reviewSuggestThreshold       Float     @default(0.85) @map("review_suggest_threshold")
-  
-  defaultStrategy              String    @default("KEEP_DETAILED") @map("default_strategy")
-  strategyByType               String    @default("{}") @map("strategy_by_type")  // JSON
-  
-  preserveSourceContent        Boolean   @default(true) @map("preserve_source_content")
-  regenerateEmbedding          Boolean   @default(true) @map("regenerate_embedding")
-  
-  protectedTypes               String[]  @default(["CONSTRAINT"]) @map("protected_types")
-  protectedKeywords            String[]  @default([]) @map("protected_keywords")
-  protectedImportanceThreshold Float     @default(0.9) @map("protected_importance_threshold")
-  
-  batchSchedule                String    @default("0 3 * * *") @map("batch_schedule")
-  maxMemoriesPerBatch          Int       @default(5000) @map("max_memories_per_batch")
-  autoResolveThreshold         Float     @default(0.92) @map("auto_resolve_threshold")
-  batchEnabled                 Boolean   @default(true) @map("batch_enabled")
-  
-  lastBatchRunAt               DateTime? @map("last_batch_run_at")
-  lastBatchStats               String?   @map("last_batch_stats")  // JSON
-  
-  updatedAt                    DateTime  @updatedAt @map("updated_at")
-  
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  autoMergeThreshold     Float @default(0.95) @map("auto_merge_threshold")
+  reviewSuggestThreshold Float @default(0.85) @map("review_suggest_threshold")
+
+  defaultStrategy String @default("KEEP_DETAILED") @map("default_strategy")
+  strategyByType  String @default("{}") @map("strategy_by_type") // JSON
+
+  preserveSourceContent Boolean @default(true) @map("preserve_source_content")
+  regenerateEmbedding   Boolean @default(true) @map("regenerate_embedding")
+
+  protectedTypes               String[] @default(["CONSTRAINT"]) @map("protected_types")
+  protectedKeywords            String[] @default([]) @map("protected_keywords")
+  protectedImportanceThreshold Float    @default(0.9) @map("protected_importance_threshold")
+
+  batchSchedule        String  @default("0 3 * * *") @map("batch_schedule")
+  maxMemoriesPerBatch  Int     @default(5000) @map("max_memories_per_batch")
+  autoResolveThreshold Float   @default(0.92) @map("auto_resolve_threshold")
+  batchEnabled         Boolean @default(true) @map("batch_enabled")
+
+  lastBatchRunAt DateTime? @map("last_batch_run_at")
+  lastBatchStats String?   @map("last_batch_stats") // JSON
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   @@map("dedup_configs")
 }
 
 /// Batch deduplication run history
 model DedupBatchRun {
-  id                  String    @id @default(cuid())
-  userId              String    @map("user_id")
-  
-  status              String
-  startedAt           DateTime  @map("started_at")
-  completedAt         DateTime? @map("completed_at")
-  
-  memoriesProcessed   Int       @default(0) @map("memories_processed")
-  clustersFound       Int       @default(0) @map("clusters_found")
-  autoMerged          Int       @default(0) @map("auto_merged")
-  queuedForReview     Int       @default(0) @map("queued_for_review")
-  skipped             Int       @default(0)
-  errors              String[]  @default([])
-  
-  configSnapshot      String    @map("config_snapshot")  // JSON
-  
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  status      String
+  startedAt   DateTime  @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  memoriesProcessed Int      @default(0) @map("memories_processed")
+  clustersFound     Int      @default(0) @map("clusters_found")
+  autoMerged        Int      @default(0) @map("auto_merged")
+  queuedForReview   Int      @default(0) @map("queued_for_review")
+  skipped           Int      @default(0)
+  errors            String[] @default([])
+
+  configSnapshot String @map("config_snapshot") // JSON
+
   @@index([userId])
   @@index([startedAt])
   @@map("dedup_batch_runs")
@@ -1153,44 +1155,44 @@ model DedupBatchRun {
 
 /// Memory clusters for grouping related memories
 model MemoryCluster {
-  id                 String   @id
-  label              String
-  description        String?
-  memberCount        Int      @default(0) @map("member_count")
-  centroidEmbedding  Unsupported("vector")? @map("centroid_embedding")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-  memories           Memory[]
+  id                String                 @id
+  label             String
+  description       String?
+  memberCount       Int                    @default(0) @map("member_count")
+  centroidEmbedding Unsupported("vector")? @map("centroid_embedding")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  memories          Memory[]
 
   @@map("memory_clusters")
 }
 
 /// Dream Cycle consolidation reports
 model DreamCycleReport {
-  id                 String   @id @default(cuid())
-  userId             String   @map("user_id")
+  id     String @id @default(cuid())
+  userId String @map("user_id")
 
-  startedAt          DateTime @map("started_at")
-  completedAt        DateTime? @map("completed_at")
-  durationMs         Int?     @map("duration_ms")
-  dryRun             Boolean  @default(false) @map("dry_run")
+  startedAt   DateTime  @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  durationMs  Int?      @map("duration_ms")
+  dryRun      Boolean   @default(false) @map("dry_run")
 
   // Stage results
-  scoresRefreshed    Int      @default(0) @map("scores_refreshed")
-  duplicatesMerged   Int      @default(0) @map("duplicates_merged")
-  patternsCreated    Int      @default(0) @map("patterns_created")
-  memoriesArchived   Int      @default(0) @map("memories_archived")
+  scoresRefreshed  Int @default(0) @map("scores_refreshed")
+  duplicatesMerged Int @default(0) @map("duplicates_merged")
+  patternsCreated  Int @default(0) @map("patterns_created")
+  memoriesArchived Int @default(0) @map("memories_archived")
 
   // Health metrics
-  totalActive        Int      @default(0) @map("total_active")
-  avgEffectiveScore  Float    @default(0) @map("avg_effective_score")
+  totalActive       Int   @default(0) @map("total_active")
+  avgEffectiveScore Float @default(0) @map("avg_effective_score")
 
   // Details
-  stageDetails       Json     @default("{}") @map("stage_details")
-  errors             String[] @default([])
-  status             String   @default("RUNNING")
+  stageDetails Json     @default("{}") @map("stage_details")
+  errors       String[] @default([])
+  status       String   @default("RUNNING")
 
-  createdAt          DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, createdAt])
   @@map("dream_cycle_reports")
@@ -1198,15 +1200,15 @@ model DreamCycleReport {
 
 /// Tracks Dream Cycle execution runs for mutex / concurrency control
 model DreamCycleRun {
-  id          String    @id @default(cuid())
-  status      String    @default("RUNNING") // RUNNING | COMPLETED | FAILED
-  instanceId  String    @map("instance_id") // hostname or unique instance identifier
-  startedAt   DateTime  @default(now()) @map("started_at")
-  endedAt     DateTime? @map("ended_at")
-  error       String?
+  id         String    @id @default(cuid())
+  status     String    @default("RUNNING") // RUNNING | COMPLETED | FAILED
+  instanceId String    @map("instance_id") // hostname or unique instance identifier
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  error      String?
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@map("dream_cycle_runs")
@@ -1214,28 +1216,40 @@ model DreamCycleRun {
 
 /// Eval run results for longitudinal tracking
 model EvalRun {
-  id            String   @id @default(cuid())
-  timestamp     DateTime @default(now())
-  recallScore   Float    @map("recall_score")
-  recallTotal   Int      @map("recall_total")
-  recallPassed  Int      @map("recall_passed")
-  latencyP50Ms  Int      @map("latency_p50_ms")
-  latencyP95Ms  Int?     @map("latency_p95_ms")
-  contextGrade  String?  @map("context_grade")
-  details       Json?
-  triggeredBy   String?  @map("triggered_by")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  recallScore  Float    @map("recall_score")
+  recallTotal  Int      @map("recall_total")
+  recallPassed Int      @map("recall_passed")
+  latencyP50Ms Int      @map("latency_p50_ms")
+  latencyP95Ms Int?     @map("latency_p95_ms")
+  contextGrade String?  @map("context_grade")
+  details      Json?
+  triggeredBy  String?  @map("triggered_by")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("eval_runs")
 }
 
+/// Fog index snapshots for tracking clarity score over time
+model FogIndexSnapshot {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  score      Float
+  tier       String
+  components Json?    @db.JsonB
+  computedAt DateTime @default(now()) @map("computed_at")
+
+  @@index([computedAt])
+  @@map("fog_index_snapshots")
+}
+
 /// Monitoring metric snapshots for tracking system health over time
 model MonitoringSnapshot {
-  id          String   @id @default(cuid())
-  metrics     Json     @default("{}")
-  alerts      Json     @default("[]")
-  snapshotAt  DateTime @default(now()) @map("snapshot_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  metrics    Json     @default("{}")
+  alerts     Json     @default("[]")
+  snapshotAt DateTime @default(now()) @map("snapshot_at")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([snapshotAt])
   @@map("monitoring_snapshots")

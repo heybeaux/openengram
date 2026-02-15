@@ -19,9 +19,10 @@ import { CheckpointService } from './checkpoint.service';
 import { DriftDetectionService } from './drift-detection.service';
 import { ModelRegistryService } from './model-registry.service';
 import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
+import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule],
+  imports: [AccountModule, ConfigModule, PrismaModule],
   controllers: [EnsembleController],
   providers: [
     PgVectorEnsembleProvider,

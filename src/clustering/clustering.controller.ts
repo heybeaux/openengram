@@ -15,9 +15,9 @@ import type {
   ClusterDetail,
 } from './clustering.service';
 import { ClusteringService } from './clustering.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/clustering')
 export class ClusteringController {
   constructor(private clusteringService: ClusteringService) {}

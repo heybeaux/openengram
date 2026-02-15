@@ -16,7 +16,7 @@ import {
   ReembeddingJobDto,
   EnrichedMemoryPreviewDto,
 } from './dto/reembedding.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 /**
  * Re-embedding Controller
@@ -32,7 +32,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
  * - POST /v1/reembedding/memory/:memoryId - Re-embed a single memory
  */
 @ApiTags('reembedding')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/reembedding')
 export class ReembeddingController {
   constructor(private reembeddingService: ReembeddingService) {}

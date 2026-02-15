@@ -2,8 +2,10 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Body,
+  Param,
   UseGuards,
   Req,
   HttpCode,
@@ -18,6 +20,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  UpdateAccountDto,
 } from './account.dto.js';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
@@ -33,7 +36,7 @@ export class AccountController {
   @RateLimit(5) // 5 per minute per IP
   @ApiOperation({ summary: 'Register a new account' })
   async register(@Body() body: RegisterDto) {
-    return this.accountService.register(body.email, body.password, body.name);
+    return this.accountService.register(body.email, body.password, body.name, body.plan, body.accessCode);
   }
 
   @Post('auth/login')
@@ -108,5 +111,22 @@ export class AccountController {
   @ApiOperation({ summary: 'Create a new API key (agent)' })
   async createApiKey(@Req() req: any, @Body() body: { name?: string }) {
     return this.accountService.createApiKey(req.accountId, body.name);
+  }
+
+  @Delete('account/api-keys/:id')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete an API key (agent)' })
+  async deleteApiKey(@Req() req: any, @Param('id') id: string) {
+    await this.accountService.deleteApiKey(req.accountId, id);
+  }
+
+  @Patch('account')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update account profile' })
+  async updateAccount(@Req() req: any, @Body() body: UpdateAccountDto) {
+    return this.accountService.updateAccount(req.accountId, body);
   }
 }

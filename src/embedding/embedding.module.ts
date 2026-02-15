@@ -13,6 +13,7 @@ import { EmbeddingService } from './embedding.service';
 import { LocalEmbedProvider } from './local-embed.provider';
 import { OpenAIEmbedProvider } from './openai-embed.provider';
 import { CloudEnsembleService } from './cloud-ensemble.service';
+import { CloudEnsembleEmbedProvider } from './cloud-ensemble-embed.provider';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { CloudEnsembleService } from './cloud-ensemble.service';
     LocalEmbedProvider,
     OpenAIEmbedProvider,
     CloudEnsembleService,
+    CloudEnsembleEmbedProvider,
     EmbeddingService,
   ],
   exports: [EmbeddingService, CloudEnsembleService],

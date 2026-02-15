@@ -117,6 +117,37 @@ export class CloudEnsembleService implements OnModuleInit {
   }
 
   /**
+   * Generate embedding for text using a single model (fast path for search)
+   */
+  async embedSingle(
+    text: string,
+    modelId: ModelId,
+    mode: 'document' | 'query' = 'document',
+  ): Promise<EmbeddingResult> {
+    const model = this.models.find((m) => m.modelId === modelId);
+    if (!model) {
+      throw new Error(
+        `Cloud ensemble: model '${modelId}' not found. Available: ${this.models.map((m) => m.modelId).join(', ')}`,
+      );
+    }
+
+    if (model.provider instanceof CohereEmbeddingProvider) {
+      model.provider.setInputType(
+        mode === 'query' ? 'search_query' : 'search_document',
+      );
+    }
+
+    const start = Date.now();
+    const vectors = await model.provider.embed([text]);
+    return {
+      model: modelId,
+      dimensions: model.provider.getDimensions(),
+      embedding: vectors[0],
+      latencyMs: Date.now() - start,
+    };
+  }
+
+  /**
    * Generate embeddings for text using all cloud models
    * Compatible with EnsembleService.embedAll() response format
    */

@@ -11,10 +11,10 @@ import type {
   GenerateContextResult,
 } from './generate-context.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @ApiTags('Consolidation')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/consolidation')
 export class ConsolidationController {
   constructor(

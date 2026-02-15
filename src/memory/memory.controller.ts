@@ -36,7 +36,7 @@ import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
 } from './dto/contextual-recall.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
@@ -45,7 +45,7 @@ import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor
 
 @ApiTags('memories')
 @Controller('v1')
-@UseGuards(ApiKeyGuard, RateLimitGuard)
+@UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
 @UseInterceptors(SanitizeInterceptor)
 export class MemoryController {
   constructor(
@@ -109,6 +109,36 @@ export class MemoryController {
   async recall(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
+  ): Promise<QueryResult> {
+    return this.memoryService.recall(userId, dto);
+  }
+
+  /**
+   * POST /v1/memories/search
+   * Alias for /v1/memories/query
+   */
+  @Post('memories/search')
+  @ApiOperation({ summary: 'Search memories (alias for /query)' })
+  @ApiTags('search')
+  @RateLimit(60)
+  async search(
+    @UserId() userId: string,
+    @Body() dto: QueryMemoryDto,
+  ): Promise<QueryResult> {
+    return this.memoryService.recall(userId, dto);
+  }
+
+  /**
+   * GET /v1/memories/search
+   * GET alias for search
+   */
+  @Get('memories/search')
+  @ApiOperation({ summary: 'Search memories (GET alias)' })
+  @ApiTags('search')
+  @RateLimit(60)
+  async searchGet(
+    @UserId() userId: string,
+    @Query() dto: QueryMemoryDto,
   ): Promise<QueryResult> {
     return this.memoryService.recall(userId, dto);
   }

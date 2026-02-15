@@ -16,7 +16,7 @@ import {
   QueryExpansionResultDto,
   ExpansionStrategy,
 } from './dto/multi-query.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 /**
  * Multi-Query Controller
@@ -29,7 +29,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
  * - POST /v1/multi-query/expand - Preview query expansion
  */
 @ApiTags('multi-query')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/multi-query')
 export class MultiQueryController {
   constructor(

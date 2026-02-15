@@ -8,6 +8,7 @@ import { EntityService } from './services/entity.service';
 import { RelationshipService } from './services/relationship.service';
 import { GraphExtractionService } from './services/graph-extraction.service';
 import { GraphService } from './services/graph.service';
+import { AccountModule } from '../account/account.module';
 
 /**
  * GraphModule - Semantic Memory Graphs
@@ -22,7 +23,7 @@ import { GraphService } from './services/graph.service';
  * - GraphService: High-level graph operations and queries
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, LLMModule, VectorModule],
+  imports: [AccountModule, ConfigModule, PrismaModule, LLMModule, VectorModule],
   controllers: [GraphController],
   providers: [
     EntityService,

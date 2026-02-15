@@ -19,9 +19,10 @@ import { ResultFusionService } from '../multi-query/result-fusion.service';
 import { ContextualRecallService } from './contextual-recall.service';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
+import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [
+  imports: [AccountModule, 
     LLMModule,
     forwardRef(() => HierarchyModule),
     MemoryPoolModule,

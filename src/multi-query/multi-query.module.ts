@@ -5,6 +5,7 @@ import { ResultFusionService } from './result-fusion.service';
 import { MultiQueryController } from './multi-query.controller';
 import { MemoryModule } from '../memory/memory.module';
 import { LLMModule } from '../llm/llm.module';
+import { AccountModule } from '../account/account.module';
 
 /**
  * Multi-Query Retrieval Module
@@ -19,7 +20,7 @@ import { LLMModule } from '../llm/llm.module';
  * The service integrates with existing EmbeddingService for vector ops.
  */
 @Module({
-  imports: [MemoryModule, LLMModule],
+  imports: [AccountModule, MemoryModule, LLMModule],
   controllers: [MultiQueryController],
   providers: [MultiQueryService, QueryExpansionService, ResultFusionService],
   exports: [MultiQueryService, QueryExpansionService, ResultFusionService],

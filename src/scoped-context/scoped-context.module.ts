@@ -5,9 +5,10 @@ import { AgentSessionModule } from '../agent-session/agent-session.module';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { MemoryModule } from '../memory/memory.module';
+import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [
+  imports: [AccountModule, 
     AgentSessionModule,
     MemoryPoolModule,
     MemoryAccessLogModule,

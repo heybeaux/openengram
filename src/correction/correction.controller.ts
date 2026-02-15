@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { CorrectionService } from './correction.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { IsString, IsOptional } from 'class-validator';
 
@@ -14,7 +14,7 @@ export class ManualCorrectDto {
 }
 
 @Controller('v1/memories')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class CorrectionController {
   constructor(private readonly correctionService: CorrectionService) {}
 

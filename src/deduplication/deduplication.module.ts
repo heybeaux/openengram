@@ -7,6 +7,7 @@ import { MergeService } from './merge.service';
 import { LineageService } from './lineage.service';
 import { ReviewService } from './review.service';
 import { MemoryModule } from '../memory/memory.module';
+import { AccountModule } from '../account/account.module';
 
 /**
  * Deduplication Module
@@ -38,7 +39,7 @@ import { MemoryModule } from '../memory/memory.module';
  * - GET    /v1/dedup/enabled           - Check if enabled
  */
 @Module({
-  imports: [MemoryModule],
+  imports: [AccountModule, MemoryModule],
   controllers: [DeduplicationController],
   providers: [
     DeduplicationService,

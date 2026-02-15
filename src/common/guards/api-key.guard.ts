@@ -53,6 +53,7 @@ export class ApiKeyGuard implements CanActivate {
             if (!user.deletedAt) {
               request.agent = agent;
               request.user = user;
+              request.accountId = agent.accountId;
             }
           }
         } catch (err) {
@@ -76,9 +77,9 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('Missing X-AM-API-Key header');
     }
 
-    if (!userId) {
-      throw new UnauthorizedException('Missing X-AM-User-ID header');
-    }
+    // Default user ID to "default" if not provided — simplifies integrations
+    // (Custom GPTs, simple scripts) where multi-user isn't needed
+    const resolvedUserId = userId || 'default';
 
     // Hash the API key for lookup
     const apiKeyHash = this.hashApiKey(apiKey);
@@ -97,7 +98,7 @@ export class ApiKeyGuard implements CanActivate {
       where: {
         agentId_externalId: {
           agentId: agent.id,
-          externalId: userId,
+          externalId: resolvedUserId,
         },
       },
     });
@@ -106,7 +107,7 @@ export class ApiKeyGuard implements CanActivate {
       user = await this.prisma.user.create({
         data: {
           agentId: agent.id,
-          externalId: userId,
+          externalId: resolvedUserId,
         },
       });
     }
@@ -118,6 +119,7 @@ export class ApiKeyGuard implements CanActivate {
     // Attach to request for use in controllers
     request.agent = agent;
     request.user = user;
+    request.accountId = agent.accountId;
 
     return true;
   }

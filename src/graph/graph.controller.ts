@@ -28,7 +28,7 @@ import {
   ListRelationshipsDto,
   TraverseGraphDto,
 } from './dto/relationship.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 /**
  * GraphController - REST API for Semantic Memory Graphs
@@ -41,7 +41,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
  * - Graph statistics
  */
 @ApiTags('Graph')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/graph')
 export class GraphController {
   constructor(

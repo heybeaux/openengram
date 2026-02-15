@@ -12,8 +12,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Account, Plan } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { PLAN_LIMITS } from './plan-limits.js';
+
+interface AccessCode {
+  code: string;
+  plan: string;
+  maxUses: number;
+  usedCount?: number; // Deprecated: usage now tracked via DB (account.accessCode field)
+  expiresAt?: string | null;
+}
 
 @Injectable()
 export class AccountService {
@@ -25,7 +33,61 @@ export class AccountService {
     private config: ConfigService,
   ) {}
 
-  async register(email: string, password: string, name?: string) {
+  private getAccessCodes(): AccessCode[] {
+    const raw = this.config.get<string>('ACCESS_CODES', '[]');
+    try {
+      return JSON.parse(raw);
+    } catch {
+      this.logger.warn('Failed to parse ACCESS_CODES env var');
+      return [];
+    }
+  }
+
+  private async validateAccessCode(code: string): Promise<AccessCode | null> {
+    const codes = this.getAccessCodes();
+    const found = codes.find((c) => c.code === code);
+    if (!found) return null;
+    if (found.expiresAt && new Date(found.expiresAt) < new Date()) return null;
+
+    // Check persistent usage from DB (survives deploys)
+    if (found.maxUses !== -1) {
+      const usedCount = await this.prisma.account.count({
+        where: { accessCode: code },
+      });
+      if (usedCount >= found.maxUses) return null;
+    }
+
+    return found;
+  }
+
+  async register(email: string, password: string, name?: string, plan?: string, accessCode?: string) {
+    // Validate plan/accessCode requirements
+    if (!accessCode && !plan) {
+      throw new BadRequestException('Please select a plan or enter an access code');
+    }
+
+    if (plan && plan.toUpperCase() === 'FREE') {
+      throw new BadRequestException('Free tier is available via self-hosting. Cloud plans start at $9/mo');
+    }
+
+    let resolvedPlan: string = 'STARTER';
+    let activatedByCode = false;
+
+    if (accessCode) {
+      const validCode = await this.validateAccessCode(accessCode);
+      if (!validCode) {
+        throw new BadRequestException('Invalid or expired access code');
+      }
+      resolvedPlan = validCode.plan;
+      activatedByCode = true;
+    } else if (plan) {
+      const upperPlan = plan.toUpperCase();
+      if (!['STARTER', 'PRO', 'SCALE'].includes(upperPlan)) {
+        throw new BadRequestException('Invalid plan. Choose STARTER, PRO, or SCALE');
+      }
+      resolvedPlan = upperPlan;
+    }
+
     const existing = await this.prisma.account.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('Email already registered');
@@ -37,7 +99,13 @@ export class AccountService {
     const { account, agent, apiKey } = await this.prisma.$transaction(
       async (tx) => {
         const account = await tx.account.create({
-          data: { email, passwordHash, name },
+          data: {
+            email,
+            passwordHash,
+            name,
+            plan: activatedByCode ? (resolvedPlan as any) : 'FREE',
+            ...(activatedByCode && accessCode ? { accessCode } : {}),
+          },
         });
 
         // Generate API key
@@ -58,6 +126,9 @@ export class AccountService {
       },
     );
 
+    // Access code usage is now tracked persistently via the accessCode field on the account record.
+    // No need to increment in-memory counters.
+
     const token = this.signToken(account);
 
     return {
@@ -65,6 +136,8 @@ export class AccountService {
       apiKey,
       account: this.sanitizeAccount(account),
       agent: { id: agent.id, name: agent.name, apiKeyHint: agent.apiKeyHint },
+      needsPayment: !activatedByCode,
+      selectedPlan: resolvedPlan,
     };
   }
 
@@ -155,6 +228,31 @@ export class AccountService {
     };
   }
 
+  async deleteApiKey(accountId: string, agentId: string) {
+    // Ensure the agent belongs to this account
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: agentId, accountId, deletedAt: null },
+    });
+    if (!agent) {
+      throw new BadRequestException('API key not found');
+    }
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async updateAccount(accountId: string, data: { name?: string }) {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+
+    const account = await this.prisma.account.update({
+      where: { id: accountId },
+      data: updateData,
+    });
+    return this.sanitizeAccount(account);
+  }
+
   async forgotPassword(email: string) {
     const account = await this.prisma.account.findUnique({ where: { email } });
     // Always return success to prevent email enumeration
@@ -172,30 +270,24 @@ export class AccountService {
       data: { resetToken: tokenHash, resetTokenExpiresAt: expiresAt },
     });
 
-    const resetUrl = `https://openengram.ai/reset-password?token=${rawToken}`;
+    const dashboardUrl = this.config.get<string>('DASHBOARD_URL', 'https://app.openengram.ai');
+    const resetUrl = `${dashboardUrl}/reset-password?token=${rawToken}`;
 
-    // Try to send email
-    const smtpHost = this.config.get<string>('SMTP_HOST');
-    if (smtpHost) {
+    // Send email via Resend
+    const resendKey = this.config.get<string>('RESEND_API_KEY');
+    if (resendKey) {
       try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: parseInt(this.config.get<string>('SMTP_PORT', '587'), 10),
-          auth: {
-            user: this.config.get<string>('SMTP_USER'),
-            pass: this.config.get<string>('SMTP_PASS'),
-          },
-        });
-
-        await transporter.sendMail({
-          from: this.config.get<string>('SMTP_FROM', 'noreply@openengram.ai'),
+        const resend = new Resend(resendKey);
+        await resend.emails.send({
+          from: 'Engram <noreply@openengram.ai>',
           to: email,
           subject: 'Reset your Engram password',
           text: `Reset your password: ${resetUrl}\n\nThis link expires in 1 hour.`,
           html: `<p>Reset your password: <a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 1 hour.</p>`,
         });
-      } catch (err) {
-        this.logger.error(`Failed to send reset email: ${err.message}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send reset email: ${msg}`);
       }
     } else {
       this.logger.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);

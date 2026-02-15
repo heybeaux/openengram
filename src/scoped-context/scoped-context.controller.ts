@@ -4,10 +4,10 @@ import {
   ScopedContextRequestDto,
   ScopedContextResponseDto,
 } from './dto/scoped-context.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @Controller('v1/context')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class ScopedContextController {
   constructor(private readonly scopedContextService: ScopedContextService) {}
 
