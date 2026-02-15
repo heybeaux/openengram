@@ -10,6 +10,7 @@ import { MemoryCreatedEvent } from '../events/event-types';
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 500;
+const MAX_SYNC_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface SyncResult {
   syncedCount: number;
@@ -23,6 +24,8 @@ export interface SyncStatus {
   syncedCount: number;
   pendingCount: number;
   autoSync: boolean;
+  syncing: boolean;
+  progress?: { synced: number; total: number };
 }
 
 @Injectable()
@@ -30,6 +33,8 @@ export class CloudSyncService {
   private readonly logger = new Logger(CloudSyncService.name);
   private readonly CLOUD_API_BASE = 'https://api.openengram.ai';
   private syncing = false;
+  private syncAbortController: AbortController | null = null;
+  private syncProgress = { synced: 0, total: 0 };
 
   constructor(
     private readonly prisma: PrismaService,
@@ -45,11 +50,29 @@ export class CloudSyncService {
     const apiKey = this.decryptApiKey(link.cloudApiKey);
 
     this.syncing = true;
+    this.syncAbortController = new AbortController();
+    this.syncProgress = { synced: 0, total: 0 };
     try {
-      return await this.performSync(apiKey);
+      return await this.performSync(apiKey, this.syncAbortController.signal);
     } finally {
       this.syncing = false;
+      this.syncAbortController = null;
     }
+  }
+
+  cancelSync(): void {
+    if (this.syncAbortController) {
+      this.syncAbortController.abort();
+      this.logger.log('Sync cancellation requested');
+    }
+  }
+
+  isSyncing(): boolean {
+    return this.syncing;
+  }
+
+  getSyncProgress(): { synced: number; total: number } {
+    return { ...this.syncProgress };
   }
 
   async getSyncStatus(accountId: string): Promise<SyncStatus> {
@@ -79,6 +102,8 @@ export class CloudSyncService {
       syncedCount,
       pendingCount: totalMemories - syncedCount,
       autoSync: link.autoSync,
+      syncing: this.syncing,
+      ...(this.syncing ? { progress: this.getSyncProgress() } : {}),
     };
   }
 
@@ -119,14 +144,33 @@ export class CloudSyncService {
     }
   }
 
-  private async performSync(apiKey: string): Promise<SyncResult> {
+  private async performSync(apiKey: string, signal: AbortSignal): Promise<SyncResult> {
     let syncedCount = 0;
     let errorCount = 0;
     let lastSyncedAt: string | null = null;
+    const startTime = Date.now();
+
+    // Count total pending for progress tracking
+    const totalPending = await this.prisma.memory.count({
+      where: { deletedAt: null, cloudSyncedAt: null },
+    });
+    this.syncProgress = { synced: 0, total: totalPending };
 
     // Process in batches
     let cursor: string | undefined;
     while (true) {
+      // Check cancellation
+      if (signal.aborted) {
+        this.logger.log(`Sync cancelled. Synced ${syncedCount} memories before cancellation.`);
+        break;
+      }
+
+      // Check timeout
+      if (Date.now() - startTime > MAX_SYNC_DURATION_MS) {
+        this.logger.warn(`Sync timed out after ${MAX_SYNC_DURATION_MS / 1000}s. Synced ${syncedCount} memories.`);
+        break;
+      }
+
       const batch = await this.prisma.memory.findMany({
         where: {
           deletedAt: null,
@@ -141,11 +185,14 @@ export class CloudSyncService {
       if (batch.length === 0) break;
 
       for (const memory of batch) {
+        if (signal.aborted) break;
+
         try {
           await this.syncSingleMemory(memory, apiKey);
           syncedCount++;
+          this.syncProgress.synced = syncedCount;
           lastSyncedAt = new Date().toISOString();
-        } catch (error) {
+        } catch (error: any) {
           errorCount++;
           this.logger.warn(
             `Failed to sync memory ${memory.id}: ${error.message}`,

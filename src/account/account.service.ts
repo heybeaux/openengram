@@ -81,7 +81,7 @@ export class AccountService {
       }
 
       if (plan && plan.toUpperCase() === 'FREE') {
-        throw new BadRequestException('Free tier is available via self-hosting. Cloud plans start at $9/mo');
+        throw new BadRequestException('Registration requires a valid access code. Visit openengram.ai for cloud plans.');
       }
     }
 

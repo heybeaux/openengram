@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Body,
   UseGuards,
   Req,
@@ -30,6 +31,14 @@ export class CloudSyncController {
   @ApiOperation({ summary: 'Get cloud sync status' })
   async status(@Req() req: any) {
     return this.cloudSyncService.getSyncStatus(req.accountId);
+  }
+
+  @Delete()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel in-progress sync' })
+  async cancelSync() {
+    this.cloudSyncService.cancelSync();
+    return { cancelled: true };
   }
 
   @Put('auto-sync')
