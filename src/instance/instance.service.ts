@@ -6,7 +6,6 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface InstanceInfo {
   mode: 'cloud' | 'self-hosted';
-  version: string;
   features: {
     localEmbeddings: boolean;
     cloudEnsemble: boolean;
@@ -16,6 +15,10 @@ export interface InstanceInfo {
     billing: boolean;
   };
   cloudLinked: boolean;
+}
+
+export interface InstanceInfoDetailed extends InstanceInfo {
+  version: string;
 }
 
 @Injectable()
@@ -39,10 +42,14 @@ export class InstanceService {
 
     return {
       mode,
-      version: this.version,
       features: this.getFeatures(mode, cloudLinked),
       cloudLinked,
     };
+  }
+
+  async getDetailedInfo(): Promise<InstanceInfoDetailed> {
+    const info = await this.getInfo();
+    return { ...info, version: this.version };
   }
 
   getMode(): 'cloud' | 'self-hosted' {

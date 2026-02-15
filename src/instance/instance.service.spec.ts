@@ -96,7 +96,6 @@ describe('InstanceService', () => {
       const info = await service.getInfo();
       expect(info.mode).toBe('self-hosted');
       expect(info.cloudLinked).toBe(false);
-      expect(info.version).toBeDefined();
       expect(info.features.localEmbeddings).toBe(true);
       expect(info.features.cloudEnsemble).toBe(false);
     });
