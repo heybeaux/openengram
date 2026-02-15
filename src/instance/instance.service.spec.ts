@@ -1,10 +1,17 @@
 import { InstanceService } from './instance.service';
 
+const mockPrisma = {
+  cloudLink: {
+    count: jest.fn().mockResolvedValue(0),
+  },
+};
+
 describe('InstanceService', () => {
   let service: InstanceService;
 
   beforeEach(() => {
-    service = new InstanceService();
+    mockPrisma.cloudLink.count.mockResolvedValue(0);
+    service = new InstanceService(mockPrisma as any);
   });
 
   afterEach(() => {
@@ -29,8 +36,19 @@ describe('InstanceService', () => {
   });
 
   describe('isCloudLinked', () => {
-    it('should return false (hardcoded for now)', () => {
-      expect(service.isCloudLinked()).toBe(false);
+    it('should return false when no cloud links exist', async () => {
+      mockPrisma.cloudLink.count.mockResolvedValue(0);
+      expect(await service.isCloudLinked()).toBe(false);
+    });
+
+    it('should return true when cloud links exist', async () => {
+      mockPrisma.cloudLink.count.mockResolvedValue(1);
+      expect(await service.isCloudLinked()).toBe(true);
+    });
+
+    it('should return false in cloud mode', async () => {
+      process.env.DEPLOYMENT_MODE = 'cloud';
+      expect(await service.isCloudLinked()).toBe(false);
     });
   });
 
@@ -73,9 +91,9 @@ describe('InstanceService', () => {
   });
 
   describe('getInfo', () => {
-    it('should return full info object for self-hosted', () => {
+    it('should return full info object for self-hosted', async () => {
       delete process.env.DEPLOYMENT_MODE;
-      const info = service.getInfo();
+      const info = await service.getInfo();
       expect(info.mode).toBe('self-hosted');
       expect(info.cloudLinked).toBe(false);
       expect(info.version).toBeDefined();
@@ -83,9 +101,9 @@ describe('InstanceService', () => {
       expect(info.features.cloudEnsemble).toBe(false);
     });
 
-    it('should return full info object for cloud', () => {
+    it('should return full info object for cloud', async () => {
       process.env.DEPLOYMENT_MODE = 'cloud';
-      const info = service.getInfo();
+      const info = await service.getInfo();
       expect(info.mode).toBe('cloud');
       expect(info.features.localEmbeddings).toBe(false);
       expect(info.features.cloudEnsemble).toBe(true);

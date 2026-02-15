@@ -1,42 +1,48 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InstanceController } from './instance.controller';
 import { InstanceService } from './instance.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+const mockPrisma = {
+  cloudLink: { count: jest.fn().mockResolvedValue(0) },
+};
 
 describe('InstanceController', () => {
   let controller: InstanceController;
-  let service: InstanceService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InstanceController],
-      providers: [InstanceService],
+      providers: [
+        InstanceService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     }).compile();
 
     controller = module.get<InstanceController>(InstanceController);
-    service = module.get<InstanceService>(InstanceService);
   });
 
   afterEach(() => {
     delete process.env.DEPLOYMENT_MODE;
   });
 
-  it('should return instance info', () => {
-    const result = controller.getInfo();
+  it('should return instance info', async () => {
+    const result = await controller.getInfo();
     expect(result).toHaveProperty('mode');
     expect(result).toHaveProperty('version');
     expect(result).toHaveProperty('features');
     expect(result).toHaveProperty('cloudLinked');
   });
 
-  it('should return self-hosted by default', () => {
+  it('should return self-hosted by default', async () => {
     delete process.env.DEPLOYMENT_MODE;
-    const result = controller.getInfo();
+    const result = await controller.getInfo();
     expect(result.mode).toBe('self-hosted');
   });
 
-  it('should return cloud when env is set', () => {
+  it('should return cloud when env is set', async () => {
     process.env.DEPLOYMENT_MODE = 'cloud';
-    const result = controller.getInfo();
+    const result = await controller.getInfo();
     expect(result.mode).toBe('cloud');
   });
 });

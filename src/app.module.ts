@@ -37,6 +37,7 @@ import { AccountModule } from './account/account.module';
 import { StripeModule } from './stripe/stripe.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { InstanceModule } from './instance/instance.module';
+import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
@@ -114,6 +115,7 @@ import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware
     StripeModule,
     FeedbackModule,
     InstanceModule,
+    CloudLinkModule,
   ],
 })
 export class AppModule implements NestModule {

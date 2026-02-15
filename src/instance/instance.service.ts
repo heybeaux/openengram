@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CloudLinkService } from '../cloud-link/cloud-link.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface InstanceInfo {
   mode: 'cloud' | 'self-hosted';
@@ -20,7 +22,7 @@ export interface InstanceInfo {
 export class InstanceService {
   private readonly version: string;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     try {
       const pkg = JSON.parse(
         fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'),
@@ -31,9 +33,9 @@ export class InstanceService {
     }
   }
 
-  getInfo(): InstanceInfo {
+  async getInfo(): Promise<InstanceInfo> {
     const mode = this.getMode();
-    const cloudLinked = this.isCloudLinked();
+    const cloudLinked = await this.isCloudLinked();
 
     return {
       mode,
@@ -47,9 +49,10 @@ export class InstanceService {
     return process.env.DEPLOYMENT_MODE === 'cloud' ? 'cloud' : 'self-hosted';
   }
 
-  isCloudLinked(): boolean {
-    // Linking comes in HEY-66, hardcoded false for now
-    return false;
+  async isCloudLinked(): Promise<boolean> {
+    if (this.getMode() === 'cloud') return false;
+    const count = await this.prisma.cloudLink.count();
+    return count > 0;
   }
 
   getFeatures(

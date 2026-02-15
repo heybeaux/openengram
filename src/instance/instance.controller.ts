@@ -16,7 +16,7 @@ export class InstanceController {
       'Returns deployment mode, version, and feature flags. No authentication required.',
   })
   @ApiResponse({ status: 200, description: 'Instance information.' })
-  getInfo(): InstanceInfo {
+  async getInfo(): Promise<InstanceInfo> {
     return this.instanceService.getInfo();
   }
 }
