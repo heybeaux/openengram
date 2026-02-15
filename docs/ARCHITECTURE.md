@@ -14,8 +14,11 @@
 |---|---|
 | `memory` | CRUD, embedding generation, recall, temporal parsing, search |
 | `prisma` | PrismaService singleton (wraps @prisma/client) |
+| `storage` | Unified storage interface (Prisma-Postgres, SQLite providers) |
 | `vector` | pgvector provider for similarity search |
+| `embedding` | Unified embedding interface (local/cloud/ensemble providers) |
 | `llm` | LLM abstraction layer (OpenAI, structured output) |
+| `events` | Global event emitter module (NestJS EventEmitter) |
 
 ### Intelligence
 | Module | Purpose |
@@ -43,6 +46,7 @@
 ### Platform
 | Module | Purpose |
 |---|---|
+| `account` | Account management, JWT auth, admin endpoints |
 | `agent` | Agent profiles and config |
 | `agent-session` | Session management |
 | `session` | Session utilities |
@@ -51,6 +55,8 @@
 | `config` | App configuration |
 | `common` | Shared decorators, pipes, guards |
 | `utils` | Utility functions |
+| `stripe` | Stripe billing, subscriptions, webhook handling |
+| `scripts` | CLI/maintenance scripts |
 
 ### Ops
 | Module | Purpose |
@@ -59,7 +65,7 @@
 | `monitoring` | Health/perf monitoring snapshots |
 | `health` | Health check endpoints |
 | `dashboard` | Static dashboard UI |
-| `webhook` | Webhook delivery |
+| `webhooks` | Webhook registration, delivery with HMAC signing |
 | `rate-limit` | Rate limiting |
 | `eval` | Evaluation framework |
 | `feedback` | User feedback on recall quality |
