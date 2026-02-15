@@ -201,6 +201,9 @@ model Memory {
   clusterId String?        @map("cluster_id")
   cluster   MemoryCluster? @relation(fields: [clusterId], references: [id])
 
+  // Cloud backup sync tracking
+  cloudSyncedAt DateTime? @map("cloud_synced_at")
+
   // Multi-model ensemble embeddings
   ensembleEmbeddings MemoryEmbedding[]
 
@@ -1268,6 +1271,8 @@ model CloudLink {
   lastVerifiedAt  DateTime? @map("last_verified_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+
+  autoSync Boolean @default(false) @map("auto_sync")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
