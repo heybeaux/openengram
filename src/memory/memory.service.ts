@@ -108,7 +108,7 @@ export class MemoryService {
     // 1. Fetch user info for extraction context
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, externalId: true },
+      select: { id: true, externalId: true, displayName: true },
     });
 
     // 2. Determine source type
@@ -217,8 +217,8 @@ export class MemoryService {
     // 8. Build extraction context
     const extractionContext: ExtractionContext = {
       userId,
-      userName: user?.externalId,
-      timestamp: dto.sourceTimestamp,
+      userName: user?.displayName || user?.externalId,
+      timestamp: dto.sourceTimestamp ?? new Date(),
       turnIndex: dto.sourceTurnIndex,
       conversationId: dto.context?.sessionId,
     };
@@ -436,7 +436,7 @@ export class MemoryService {
       where: { id: memoryId },
       include: {
         extraction: true,
-        user: { select: { id: true, externalId: true } },
+        user: { select: { id: true, externalId: true, displayName: true } },
       },
     });
 
@@ -538,7 +538,7 @@ export class MemoryService {
 
       const context: ExtractionContext = {
         userId,
-        userName: memory.user?.externalId,
+        userName: (memory.user as any)?.displayName || memory.user?.externalId,
       };
       this.extraction
         .extract(dto.raw, context)
@@ -596,7 +596,7 @@ export class MemoryService {
   ): Promise<MemoryWithExtraction> {
     const original = await this.prisma.memory.findUnique({
       where: { id: memoryId },
-      include: { user: { select: { id: true, externalId: true } } },
+      include: { user: { select: { id: true, externalId: true, displayName: true } } },
     });
 
     if (!original) {
@@ -658,7 +658,7 @@ export class MemoryService {
 
     const context: ExtractionContext = {
       userId,
-      userName: original.user?.externalId,
+      userName: (original.user as any)?.displayName || original.user?.externalId,
     };
     this.pipelineService
       .extractAndEmbed(correction.id, dto.correctedContent, userId, context)

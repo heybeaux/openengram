@@ -60,9 +60,10 @@ model Agent {
 /// User represents an end-user whose memories are being stored
 model User {
   id         String     @id @default(cuid())
-  externalId String     @map("external_id")
-  agentId    String     @map("agent_id")
-  createdAt  DateTime   @default(now()) @map("created_at")
+  externalId  String     @map("external_id")
+  displayName String?    @map("display_name")
+  agentId     String     @map("agent_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime   @updatedAt @map("updated_at")
   deletedAt  DateTime?  @map("deleted_at")
   feedback   Feedback[]

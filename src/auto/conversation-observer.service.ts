@@ -54,9 +54,9 @@ export class ConversationObserverService {
     if (!userName) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { externalId: true },
+        select: { externalId: true, displayName: true },
       });
-      userName = user?.externalId;
+      userName = user?.displayName || user?.externalId;
     }
 
     // 2. If summarization is enabled, batch turns through summarizer instead
@@ -98,7 +98,7 @@ export class ConversationObserverService {
     }
 
     // 2b. Build extraction context (original path when summarization is off)
-    const extractorContext: ExtractorContext = { userName };
+    const extractorContext: ExtractorContext = { userName, timestamp: new Date() };
 
     // 3. Detect importance signals
     const signals = this.importanceDetector.detect(dto.turns);

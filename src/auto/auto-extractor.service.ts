@@ -10,10 +10,15 @@ import {
 /**
  * Build extraction prompt with optional user context
  */
-const buildExtractionPrompt = (userName?: string): string => {
+const buildExtractionPrompt = (userName?: string, timestamp?: Date): string => {
   const userRef = userName || 'User';
+  const now = timestamp ?? new Date();
+  const isoNow = now.toISOString();
 
   return `You are analyzing a conversation to extract memorable facts. Focus on information that would be valuable to remember for future conversations.
+
+CURRENT TIMESTAMP: ${isoNow}
+Use this to resolve relative time references ("today", "tomorrow", "yesterday", "next week") into specific dates in your extracted facts.
 
 ${userName ? `IMPORTANT: The user's name is "${userName}". Use their actual name in extracted facts, not generic terms like "User" or "the user".` : ''}
 
@@ -36,7 +41,7 @@ Bad: "They want dark mode"
 ${userName ? `Good: "${userName} prefers dark mode for all applications"` : 'Good: "User prefers dark mode for all applications"'}
 
 Bad: "Will do it tomorrow"  
-${userName ? `Good: "${userName} planned to deploy the API on [specific date]"` : 'Good: "User planned to deploy the API on [specific date]"'}`;
+${userName ? `Good: "${userName} planned to deploy the API on ${new Date(now.getTime() + 86400000).toISOString().split('T')[0]}"` : `Good: "User planned to deploy the API on ${new Date(now.getTime() + 86400000).toISOString().split('T')[0]}"`}`;
 };
 
 interface ExtractionResponse {
@@ -48,6 +53,7 @@ interface ExtractionResponse {
 
 export interface ExtractorContext {
   userName?: string;
+  timestamp?: Date;
 }
 
 /**
@@ -72,7 +78,7 @@ export class AutoExtractorService {
       // Format conversation for LLM
       const conversation = this.formatConversation(turns);
       const signalHints = this.formatSignalHints(signals);
-      const prompt = buildExtractionPrompt(context?.userName);
+      const prompt = buildExtractionPrompt(context?.userName, context?.timestamp);
 
       const result = await this.llm.json<ExtractionResponse>(
         [

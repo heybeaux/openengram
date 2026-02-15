@@ -74,16 +74,25 @@ export interface ExtractionContext {
 
 const EXTRACTION_PROMPT_TEMPLATE = (
   userName?: string,
-) => `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
+  timestamp?: Date,
+) => {
+  const now = timestamp ?? new Date();
+  const isoNow = now.toISOString();
+  const humanNow = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+
+  return `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
+
+CURRENT TIMESTAMP: ${isoNow} (${humanNow})
+Use this to resolve relative time references ("today", "yesterday", "next week", "tomorrow") into ISO dates.
 
 ${userName ? `IMPORTANT: This memory is about or from a user named "${userName}". Replace generic references like "User", "user", "the user", "I", "they" with "${userName}" in your extraction.` : ''}
 
 Extract these fields (use these EXACT lowercase JSON keys):
 - "who": People, organizations, or entities mentioned. ${userName ? `Use "${userName}" instead of generic "User" references.` : ''}
-- "what": The core fact, action, or statement. Make it a complete, standalone sentence.
-- "when": Any temporal context (dates, times, relative references). Use ISO format if possible.
-- "where": Location, context, or setting
-- "why": Reasoning, motivation, or cause
+- "what": The core fact, action, or statement. Make it a complete, standalone sentence that makes sense out of context. Be specific — "prefers oat milk lattes" not "has a preference".
+- "when": Any temporal context. Convert relative references ("tomorrow", "next week", "yesterday") to ISO dates using the CURRENT TIMESTAMP above. If no time is mentioned, use null (the system records createdAt automatically).
+- "where": Location, platform, context, or setting. This includes physical locations ("Vancouver"), digital contexts ("in Slack", "on the repo"), or situational context ("during the meeting", "at work").
+- "why": Reasoning, motivation, or cause behind the statement or action. What prompted this? Why does it matter? Even implied reasons count ("switched to dark mode" → why: "easier on the eyes" if implied).
 - "how": Method, manner, or process
 - "topics": Relevant categories (e.g., "preferences", "work", "technical", "personal")
 - "entities": Named entities with types. Return as array of {name, type} objects where type is: person, organization, project, product, location, or other
@@ -149,6 +158,7 @@ If a 5W1H field is null, set its confidence to null too.
 For topics and entities, return empty arrays if none found.
 
 Respond with valid JSON only, using lowercase keys. No explanation.`;
+};
 
 interface ExtractionResponse {
   who: string | null;
@@ -207,7 +217,7 @@ export class ExtractionService {
     });
 
     try {
-      const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName);
+      const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName, context?.timestamp);
 
       const rawResult = await this.llm.json<Record<string, unknown>>(
         [
