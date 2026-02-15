@@ -30,6 +30,13 @@ import { RateLimit } from '../rate-limit/rate-limit.decorator';
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
 
+  @Get('auth/setup-status')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Check if initial setup is needed (no auth required)' })
+  async getSetupStatus() {
+    return this.accountService.getSetupStatus();
+  }
+
   @Post('auth/register')
   @HttpCode(201)
   @UseGuards(RateLimitGuard)

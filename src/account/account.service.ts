@@ -60,20 +60,39 @@ export class AccountService {
     return found;
   }
 
-  async register(email: string, password: string, name?: string, plan?: string, accessCode?: string) {
-    // Validate plan/accessCode requirements
-    if (!accessCode && !plan) {
-      throw new BadRequestException('Please select a plan or enter an access code');
-    }
+  async getSetupStatus(): Promise<{ needsSetup: boolean }> {
+    const count = await this.prisma.account.count();
+    return { needsSetup: count === 0 };
+  }
 
-    if (plan && plan.toUpperCase() === 'FREE') {
-      throw new BadRequestException('Free tier is available via self-hosting. Cloud plans start at $9/mo');
+  private isSelfHosted(): boolean {
+    return this.config.get<string>('DEPLOYMENT_MODE') !== 'cloud';
+  }
+
+  async register(email: string, password: string, name?: string, plan?: string, accessCode?: string) {
+    // Self-hosted first-run: allow registration without plan/accessCode
+    const { needsSetup } = await this.getSetupStatus();
+    const selfHosted = this.isSelfHosted();
+
+    if (!needsSetup || !selfHosted) {
+      // Normal cloud registration rules
+      if (!accessCode && !plan) {
+        throw new BadRequestException('Please select a plan or enter an access code');
+      }
+
+      if (plan && plan.toUpperCase() === 'FREE') {
+        throw new BadRequestException('Free tier is available via self-hosting. Cloud plans start at $9/mo');
+      }
     }
 
     let resolvedPlan: string = 'STARTER';
     let activatedByCode = false;
 
-    if (accessCode) {
+    // Self-hosted first-run: auto-assign SCALE plan
+    if (needsSetup && selfHosted) {
+      resolvedPlan = 'SCALE';
+      activatedByCode = true; // Treat as pre-activated (no payment needed)
+    } else if (accessCode) {
       const validCode = await this.validateAccessCode(accessCode);
       if (!validCode) {
         throw new BadRequestException('Invalid or expired access code');
