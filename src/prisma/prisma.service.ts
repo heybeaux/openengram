@@ -21,7 +21,12 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    super();
+    super({
+      transactionOptions: {
+        maxWait: 10000,
+        timeout: 30000,
+      },
+    });
 
     // Return a Proxy that intercepts property access.
     // When an RLS transactional client exists in AsyncLocalStorage,

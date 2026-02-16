@@ -15,10 +15,9 @@ import {
   UpdateAgentSessionDto,
 } from './dto/agent-session.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
-import { InternalOnlyGuard } from '../common/guards/internal-only.guard';
 
 @ApiTags('agent-sessions')
-@UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/agent-sessions')
 export class AgentSessionController {
   constructor(private readonly service: AgentSessionService) {}
