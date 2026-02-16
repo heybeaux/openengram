@@ -6,4 +6,6 @@ docs/
 reports/
 worktrees/
 scripts/
-.env*
+.env
+.env.*
+!.env.example

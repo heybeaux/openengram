@@ -5,70 +5,40 @@ services:
       POSTGRES_USER: engram
       POSTGRES_PASSWORD: engram
       POSTGRES_DB: engram
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U engram"]
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - engram-network
 
-  engram:
+  api:
     build: .
+    environment:
+      DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
+      DIRECT_URL: postgresql://engram:engram@postgres:5432/engram
+      EDITION: local
+      EMBEDDING_PROVIDER: local
+      PORT: 3001
     ports:
       - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
-    networks:
-      - engram-network
 
   # ── Optional services (uncomment to enable) ──────────────────
 
-  # engram-embed:
-  #   build: ../engram-embed
-  #   ports:
-  #     - "8080:8080"
-  #   networks:
-  #     - engram-network
-  #   # Local embeddings on Metal GPU — set EMBEDDING_PROVIDER=local in .env
-
-  # engram-code:
-  #   build: ../engram-code
-  #   ports:
-  #     - "3002:3002"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     DATABASE_URL: postgresql://engram:engram@postgres:5432/engram
-  #   networks:
-  #     - engram-network
-
   # dashboard:
   #   build: ../engram-dashboard
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://localhost:3001
   #   ports:
   #     - "3000:3000"
-  #   environment:
-  #     NEXT_PUBLIC_ENGRAM_API_URL: http://engram:3001
-  #     NEXT_PUBLIC_ENGRAM_CODE_URL: http://engram-code:3002
   #   depends_on:
-  #     - engram
-  #   networks:
-  #     - engram-network
+  #     - api
 
 volumes:
   pgdata:
-
-networks:
-  engram-network:
