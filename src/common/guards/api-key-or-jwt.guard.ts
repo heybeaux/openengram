@@ -123,6 +123,25 @@ export class ApiKeyOrJwtGuard implements CanActivate {
       }
 
       request.agent = agent;
+
+      // Resolve or create a default user for this agent (needed by @UserId())
+      const externalUserId =
+        request.headers['x-am-user-id'] || payload.email || accountId;
+      let user = await this.prisma.user.findUnique({
+        where: {
+          agentId_externalId: {
+            agentId: agent.id,
+            externalId: externalUserId,
+          },
+        },
+      });
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: { agentId: agent.id, externalId: externalUserId },
+        });
+      }
+      request.user = user;
+
       return true;
     }
 
