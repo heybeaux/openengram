@@ -67,7 +67,7 @@ describe('AdminController', () => {
 
   describe('constructor', () => {
     it('should use default admin email when config is empty', () => {
-      const defaultConfig = { get: jest.fn().mockReturnValue('hello@heybeaux.dev') };
+      const defaultConfig = { get: jest.fn().mockReturnValue('hello@heybeaux.dev') } as any;
       const ctrl = new AdminController(prisma, defaultConfig);
       // Just verify it constructs without error
       expect(ctrl).toBeDefined();

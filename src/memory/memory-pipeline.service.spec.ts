@@ -168,8 +168,8 @@ describe('MemoryPipelineService', () => {
       prisma.memoryEntity.upsert.mockResolvedValue({});
 
       await service.storeEntities('user-1', 'm1', [
-        { name: 'React', type: 'TECHNOLOGY' },
-        { name: 'Google', type: 'ORGANIZATION' },
+        { name: 'React', type: 'other' },
+        { name: 'Google', type: 'organization' },
       ]);
 
       expect(prisma.entity.upsert).toHaveBeenCalledTimes(2);
@@ -179,7 +179,7 @@ describe('MemoryPipelineService', () => {
     it('should handle entity storage failure gracefully', async () => {
       prisma.entity.upsert.mockRejectedValue(new Error('unique constraint'));
       // Should not throw — errors are caught per-entity
-      await service.storeEntities('user-1', 'm1', [{ name: 'X', type: 'OTHER' }]);
+      await service.storeEntities('user-1', 'm1', [{ name: 'X', type: 'other' }]);
     });
   });
 });
