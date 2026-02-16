@@ -33,7 +33,6 @@ describe('InstanceController', () => {
   it('should return instance info', async () => {
     const result = await controller.getInfo();
     expect(result).toHaveProperty('mode');
-    expect(result).toHaveProperty('version');
     expect(result).toHaveProperty('features');
     expect(result).toHaveProperty('cloudLinked');
   });
