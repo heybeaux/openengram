@@ -33,6 +33,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+      ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
       NODE_ENV: test
 
     steps:

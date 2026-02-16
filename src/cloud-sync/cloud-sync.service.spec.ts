@@ -81,6 +81,7 @@ describe('CloudSyncService', () => {
         syncedCount: 75,
         pendingCount: 25,
         autoSync: false,
+        syncing: false,
       });
     });
 

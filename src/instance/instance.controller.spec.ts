@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InstanceController } from './instance.controller';
 import { InstanceService } from './instance.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApiKeyOrJwtGuard } from '../auth/api-key-or-jwt.guard';
 
 const mockPrisma = {
   cloudLink: { count: jest.fn().mockResolvedValue(0) },
@@ -17,7 +18,10 @@ describe('InstanceController', () => {
         InstanceService,
         { provide: PrismaService, useValue: mockPrisma },
       ],
-    }).compile();
+    })
+      .overrideGuard(ApiKeyOrJwtGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<InstanceController>(InstanceController);
   });
