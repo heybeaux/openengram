@@ -10,7 +10,7 @@ import { MemoryCreatedEvent } from '../events/event-types';
 import { decrypt } from '../common/encryption.util';
 import { generateContentHash } from '../common/content-hash.util';
 import { SyncPushDto, SyncPushResponse, SyncPushResultItem } from './dto/sync-push.dto';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 500;
@@ -163,7 +163,7 @@ export class CloudSyncService {
   // =========================================================================
 
   async handleSyncPush(
-    userId: string,
+    accountId: string,
     instanceId: string,
     dto: SyncPushDto,
   ): Promise<SyncPushResponse> {
@@ -171,11 +171,27 @@ export class CloudSyncService {
 
     for (const memPayload of dto.memories) {
       try {
-        // 1. Check contentHash dedup — skip if already exists
+        // 1. Resolve cloud agent via SyncAgentMap
+        const cloudAgentId = await this.resolveCloudAgent(
+          accountId,
+          instanceId,
+          memPayload.localAgentId || 'default',
+          memPayload.agentName || 'Default Agent',
+        );
+
+        // 2. Resolve cloud user via SyncUserMap
+        const cloudUserId = await this.resolveCloudUser(
+          instanceId,
+          cloudAgentId,
+          memPayload.localUserId || 'default',
+          memPayload.userExternalId || 'default',
+        );
+
+        // 3. Check contentHash dedup — skip if already exists
         if (memPayload.contentHash) {
           const existing = await this.prisma.memory.findFirst({
             where: {
-              userId,
+              userId: cloudUserId,
               contentHash: memPayload.contentHash,
               deletedAt: null,
             },
@@ -183,7 +199,6 @@ export class CloudSyncService {
           });
 
           if (existing) {
-            // Ensure SyncIdMap entry exists
             await this.upsertSyncIdMap(
               instanceId,
               memPayload.localId,
@@ -199,7 +214,7 @@ export class CloudSyncService {
           }
         }
 
-        // 2. Check SyncIdMap — already synced this localId?
+        // 4. Check SyncIdMap — already synced this localId?
         const existingMap = await this.prisma.syncIdMap.findUnique({
           where: {
             instanceId_localMemoryId: {
@@ -218,10 +233,10 @@ export class CloudSyncService {
           continue;
         }
 
-        // 3. Create the memory
+        // 5. Create the memory with correct cloud agentId/userId
         const memory = await this.prisma.memory.create({
           data: {
-            userId,
+            userId: cloudUserId,
             raw: memPayload.raw,
             layer: memPayload.layer as any,
             source: (memPayload.source as any) || 'EXPLICIT_STATEMENT',
@@ -235,7 +250,7 @@ export class CloudSyncService {
           },
         });
 
-        // 4. Create extraction if provided
+        // 6. Create extraction if provided
         if (memPayload.extraction) {
           const ext = memPayload.extraction;
           await this.prisma.memoryExtraction.create({
@@ -252,7 +267,7 @@ export class CloudSyncService {
           });
         }
 
-        // 5. Create SyncIdMap entry
+        // 7. Create SyncIdMap entry
         await this.upsertSyncIdMap(
           instanceId,
           memPayload.localId,
@@ -278,6 +293,116 @@ export class CloudSyncService {
     }
 
     return { results };
+  }
+
+  // =========================================================================
+  // Agent/User mapping for sync attribution preservation
+  // =========================================================================
+
+  /**
+   * Look up or create a cloud agent for the given local agent.
+   * Returns the cloud agentId.
+   */
+  private async resolveCloudAgent(
+    accountId: string,
+    instanceId: string,
+    localAgentId: string,
+    agentName: string,
+  ): Promise<string> {
+    // Try existing mapping by localAgentId
+    const existing = await this.prisma.syncAgentMap.findUnique({
+      where: {
+        instanceId_localAgentId: { instanceId, localAgentId },
+      },
+    });
+    if (existing) return existing.cloudAgentId;
+
+    // Try by agentName (same instance, same name = same agent)
+    const byName = await this.prisma.syncAgentMap.findUnique({
+      where: {
+        instanceId_agentName: { instanceId, agentName },
+      },
+    });
+    if (byName) {
+      // Create additional localAgentId mapping
+      await this.prisma.syncAgentMap.create({
+        data: {
+          instanceId,
+          localAgentId,
+          cloudAgentId: byName.cloudAgentId,
+          agentName,
+        },
+      }).catch(() => {}); // ignore if already exists
+      return byName.cloudAgentId;
+    }
+
+    // Create new cloud agent for this synced instance
+    const rawKey = `eng_sync_${randomUUID().replace(/-/g, '')}`;
+    const apiKeyHash = createHash('sha256').update(rawKey).digest('hex');
+    const apiKeyHint = `sync_${agentName.slice(0, 12)}`;
+
+    const agent = await this.prisma.agent.create({
+      data: {
+        name: agentName,
+        apiKeyHash,
+        apiKeyHint,
+        accountId,
+      },
+    });
+
+    await this.prisma.syncAgentMap.create({
+      data: {
+        instanceId,
+        localAgentId,
+        cloudAgentId: agent.id,
+        agentName,
+      },
+    });
+
+    return agent.id;
+  }
+
+  /**
+   * Look up or create a cloud user for the given local user.
+   * Returns the cloud userId.
+   */
+  private async resolveCloudUser(
+    instanceId: string,
+    cloudAgentId: string,
+    localUserId: string,
+    externalId: string,
+  ): Promise<string> {
+    // Try existing mapping
+    const existing = await this.prisma.syncUserMap.findUnique({
+      where: {
+        instanceId_localUserId: { instanceId, localUserId },
+      },
+    });
+    if (existing) return existing.cloudUserId;
+
+    // Find or create user under the cloud agent
+    let user = await this.prisma.user.findUnique({
+      where: {
+        agentId_externalId: { agentId: cloudAgentId, externalId },
+      },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: { agentId: cloudAgentId, externalId },
+      });
+    }
+
+    await this.prisma.syncUserMap.create({
+      data: {
+        instanceId,
+        localUserId,
+        cloudUserId: user.id,
+        externalId,
+      },
+    });
+
+    return user.id;
   }
 
   // =========================================================================

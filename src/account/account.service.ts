@@ -377,6 +377,60 @@ export class AccountService {
     return { message: 'Password changed successfully.' };
   }
 
+  // =========================================================================
+  // Instance Sync Keys
+  // =========================================================================
+
+  async createSyncKey(accountId: string, instanceName: string) {
+    const rawKey = `esync_${randomBytes(24).toString('hex')}`;
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+    const keyHint = rawKey.slice(0, 10) + '...' + rawKey.slice(-4);
+
+    const syncKey = await this.prisma.instanceSyncKey.create({
+      data: {
+        accountId,
+        keyHash,
+        keyHint,
+        instanceName,
+      },
+    });
+
+    return {
+      syncKey: rawKey,
+      id: syncKey.id,
+      instanceName: syncKey.instanceName,
+      keyHint,
+      createdAt: syncKey.createdAt,
+    };
+  }
+
+  async listSyncKeys(accountId: string) {
+    return this.prisma.instanceSyncKey.findMany({
+      where: { accountId, revokedAt: null },
+      select: {
+        id: true,
+        instanceName: true,
+        keyHint: true,
+        createdAt: true,
+        lastUsedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokeSyncKey(accountId: string, syncKeyId: string) {
+    const key = await this.prisma.instanceSyncKey.findFirst({
+      where: { id: syncKeyId, accountId, revokedAt: null },
+    });
+    if (!key) {
+      throw new BadRequestException('Sync key not found');
+    }
+    await this.prisma.instanceSyncKey.update({
+      where: { id: syncKeyId },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   async deleteAccount(accountId: string) {
     await this.prisma.$transaction(async (tx) => {
       // Get all agents for this account

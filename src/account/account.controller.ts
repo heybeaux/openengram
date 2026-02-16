@@ -136,4 +136,34 @@ export class AccountController {
   async updateAccount(@Req() req: any, @Body() body: UpdateAccountDto) {
     return this.accountService.updateAccount(req.accountId, body);
   }
+
+  // =========================================================================
+  // Instance Sync Keys
+  // =========================================================================
+
+  @Post('account/sync-keys')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Create an instance sync key' })
+  async createSyncKey(@Req() req: any, @Body() body: { instanceName: string }) {
+    return this.accountService.createSyncKey(req.accountId, body.instanceName);
+  }
+
+  @Get('account/sync-keys')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List instance sync keys (hints only)' })
+  async listSyncKeys(@Req() req: any) {
+    return this.accountService.listSyncKeys(req.accountId);
+  }
+
+  @Delete('account/sync-keys/:id')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke an instance sync key' })
+  async revokeSyncKey(@Req() req: any, @Param('id') id: string) {
+    await this.accountService.revokeSyncKey(req.accountId, id);
+  }
 }

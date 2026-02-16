@@ -9,6 +9,7 @@
 
 ## Table of Contents
 
+0. [Instance Sync Keys vs Agent API Keys](#0-instance-sync-keys-vs-agent-api-keys)
 1. [Overview & Demographics](#1-overview--demographics)
 2. [Architecture & Data Flow](#2-architecture--data-flow)
 3. [Linking Flow](#3-linking-flow)
@@ -27,6 +28,83 @@
 16. [Dashboard UI](#16-dashboard-ui)
 17. [Phased Rollout](#17-phased-rollout)
 18. [Critique & Revisions](#18-critique--revisions)
+
+---
+
+## 0. Instance Sync Keys vs Agent API Keys
+
+### 0.1 Two Kinds of Keys
+
+Engram uses two fundamentally different key types:
+
+| | Agent API Key (`eng_...`) | Instance Sync Key (`esync_...`) |
+|---|---|---|
+| **Purpose** | Identity — creates/represents an AI agent | Plumbing — authenticates a local instance for sync |
+| **Scope** | Agent-level (one key = one agent = one user/memory space) | Account-level (one key = one instance, preserves all agents/users) |
+| **Creates identity?** | Yes — each key creates a new Agent with its own users | No — sync preserves the original agent/user structure |
+| **Used by** | AI agents (Rook, ChatGPT, etc.) calling the memory API | Local Engram instances pushing data to cloud |
+| **Header** | `X-AM-API-Key` | `X-Sync-Key` |
+| **Guard** | `ApiKeyGuard` → sets `request.agent`, `request.user` | `InstanceSyncKeyGuard` → sets `request.accountId`, `request.instanceId` |
+
+### 0.2 Instance Sync Key Model
+
+```
+InstanceSyncKey {
+  id           String    @id
+  accountId    String    — links to Account (owner)
+  keyHash      String    @unique — SHA-256 of the raw key
+  keyHint      String    — first 10 + last 4 chars for display
+  instanceName String    — human-readable name ("MacBook Pro", "Office Server")
+  createdAt    DateTime
+  lastUsedAt   DateTime? — updated on each sync push
+  revokedAt    DateTime? — soft-revoke (null = active)
+}
+```
+
+### 0.3 Agent/User Attribution Mapping
+
+When a local instance syncs memories to cloud, the cloud must recreate the same agent/user structure. Two mapping tables handle this:
+
+**SyncAgentMap** — maps local agents to cloud agents per instance:
+```
+SyncAgentMap {
+  instanceId    String  — which sync instance
+  localAgentId  String  — agent ID on the local side
+  cloudAgentId  String  — corresponding agent on cloud
+  agentName     String  — agent name (for matching by name)
+}
+```
+
+**SyncUserMap** — maps local users to cloud users per instance:
+```
+SyncUserMap {
+  instanceId   String  — which sync instance
+  localUserId  String  — user ID on the local side
+  cloudUserId  String  — corresponding user on cloud
+  externalId   String  — user's externalId (for find-or-create)
+}
+```
+
+### 0.4 Sync Push Attribution Flow
+
+1. Local instance sends `POST /v1/sync/push` with `X-Sync-Key` header
+2. `InstanceSyncKeyGuard` validates key → sets `accountId` + `instanceId`
+3. Each memory in the payload includes `agentName`, `localAgentId`, `userExternalId`, `localUserId`
+4. Cloud-side `handleSyncPush()`:
+   - Looks up `SyncAgentMap` for `(instanceId, localAgentId)` → if not found, creates a new Agent under the account and records the mapping
+   - Looks up `SyncUserMap` for `(instanceId, localUserId)` → if not found, finds or creates User under the mapped cloud Agent
+   - Creates the Memory with the correct cloud `userId` (preserving attribution)
+5. Original agent/user structure is perfectly mirrored on cloud
+
+### 0.5 Sync Key Management Endpoints
+
+```
+POST   /v1/account/sync-keys       — Create sync key (returns esync_... once)
+GET    /v1/account/sync-keys       — List sync keys (hints only, no raw keys)
+DELETE /v1/account/sync-keys/:id   — Revoke a sync key
+```
+
+All endpoints require `AccountJwtGuard` (dashboard auth).
 
 ---
 

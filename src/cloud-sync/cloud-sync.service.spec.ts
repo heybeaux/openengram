@@ -58,6 +58,25 @@ describe('CloudSyncService', () => {
         findUnique: jest.fn(),
         upsert: jest.fn(),
       },
+      syncAgentMap: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
+      syncUserMap: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
+      instanceSyncKey: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      agent: {
+        create: jest.fn(),
+      },
+      user: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -186,13 +205,26 @@ describe('CloudSyncService', () => {
   });
 
   describe('handleSyncPush (cloud-side)', () => {
+    const setupAgentUserMocks = () => {
+      // resolveCloudAgent: no existing mapping, create new agent
+      prisma.syncAgentMap.findUnique.mockResolvedValue(null);
+      prisma.agent.create.mockResolvedValue({ id: 'cloud-agent-1' });
+      prisma.syncAgentMap.create.mockResolvedValue({});
+      // resolveCloudUser: no existing mapping, no existing user, create new
+      prisma.syncUserMap.findUnique.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'cloud-user-1' });
+      prisma.syncUserMap.create.mockResolvedValue({});
+    };
+
     it('should create memory and SyncIdMap entry', async () => {
+      setupAgentUserMocks();
       prisma.memory.findFirst.mockResolvedValue(null); // no existing by hash
       prisma.syncIdMap.findUnique.mockResolvedValue(null); // no existing map
       prisma.memory.create.mockResolvedValue({ id: 'cloud-mem-1' });
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
-      const result = await service.handleSyncPush('user-1', 'inst-1', {
+      const result = await service.handleSyncPush('acc-1', 'inst-1', {
         memories: [{
           raw: 'hello world',
           layer: 'SESSION',
@@ -200,6 +232,10 @@ describe('CloudSyncService', () => {
           contentHash: 'abc123',
           localId: 'local-1',
           instanceId: 'inst-1',
+          agentName: 'Test Agent',
+          localAgentId: 'local-agent-1',
+          userExternalId: 'user@test.com',
+          localUserId: 'local-user-1',
         }],
         syncProtocolVersion: 2,
       });
@@ -210,10 +246,11 @@ describe('CloudSyncService', () => {
     });
 
     it('should skip if contentHash already exists', async () => {
+      setupAgentUserMocks();
       prisma.memory.findFirst.mockResolvedValue({ id: 'existing-1' });
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
-      const result = await service.handleSyncPush('user-1', 'inst-1', {
+      const result = await service.handleSyncPush('acc-1', 'inst-1', {
         memories: [{
           raw: 'hello world',
           layer: 'SESSION',

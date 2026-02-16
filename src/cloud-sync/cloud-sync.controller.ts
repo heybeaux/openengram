@@ -8,7 +8,6 @@ import {
   UseGuards,
   Req,
   HttpCode,
-  Headers,
   BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -16,7 +15,7 @@ import { CloudSyncService } from './cloud-sync.service';
 import { AccountJwtGuard } from '../account/account.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { SyncPushDto, SyncPushResponse } from './dto/sync-push.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { InstanceSyncKeyGuard } from '../common/guards/instance-sync-key.guard';
 
 @ApiTags('cloud')
 @Controller('v1/cloud/sync')
@@ -68,22 +67,20 @@ export class SyncIngestController {
 
   @Post('push')
   @HttpCode(200)
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(InstanceSyncKeyGuard)
   @ApiOperation({ summary: 'Batch push memories from local instance' })
   async pushBatch(
     @Body() dto: SyncPushDto,
-    @Headers('x-instance-id') instanceId: string,
     @Req() req: any,
   ): Promise<SyncPushResponse> {
-    if (!instanceId) {
-      throw new BadRequestException('X-Instance-Id header is required');
-    }
-
     if (dto.syncProtocolVersion && dto.syncProtocolVersion > 2) {
       throw new BadRequestException('Unsupported sync protocol version');
     }
 
-    const userId = req.userId;
-    return this.cloudSyncService.handleSyncPush(userId, instanceId, dto);
+    return this.cloudSyncService.handleSyncPush(
+      req.accountId,
+      req.instanceId,
+      dto,
+    );
   }
 }

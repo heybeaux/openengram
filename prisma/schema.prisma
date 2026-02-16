@@ -29,6 +29,7 @@ model Account {
   agents              Agent[]
   uxFeedback          UxFeedback[]
   cloudLink           CloudLink?
+  instanceSyncKeys    InstanceSyncKey[]
 
   @@map("accounts")
 }
@@ -55,6 +56,7 @@ model Agent {
   users          User[]
   webhooks       Webhook[]
   account        Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  syncAgentMaps  SyncAgentMap[]
 
   @@map("agents")
 }
@@ -78,6 +80,7 @@ model User {
   graphEntities      GraphEntity[]
   graphRelationships GraphRelationship[]
   graphMentions      GraphEntityMention[]
+  syncUserMaps       SyncUserMap[]
 
   @@unique([agentId, externalId])
   @@map("users")
@@ -1286,6 +1289,58 @@ model CloudLink {
 // ============================================================================
 // CLOUD SYNC v2
 // ============================================================================
+
+/// Instance Sync Key — authenticates a local instance for cloud sync.
+/// Account-level (not agent-level). Does NOT create agent identity.
+model InstanceSyncKey {
+  id           String    @id @default(cuid())
+  accountId    String    @map("account_id")
+  keyHash      String    @unique @map("key_hash")
+  keyHint      String    @map("key_hint")
+  instanceName String    @map("instance_name")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+  revokedAt    DateTime? @map("revoked_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@map("instance_sync_keys")
+}
+
+/// Maps local agentId to cloud agentId per sync instance
+model SyncAgentMap {
+  id           String   @id @default(cuid())
+  instanceId   String   @map("instance_id")
+  localAgentId String   @map("local_agent_id")
+  cloudAgentId String   @map("cloud_agent_id")
+  agentName    String   @map("agent_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  cloudAgent Agent @relation(fields: [cloudAgentId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, localAgentId])
+  @@unique([instanceId, agentName])
+  @@index([cloudAgentId])
+  @@map("sync_agent_map")
+}
+
+/// Maps local userId to cloud userId per sync instance
+model SyncUserMap {
+  id          String   @id @default(cuid())
+  instanceId  String   @map("instance_id")
+  localUserId String   @map("local_user_id")
+  cloudUserId String   @map("cloud_user_id")
+  externalId  String   @map("external_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  cloudUser User @relation(fields: [cloudUserId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, localUserId])
+  @@unique([instanceId, cloudUserId])
+  @@index([cloudUserId])
+  @@map("sync_user_map")
+}
 
 /// Maps local memory IDs to cloud memory IDs for sync tracking
 model SyncIdMap {

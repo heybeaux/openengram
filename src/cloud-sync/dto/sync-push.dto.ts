@@ -104,6 +104,26 @@ export class SyncMemoryPayloadDto {
   @IsString()
   instanceId: string;
 
+  @ApiPropertyOptional({ description: 'Agent name for attribution mapping' })
+  @IsOptional()
+  @IsString()
+  agentName?: string;
+
+  @ApiPropertyOptional({ description: 'Local agent ID for mapping' })
+  @IsOptional()
+  @IsString()
+  localAgentId?: string;
+
+  @ApiPropertyOptional({ description: 'User external ID for attribution mapping' })
+  @IsOptional()
+  @IsString()
+  userExternalId?: string;
+
+  @ApiPropertyOptional({ description: 'Local user ID for mapping' })
+  @IsOptional()
+  @IsString()
+  localUserId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
