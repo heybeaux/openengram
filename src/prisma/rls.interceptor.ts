@@ -57,7 +57,7 @@ export class RlsInterceptor implements NestInterceptor {
           return new Promise((resolve, reject) => {
             next.handle().subscribe({
               next: (val) => resolve(val),
-              error: (err) => reject(err),
+              error: (err: unknown) => reject(err instanceof Error ? err : new Error(String(err))),
             });
           });
         });

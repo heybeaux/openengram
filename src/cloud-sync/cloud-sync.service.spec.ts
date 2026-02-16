@@ -141,7 +141,7 @@ describe('CloudSyncService', () => {
 
     it('should reject if sync already in progress', async () => {
       prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
-      let resolveFirst: Function;
+      let resolveFirst: () => void;
       prisma.memory.findMany.mockImplementation(
         () => new Promise((resolve) => { resolveFirst = () => resolve([]); }),
       );
