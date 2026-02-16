@@ -11,12 +11,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CloudLinkService } from './cloud-link.service';
-import { AccountJwtGuard } from '../account/account.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 
 @ApiTags('cloud')
 @Controller('v1/cloud')
-@UseGuards(AccountJwtGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @ApiBearerAuth()
 export class CloudLinkController {
   constructor(private readonly cloudLinkService: CloudLinkService) {}

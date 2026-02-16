@@ -12,14 +12,14 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CloudSyncService } from './cloud-sync.service';
-import { AccountJwtGuard } from '../account/account.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { SyncPushDto, SyncPushResponse } from './dto/sync-push.dto';
 import { InstanceSyncKeyGuard } from '../common/guards/instance-sync-key.guard';
 
 @ApiTags('cloud')
 @Controller('v1/cloud/sync')
-@UseGuards(AccountJwtGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @ApiBearerAuth()
 export class CloudSyncController {
   constructor(private readonly cloudSyncService: CloudSyncService) {}

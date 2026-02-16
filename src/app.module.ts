@@ -107,6 +107,8 @@ const coreModules = [
   FogIndexModule,
   RateLimitModule,
   AccountModule,
+  CloudLinkModule,
+  CloudSyncModule,
 ];
 
 const cloudModules = [
@@ -119,8 +121,6 @@ const cloudModules = [
   StripeModule,
   FeedbackModule,
   InstanceModule,
-  CloudLinkModule,
-  CloudSyncModule,
 ];
 
 @Module({
