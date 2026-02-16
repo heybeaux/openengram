@@ -88,6 +88,7 @@ describe('ContextEnricherService', () => {
       lastDreamCycleAt: null,
       patternSourceIds: [],
       cloudSyncedAt: null,
+      contentHash: null,
       extraction: null,
       entities: [],
       ...overrides,
