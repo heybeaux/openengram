@@ -12,8 +12,8 @@ import { validateEncryptionKey } from './common/encryption.util';
 // Initialize Sentry before anything else
 initSentry();
 
-// Validate encryption key is set (skip in test environment)
-if (process.env.NODE_ENV !== 'test') {
+// Validate encryption key is set (only required for cloud edition, skip in test)
+if (process.env.NODE_ENV !== 'test' && process.env.EDITION === 'cloud') {
   validateEncryptionKey();
 }
 

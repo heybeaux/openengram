@@ -42,83 +42,89 @@ import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    LoggerModule.forRoot({
-      pinoHttp: {
-        level: process.env.LOG_LEVEL || 'info',
-        transport:
-          process.env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty', options: { colorize: true } }
-            : undefined,
-        customProps: (req: any) => ({
-          accountId: req.headers?.['x-am-api-key']
-            ? req.headers['x-am-api-key'].slice(0, 8) + '...'
-            : undefined,
-          userId: req.headers?.['x-am-user-id'] || undefined,
+const EDITION = process.env.EDITION || 'local';
+
+const coreModules = [
+  ConfigModule.forRoot({
+    isGlobal: true,
+  }),
+  LoggerModule.forRoot({
+    pinoHttp: {
+      level: process.env.LOG_LEVEL || 'info',
+      transport:
+        process.env.NODE_ENV !== 'production'
+          ? { target: 'pino-pretty', options: { colorize: true } }
+          : undefined,
+      customProps: (req: any) => ({
+        accountId: req.headers?.['x-am-api-key']
+          ? req.headers['x-am-api-key'].slice(0, 8) + '...'
+          : undefined,
+        userId: req.headers?.['x-am-user-id'] || undefined,
+      }),
+      autoLogging: {
+        ignore: (req: any) => req.url === '/v1/health',
+      },
+      serializers: {
+        req: (req: any) => ({
+          method: req.method,
+          url: req.url,
         }),
-        autoLogging: {
-          ignore: (req: any) => req.url === '/v1/health',
-        },
-        serializers: {
-          req: (req: any) => ({
-            method: req.method,
-            url: req.url,
-          }),
-          res: (res: any) => ({
-            statusCode: res.statusCode,
-          }),
-        },
+        res: (res: any) => ({
+          statusCode: res.statusCode,
+        }),
       },
-    }),
-    ServeStaticModule.forRoot({
-      // Works for both ts-node (src/) and compiled (dist/src/) by resolving from project root
-      rootPath: join(process.cwd(), 'public'),
-      serveRoot: '/',
-      serveStaticOptions: {
-        index: false, // Don't serve index.html for /
-      },
-    }),
-    EventModule,
-    EmbeddingModule,
-    PrismaModule,
-    LLMModule,
-    VectorModule,
-    MemoryModule,
-    AutoModule,
-    DashboardModule,
-    AgentModule,
-    HierarchyModule,
-    GraphModule,
-    ReembeddingModule,
-    EnsembleModule,
-    AnalyticsModule,
-    MultiQueryModule,
-    DeduplicationModule,
-    ConsolidationModule,
-    ClusteringModule,
-    HealthModule,
-    CorrectionModule,
-    SummarizationModule,
-    MemoryAccessLogModule,
-    AgentSessionModule,
-    MemoryPoolModule,
-    ScopedContextModule,
-    FogIndexModule,
-    RateLimitModule,
-    MonitoringModule,
-    EvalModule,
-    WebhookModule,
-    AccountModule,
-    StripeModule,
-    FeedbackModule,
-    InstanceModule,
-    CloudLinkModule,
-    CloudSyncModule,
-  ],
+    },
+  }),
+  ServeStaticModule.forRoot({
+    rootPath: join(process.cwd(), 'public'),
+    serveRoot: '/',
+    serveStaticOptions: {
+      index: false,
+    },
+  }),
+  EventModule,
+  EmbeddingModule,
+  PrismaModule,
+  LLMModule,
+  VectorModule,
+  MemoryModule,
+  AutoModule,
+  DashboardModule,
+  AgentModule,
+  HierarchyModule,
+  GraphModule,
+  MultiQueryModule,
+  DeduplicationModule,
+  ConsolidationModule,
+  ClusteringModule,
+  HealthModule,
+  CorrectionModule,
+  SummarizationModule,
+  MemoryAccessLogModule,
+  AgentSessionModule,
+  MemoryPoolModule,
+  ScopedContextModule,
+  FogIndexModule,
+  RateLimitModule,
+  AccountModule,
+];
+
+const cloudModules = [
+  ReembeddingModule,
+  EnsembleModule,
+  AnalyticsModule,
+  MonitoringModule,
+  EvalModule,
+  WebhookModule,
+  StripeModule,
+  FeedbackModule,
+  InstanceModule,
+  CloudLinkModule,
+  CloudSyncModule,
+];
+
+@Module({
+  imports: [...coreModules, ...(EDITION === 'cloud' ? cloudModules : [])],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
