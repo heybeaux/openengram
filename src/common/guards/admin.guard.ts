@@ -23,9 +23,9 @@ export class AdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const accountId = request.accountId;
 
-    // Reject LAN bypass — admin endpoints require real authentication
+    // For self-hosted (LAN bypass), treat the local user as admin
     if (request.isLanBypass) {
-      throw new ForbiddenException('Admin endpoints require explicit authentication, not LAN bypass');
+      return true;
     }
 
     if (!accountId) {
