@@ -38,7 +38,7 @@ describe('HealthController', () => {
       providers: [
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EmbedHealthService, useValue: mockEmbedHealth },
-        { provide: MonitoringService, useValue: mockMonitoring },
+        { provide: 'MONITORING_SERVICE', useValue: mockMonitoring },
       ],
     }).compile();
 

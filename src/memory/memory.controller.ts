@@ -45,6 +45,7 @@ import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -147,6 +148,21 @@ export class MemoryController {
   }
 
   /**
+   * POST /v1/recall
+   * Alias for /v1/memories/query — semantic search for memories
+   */
+  @Post('recall')
+  @ApiOperation({ summary: 'Recall memories (alias for /memories/query)' })
+  @ApiTags('search')
+  @RateLimit(60)
+  async recallAlias(
+    @UserId() userId: string,
+    @Body() dto: QueryMemoryDto,
+  ): Promise<QueryResult> {
+    return this.memoryService.recall(userId, dto);
+  }
+
+  /**
    * POST /v1/recall/contextual
    * Mid-conversation contextual recall with topic shift detection.
    * Returns relevant memories only when a topic shift is detected.
@@ -168,6 +184,7 @@ export class MemoryController {
    * Export all user memories as JSON or NDJSON for migration.
    */
   @Get('memories/export')
+  @RateLimit(5)
   @ApiOperation({
     summary: 'Export all memories',
     description:
@@ -364,6 +381,7 @@ export class MemoryController {
    * Check how many memories need backfill
    */
   @Get('memories/backfill/status')
+  @UseGuards(AdminGuard)
   async getBackfillStatus(): Promise<{ needsBackfill: number }> {
     const memories = await this.backfillService.findMemoriesNeedingBackfill();
     return { needsBackfill: memories.length };
@@ -376,6 +394,7 @@ export class MemoryController {
    * @param batchSize - Number of memories to process (default 50)
    */
   @Post('memories/backfill')
+  @UseGuards(AdminGuard)
   async runBackfill(
     @Query('dryRun') dryRun?: string,
     @Query('batchSize') batchSize?: string,
@@ -399,6 +418,7 @@ export class MemoryController {
    * @param batchSize - Number of memories to process (default 1000)
    */
   @Post('backfill/user-identity')
+  @UseGuards(AdminGuard)
   async backfillUserIdentity(
     @Body()
     body: {
@@ -420,6 +440,7 @@ export class MemoryController {
    * Find users by externalId pattern (e.g., 'beaux')
    */
   @Get('backfill/user-identity/lookup')
+  @UseGuards(AdminGuard)
   async lookupUserForBackfill(
     @Query('pattern') pattern: string,
   ): Promise<Array<{ id: string; externalId: string }>> {

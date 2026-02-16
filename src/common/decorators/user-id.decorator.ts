@@ -1,4 +1,4 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 /**
  * Extracts the internal user ID from the request
@@ -7,7 +7,11 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 export const UserId = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user?.id;
+    const userId = request.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('User ID is required but was not resolved from the request');
+    }
+    return userId;
   },
 );
 

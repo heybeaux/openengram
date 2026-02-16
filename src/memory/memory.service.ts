@@ -764,10 +764,10 @@ export class MemoryService {
     // Batch-fetch ensemble embeddings
     const memoryIds = memories.map((m) => m.id);
     const ensembleRows = memoryIds.length
-      ? await (this.prisma as any).ensembleEmbedding?.findMany({
+      ? await this.prisma.memoryEmbedding.findMany({
           where: { memoryId: { in: memoryIds } },
-          select: { memoryId: true, provider: true, vector: true },
-        }).catch(() => [] as any[]) ?? []
+          select: { memoryId: true, modelId: true },
+        }).catch(() => [] as any[])
       : [];
 
     const ensembleMap = new Map<string, Record<string, number[]>>();
@@ -775,7 +775,7 @@ export class MemoryService {
       if (!ensembleMap.has(row.memoryId)) {
         ensembleMap.set(row.memoryId, {});
       }
-      ensembleMap.get(row.memoryId)![row.provider] = row.vector;
+      (ensembleMap.get(row.memoryId)! as any)[row.modelId] = true;
     }
 
     return memories.map((m) => ({

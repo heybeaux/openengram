@@ -4,12 +4,13 @@ import {
   HttpException,
   HttpStatus,
   Redirect,
+  Optional,
+  Inject,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbedHealthService } from './embed-health.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
-import { MonitoringService } from '../monitoring/monitoring.service';
 
 @ApiTags('health')
 @Controller()
@@ -20,7 +21,7 @@ export class HealthController {
   constructor(
     private prisma: PrismaService,
     private embedHealth: EmbedHealthService,
-    private monitoring: MonitoringService,
+    @Optional() @Inject('MONITORING_SERVICE') private monitoring: any,
   ) {}
 
   /** GET /health → redirect to canonical /v1/health */

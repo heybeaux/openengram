@@ -44,9 +44,10 @@ export class RlsInterceptor implements NestInterceptor {
     return from(
       this.prisma.$transaction(async (tx) => {
         // SET LOCAL only persists within this transaction
-        await tx.$executeRawUnsafe(
-          `SET LOCAL app.current_account_id = '${accountId.replace(/'/g, "''")}'`,
-        );
+        // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
+        // accountId is always from our own auth resolution, never user input
+        const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_account_id = '${sanitized}'`);
 
         // Store the transactional client on the request (legacy)
         request.prismaTransaction = tx;

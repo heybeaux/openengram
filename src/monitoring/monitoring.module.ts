@@ -9,7 +9,11 @@ import { AccountModule } from '../account/account.module';
 @Module({
   imports: [AccountModule, PrismaModule],
   controllers: [MonitoringController],
-  providers: [MonitoringService, MonitoringInterceptor],
-  exports: [MonitoringService, MonitoringInterceptor],
+  providers: [
+    MonitoringService,
+    MonitoringInterceptor,
+    { provide: 'MONITORING_SERVICE', useExisting: MonitoringService },
+  ],
+  exports: [MonitoringService, MonitoringInterceptor, 'MONITORING_SERVICE'],
 })
 export class MonitoringModule {}

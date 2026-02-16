@@ -31,9 +31,43 @@ export class ApiKeyOrJwtGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    // If API key header is present, use ApiKeyGuard
+    // If API key header is present, use ApiKeyGuard (which handles LAN bypass internally)
     if (request.headers['x-am-api-key']) {
       return this.apiKeyGuard.canActivate(context);
+    }
+
+    // LAN bypass: allow local requests without credentials when TRUST_LOCAL_NETWORK=true
+    const trustLocal =
+      this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
+    if (trustLocal && this.isLocalIp(request)) {
+      // Try to resolve agent/user context for LAN requests
+      const agent = await this.prisma.agent.findFirst({
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (agent) {
+        const externalUserId = request.headers['x-am-user-id'] || 'default';
+        let user = await this.prisma.user.findUnique({
+          where: {
+            agentId_externalId: {
+              agentId: agent.id,
+              externalId: externalUserId,
+            },
+          },
+        });
+        if (!user) {
+          user = await this.prisma.user.create({
+            data: { agentId: agent.id, externalId: externalUserId },
+          });
+        }
+        request.agent = agent;
+        request.user = user;
+        request.accountId = agent.accountId;
+      } else {
+        request.agent = null;
+        request.user = null;
+      }
+      return true;
     }
 
     // Try JWT Bearer token
@@ -70,6 +104,19 @@ export class ApiKeyOrJwtGuard implements CanActivate {
 
     throw new UnauthorizedException(
       'Missing authentication: provide X-AM-API-Key or Authorization Bearer token',
+    );
+  }
+
+  private isLocalIp(request: any): boolean {
+    const ip = request.ip || request.connection?.remoteAddress || '';
+    return (
+      ip === '127.0.0.1' ||
+      ip === '::1' ||
+      ip === '::ffff:127.0.0.1' ||
+      ip.startsWith('10.') ||
+      ip.startsWith('192.168.') ||
+      ip.startsWith('::ffff:10.') ||
+      ip.startsWith('::ffff:192.168.')
     );
   }
 }

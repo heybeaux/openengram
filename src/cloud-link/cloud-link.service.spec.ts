@@ -18,6 +18,14 @@ global.fetch = mockFetch as any;
 describe('CloudLinkService', () => {
   let service: CloudLinkService;
 
+  beforeAll(() => {
+    process.env.ENCRYPTION_KEY = 'test-key-min-32-chars-long-xxxxx';
+  });
+
+  afterAll(() => {
+    delete process.env.ENCRYPTION_KEY;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new CloudLinkService(mockPrisma as any);

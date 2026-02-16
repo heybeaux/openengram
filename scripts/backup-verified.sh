@@ -71,7 +71,7 @@ if [ -d "$OFFSITE_REPO/.git" ]; then
     ls -t engram-backup-*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
     git add -A
     git commit -m "backup: engram ${TIMESTAMP} (${MEMORIES_IN_BACKUP} memories)" --quiet 2>/dev/null || true
-    git push --quiet 2>/dev/null && log "✅ Offsite push complete" || log "⚠️  Offsite push failed (will retry next run)"
+    GIT_TERMINAL_PROMPT=0 git push --quiet 2>/dev/null && log "✅ Offsite push complete" || log "⚠️  Offsite push failed (will retry next run)"
     cd - >/dev/null
 else
     log "⚠️  No offsite repo at ${OFFSITE_REPO} — skipping offsite backup"

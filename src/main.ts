@@ -77,6 +77,7 @@ async function bootstrap() {
     ];
     if (process.env.NODE_ENV !== 'production') {
       origins.push('http://localhost:3000');
+      origins.push('http://10.0.0.108:3000');
     }
     return origins;
   })();

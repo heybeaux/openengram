@@ -19,5 +19,8 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
+RUN addgroup --system --gid 1001 engram && adduser --system --uid 1001 --ingroup engram engram
+RUN chown -R engram:engram /app
+USER engram
 EXPOSE 3001
 ENTRYPOINT ["./docker-entrypoint.sh"]

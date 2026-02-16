@@ -103,7 +103,7 @@ const PRESETS: Record<string, Partial<MultiQueryConfig>> = {
 };
 
 const DEFAULT_CONFIG: MultiQueryConfig = {
-  enabled: true,
+  enabled: false,
   expansion: {
     strategy: ExpansionStrategy.HYBRID,
     maxVariants: 7,
@@ -342,7 +342,13 @@ export class MultiQueryService {
     const embeddings = await Promise.all(
       variants.map((v) => this.embedding.generate(v)),
     );
-    return embeddings;
+    // Validate embeddings — filter out any that contain non-numeric values
+    return embeddings.filter(
+      (emb) =>
+        Array.isArray(emb) &&
+        emb.length > 0 &&
+        emb.every((val) => typeof val === 'number' && !isNaN(val)),
+    );
   }
 
   /**
