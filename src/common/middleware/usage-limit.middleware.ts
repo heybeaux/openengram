@@ -38,24 +38,28 @@ export class UsageLimitMiddleware implements NestMiddleware {
 
     const limits = PLAN_LIMITS[account.plan];
 
-    // Reset daily counter if needed
-    const now = new Date();
-    const resetAt = account.apiCallsResetAt;
-    let apiCallsToday = account.apiCallsToday;
+    // Atomic: reset-if-new-day + increment in one query
+    const result = await this.prisma.$queryRaw<
+      Array<{ api_calls_today: number; memories_used: number }>
+    >`
+      UPDATE accounts SET
+        api_calls_today = CASE
+          WHEN api_calls_reset_at IS NULL OR api_calls_reset_at::date < CURRENT_DATE
+          THEN 1
+          ELSE api_calls_today + 1
+        END,
+        api_calls_reset_at = NOW()
+      WHERE id = ${account.id}::uuid
+      RETURNING api_calls_today, memories_used
+    `;
 
-    if (!resetAt || now.toDateString() !== resetAt.toDateString()) {
-      // New day — reset counter
-      await this.prisma.account.update({
-        where: { id: account.id },
-        data: { apiCallsToday: 0, apiCallsResetAt: now },
-      });
-      apiCallsToday = 0;
-    }
+    const apiCallsToday = result[0]?.api_calls_today ?? 0;
+    const memoriesUsed = result[0]?.memories_used ?? account.memoriesUsed;
 
     // Check API calls limit
     if (
       limits.apiCallsPerDay !== -1 &&
-      apiCallsToday >= limits.apiCallsPerDay
+      apiCallsToday > limits.apiCallsPerDay
     ) {
       throw new HttpException(
         {
@@ -73,7 +77,7 @@ export class UsageLimitMiddleware implements NestMiddleware {
     if (
       isMemoryCreation &&
       limits.memories !== -1 &&
-      account.memoriesUsed >= limits.memories
+      memoriesUsed >= limits.memories
     ) {
       throw new HttpException(
         {
@@ -84,12 +88,6 @@ export class UsageLimitMiddleware implements NestMiddleware {
         429,
       );
     }
-
-    // Increment API calls counter
-    await this.prisma.account.update({
-      where: { id: account.id },
-      data: { apiCallsToday: { increment: 1 } },
-    });
 
     // Attach account to request for downstream use
     (req as any).account = account;

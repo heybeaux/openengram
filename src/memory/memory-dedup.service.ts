@@ -138,29 +138,27 @@ export class MemoryDedupService {
       Math.max(existing.confidence, newConfidence) + 0.05,
     );
 
-    await this.prisma.memory.update({
-      where: { id: existingId },
-      data: {
-        confidence: boostedConfidence,
-        usedCount: { increment: 1 },
-        lastUsedAt: new Date(),
-        importanceScore: Math.min(1.0, existing.importanceScore + 0.05),
-      },
-    });
+    await this.prisma.$executeRaw`
+      UPDATE memories SET
+        confidence = ${boostedConfidence},
+        used_count = used_count + 1,
+        last_used_at = NOW(),
+        importance_score = LEAST(1.0, importance_score + 0.05)
+      WHERE id = ${existingId}::uuid
+    `;
   }
 
   /**
    * Reinforce an existing memory (boost importance, track sessions)
    */
   async reinforceMemory(memoryId: string, sessionId?: string): Promise<void> {
-    await this.prisma.memory.update({
-      where: { id: memoryId },
-      data: {
-        usedCount: { increment: 1 },
-        lastUsedAt: new Date(),
-        importanceScore: { increment: 0.05 },
-      },
-    });
+    await this.prisma.$executeRaw`
+      UPDATE memories SET
+        used_count = used_count + 1,
+        last_used_at = NOW(),
+        importance_score = LEAST(1.0, importance_score + 0.05)
+      WHERE id = ${memoryId}::uuid
+    `;
 
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },

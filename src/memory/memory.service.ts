@@ -94,6 +94,28 @@ export class MemoryService {
   ) {}
 
   /**
+   * Run a fire-and-forget callback with a fresh RLS-aware transaction context.
+   * This ensures background ops (extraction, embedding, etc.) that outlive the
+   * HTTP request still respect tenant isolation instead of bypassing RLS.
+   */
+  private runWithRls(accountId: string | undefined, fn: () => Promise<void>): void {
+    if (!accountId) {
+      // No account context (self-hosted / LAN mode) — run without RLS
+      fn().catch((err) => console.error('[Memory] Background op failed:', err));
+      return;
+    }
+    const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
+    this.prisma
+      .$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          `SET LOCAL app.current_account_id = '${sanitized}'`,
+        );
+        await rlsContext.run(tx as any, () => fn());
+      })
+      .catch((err) => console.error('[Memory] Background RLS op failed:', err));
+  }
+
+  /**
    * Create a single memory
    */
   async remember(
@@ -110,8 +132,9 @@ export class MemoryService {
     // 1. Fetch user info for extraction context
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, externalId: true, displayName: true },
+      select: { id: true, externalId: true, displayName: true, agent: { select: { accountId: true } } },
     });
+    const accountId = user?.agent?.accountId ?? undefined;
 
     // 2. Determine source type
     const source = dto.source ?? MemorySource.EXPLICIT_STATEMENT;
@@ -225,24 +248,16 @@ export class MemoryService {
       conversationId: dto.context?.sessionId,
     };
 
-    // 9. Extract structure asynchronously
-    // Run outside RLS transaction context — the fire-and-forget pipeline
-    // outlives the HTTP request, so it must not use the (closed) tx client.
-    rlsContext.run(undefined as any, () => {
+    // 9. Extract structure asynchronously (with fresh RLS context)
+    this.runWithRls(accountId, () =>
       this.pipelineService
-        .extractAndEmbed(memory.id, rawContent, userId, extractionContext)
-        .catch((err) => {
-          console.error(`Extraction failed for memory ${memory.id}:`, err);
-        });
-    });
+        .extractAndEmbed(memory.id, rawContent, userId, extractionContext),
+    );
 
     // 10a. Increment account memoriesUsed
-    // Also run outside RLS context to avoid closed transaction errors
-    rlsContext.run(undefined as any, () => {
-      this.incrementMemoriesUsed(userId, 1).catch((err) => {
-        console.error(`[Memory] Failed to increment memoriesUsed:`, err);
-      });
-    });
+    this.runWithRls(accountId, () =>
+      this.incrementMemoriesUsed(userId, 1),
+    );
 
     // 10. Emit memory.created event
     this.emitEvent(
@@ -259,15 +274,8 @@ export class MemoryService {
 
     // 11. Check for contradictions
     if (this.correctionService) {
-      rlsContext.run(undefined as any, () => {
-        this.correctionService!
-          .checkForContradictions(memory.id, userId, rawContent)
-          .catch((err) => {
-            console.error(
-              `[Correction] Contradiction check failed for memory ${memory.id}:`,
-              err,
-            );
-          });
+      this.runWithRls(accountId, async () => {
+        await this.correctionService!.checkForContradictions(memory.id, userId, rawContent);
       });
     }
 
@@ -607,8 +615,9 @@ export class MemoryService {
   ): Promise<MemoryWithExtraction> {
     const original = await this.prisma.memory.findUnique({
       where: { id: memoryId },
-      include: { user: { select: { id: true, externalId: true, displayName: true } } },
+      include: { user: { select: { id: true, externalId: true, displayName: true, agent: { select: { accountId: true } } } } },
     });
+    const correctionAccountId = (original?.user as any)?.agent?.accountId ?? undefined;
 
     if (!original) {
       throw new Error(`Memory not found: ${memoryId}`);
@@ -671,21 +680,14 @@ export class MemoryService {
       userId,
       userName: (original.user as any)?.displayName || original.user?.externalId,
     };
-    rlsContext.run(undefined as any, () => {
-      this.pipelineService
-        .extractAndEmbed(correction.id, dto.correctedContent, userId, context)
-        .catch((err) => {
-          console.error(
-            `[Memory] Extraction failed for correction ${correction.id}:`,
-            err,
-          );
-        });
-    });
+    this.runWithRls(correctionAccountId, () =>
+      this.pipelineService.extractAndEmbed(correction.id, dto.correctedContent, userId, context),
+    );
 
     // Increment memoriesUsed for the correction
-    this.incrementMemoriesUsed(userId, 1).catch((err) => {
-      console.error(`[Memory] Failed to increment memoriesUsed for correction:`, err);
-    });
+    this.runWithRls(correctionAccountId, () =>
+      this.incrementMemoriesUsed(userId, 1),
+    );
 
     console.log(
       `[Memory] Created correction: ${correction.id} supersedes ${memoryId}`,
@@ -894,13 +896,9 @@ export class MemoryService {
           timestamp: item.createdAt ? new Date(item.createdAt) : new Date(),
         };
 
-        rlsContext.run(undefined as any, () => {
-          this.pipelineService
-            .extractAndEmbed(memory.id, item.raw, userId, extractionContext)
-            .catch((err) => {
-              console.error(`[Import] Extraction failed for ${memory.id}:`, err);
-            });
-        });
+        this.runWithRls(user?.agent?.accountId ?? undefined, () =>
+          this.pipelineService.extractAndEmbed(memory.id, item.raw, userId, extractionContext),
+        );
 
         // Emit memory.created so ensemble embeddings get generated
         this.emitEvent(

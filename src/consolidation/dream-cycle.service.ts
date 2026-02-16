@@ -48,6 +48,8 @@ export interface DreamCycleResult {
   avgEffectiveScore: number;
   stageDetails: Record<string, any>;
   errors: string[];
+  llmCallsUsed?: number;
+  usersProcessed?: number;
 }
 
 const ALL_STAGES: DreamCycleStage[] = [
@@ -222,16 +224,29 @@ export class DreamCycleService {
         userIds: users.map((u) => u.userId),
       });
 
-      // Run for each user, return the last result (or aggregate)
-      let lastResult: DreamCycleResult | undefined;
+      // Run for each user and aggregate results
+      const allResults: DreamCycleResult[] = [];
       for (const user of users) {
         this.log(`Running Dream Cycle for user: ${user.userId}`);
-        lastResult = await this.runInternal({
+        const result = await this.runInternal({
           ...options,
           userId: user.userId,
         });
+        allResults.push(result);
       }
-      return lastResult!;
+
+      // Aggregate all user results into a combined report
+      const combined: DreamCycleResult = {
+        ...allResults[0],
+        scoresRefreshed: allResults.reduce((s, r) => s + (r.scoresRefreshed ?? 0), 0),
+        duplicatesMerged: allResults.reduce((s, r) => s + (r.duplicatesMerged ?? 0), 0),
+        patternsCreated: allResults.reduce((s, r) => s + (r.patternsCreated ?? 0), 0),
+        memoriesArchived: allResults.reduce((s, r) => s + (r.memoriesArchived ?? 0), 0),
+        llmCallsUsed: allResults.reduce((s, r) => s + (r.llmCallsUsed ?? 0), 0),
+        errors: allResults.flatMap((r) => r.errors ?? []),
+        usersProcessed: allResults.length,
+      };
+      return combined;
     }
 
     const { dryRun = false, stages = ALL_STAGES, maxMemories } = options;

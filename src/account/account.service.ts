@@ -197,10 +197,26 @@ export class AccountService {
 
     const limits = PLAN_LIMITS[account.plan];
 
+    // Use actual DB count instead of cached counter (which can drift)
+    const actualMemoryCount = await this.prisma.memory.count({
+      where: {
+        deletedAt: null,
+        user: { agent: { accountId } },
+      },
+    });
+
+    // Sync the cached counter if it drifted
+    if (actualMemoryCount !== account.memoriesUsed) {
+      await this.prisma.account.update({
+        where: { id: accountId },
+        data: { memoriesUsed: actualMemoryCount },
+      }).catch(() => {}); // best-effort sync
+    }
+
     return {
       ...this.sanitizeAccount(account),
       usage: {
-        memoriesUsed: account.memoriesUsed,
+        memoriesUsed: actualMemoryCount,
         memoriesLimit: limits.memories,
         apiCallsToday: account.apiCallsToday,
         apiCallsPerDayLimit: limits.apiCallsPerDay,
