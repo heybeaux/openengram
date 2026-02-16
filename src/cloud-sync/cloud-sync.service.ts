@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { MemoryCreatedEvent } from '../events/event-types';
 import { decrypt } from '../common/encryption.util';
+import { generateContentHash } from '../common/content-hash.util';
+import { SyncPushDto, SyncPushResponse, SyncPushResultItem } from './dto/sync-push.dto';
 import { randomUUID } from 'crypto';
 
 const BATCH_SIZE = 50;
@@ -55,7 +57,7 @@ export class CloudSyncService {
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
     try {
-      return await this.performSync(apiKey, this.syncAbortController.signal);
+      return await this.performSync(apiKey, link.instanceId, this.syncAbortController.signal);
     } finally {
       this.syncing = false;
       this.syncAbortController = null;
@@ -134,19 +136,191 @@ export class CloudSyncService {
       const apiKey = this.decryptApiKey(link.cloudApiKey);
       const memory = await this.prisma.memory.findUnique({
         where: { id: event.memoryId },
-        include: { extraction: true },
+        include: { extraction: true, entities: { include: { entity: true } } },
       });
       if (!memory || memory.deletedAt) return;
 
-      await this.syncSingleMemory(memory, apiKey);
-    } catch (error) {
+      // Ensure contentHash is set
+      if (!memory.contentHash) {
+        const contentHash = generateContentHash(memory.raw);
+        await this.prisma.memory.update({
+          where: { id: memory.id },
+          data: { contentHash },
+        });
+        (memory as any).contentHash = contentHash;
+      }
+
+      await this.syncBatchToCloud([memory], apiKey, link.instanceId);
+    } catch (error: any) {
       this.logger.warn(
         `Auto-sync failed for memory ${event.memoryId}: ${error.message}`,
       );
     }
   }
 
-  private async performSync(apiKey: string, signal: AbortSignal): Promise<SyncResult> {
+  // =========================================================================
+  // Cloud-side: Handle incoming sync push from local instances
+  // =========================================================================
+
+  async handleSyncPush(
+    userId: string,
+    instanceId: string,
+    dto: SyncPushDto,
+  ): Promise<SyncPushResponse> {
+    const results: SyncPushResultItem[] = [];
+
+    for (const memPayload of dto.memories) {
+      try {
+        // 1. Check contentHash dedup — skip if already exists
+        if (memPayload.contentHash) {
+          const existing = await this.prisma.memory.findFirst({
+            where: {
+              userId,
+              contentHash: memPayload.contentHash,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+
+          if (existing) {
+            // Ensure SyncIdMap entry exists
+            await this.upsertSyncIdMap(
+              instanceId,
+              memPayload.localId,
+              existing.id,
+              memPayload.contentHash,
+            );
+            results.push({
+              sourceMemoryId: memPayload.localId,
+              cloudMemoryId: existing.id,
+              status: 'skipped',
+            });
+            continue;
+          }
+        }
+
+        // 2. Check SyncIdMap — already synced this localId?
+        const existingMap = await this.prisma.syncIdMap.findUnique({
+          where: {
+            instanceId_localMemoryId: {
+              instanceId,
+              localMemoryId: memPayload.localId,
+            },
+          },
+        });
+
+        if (existingMap) {
+          results.push({
+            sourceMemoryId: memPayload.localId,
+            cloudMemoryId: existingMap.cloudMemoryId,
+            status: 'skipped',
+          });
+          continue;
+        }
+
+        // 3. Create the memory
+        const memory = await this.prisma.memory.create({
+          data: {
+            userId,
+            raw: memPayload.raw,
+            layer: memPayload.layer as any,
+            source: (memPayload.source as any) || 'EXPLICIT_STATEMENT',
+            memoryType: memPayload.memoryType as any || undefined,
+            importanceHint: memPayload.importanceHint as any || undefined,
+            importanceScore: memPayload.importanceScore ?? 0.5,
+            effectiveScore: memPayload.effectiveScore ?? 0.5,
+            priority: memPayload.priority ?? 3,
+            contentHash: memPayload.contentHash,
+            createdAt: memPayload.createdAt ? new Date(memPayload.createdAt) : undefined,
+          },
+        });
+
+        // 4. Create extraction if provided
+        if (memPayload.extraction) {
+          const ext = memPayload.extraction;
+          await this.prisma.memoryExtraction.create({
+            data: {
+              memoryId: memory.id,
+              who: ext.who,
+              what: ext.what,
+              when: ext.when ? new Date(ext.when) : undefined,
+              whereCtx: ext.whereCtx,
+              why: ext.why,
+              how: ext.how,
+              topics: ext.topics ?? [],
+            },
+          });
+        }
+
+        // 5. Create SyncIdMap entry
+        await this.upsertSyncIdMap(
+          instanceId,
+          memPayload.localId,
+          memory.id,
+          memPayload.contentHash,
+        );
+
+        results.push({
+          sourceMemoryId: memPayload.localId,
+          cloudMemoryId: memory.id,
+          status: 'created',
+        });
+      } catch (error: any) {
+        this.logger.warn(
+          `Failed to ingest synced memory ${memPayload.localId}: ${error.message}`,
+        );
+        results.push({
+          sourceMemoryId: memPayload.localId,
+          status: 'failed',
+          error: error.message,
+        });
+      }
+    }
+
+    return { results };
+  }
+
+  // =========================================================================
+  // Content hash backfill
+  // =========================================================================
+
+  async backfillContentHashes(batchSize = 500): Promise<{ updated: number }> {
+    let updated = 0;
+    let cursor: string | undefined;
+
+    while (true) {
+      const memories = await this.prisma.memory.findMany({
+        where: { contentHash: null, deletedAt: null },
+        select: { id: true, raw: true },
+        take: batchSize,
+        orderBy: { id: 'asc' },
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+
+      if (memories.length === 0) break;
+
+      for (const mem of memories) {
+        const hash = generateContentHash(mem.raw);
+        await this.prisma.memory.update({
+          where: { id: mem.id },
+          data: { contentHash: hash },
+        });
+        updated++;
+      }
+
+      cursor = memories[memories.length - 1].id;
+      this.logger.log(`Backfilled ${updated} content hashes...`);
+    }
+
+    this.logger.log(`Content hash backfill complete: ${updated} memories updated`);
+    return { updated };
+  }
+
+  // =========================================================================
+  // Local-side: Push sync using /v1/sync/push batch endpoint
+  // =========================================================================
+
+  private async performSync(apiKey: string, instanceId: string | null, signal: AbortSignal): Promise<SyncResult> {
     let syncedCount = 0;
     let errorCount = 0;
     let lastSyncedAt: string | null = null;
@@ -161,13 +335,11 @@ export class CloudSyncService {
     // Process in batches
     let cursor: string | undefined;
     while (true) {
-      // Check cancellation
       if (signal.aborted) {
         this.logger.log(`Sync cancelled. Synced ${syncedCount} memories before cancellation.`);
         break;
       }
 
-      // Check timeout
       if (Date.now() - startTime > MAX_SYNC_DURATION_MS) {
         this.logger.warn(`Sync timed out after ${MAX_SYNC_DURATION_MS / 1000}s. Synced ${syncedCount} memories.`);
         break;
@@ -178,7 +350,7 @@ export class CloudSyncService {
           deletedAt: null,
           cloudSyncedAt: null,
         },
-        include: { extraction: true },
+        include: { extraction: true, entities: { include: { entity: true } } },
         take: BATCH_SIZE,
         orderBy: { createdAt: 'asc' },
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
@@ -186,25 +358,37 @@ export class CloudSyncService {
 
       if (batch.length === 0) break;
 
+      // Ensure all memories have contentHash
       for (const memory of batch) {
-        if (signal.aborted) break;
+        if (!memory.contentHash) {
+          const hash = generateContentHash(memory.raw);
+          await this.prisma.memory.update({
+            where: { id: memory.id },
+            data: { contentHash: hash },
+          });
+          (memory as any).contentHash = hash;
+        }
+      }
 
-        try {
-          await this.syncSingleMemory(memory, apiKey);
-          syncedCount++;
-          this.syncProgress.synced = syncedCount;
+      try {
+        const result = await this.syncBatchToCloud(batch, apiKey, instanceId);
+        syncedCount += result.synced;
+        errorCount += result.errors;
+        this.syncProgress.synced = syncedCount;
+        if (result.synced > 0) {
           lastSyncedAt = new Date().toISOString();
-        } catch (error: any) {
-          errorCount++;
-          this.logger.warn(
-            `Failed to sync memory ${memory.id}: ${error.message}`,
-          );
+        }
+      } catch (error: any) {
+        errorCount += batch.length;
+        this.logger.warn(`Batch sync failed: ${error.message}`);
+        // On 401/403, stop entirely
+        if (error.message?.includes('invalid or expired')) {
+          break;
         }
       }
 
       cursor = batch[batch.length - 1].id;
 
-      // Delay between batches to avoid hammering the cloud API
       if (batch.length === BATCH_SIZE) {
         await this.delay(BATCH_DELAY_MS);
       }
@@ -213,34 +397,52 @@ export class CloudSyncService {
     return { syncedCount, errorCount, lastSyncedAt };
   }
 
-  private async getInstanceId(): Promise<string | null> {
-    const link = await this.prisma.cloudLink.findFirst({
-      select: { instanceId: true },
-    });
-    return link?.instanceId ?? null;
-  }
+  private async syncBatchToCloud(
+    memories: any[],
+    apiKey: string,
+    instanceId: string | null,
+  ): Promise<{ synced: number; errors: number }> {
+    const effectiveInstanceId = instanceId || 'unknown';
 
-  private async syncSingleMemory(memory: any, apiKey: string): Promise<void> {
-    const instanceId = await this.getInstanceId();
-    const payload = {
-      content: memory.raw,
-      layer: memory.layer,
-      source: memory.source,
-      metadata: {
-        originalId: memory.id,
-        originalMemoryId: memory.id,
-        sourceInstanceId: instanceId,
-        createdAt: memory.createdAt.toISOString(),
-        importanceScore: memory.importanceScore,
-        effectiveScore: memory.effectiveScore,
-        topics: memory.extraction?.topics ?? [],
-      },
+    const payload: SyncPushDto = {
+      memories: memories.map((m) => ({
+        raw: m.raw,
+        layer: m.layer,
+        memoryType: m.memoryType ?? undefined,
+        source: m.source,
+        importanceHint: m.importanceHint ?? undefined,
+        importanceScore: m.importanceScore,
+        effectiveScore: m.effectiveScore,
+        priority: m.priority,
+        contentHash: m.contentHash || generateContentHash(m.raw),
+        localId: m.id,
+        instanceId: effectiveInstanceId,
+        createdAt: m.createdAt.toISOString(),
+        extraction: m.extraction
+          ? {
+              who: m.extraction.who ?? undefined,
+              what: m.extraction.what ?? undefined,
+              when: m.extraction.when?.toISOString() ?? undefined,
+              whereCtx: m.extraction.whereCtx ?? undefined,
+              why: m.extraction.why ?? undefined,
+              how: m.extraction.how ?? undefined,
+              topics: m.extraction.topics ?? [],
+            }
+          : undefined,
+        entities: m.entities?.map((me: any) => ({
+          name: me.entity.name,
+          type: me.entity.type,
+          normalizedName: me.entity.normalizedName,
+        })),
+      })),
+      syncProtocolVersion: 2,
     };
 
-    const response = await fetch(`${this.CLOUD_API_BASE}/v1/observe`, {
+    const response = await fetch(`${this.CLOUD_API_BASE}/v1/sync/push`, {
       method: 'POST',
       headers: {
         'X-AM-API-Key': apiKey,
+        'X-Instance-Id': effectiveInstanceId,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -257,13 +459,55 @@ export class CloudSyncService {
       throw new Error(`Cloud API error ${response.status}: ${body}`);
     }
 
-    // Only mark as synced after verified 2xx response
-    if (response.status >= 200 && response.status < 300) {
-      await this.prisma.memory.update({
-        where: { id: memory.id },
-        data: { cloudSyncedAt: new Date() },
-      });
+    const result: SyncPushResponse = await response.json() as any;
+
+    // Mark successfully synced memories
+    let synced = 0;
+    let errors = 0;
+    for (const item of result.results) {
+      if (item.status === 'created' || item.status === 'skipped') {
+        await this.prisma.memory.update({
+          where: { id: item.sourceMemoryId },
+          data: { cloudSyncedAt: new Date() },
+        });
+        synced++;
+      } else {
+        errors++;
+      }
     }
+
+    return { synced, errors };
+  }
+
+  private async upsertSyncIdMap(
+    instanceId: string,
+    localMemoryId: string,
+    cloudMemoryId: string,
+    contentHash?: string,
+  ): Promise<void> {
+    await this.prisma.syncIdMap.upsert({
+      where: {
+        instanceId_localMemoryId: { instanceId, localMemoryId },
+      },
+      create: {
+        instanceId,
+        localMemoryId,
+        cloudMemoryId,
+        contentHash: contentHash ?? null,
+      },
+      update: {
+        cloudMemoryId,
+        contentHash: contentHash ?? undefined,
+        syncedAt: new Date(),
+      },
+    });
+  }
+
+  private async getInstanceId(): Promise<string | null> {
+    const link = await this.prisma.cloudLink.findFirst({
+      select: { instanceId: true },
+    });
+    return link?.instanceId ?? null;
   }
 
   private async getCloudLink(accountId: string) {

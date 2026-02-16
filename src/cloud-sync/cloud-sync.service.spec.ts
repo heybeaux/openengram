@@ -15,6 +15,7 @@ describe('CloudSyncService', () => {
   const mockCloudLink = {
     id: 'link-1',
     accountId: 'acc-1',
+    instanceId: 'inst-1',
     cloudApiKey: 'fake-encrypted-key',
     autoSync: false,
   };
@@ -27,7 +28,12 @@ describe('CloudSyncService', () => {
     createdAt: new Date('2026-01-01'),
     importanceScore: 0.5,
     effectiveScore: 0.6,
+    importanceHint: null,
+    memoryType: null,
+    priority: 3,
+    contentHash: null,
     extraction: { topics: ['test'] },
+    entities: [],
   };
 
   beforeEach(async () => {
@@ -43,6 +49,14 @@ describe('CloudSyncService', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        create: jest.fn(),
+      },
+      memoryExtraction: {
+        create: jest.fn(),
+      },
+      syncIdMap: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
       },
     };
 
@@ -94,45 +108,58 @@ describe('CloudSyncService', () => {
   });
 
   describe('triggerSync', () => {
-    it('should sync unsynced memories in batches', async () => {
+    it('should sync unsynced memories in batches via /v1/sync/push', async () => {
       prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
+      prisma.memory.count.mockResolvedValue(1); // totalPending
       prisma.memory.findMany
         .mockResolvedValueOnce([mockMemory])
         .mockResolvedValueOnce([]); // no more
+      prisma.memory.update.mockResolvedValue({});
 
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ id: 'cloud-mem-1' }),
+        status: 200,
+        json: async () => ({
+          results: [
+            { sourceMemoryId: 'mem-1', cloudMemoryId: 'cloud-1', status: 'created' },
+          ],
+        }),
       });
-
-      prisma.memory.update.mockResolvedValue({});
 
       const result = await service.triggerSync('acc-1');
 
       expect(result.syncedCount).toBe(1);
       expect(result.errorCount).toBe(0);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.openengram.ai/v1/observe',
+        'https://api.openengram.ai/v1/sync/push',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'X-AM-API-Key': 'test-api-key',
+            'X-Instance-Id': 'inst-1',
           }),
         }),
       );
     });
 
-    it('should handle individual memory errors without failing', async () => {
+    it('should handle batch errors', async () => {
       prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
+      prisma.memory.count.mockResolvedValue(2);
       prisma.memory.findMany
         .mockResolvedValueOnce([mockMemory, { ...mockMemory, id: 'mem-2' }])
         .mockResolvedValueOnce([]);
-
-      mockFetch
-        .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'err' })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
-
       prisma.memory.update.mockResolvedValue({});
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            { sourceMemoryId: 'mem-1', cloudMemoryId: 'cloud-1', status: 'created' },
+            { sourceMemoryId: 'mem-2', status: 'failed', error: 'content_too_large' },
+          ],
+        }),
+      });
 
       const result = await service.triggerSync('acc-1');
 
@@ -143,18 +170,62 @@ describe('CloudSyncService', () => {
     it('should reject if sync already in progress', async () => {
       prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
       let resolveFirst: () => void;
+      prisma.memory.count.mockResolvedValue(0);
       prisma.memory.findMany.mockImplementation(
         () => new Promise((resolve) => { resolveFirst = () => resolve([]); }),
       );
 
       const first = service.triggerSync('acc-1');
-      // Ensure the first sync has started
       await new Promise((r) => setTimeout(r, 10));
       await expect(service.triggerSync('acc-1')).rejects.toThrow(
         'Sync already in progress',
       );
       resolveFirst!();
       await first;
+    });
+  });
+
+  describe('handleSyncPush (cloud-side)', () => {
+    it('should create memory and SyncIdMap entry', async () => {
+      prisma.memory.findFirst.mockResolvedValue(null); // no existing by hash
+      prisma.syncIdMap.findUnique.mockResolvedValue(null); // no existing map
+      prisma.memory.create.mockResolvedValue({ id: 'cloud-mem-1' });
+      prisma.syncIdMap.upsert.mockResolvedValue({});
+
+      const result = await service.handleSyncPush('user-1', 'inst-1', {
+        memories: [{
+          raw: 'hello world',
+          layer: 'SESSION',
+          source: 'EXPLICIT_STATEMENT',
+          contentHash: 'abc123',
+          localId: 'local-1',
+          instanceId: 'inst-1',
+        }],
+        syncProtocolVersion: 2,
+      });
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].status).toBe('created');
+      expect(result.results[0].cloudMemoryId).toBe('cloud-mem-1');
+    });
+
+    it('should skip if contentHash already exists', async () => {
+      prisma.memory.findFirst.mockResolvedValue({ id: 'existing-1' });
+      prisma.syncIdMap.upsert.mockResolvedValue({});
+
+      const result = await service.handleSyncPush('user-1', 'inst-1', {
+        memories: [{
+          raw: 'hello world',
+          layer: 'SESSION',
+          source: 'EXPLICIT_STATEMENT',
+          contentHash: 'abc123',
+          localId: 'local-1',
+          instanceId: 'inst-1',
+        }],
+      });
+
+      expect(result.results[0].status).toBe('skipped');
+      expect(result.results[0].cloudMemoryId).toBe('existing-1');
     });
   });
 

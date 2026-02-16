@@ -204,6 +204,7 @@ model Memory {
 
   // Cloud backup sync tracking
   cloudSyncedAt DateTime? @map("cloud_synced_at")
+  contentHash   String?   @map("content_hash")
 
   // Multi-model ensemble embeddings
   ensembleEmbeddings MemoryEmbedding[]
@@ -218,6 +219,7 @@ model Memory {
   @@index([userId, layer, priority, createdAt(sort: Desc)]) // Memory Intelligence: priority retrieval
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
   @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
+  @@index([contentHash])
   @@map("memories")
 }
 
@@ -1279,4 +1281,24 @@ model CloudLink {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@map("cloud_links")
+}
+
+// ============================================================================
+// CLOUD SYNC v2
+// ============================================================================
+
+/// Maps local memory IDs to cloud memory IDs for sync tracking
+model SyncIdMap {
+  id             String   @id @default(cuid())
+  localMemoryId  String   @map("local_memory_id")
+  cloudMemoryId  String   @map("cloud_memory_id")
+  instanceId     String   @map("instance_id")
+  contentHash    String?  @map("content_hash")
+  syncedAt       DateTime @default(now()) @map("synced_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([instanceId, localMemoryId])
+  @@unique([instanceId, cloudMemoryId])
+  @@index([contentHash])
+  @@map("sync_id_map")
 }

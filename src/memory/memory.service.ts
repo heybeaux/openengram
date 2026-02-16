@@ -28,6 +28,7 @@ import {
   ResultExplanationDto,
 } from '../multi-query/dto/multi-query.dto';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
+import { generateContentHash } from '../common/content-hash.util';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
 // Extracted services
@@ -194,6 +195,7 @@ export class MemoryService {
       (subjectType === SubjectType.USER ? userId : dto.agentId);
 
     // 7. Create memory record
+    const contentHash = generateContentHash(rawContent);
     const memory = await this.prisma.memory.create({
       data: {
         userId,
@@ -209,6 +211,7 @@ export class MemoryService {
         subjectId,
         agentId: dto.agentId,
         createdBySession: dto.agentSessionKey ?? undefined,
+        contentHash,
       },
     });
 
@@ -886,6 +889,7 @@ export class MemoryService {
             source: MemorySource.EXPLICIT_STATEMENT,
             importanceScore,
             confidence: 1.0,
+            contentHash: generateContentHash(item.raw),
           },
         });
 
