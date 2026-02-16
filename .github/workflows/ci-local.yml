@@ -1,4 +1,4 @@
-name: CI
+name: CI (Local Edition)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-local-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
-      ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
+      EDITION: local
       NODE_ENV: test
 
     steps:
@@ -66,34 +66,4 @@ jobs:
         run: pnpm run build
 
       - name: Test
-        run: pnpm test -- --no-coverage --forceExit --ci
-
-  migrate-prod:
-    name: Migrate Production DB
-    needs: ci
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Deploy migrations to production
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: pnpm test -- --no-coverage --forceExit --ci --testPathIgnorePatterns='cloud-link|cloud-sync|instance/instance.controller.spec|ensemble|stripe|analytics|monitoring|feedback|eval|reembedding|webhook'
