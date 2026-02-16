@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InstanceController } from './instance.controller';
 import { InstanceService } from './instance.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ApiKeyOrJwtGuard } from '../auth/api-key-or-jwt.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 const mockPrisma = {
   cloudLink: { count: jest.fn().mockResolvedValue(0) },
