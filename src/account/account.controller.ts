@@ -24,11 +24,35 @@ import {
 } from './account.dto.js';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @ApiTags('auth')
 @Controller('v1')
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
+
+  @Get('auth/me')
+  @UseGuards(ApiKeyOrJwtGuard)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get current authenticated user info (via API key or JWT)' })
+  async getMe(@Req() req: any) {
+    const accountId = req.accountId;
+    if (!accountId) {
+      return { id: 'local', email: 'local@localhost', plan: 'self-hosted', name: 'Local User' };
+    }
+    const account = await this.accountService.getAccount(accountId);
+    const response: any = {
+      id: account.id,
+      email: account.email,
+      plan: account.plan || 'free',
+      name: account.name || '',
+    };
+    if (req.isInstanceKey) {
+      response.isInstanceKey = true;
+      response.scopes = req.instanceKeyScopes;
+    }
+    return response;
+  }
 
   @Get('auth/setup-status')
   @HttpCode(200)
@@ -135,6 +159,36 @@ export class AccountController {
   @ApiOperation({ summary: 'Update account profile' })
   async updateAccount(@Req() req: any, @Body() body: UpdateAccountDto) {
     return this.accountService.updateAccount(req.accountId, body);
+  }
+
+  // =========================================================================
+  // Instance API Keys
+  // =========================================================================
+
+  @Get('account/instance-keys')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List instance API keys' })
+  async listInstanceKeys(@Req() req: any) {
+    return this.accountService.listInstanceKeys(req.accountId);
+  }
+
+  @Post('account/instance-keys')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Create an instance API key' })
+  async createInstanceKey(@Req() req: any, @Body() body: { name: string; scopes?: string[] }) {
+    return this.accountService.createInstanceKey(req.accountId, body.name, body.scopes);
+  }
+
+  @Delete('account/instance-keys/:id')
+  @UseGuards(AccountJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete an instance API key' })
+  async deleteInstanceKey(@Req() req: any, @Param('id') id: string) {
+    await this.accountService.deleteInstanceKey(req.accountId, id);
   }
 
   // =========================================================================

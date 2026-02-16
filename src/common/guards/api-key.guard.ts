@@ -71,6 +71,31 @@ export class ApiKeyGuard implements CanActivate {
 
     // Remote access — require API key
     const apiKey = request.headers['x-am-api-key'];
+
+    // Instance API keys: eng_inst_ prefix → validate as account-level key
+    if (typeof apiKey === 'string' && apiKey.startsWith('eng_inst_')) {
+      const keyHash = this.hashApiKey(apiKey);
+      const instanceKey = await this.prisma.instanceApiKey.findUnique({
+        where: { keyHash },
+      });
+      if (!instanceKey || instanceKey.deletedAt) {
+        throw new UnauthorizedException('Invalid instance API key');
+      }
+      if (instanceKey.expiresAt && instanceKey.expiresAt < new Date()) {
+        throw new UnauthorizedException('Instance API key has expired');
+      }
+      // Update lastUsedAt (best-effort)
+      this.prisma.instanceApiKey.update({
+        where: { id: instanceKey.id },
+        data: { lastUsedAt: new Date() },
+      }).catch(() => {});
+
+      request.accountId = instanceKey.accountId;
+      request.isInstanceKey = true;
+      request.instanceKeyScopes = instanceKey.scopes;
+      return true;
+    }
+
     const userId = request.headers['x-am-user-id'];
 
     if (!apiKey) {

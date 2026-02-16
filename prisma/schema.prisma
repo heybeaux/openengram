@@ -30,6 +30,7 @@ model Account {
   uxFeedback          UxFeedback[]
   cloudLink           CloudLink?
   instanceSyncKeys    InstanceSyncKey[]
+  instanceApiKeys     InstanceApiKey[]
 
   @@map("accounts")
 }
@@ -1340,6 +1341,26 @@ model SyncUserMap {
   @@unique([instanceId, cloudUserId])
   @@index([cloudUserId])
   @@map("sync_user_map")
+}
+
+/// Instance API Key — account-level keys for cloud sync, admin, and account actions.
+/// Separate from agent-level API keys. Prefix: eng_inst_
+model InstanceApiKey {
+  id         String    @id @default(cuid())
+  accountId  String    @map("account_id")
+  name       String
+  keyHash    String    @unique @map("key_hash")
+  keyHint    String    @map("key_hint")
+  scopes     String[]  @default(["sync", "read"])
+  lastUsedAt DateTime? @map("last_used_at")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@map("instance_api_keys")
 }
 
 /// Maps local memory IDs to cloud memory IDs for sync tracking

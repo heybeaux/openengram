@@ -431,6 +431,92 @@ export class AccountService {
     });
   }
 
+  // =========================================================================
+  // Instance API Keys
+  // =========================================================================
+
+  async listInstanceKeys(accountId: string) {
+    return this.prisma.instanceApiKey.findMany({
+      where: { accountId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        keyHint: true,
+        scopes: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createInstanceKey(accountId: string, name: string, scopes?: string[]) {
+    const rawKey = `eng_inst_${randomBytes(24).toString('hex')}`;
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+    const keyHint = rawKey.slice(0, 8) + '...' + rawKey.slice(-4);
+
+    const key = await this.prisma.instanceApiKey.create({
+      data: {
+        accountId,
+        name,
+        keyHash,
+        keyHint,
+        scopes: scopes && scopes.length > 0 ? scopes : ['sync', 'read'],
+      },
+    });
+
+    return {
+      key: rawKey,
+      id: key.id,
+      name: key.name,
+      keyHint,
+      scopes: key.scopes,
+      createdAt: key.createdAt,
+    };
+  }
+
+  async deleteInstanceKey(accountId: string, keyId: string) {
+    const key = await this.prisma.instanceApiKey.findFirst({
+      where: { id: keyId, accountId, deletedAt: null },
+    });
+    if (!key) {
+      throw new BadRequestException('Instance key not found');
+    }
+    await this.prisma.instanceApiKey.update({
+      where: { id: keyId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async validateInstanceKey(rawKey: string) {
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+    const key = await this.prisma.instanceApiKey.findUnique({
+      where: { keyHash },
+      include: { account: true },
+    });
+
+    if (!key || key.deletedAt) return null;
+    if (key.expiresAt && key.expiresAt < new Date()) return null;
+
+    // Update lastUsedAt (best-effort, don't block)
+    this.prisma.instanceApiKey.update({
+      where: { id: key.id },
+      data: { lastUsedAt: new Date() },
+    }).catch(() => {});
+
+    return {
+      accountId: key.accountId,
+      account: {
+        id: key.account.id,
+        email: key.account.email,
+        plan: key.account.plan,
+        name: key.account.name,
+      },
+      scopes: key.scopes,
+    };
+  }
+
   async deleteAccount(accountId: string) {
     await this.prisma.$transaction(async (tx) => {
       // Get all agents for this account
