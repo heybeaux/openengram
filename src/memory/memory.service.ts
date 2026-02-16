@@ -34,6 +34,7 @@ import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.s
 import { MemoryDedupService, SOURCE_CONFIDENCE } from './memory-dedup.service';
 import { MemoryQueryService } from './memory-query.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
+import { rlsContext } from '../prisma/rls-context';
 import { MemoryGraphService } from './memory-graph.service';
 
 // Re-export types for backward compatibility
@@ -225,15 +226,22 @@ export class MemoryService {
     };
 
     // 9. Extract structure asynchronously
-    this.pipelineService
-      .extractAndEmbed(memory.id, rawContent, userId, extractionContext)
-      .catch((err) => {
-        console.error(`Extraction failed for memory ${memory.id}:`, err);
-      });
+    // Run outside RLS transaction context — the fire-and-forget pipeline
+    // outlives the HTTP request, so it must not use the (closed) tx client.
+    rlsContext.run(undefined as any, () => {
+      this.pipelineService
+        .extractAndEmbed(memory.id, rawContent, userId, extractionContext)
+        .catch((err) => {
+          console.error(`Extraction failed for memory ${memory.id}:`, err);
+        });
+    });
 
     // 10a. Increment account memoriesUsed
-    this.incrementMemoriesUsed(userId, 1).catch((err) => {
-      console.error(`[Memory] Failed to increment memoriesUsed:`, err);
+    // Also run outside RLS context to avoid closed transaction errors
+    rlsContext.run(undefined as any, () => {
+      this.incrementMemoriesUsed(userId, 1).catch((err) => {
+        console.error(`[Memory] Failed to increment memoriesUsed:`, err);
+      });
     });
 
     // 10. Emit memory.created event
@@ -251,14 +259,16 @@ export class MemoryService {
 
     // 11. Check for contradictions
     if (this.correctionService) {
-      this.correctionService
-        .checkForContradictions(memory.id, userId, rawContent)
-        .catch((err) => {
-          console.error(
-            `[Correction] Contradiction check failed for memory ${memory.id}:`,
-            err,
-          );
-        });
+      rlsContext.run(undefined as any, () => {
+        this.correctionService!
+          .checkForContradictions(memory.id, userId, rawContent)
+          .catch((err) => {
+            console.error(
+              `[Correction] Contradiction check failed for memory ${memory.id}:`,
+              err,
+            );
+          });
+      });
     }
 
     return memory;
@@ -661,14 +671,16 @@ export class MemoryService {
       userId,
       userName: (original.user as any)?.displayName || original.user?.externalId,
     };
-    this.pipelineService
-      .extractAndEmbed(correction.id, dto.correctedContent, userId, context)
-      .catch((err) => {
-        console.error(
-          `[Memory] Extraction failed for correction ${correction.id}:`,
-          err,
-        );
-      });
+    rlsContext.run(undefined as any, () => {
+      this.pipelineService
+        .extractAndEmbed(correction.id, dto.correctedContent, userId, context)
+        .catch((err) => {
+          console.error(
+            `[Memory] Extraction failed for correction ${correction.id}:`,
+            err,
+          );
+        });
+    });
 
     // Increment memoriesUsed for the correction
     this.incrementMemoriesUsed(userId, 1).catch((err) => {
@@ -882,11 +894,13 @@ export class MemoryService {
           timestamp: item.createdAt ? new Date(item.createdAt) : new Date(),
         };
 
-        this.pipelineService
-          .extractAndEmbed(memory.id, item.raw, userId, extractionContext)
-          .catch((err) => {
-            console.error(`[Import] Extraction failed for ${memory.id}:`, err);
-          });
+        rlsContext.run(undefined as any, () => {
+          this.pipelineService
+            .extractAndEmbed(memory.id, item.raw, userId, extractionContext)
+            .catch((err) => {
+              console.error(`[Import] Extraction failed for ${memory.id}:`, err);
+            });
+        });
 
         // Emit memory.created so ensemble embeddings get generated
         this.emitEvent(
