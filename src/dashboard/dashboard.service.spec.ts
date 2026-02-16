@@ -53,6 +53,7 @@ describe('DashboardService', () => {
         .mockResolvedValueOnce(30) // memoriesLastWeek
         .mockResolvedValueOnce(20); // memoriesPreviousWeek
       mockPrisma.user.count
+        .mockResolvedValueOnce(2) // totalUsers (all agents)
         .mockResolvedValueOnce(1) // usersLastWeek
         .mockResolvedValueOnce(0); // usersPreviousWeek
       mockPrisma.memoryExtraction.count.mockResolvedValue(80);
@@ -83,7 +84,10 @@ describe('DashboardService', () => {
     it('should handle zero memories gracefully', async () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
       mockPrisma.memory.count.mockResolvedValue(0);
-      mockPrisma.user.count.mockResolvedValue(0);
+      mockPrisma.user.count
+        .mockResolvedValueOnce(0) // totalUsers
+        .mockResolvedValueOnce(0) // usersLastWeek
+        .mockResolvedValueOnce(0); // usersPreviousWeek
       mockPrisma.memoryExtraction.count.mockResolvedValue(0);
       mockPrisma.memory.groupBy.mockResolvedValue([]);
       mockPrisma.memory.findMany.mockResolvedValue([]);
