@@ -53,31 +53,25 @@ export class DashboardService {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    // Get all users for this agent
-    const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
-      select: { id: true },
-    });
-    const userIds = users.map((u) => u.id);
+    // Aggregate across ALL agents (not just the requesting one)
+    const activeMemoryFilter = { deletedAt: null };
 
     // Total memories
     const totalMemories = await this.prisma.memory.count({
-      where: { userId: { in: userIds }, deletedAt: null },
+      where: activeMemoryFilter,
     });
 
     // Memories from last week vs previous week (for trend)
     const memoriesLastWeek = await this.prisma.memory.count({
       where: {
-        userId: { in: userIds },
-        deletedAt: null,
+        ...activeMemoryFilter,
         createdAt: { gte: oneWeekAgo },
       },
     });
 
     const memoriesPreviousWeek = await this.prisma.memory.count({
       where: {
-        userId: { in: userIds },
-        deletedAt: null,
+        ...activeMemoryFilter,
         createdAt: { gte: twoWeeksAgo, lt: oneWeekAgo },
       },
     });
@@ -90,13 +84,14 @@ export class DashboardService {
               100,
           );
 
-    // Total users
-    const totalUsers = users.length;
+    // Total users (all agents)
+    const totalUsers = await this.prisma.user.count({
+      where: { deletedAt: null },
+    });
 
-    // Users from last week vs previous week
+    // Users from last week vs previous week (all agents)
     const usersLastWeek = await this.prisma.user.count({
       where: {
-        agentId,
         deletedAt: null,
         createdAt: { gte: oneWeekAgo },
       },
@@ -104,7 +99,6 @@ export class DashboardService {
 
     const usersPreviousWeek = await this.prisma.user.count({
       where: {
-        agentId,
         deletedAt: null,
         createdAt: { gte: twoWeeksAgo, lt: oneWeekAgo },
       },
@@ -117,10 +111,10 @@ export class DashboardService {
             ((usersLastWeek - usersPreviousWeek) / usersPreviousWeek) * 100,
           );
 
-    // Health score: % of memories that have extractions
+    // Health score: % of memories that have extractions (all agents)
     const memoriesWithExtraction = await this.prisma.memoryExtraction.count({
       where: {
-        memory: { userId: { in: userIds }, deletedAt: null },
+        memory: activeMemoryFilter,
       },
     });
     const healthScore =
@@ -128,10 +122,10 @@ export class DashboardService {
         ? 100
         : Math.round((memoriesWithExtraction / totalMemories) * 100);
 
-    // Memory by layer
+    // Memory by layer (all agents)
     const layerCounts = await this.prisma.memory.groupBy({
       by: ['layer'],
-      where: { userId: { in: userIds }, deletedAt: null },
+      where: activeMemoryFilter,
       _count: { id: true },
     });
 
@@ -149,9 +143,9 @@ export class DashboardService {
     // API requests - placeholder data (we don't track API requests yet)
     const apiRequests = this.generatePlaceholderApiRequests();
 
-    // Recent activity - get recent memories
+    // Recent activity - get recent memories (all agents)
     const recentMemories = await this.prisma.memory.findMany({
-      where: { userId: { in: userIds }, deletedAt: null },
+      where: activeMemoryFilter,
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: { id: true, createdAt: true, source: true },

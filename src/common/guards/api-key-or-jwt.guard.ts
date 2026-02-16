@@ -40,32 +40,56 @@ export class ApiKeyOrJwtGuard implements CanActivate {
     const trustLocal =
       this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
     if (trustLocal && this.isLocalIp(request)) {
-      // Try to resolve agent/user context for LAN requests
+      // LAN bypass requires at least a user identification header
+      const externalUserId = request.headers['x-am-user-id'];
+      const internalUserId = request.headers['x-user-id'];
+
+      if (!externalUserId && !internalUserId) {
+        throw new UnauthorizedException(
+          'LAN bypass requires X-AM-User-ID or X-User-ID header',
+        );
+      }
+
       const agent = await this.prisma.agent.findFirst({
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
       });
+
       if (agent) {
-        const externalUserId = request.headers['x-am-user-id'] || 'default';
-        let user = await this.prisma.user.findUnique({
-          where: {
-            agentId_externalId: {
-              agentId: agent.id,
-              externalId: externalUserId,
-            },
-          },
-        });
-        if (!user) {
-          user = await this.prisma.user.create({
-            data: { agentId: agent.id, externalId: externalUserId },
+        let user: any = null;
+
+        // If internal user ID provided, look up directly
+        if (internalUserId) {
+          user = await this.prisma.user.findUnique({
+            where: { id: internalUserId },
           });
         }
+
+        // Fall back to external ID lookup
+        if (!user && externalUserId) {
+          user = await this.prisma.user.findUnique({
+            where: {
+              agentId_externalId: {
+                agentId: agent.id,
+                externalId: externalUserId,
+              },
+            },
+          });
+          if (!user) {
+            user = await this.prisma.user.create({
+              data: { agentId: agent.id, externalId: externalUserId },
+            });
+          }
+        }
+
         request.agent = agent;
         request.user = user;
         request.accountId = agent.accountId;
+        request.isLanBypass = true;
       } else {
         request.agent = null;
         request.user = null;
+        request.isLanBypass = true;
       }
       return true;
     }

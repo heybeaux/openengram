@@ -10,7 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 /**
  * Guard that restricts access to admin accounts only.
  * Must be used AFTER AccountJwtGuard (so req.accountId is set).
- * LAN bypass: when TRUST_LOCAL_NETWORK=true and request is local, admin check is skipped.
+ * No LAN bypass — admin endpoints always require admin role.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -23,11 +23,9 @@ export class AdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const accountId = request.accountId;
 
-    // LAN bypass for admin guard
-    const trustLocal =
-      this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
-    if (trustLocal && this.isLocalIp(request)) {
-      return true;
+    // Reject LAN bypass — admin endpoints require real authentication
+    if (request.isLanBypass) {
+      throw new ForbiddenException('Admin endpoints require explicit authentication, not LAN bypass');
     }
 
     if (!accountId) {
@@ -44,18 +42,5 @@ export class AdminGuard implements CanActivate {
     }
 
     return true;
-  }
-
-  private isLocalIp(request: any): boolean {
-    const ip = request.ip || request.connection?.remoteAddress || '';
-    return (
-      ip === '127.0.0.1' ||
-      ip === '::1' ||
-      ip === '::ffff:127.0.0.1' ||
-      ip.startsWith('10.') ||
-      ip.startsWith('192.168.') ||
-      ip.startsWith('::ffff:10.') ||
-      ip.startsWith('::ffff:192.168.')
-    );
   }
 }
