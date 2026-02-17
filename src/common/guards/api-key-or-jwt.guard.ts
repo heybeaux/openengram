@@ -64,6 +64,35 @@ export class ApiKeyOrJwtGuard implements CanActivate {
           orderBy: { createdAt: 'asc' },
         });
         request.agent = defaultAgent;
+
+        // Resolve user for @UserId() — needed for recall/query endpoints
+        if (defaultAgent) {
+          const externalUserId = request.headers['x-am-user-id'];
+          let user: any = null;
+          if (externalUserId) {
+            user = await this.prisma.user.findUnique({
+              where: {
+                agentId_externalId: {
+                  agentId: defaultAgent.id,
+                  externalId: externalUserId,
+                },
+              },
+            });
+            if (!user) {
+              user = await this.prisma.user.create({
+                data: { agentId: defaultAgent.id, externalId: externalUserId },
+              });
+            }
+          }
+          if (!user) {
+            // Fall back to first user for this agent
+            user = await this.prisma.user.findFirst({
+              where: { agentId: defaultAgent.id },
+              orderBy: { createdAt: 'asc' },
+            });
+          }
+          request.user = user;
+        }
         return true;
       }
 
