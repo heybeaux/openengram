@@ -69,19 +69,21 @@ async function bootstrap() {
   );
 
   // CORS whitelist — configurable via CORS_ORIGINS env var (comma-separated)
+  // Production origins are ALWAYS included regardless of env var
   const allowedOrigins = (() => {
-    const envOrigins = process.env.CORS_ORIGINS;
-    if (envOrigins) {
-      return envOrigins
-        .split(',')
-        .map((o) => o.trim())
-        .filter(Boolean);
-    }
     const origins = [
       'https://openengram.ai',
       'https://www.openengram.ai',
       'https://app.openengram.ai',
     ];
+    const envOrigins = process.env.CORS_ORIGINS;
+    if (envOrigins) {
+      envOrigins
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+        .forEach((o) => { if (!origins.includes(o)) origins.push(o); });
+    }
     if (process.env.NODE_ENV !== 'production') {
       origins.push('http://localhost:3000');
       origins.push('http://localhost:3002');
