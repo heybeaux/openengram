@@ -56,9 +56,9 @@ Where the Waking Cycle gets its raw observations:
 | Source | What it watches | Priority |
 |--------|----------------|----------|
 | **Engram memories** | New memories, pattern shifts in knowledge graph | MVP |
-| **GitHub** | Commits, PRs, issues, staleness, velocity | MVP |
-| **Linear** | Ticket status, blockers, aging issues | MVP |
 | **Conversations** | Recent agent↔human exchanges (via memory) | MVP |
+| **GitHub** | Commits, PRs, issues, staleness, velocity | v2 |
+| **Linear** | Ticket status, blockers, aging issues | v2 |
 | **Calendar** | Upcoming events, schedule pressure | v2 |
 | **Email** | Unread count trends, urgent threads | v2 |
 | **Custom webhooks** | User-defined signal sources | v2 |
@@ -178,10 +178,11 @@ AWARENESS_LINEAR_TOKEN=${LINEAR_TOKEN}
 - [ ] Waking Cycle scheduler (configurable cron)
 - [ ] Resource budget enforcement
 - [ ] Insight dedup (don't regenerate the same insight)
+- [ ] Source validation (verify referenced memory IDs exist before storing)
 - [ ] Dashboard: insights visible in memories list with INSIGHT badge
 
 ### MVP Excludes (v2):
-- GitHub/Linear signal sources
+- GitHub/Linear signal sources (move to v2 — memory-only is complex enough for MVP)
 - Calendar/email integration
 - Custom webhooks
 - ML-based confidence scoring
