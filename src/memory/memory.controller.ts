@@ -251,11 +251,14 @@ export class MemoryController {
     @Query('offset') offsetStr?: string,
     @Query('layer') layer?: string,
     @Query('userId') filterUserId?: string,
+    @Query('agentId') agentId?: string,
   ): Promise<{
     memories: any[];
     total: number;
     limit: number;
     offset: number;
+    page: number;
+    totalPages: number;
   }> {
     const limit = Math.min(
       Math.max(parseInt(limitStr || '25', 10) || 25, 1),
@@ -278,6 +281,10 @@ export class MemoryController {
       where.layer = layer;
     }
 
+    if (agentId) {
+      where.agentId = agentId;
+    }
+
     const [memories, total] = await Promise.all([
       this.prisma.memory.findMany({
         where,
@@ -289,7 +296,10 @@ export class MemoryController {
       this.prisma.memory.count({ where }),
     ]);
 
-    return { memories, total, limit, offset };
+    const page = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(total / limit);
+
+    return { memories, total, limit, offset, page, totalPages };
   }
 
   /**
@@ -327,6 +337,7 @@ export class MemoryController {
 
     const users = await this.prisma.user.findMany({
       where,
+      distinct: ['externalId'],
       select: {
         id: true,
         externalId: true,
