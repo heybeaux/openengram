@@ -129,6 +129,76 @@ export class MemorySignalService implements SignalSource {
       }
     }
 
+    // ── 4. Cross-cutting memory sample (for LLM pattern discovery) ─────
+    if (queriesUsed + 2 < budget.maxQueries) {
+      // Sample recent high-importance memories across different layers
+      const diverseMemories = await this.prisma.memory.findMany({
+        where: {
+          deletedAt: null,
+          layer: { not: 'INSIGHT' },
+          importanceScore: { gte: 0.3 },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+        select: {
+          id: true,
+          raw: true,
+          layer: true,
+          createdAt: true,
+          agentId: true,
+          memoryType: true,
+        },
+      });
+      queriesUsed++;
+
+      // Also grab some older memories for temporal pattern detection
+      const olderMemories = await this.prisma.memory.findMany({
+        where: {
+          deletedAt: null,
+          layer: { not: 'INSIGHT' },
+          importanceScore: { gte: 0.5 },
+          createdAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+        },
+        orderBy: [{ importanceScore: 'desc' }, { retrievalCount: 'desc' }],
+        take: 20,
+        select: {
+          id: true,
+          raw: true,
+          layer: true,
+          createdAt: true,
+          agentId: true,
+          memoryType: true,
+        },
+      });
+      queriesUsed++;
+
+      const allSampled = [...diverseMemories, ...olderMemories];
+      // Deduplicate by ID
+      const seen = new Set<string>();
+      const unique = allSampled.filter(m => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+
+      if (unique.length >= 3) {
+        observations.push({
+          id: `cross-cutting-${new Date().toISOString()}`,
+          source: this.name,
+          content: `Cross-cutting memory sample: ${unique.length} memories across layers [${[...new Set(unique.map(m => m.layer))].join(', ')}] spanning ${this.daySpan(unique)} days. Looking for patterns, connections, and gaps.`,
+          observedAt: new Date(),
+          relatedMemoryIds: unique.map(m => m.id),
+          metadata: {
+            count: unique.length,
+            layers: [...new Set(unique.map(m => m.layer))],
+            agents: [...new Set(unique.map(m => m.agentId).filter(Boolean))],
+            types: [...new Set(unique.map(m => m.memoryType).filter(Boolean))],
+            crossCutting: true,
+          },
+        });
+      }
+    }
+
     this.logger.log(
       `Collected ${observations.length} observations using ${queriesUsed} queries`,
     );
@@ -141,6 +211,13 @@ export class MemorySignalService implements SignalSource {
         observationCount: observations.length,
       },
     };
+  }
+
+  /** Calculate the time span in days across a set of memories. */
+  private daySpan(memories: { createdAt: Date }[]): number {
+    if (memories.length < 2) return 0;
+    const dates = memories.map(m => m.createdAt.getTime());
+    return Math.round((Math.max(...dates) - Math.min(...dates)) / (24 * 60 * 60 * 1000));
   }
 
   /** Extract top keywords from memory content for observation summaries. */

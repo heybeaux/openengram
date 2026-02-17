@@ -73,7 +73,7 @@ export class PatternDetectorService {
       // New memory batch — flag for LLM synthesis
       if (obs.id.startsWith('new-memories-')) {
         const count = (obs.metadata?.count as number) || 0;
-        if (count >= 5) {
+        if (count >= 3) {
           patterns.push({
             type: 'pattern_connection',
             description: obs.content,
@@ -83,6 +83,18 @@ export class PatternDetectorService {
             actionable: false,
           });
         }
+      }
+
+      // Cross-cutting memory sample — always send to LLM for deep analysis
+      if (obs.id.startsWith('cross-cutting-')) {
+        patterns.push({
+          type: 'pattern_connection',
+          description: obs.content,
+          sourceObservations: [obs],
+          relatedMemoryIds: obs.relatedMemoryIds || [],
+          confidence: 0.55, // slightly above threshold, LLM will refine
+          actionable: false,
+        });
       }
     }
 
