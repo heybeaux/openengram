@@ -226,6 +226,112 @@ export class MemoryController {
   // =========================================================================
 
   /**
+   * GET /v1/memories
+   * List memories with pagination and optional filters
+   */
+  @Get('memories')
+  @ApiOperation({
+    summary: 'List memories',
+    description:
+      'List memories with pagination, ordered by newest first. Supports layer and userId filters.',
+  })
+  async listMemories(
+    @Req() req: any,
+    @UserId() userId: string,
+    @Query('limit') limitStr?: string,
+    @Query('offset') offsetStr?: string,
+    @Query('layer') layer?: string,
+    @Query('userId') filterUserId?: string,
+  ): Promise<{
+    memories: any[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const limit = Math.min(
+      Math.max(parseInt(limitStr || '25', 10) || 25, 1),
+      100,
+    );
+    const offset = Math.max(parseInt(offsetStr || '0', 10) || 0, 0);
+
+    const accountUserIds = await this.resolveAccountUserIds(req);
+    const userIds = accountUserIds || [userId];
+
+    const where: any = {
+      deletedAt: null,
+      userId:
+        filterUserId && userIds.includes(filterUserId)
+          ? filterUserId
+          : { in: userIds },
+    };
+
+    if (layer) {
+      where.layer = layer;
+    }
+
+    const [memories, total] = await Promise.all([
+      this.prisma.memory.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+        include: { extraction: true },
+      }),
+      this.prisma.memory.count({ where }),
+    ]);
+
+    return { memories, total, limit, offset };
+  }
+
+  /**
+   * GET /v1/users
+   * List all users under the authenticated account
+   */
+  @Get('users')
+  @ApiOperation({
+    summary: 'List users',
+    description: 'List all users under the authenticated account.',
+  })
+  async listUsers(
+    @Req() req: any,
+    @UserId() userId: string,
+  ): Promise<{
+    users: Array<{
+      id: string;
+      externalId: string;
+      displayName: string | null;
+      agentId: string;
+      createdAt: Date;
+    }>;
+  }> {
+    const accountUserIds = await this.resolveAccountUserIds(req);
+
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (accountUserIds) {
+      where.id = { in: accountUserIds };
+    } else {
+      where.id = userId;
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        externalId: true,
+        displayName: true,
+        agentId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { users };
+  }
+
+  /**
    * GET /v1/memories/export
    * Export all user memories as JSON or NDJSON for migration.
    */
