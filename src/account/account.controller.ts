@@ -196,7 +196,7 @@ export class AccountController {
   // =========================================================================
 
   @Post('account/sync-keys')
-  @UseGuards(AccountJwtGuard)
+  @UseGuards(ApiKeyOrJwtGuard)
   @ApiBearerAuth()
   @HttpCode(201)
   @ApiOperation({ summary: 'Create an instance sync key' })

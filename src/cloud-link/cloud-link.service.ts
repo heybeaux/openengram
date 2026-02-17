@@ -35,7 +35,7 @@ export class CloudLinkService {
     // Validate the API key against cloud
     const cloudUser = await this.validateCloudApiKey(apiKey);
 
-    // Encrypt the API key
+    // Encrypt the instance API key (used for auth/refresh)
     const encryptedKey = encrypt(apiKey);
 
     // Upsert the cloud link (generate instanceId on first link)
@@ -45,11 +45,44 @@ export class CloudLinkService {
     });
     const instanceId = existing?.instanceId ?? randomUUID();
 
+    // Create an instance sync key on the cloud for push operations
+    let encryptedSyncKey: string | null = null;
+    try {
+      const hostname = require('os').hostname();
+      const syncKeyResponse = await fetch(
+        `${this.CLOUD_API_BASE}/v1/account/sync-keys`,
+        {
+          method: 'POST',
+          headers: {
+            'X-AM-API-Key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ instanceName: hostname }),
+        },
+      );
+      if (syncKeyResponse.ok) {
+        const syncKeyData = (await syncKeyResponse.json()) as { key: string };
+        if (syncKeyData.key) {
+          encryptedSyncKey = encrypt(syncKeyData.key);
+          this.logger.log(
+            `Created cloud sync key for instance ${hostname}`,
+          );
+        }
+      } else {
+        this.logger.warn(
+          `Failed to create cloud sync key: ${syncKeyResponse.status} ${await syncKeyResponse.text().catch(() => '')}`,
+        );
+      }
+    } catch (error: any) {
+      this.logger.warn(`Failed to create cloud sync key: ${error.message}`);
+    }
+
     await this.prisma.cloudLink.upsert({
       where: { accountId },
       create: {
         accountId,
         cloudApiKey: encryptedKey,
+        cloudSyncKey: encryptedSyncKey,
         cloudAccountId: cloudUser.id,
         cloudEmail: cloudUser.email,
         cloudPlan: cloudUser.plan,
@@ -58,6 +91,7 @@ export class CloudLinkService {
       },
       update: {
         cloudApiKey: encryptedKey,
+        cloudSyncKey: encryptedSyncKey,
         cloudAccountId: cloudUser.id,
         cloudEmail: cloudUser.email,
         cloudPlan: cloudUser.plan,

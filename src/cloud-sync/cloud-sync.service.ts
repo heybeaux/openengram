@@ -55,14 +55,16 @@ export class CloudSyncService {
     }
 
     const link = await this.getCloudLink(accountId);
-    const apiKey = this.decryptApiKey(link.cloudApiKey);
+    const syncKey = link.cloudSyncKey
+      ? this.decryptApiKey(link.cloudSyncKey)
+      : this.decryptApiKey(link.cloudApiKey);
 
     this.syncing = true;
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
     const startTime = Date.now();
     try {
-      const result = await this.performSync(apiKey, link.instanceId, this.syncAbortController.signal);
+      const result = await this.performSync(syncKey, link.instanceId, this.syncAbortController.signal);
       // Store sync event for history
       await this.storeSyncEvent(accountId, result, 'completed');
       return result;
@@ -155,7 +157,9 @@ export class CloudSyncService {
       });
       if (!link) return;
 
-      const apiKey = this.decryptApiKey(link.cloudApiKey);
+      const apiKey = link.cloudSyncKey
+        ? this.decryptApiKey(link.cloudSyncKey)
+        : this.decryptApiKey(link.cloudApiKey);
       const memory = await this.prisma.memory.findUnique({
         where: { id: event.memoryId },
         include: { extraction: true, entities: { include: { entity: true } } },
@@ -621,7 +625,9 @@ export class CloudSyncService {
     const response = await fetch(`${this.CLOUD_API_BASE}/v1/sync/push`, {
       method: 'POST',
       headers: {
-        'X-AM-API-Key': apiKey,
+        ...(apiKey.startsWith('esync_')
+          ? { 'X-Sync-Key': apiKey }
+          : { 'X-AM-API-Key': apiKey }),
         'X-Instance-Id': effectiveInstanceId,
         'Content-Type': 'application/json',
       },

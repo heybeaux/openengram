@@ -1272,7 +1272,8 @@ model CloudLink {
   id              String   @id @default(cuid())
   accountId       String   @unique @map("account_id")
   instanceId      String?  @map("instance_id") // UUID identifying this self-hosted instance for dedup
-  cloudApiKey     String   @map("cloud_api_key") // encrypted
+  cloudApiKey     String   @map("cloud_api_key") // encrypted instance API key for auth
+  cloudSyncKey    String?  @map("cloud_sync_key") // encrypted esync_ key for sync push
   cloudAccountId  String?  @map("cloud_account_id")
   cloudEmail      String?  @map("cloud_email")
   cloudPlan       String?  @map("cloud_plan")
