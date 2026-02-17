@@ -1282,6 +1282,7 @@ model CloudLink {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   autoSync Boolean @default(false) @map("auto_sync")
+  lastPulledAt DateTime? @map("last_pulled_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 

@@ -5,6 +5,7 @@ import {
   Put,
   Delete,
   Body,
+  Query,
   UseGuards,
   Req,
   HttpCode,
@@ -59,6 +60,13 @@ export class CloudSyncController {
   async history(@Req() req: any) {
     return this.cloudSyncService.getSyncHistory(req.accountId, 10);
   }
+
+  @Post('pull')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Pull memories from cloud to local' })
+  async pull(@Req() req: any) {
+    return this.cloudSyncService.triggerPull(req.accountId);
+  }
 }
 
 /**
@@ -87,6 +95,24 @@ export class SyncIngestController {
       req.accountId,
       req.instanceId,
       dto,
+    );
+  }
+
+  @Get('pull')
+  @UseGuards(InstanceSyncKeyGuard)
+  @ApiOperation({ summary: 'Pull memories modified since timestamp' })
+  async pullBatch(
+    @Query('since') since: string,
+    @Query('limit') limit: string,
+    @Req() req: any,
+  ) {
+    const sinceDate = since ? new Date(since) : new Date(0);
+    const take = Math.min(parseInt(limit) || 100, 500);
+    return this.cloudSyncService.handleSyncPull(
+      req.accountId,
+      req.instanceId,
+      sinceDate,
+      take,
     );
   }
 
