@@ -67,27 +67,30 @@ export class MemoryController {
   ) {}
 
   /**
-   * Resolve user IDs for account-wide search when using instance keys.
+   * Resolve user IDs for account-wide search.
+   * Works for all authenticated requests (instance keys, regular API keys, JWT).
    * If agentId is provided, scopes to that agent's users only.
    */
   private async resolveAccountUserIds(
     req: any,
     agentId?: string,
   ): Promise<string[] | null> {
-    if (!req.accountId) return null;
+    // Derive accountId from request or from the attached agent
+    const accountId = req.accountId ?? req.agent?.accountId;
+    if (!accountId) return null;
 
     const where: any = {};
     if (agentId) {
       where.agentId = agentId;
     } else {
-      where.agent = { accountId: req.accountId, deletedAt: null };
+      where.agent = { accountId, deletedAt: null };
     }
 
     const users = await this.prisma.user.findMany({
       where,
       select: { id: true },
     });
-    return users.map((u) => u.id);
+    return users.length > 0 ? users.map((u) => u.id) : null;
   }
 
   // =========================================================================
@@ -108,7 +111,13 @@ export class MemoryController {
   async remember(
     @UserId() userId: string,
     @Body() dto: CreateMemoryDto,
+    @Headers('x-am-agent-id') headerAgentId?: string,
+    @Req() req?: any,
   ): Promise<MemoryWithExtraction> {
+    // Persist agentId from header, falling back to the agent resolved by the auth guard
+    if (!dto.agentId) {
+      dto.agentId = headerAgentId || req?.agent?.id;
+    }
     return this.memoryService.remember(userId, dto);
   }
 
