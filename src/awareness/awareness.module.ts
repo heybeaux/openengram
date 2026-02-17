@@ -21,6 +21,9 @@ const logger = new Logger('AwarenessModule');
  * recall pipeline.
  */
 @Module({
+  // NOTE: ScheduleModule.forRoot() is registered here as no other module uses it yet.
+  // If other modules need @Cron/@Interval, move .forRoot() to AppModule and import
+  // ScheduleModule (without .forRoot()) here instead.
   imports: AwarenessConfig.enabled
     ? [PrismaModule, ScheduleModule.forRoot()]
     : [],
