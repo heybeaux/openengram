@@ -148,7 +148,7 @@ describe('DashboardService', () => {
         },
       ]);
 
-      const result = await service.listUsers('agent-1');
+      const result = await service.listUsers('agent-1', 'account-1');
 
       expect(result.users).toHaveLength(1);
       expect(result.users[0].memoryCount).toBe(5);

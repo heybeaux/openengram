@@ -58,7 +58,7 @@ export class DashboardController {
   @Get('users')
   @UseGuards(InternalOnlyGuard, ApiKeyOrJwtGuard)
   async listUsers(@Agent() agent: any): Promise<UsersListResponse> {
-    return this.dashboardService.listUsers(agent.id);
+    return this.dashboardService.listUsers(agent.id, agent.accountId);
   }
 
   /**

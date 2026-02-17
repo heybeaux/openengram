@@ -225,9 +225,20 @@ export class DashboardService {
   /**
    * List all users with memory stats
    */
-  async listUsers(agentId: string): Promise<UsersListResponse> {
+  async listUsers(
+    agentId: string,
+    accountId?: string,
+  ): Promise<UsersListResponse> {
+    // If accountId is provided, return users across all agents under the account
+    const where: any = { deletedAt: null };
+    if (accountId) {
+      where.agent = { accountId, deletedAt: null };
+    } else {
+      where.agentId = agentId;
+    }
+
     const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
