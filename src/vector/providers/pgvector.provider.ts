@@ -127,7 +127,7 @@ export class PgVectorProvider implements VectorProvider {
 
     // DEBUG: log search params
     console.log(
-      `[PgVector] search: model=${this.searchModel}, userId=${options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`,
+      `[PgVector] search: model=${this.searchModel}, userId=${Array.isArray(options.userId) ? options.userId.join(',') : options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`,
     );
 
     // Search ensemble embeddings first, fall back to inline column
