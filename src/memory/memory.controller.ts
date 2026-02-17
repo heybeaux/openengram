@@ -74,7 +74,7 @@ export class MemoryController {
     req: any,
     agentId?: string,
   ): Promise<string[] | null> {
-    if (!req.isInstanceKey || !req.accountId) return null;
+    if (!req.accountId) return null;
 
     const where: any = {};
     if (agentId) {
