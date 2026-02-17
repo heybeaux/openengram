@@ -66,7 +66,7 @@ export class EmbeddingService {
    * Search for similar embeddings
    */
   async search(
-    userId: string,
+    userId: string | string[],
     queryEmbedding: number[],
     limit: number = 10,
     layers?: MemoryLayer[],

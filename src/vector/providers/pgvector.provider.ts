@@ -76,9 +76,24 @@ export class PgVectorProvider implements VectorProvider {
     const limit = options.limit || 10;
 
     // Build WHERE clause for the memories table filters
-    let memoryWhereClause = `m.user_id = $2 AND m.deleted_at IS NULL`;
-    const params: any[] = [embeddingStr, options.userId, this.searchModel];
-    let paramIndex = 4;
+    const userIds = Array.isArray(options.userId) ? options.userId : [options.userId];
+    // params[0] = embedding string ($1)
+    // params[1] = search model ($2)
+    const params: any[] = [embeddingStr, this.searchModel];
+    let paramIndex = 3;
+
+    // User ID filter
+    let memoryWhereClause: string;
+    if (userIds.length === 1) {
+      memoryWhereClause = `m.user_id = $${paramIndex} AND m.deleted_at IS NULL`;
+      params.push(userIds[0]);
+      paramIndex++;
+    } else {
+      const userPlaceholders = userIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      memoryWhereClause = `m.user_id IN (${userPlaceholders}) AND m.deleted_at IS NULL`;
+      params.push(...userIds);
+      paramIndex += userIds.length;
+    }
 
     if (options.filter?.layers && options.filter.layers.length > 0) {
       const layerPlaceholders = options.filter.layers
@@ -123,7 +138,7 @@ export class PgVectorProvider implements VectorProvider {
         FROM memories m
         JOIN memory_embeddings me ON me.memory_id = m.id
         ${poolJoinClause}
-        WHERE me.model_id = $3
+        WHERE me.model_id = $2
           AND ${memoryWhereClause}
           AND me.embedding IS NOT NULL
         ORDER BY me.embedding <=> $1::vector
@@ -140,7 +155,7 @@ export class PgVectorProvider implements VectorProvider {
           AND m.embedding IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM memory_embeddings me
-            WHERE me.memory_id = m.id AND me.model_id = $3
+            WHERE me.memory_id = m.id AND me.model_id = $2
           )
         ORDER BY m.embedding <=> $1::vector
         LIMIT ${limit}

@@ -177,7 +177,7 @@ export class MultiQueryService {
    */
   async search(
     query: string,
-    userId: string,
+    userId: string | string[],
     options: {
       topK?: number;
       layers?: MemoryLayer[];
@@ -357,7 +357,7 @@ export class MultiQueryService {
   private async searchParallel(
     embeddings: number[][],
     variants: string[],
-    userId: string,
+    userId: string | string[],
     options: {
       topK: number;
       layers?: MemoryLayer[];

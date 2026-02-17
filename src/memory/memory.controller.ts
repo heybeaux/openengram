@@ -8,6 +8,7 @@ import {
   Param,
   Headers,
   Query,
+  Req,
   Res,
   HttpCode,
   HttpStatus,
@@ -46,6 +47,7 @@ import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { AdminGuard } from '../common/guards/admin.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -57,7 +59,32 @@ export class MemoryController {
     private readonly backfillService: BackfillService,
     private readonly consolidationService: ConsolidationService,
     private readonly contextualRecallService: ContextualRecallService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Resolve user IDs for account-wide search when using instance keys.
+   * If agentId is provided, scopes to that agent's users only.
+   */
+  private async resolveAccountUserIds(
+    req: any,
+    agentId?: string,
+  ): Promise<string[] | null> {
+    if (!req.isInstanceKey || !req.accountId) return null;
+
+    const where: any = {};
+    if (agentId) {
+      where.agentId = agentId;
+    } else {
+      where.agent = { accountId: req.accountId, deletedAt: null };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
 
   // =========================================================================
   // MEMORY CRUD
@@ -113,8 +140,11 @@ export class MemoryController {
   async recall(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
-    return this.memoryService.recall(userId, dto);
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.recall(accountUserIds || userId, dto);
   }
 
   /**
@@ -128,8 +158,11 @@ export class MemoryController {
   async search(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
-    return this.memoryService.recall(userId, dto);
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.recall(accountUserIds || userId, dto);
   }
 
   /**
@@ -143,8 +176,11 @@ export class MemoryController {
   async searchGet(
     @UserId() userId: string,
     @Query() dto: QueryMemoryDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
-    return this.memoryService.recall(userId, dto);
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.recall(accountUserIds || userId, dto);
   }
 
   /**
@@ -158,8 +194,11 @@ export class MemoryController {
   async recallAlias(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
-    return this.memoryService.recall(userId, dto);
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.recall(accountUserIds || userId, dto);
   }
 
   /**
@@ -171,8 +210,11 @@ export class MemoryController {
   async contextualRecall(
     @UserId() userId: string,
     @Body() dto: ContextualRecallDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
   ): Promise<ContextualRecallResponseDto> {
-    return this.contextualRecallService.recall(userId, dto);
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.contextualRecallService.recall(accountUserIds || userId, dto);
   }
 
   // =========================================================================

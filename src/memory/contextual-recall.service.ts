@@ -33,7 +33,7 @@ export class ContextualRecallService {
   ) {}
 
   async recall(
-    userId: string,
+    userId: string | string[],
     dto: ContextualRecallDto,
   ): Promise<ContextualRecallResponseDto> {
     const startTime = Date.now();
@@ -65,9 +65,10 @@ export class ContextualRecallService {
     let poolIds: string[] | undefined;
     if (dto.agentSessionKey && this.memoryPoolService) {
       try {
+        const singleUserId = Array.isArray(userId) ? userId[0] : userId;
         poolIds = await this.memoryPoolService.getAccessiblePoolIds(
           dto.agentSessionKey,
-          userId,
+          singleUserId,
         );
       } catch (err) {
         console.warn('[ContextualRecall] Failed to resolve pool IDs:', err);

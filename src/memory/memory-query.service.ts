@@ -32,16 +32,21 @@ export class MemoryQueryService {
   /**
    * Semantic search for memories
    */
-  async recall(userId: string, dto: QueryMemoryDto): Promise<QueryResult> {
+  async recall(userId: string | string[], dto: QueryMemoryDto): Promise<QueryResult> {
     const startTime = Date.now();
+    // Normalize userId for Prisma where clauses
+    const userIdFilter = Array.isArray(userId)
+      ? { in: userId }
+      : userId;
 
     // v0.9: Use explicit poolIds if provided, otherwise resolve from agentSessionKey
     let poolIds: string[] | undefined = dto.poolIds;
+    const singleUserId = Array.isArray(userId) ? userId[0] : userId;
     if (!poolIds && dto.agentSessionKey && this.memoryPoolService) {
       try {
         poolIds = await this.memoryPoolService.getAccessiblePoolIds(
           dto.agentSessionKey,
-          userId,
+          singleUserId,
         );
       } catch (err) {
         console.warn(
@@ -84,7 +89,7 @@ export class MemoryQueryService {
       // TEMPORAL PATH
       const temporalMemories = await this.prisma.memory.findMany({
         where: {
-          userId,
+          userId: userIdFilter,
           deletedAt: null,
           supersededById: null,
           createdAt: {
@@ -219,7 +224,7 @@ export class MemoryQueryService {
    * Perform recall using multi-query retrieval
    */
   private async recallWithMultiQuery(
-    userId: string,
+    userId: string | string[],
     dto: QueryMemoryDto,
     startTime: number,
     poolIds?: string[],

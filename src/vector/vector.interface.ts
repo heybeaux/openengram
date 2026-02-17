@@ -19,7 +19,7 @@ export interface VectorSearchResult {
 }
 
 export interface VectorSearchOptions {
-  userId: string;
+  userId: string | string[];
   limit?: number;
   filter?: {
     layers?: string[];

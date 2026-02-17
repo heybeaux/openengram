@@ -25,11 +25,15 @@ import {
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('auth')
 @Controller('v1')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) {}
+  constructor(
+    private readonly accountService: AccountService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get('auth/me')
   @UseGuards(ApiKeyOrJwtGuard)
@@ -159,6 +163,69 @@ export class AccountController {
   @ApiOperation({ summary: 'Update account profile' })
   async updateAccount(@Req() req: any, @Body() body: UpdateAccountDto) {
     return this.accountService.updateAccount(req.accountId, body);
+  }
+
+  // =========================================================================
+  // Account Agents (instance key or JWT)
+  // =========================================================================
+
+  @Get('account/agents')
+  @UseGuards(ApiKeyOrJwtGuard)
+  @ApiOperation({ summary: 'List agents with memory counts (instance key or JWT)' })
+  async listAgents(@Req() req: any) {
+    const accountId = req.accountId;
+    if (!accountId) {
+      return { agents: [] };
+    }
+
+    const agents = await this.prisma.agent.findMany({
+      where: { accountId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        apiKeyHint: true,
+        createdAt: true,
+      },
+    });
+
+    // Get memory counts per agent
+    const agentIds = agents.map((a) => a.id);
+    const memoryCounts = await this.prisma.memory.groupBy({
+      by: ['userId'],
+      where: {
+        user: { agentId: { in: agentIds } },
+        deletedAt: null,
+      },
+      _count: true,
+    });
+
+    // Map userId -> agentId
+    const users = await this.prisma.user.findMany({
+      where: { agentId: { in: agentIds } },
+      select: { id: true, agentId: true },
+    });
+    const userToAgent = new Map(users.map((u) => [u.id, u.agentId]));
+
+    // Aggregate memory counts per agent
+    const agentMemoryCounts = new Map<string, number>();
+    for (const mc of memoryCounts) {
+      const agentId = userToAgent.get(mc.userId);
+      if (agentId) {
+        agentMemoryCounts.set(agentId, (agentMemoryCounts.get(agentId) || 0) + mc._count);
+      }
+    }
+
+    return {
+      agents: agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        apiKeyHint: a.apiKeyHint || null,
+        memoryCount: agentMemoryCounts.get(a.id) || 0,
+        userCount: users.filter((u) => u.agentId === a.id).length,
+        createdAt: a.createdAt,
+      })),
+    };
   }
 
   // =========================================================================

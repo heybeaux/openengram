@@ -3,6 +3,7 @@ import { MemoryService } from './memory.service';
 import { BackfillService } from './backfill.service';
 import { ConsolidationService } from './consolidation.service';
 import { ContextualRecallService } from './contextual-recall.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('MemoryController', () => {
   let controller: MemoryController;
@@ -42,11 +43,16 @@ describe('MemoryController', () => {
       recall: jest.fn(),
     } as any;
 
+    const prismaService = {
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    } as any;
+
     controller = new MemoryController(
       memoryService,
       backfillService,
       consolidationService,
       contextualRecallService,
+      prismaService,
     );
   });
 
@@ -82,7 +88,8 @@ describe('MemoryController', () => {
       const expected = { memories: [], total: 0 };
       memoryService.recall.mockResolvedValue(expected as any);
 
-      const result = await controller.recall(userId, dto);
+      const req = { isInstanceKey: false };
+      const result = await controller.recall(userId, dto, req);
 
       expect(result).toEqual(expected);
       expect(memoryService.recall).toHaveBeenCalledWith(userId, dto);
@@ -95,7 +102,8 @@ describe('MemoryController', () => {
       const expected = { triggered: false, memories: [] };
       contextualRecallService.recall.mockResolvedValue(expected as any);
 
-      const result = await controller.contextualRecall(userId, dto);
+      const req = { isInstanceKey: false };
+      const result = await controller.contextualRecall(userId, dto, req);
 
       expect(result).toEqual(expected);
     });
