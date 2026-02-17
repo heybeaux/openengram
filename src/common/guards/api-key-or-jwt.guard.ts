@@ -72,9 +72,13 @@ export class ApiKeyOrJwtGuard implements CanActivate {
     }
 
     // LAN bypass: allow local requests without credentials when TRUST_LOCAL_NETWORK=true
+    // Only enabled for local edition (not cloud/prod deployments)
+    const edition = this.config.get<string>('EDITION', 'local');
+    const lanBypassEnv = this.config.get<string>('LAN_BYPASS', '');
+    const isLocalEdition = edition === 'local' || lanBypassEnv === 'true';
     const trustLocal =
       this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
-    if (trustLocal && this.isLocalIp(request)) {
+    if (isLocalEdition && trustLocal && this.isLocalIp(request)) {
       // LAN bypass: use header if provided, otherwise default to first user
       const externalUserId = request.headers['x-am-user-id'];
       const internalUserId = request.headers['x-user-id'];

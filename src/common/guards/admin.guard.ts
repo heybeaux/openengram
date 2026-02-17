@@ -24,7 +24,11 @@ export class AdminGuard implements CanActivate {
     const accountId = request.accountId;
 
     // For self-hosted (LAN bypass), treat the local user as admin
-    if (request.isLanBypass) {
+    // Only allow bypass on local edition, not cloud/prod
+    const edition = this.config.get<string>('EDITION', 'local');
+    const lanBypassEnv = this.config.get<string>('LAN_BYPASS', '');
+    const isLocalEdition = edition === 'local' || lanBypassEnv === 'true';
+    if (isLocalEdition && request.isLanBypass) {
       return true;
     }
 
