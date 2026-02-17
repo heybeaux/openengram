@@ -58,7 +58,12 @@ export class ApiKeyOrJwtGuard implements CanActivate {
         request.accountId = instanceKey.accountId;
         request.isInstanceKey = true;
         request.instanceKeyScopes = instanceKey.scopes;
-        // Don't set request.agent — instance keys aren't tied to a specific agent
+        // Resolve default agent for controllers that need @Agent()
+        const defaultAgent = await this.prisma.agent.findFirst({
+          where: { accountId: instanceKey.accountId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+        });
+        request.agent = defaultAgent;
         return true;
       }
 

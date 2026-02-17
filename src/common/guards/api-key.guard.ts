@@ -93,6 +93,12 @@ export class ApiKeyGuard implements CanActivate {
       request.accountId = instanceKey.accountId;
       request.isInstanceKey = true;
       request.instanceKeyScopes = instanceKey.scopes;
+      // Resolve default agent for controllers that need @Agent()
+      const defaultAgent = await this.prisma.agent.findFirst({
+        where: { accountId: instanceKey.accountId, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+      request.agent = defaultAgent;
       return true;
     }
 
