@@ -170,9 +170,14 @@ describe('MemoryController', () => {
     it('should soft delete a memory', async () => {
       memoryService.delete.mockResolvedValue(undefined);
 
-      await controller.deleteMemory(userId, 'mem-1');
+      const req = { accountId: 'acc-1' };
+      await controller.deleteMemory(userId, 'mem-1', req);
 
-      expect(memoryService.delete).toHaveBeenCalledWith('mem-1', userId);
+      expect(memoryService.delete).toHaveBeenCalledWith(
+        'mem-1',
+        userId,
+        undefined,
+      );
     });
   });
 

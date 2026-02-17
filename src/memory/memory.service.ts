@@ -390,6 +390,7 @@ export class MemoryService {
   private async verifyOwnership(
     memoryId: string,
     userId: string,
+    accountUserIds?: string[],
   ): Promise<void> {
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
@@ -398,7 +399,9 @@ export class MemoryService {
     if (!memory) {
       throw new NotFoundException(`Memory not found: ${memoryId}`);
     }
-    if (memory.userId !== userId) {
+    // Allow if the memory belongs to any user under the same account
+    const allowedIds = accountUserIds ?? [userId];
+    if (!allowedIds.includes(memory.userId)) {
       throw new ForbiddenException(
         'Access denied: Memory belongs to another user',
       );
@@ -444,9 +447,13 @@ export class MemoryService {
   /**
    * Soft delete a memory (with ownership check)
    */
-  async delete(memoryId: string, userId?: string): Promise<void> {
+  async delete(
+    memoryId: string,
+    userId?: string,
+    accountUserIds?: string[],
+  ): Promise<void> {
     if (userId) {
-      await this.verifyOwnership(memoryId, userId);
+      await this.verifyOwnership(memoryId, userId, accountUserIds);
     }
     await this.prisma.memory.update({
       where: { id: memoryId },

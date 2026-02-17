@@ -485,8 +485,10 @@ export class MemoryController {
   async deleteMemory(
     @UserId() userId: string,
     @Param('id') id: string,
+    @Req() req: any,
   ): Promise<void> {
-    return this.memoryService.delete(id, userId);
+    const accountUserIds = await this.resolveAccountUserIds(req);
+    return this.memoryService.delete(id, userId, accountUserIds ?? undefined);
   }
 
   // =========================================================================
