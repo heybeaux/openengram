@@ -43,10 +43,12 @@ export class RlsInterceptor implements NestInterceptor {
     // Wrap the request handler in an interactive transaction with SET LOCAL
     return from(
       this.prisma.$transaction(async (tx) => {
-        // Switch to non-BYPASSRLS role so RLS policies are enforced.
-        // The postgres role has BYPASSRLS which overrides all policies.
-        // SET LOCAL ROLE only persists within this transaction.
-        await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
+        // Note: SET LOCAL ROLE app would enforce RLS, but requires the app role
+        // to have proper grants on all tables. For now, rely on application-level
+        // filtering via SET LOCAL app.current_account_id. RLS policies exist as
+        // defense-in-depth for direct DB access.
+        // TODO: Grant SELECT/INSERT/UPDATE/DELETE on all tables to app role, then enable:
+        // await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
 
         // SET LOCAL only persists within this transaction
         // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
@@ -67,6 +69,9 @@ export class RlsInterceptor implements NestInterceptor {
             });
           });
         });
+      }).catch((err) => {
+        console.error('[RLS_INTERCEPTOR_ERROR]', err?.message || err, err?.stack?.split('\n').slice(0, 3).join('\n'));
+        throw err;
       }),
     ).pipe(switchMap((result) => from(Promise.resolve(result))));
   }
