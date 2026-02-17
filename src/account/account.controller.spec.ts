@@ -32,10 +32,22 @@ describe('AccountController', () => {
 
   describe('register', () => {
     it('should call register with correct params', async () => {
-      const dto = { email: 'a@b.com', password: '12345678', name: 'Test', plan: 'FREE', accessCode: undefined };
+      const dto = {
+        email: 'a@b.com',
+        password: '12345678',
+        name: 'Test',
+        plan: 'FREE',
+        accessCode: undefined,
+      };
       accountService.register.mockResolvedValue({ token: 'jwt' } as any);
       const result = await controller.register(dto as any);
-      expect(accountService.register).toHaveBeenCalledWith('a@b.com', '12345678', 'Test', 'FREE', undefined);
+      expect(accountService.register).toHaveBeenCalledWith(
+        'a@b.com',
+        '12345678',
+        'Test',
+        'FREE',
+        undefined,
+      );
       expect(result).toEqual({ token: 'jwt' });
     });
   });
@@ -43,7 +55,10 @@ describe('AccountController', () => {
   describe('login', () => {
     it('should call login with email and password', async () => {
       accountService.login.mockResolvedValue({ token: 'jwt' } as any);
-      const result = await controller.login({ email: 'a@b.com', password: 'pass' } as any);
+      const result = await controller.login({
+        email: 'a@b.com',
+        password: 'pass',
+      } as any);
       expect(accountService.login).toHaveBeenCalledWith('a@b.com', 'pass');
       expect(result).toEqual({ token: 'jwt' });
     });
@@ -60,8 +75,14 @@ describe('AccountController', () => {
   describe('resetPassword', () => {
     it('should call resetPassword with token and new password', async () => {
       accountService.resetPassword.mockResolvedValue({ ok: true } as any);
-      await controller.resetPassword({ token: 'tok', newPassword: 'newpass88' } as any);
-      expect(accountService.resetPassword).toHaveBeenCalledWith('tok', 'newpass88');
+      await controller.resetPassword({
+        token: 'tok',
+        newPassword: 'newpass88',
+      } as any);
+      expect(accountService.resetPassword).toHaveBeenCalledWith(
+        'tok',
+        'newpass88',
+      );
     });
   });
 
@@ -86,11 +107,15 @@ describe('AccountController', () => {
   describe('changePassword', () => {
     it('should call changePassword with correct params', async () => {
       accountService.changePassword.mockResolvedValue(undefined as any);
-      await controller.changePassword(
-        { accountId: '123' },
-        { currentPassword: 'old', newPassword: 'newpass88' } as any,
+      await controller.changePassword({ accountId: '123' }, {
+        currentPassword: 'old',
+        newPassword: 'newpass88',
+      } as any);
+      expect(accountService.changePassword).toHaveBeenCalledWith(
+        '123',
+        'old',
+        'newpass88',
       );
-      expect(accountService.changePassword).toHaveBeenCalledWith('123', 'old', 'newpass88');
     });
   });
 
@@ -104,16 +129,29 @@ describe('AccountController', () => {
 
   describe('createApiKey', () => {
     it('should create api key with name', async () => {
-      accountService.createApiKey.mockResolvedValue({ key: 'engram_xxx' } as any);
-      const result = await controller.createApiKey({ accountId: '123' }, { name: 'my-agent' });
-      expect(accountService.createApiKey).toHaveBeenCalledWith('123', 'my-agent');
+      accountService.createApiKey.mockResolvedValue({
+        key: 'engram_xxx',
+      } as any);
+      const result = await controller.createApiKey(
+        { accountId: '123' },
+        { name: 'my-agent' },
+      );
+      expect(accountService.createApiKey).toHaveBeenCalledWith(
+        '123',
+        'my-agent',
+      );
       expect(result).toEqual({ key: 'engram_xxx' });
     });
 
     it('should create api key without name', async () => {
-      accountService.createApiKey.mockResolvedValue({ key: 'engram_xxx' } as any);
+      accountService.createApiKey.mockResolvedValue({
+        key: 'engram_xxx',
+      } as any);
       await controller.createApiKey({ accountId: '123' }, {});
-      expect(accountService.createApiKey).toHaveBeenCalledWith('123', undefined);
+      expect(accountService.createApiKey).toHaveBeenCalledWith(
+        '123',
+        undefined,
+      );
     });
   });
 
@@ -128,8 +166,12 @@ describe('AccountController', () => {
   describe('updateAccount', () => {
     it('should update account with body', async () => {
       accountService.updateAccount.mockResolvedValue({ name: 'New' } as any);
-      const result = await controller.updateAccount({ accountId: '123' }, { name: 'New' } as any);
-      expect(accountService.updateAccount).toHaveBeenCalledWith('123', { name: 'New' });
+      const result = await controller.updateAccount({ accountId: '123' }, {
+        name: 'New',
+      } as any);
+      expect(accountService.updateAccount).toHaveBeenCalledWith('123', {
+        name: 'New',
+      });
       expect(result).toEqual({ name: 'New' });
     });
   });

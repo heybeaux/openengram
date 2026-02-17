@@ -28,12 +28,19 @@ describe('GenerateContextService', () => {
   describe('isDuplicate', () => {
     it('should detect high-overlap text as duplicate', () => {
       const existing = ['the quick brown fox jumps over the lazy dog'];
-      expect(service.isDuplicate('the quick brown fox jumps over the lazy cat', existing)).toBe(true);
+      expect(
+        service.isDuplicate(
+          'the quick brown fox jumps over the lazy cat',
+          existing,
+        ),
+      ).toBe(true);
     });
 
     it('should not flag unrelated text as duplicate', () => {
       const existing = ['the quick brown fox jumps over the lazy dog'];
-      expect(service.isDuplicate('python programming language is great', existing)).toBe(false);
+      expect(
+        service.isDuplicate('python programming language is great', existing),
+      ).toBe(false);
     });
 
     it('should detect empty text as duplicate', () => {
@@ -41,8 +48,12 @@ describe('GenerateContextService', () => {
     });
 
     it('should detect substring containment as duplicate', () => {
-      const existing = ['user prefers dark mode and large fonts and high contrast'];
-      expect(service.isDuplicate('user prefers dark mode and large fonts', existing)).toBe(true);
+      const existing = [
+        'user prefers dark mode and large fonts and high contrast',
+      ];
+      expect(
+        service.isDuplicate('user prefers dark mode and large fonts', existing),
+      ).toBe(true);
     });
   });
 
@@ -60,16 +71,34 @@ describe('GenerateContextService', () => {
     it('should filter low-score memories', async () => {
       prisma.memory.findMany.mockResolvedValue([
         {
-          id: 'm1', raw: 'important fact', effectiveScore: 0.9, confidence: 0.8,
-          layer: 'IDENTITY', memoryType: 'FACT', subjectType: 'USER',
-          usedCount: 5, createdAt: new Date(), safetyCritical: false,
-          archivedReason: null, supersededById: null, consolidatedInto: null,
+          id: 'm1',
+          raw: 'important fact',
+          effectiveScore: 0.9,
+          confidence: 0.8,
+          layer: 'IDENTITY',
+          memoryType: 'FACT',
+          subjectType: 'USER',
+          usedCount: 5,
+          createdAt: new Date(),
+          safetyCritical: false,
+          archivedReason: null,
+          supersededById: null,
+          consolidatedInto: null,
         },
         {
-          id: 'm2', raw: 'low score junk', effectiveScore: 0.1, confidence: 0.2,
-          layer: null, memoryType: null, subjectType: null,
-          usedCount: 0, createdAt: new Date(), safetyCritical: false,
-          archivedReason: null, supersededById: null, consolidatedInto: null,
+          id: 'm2',
+          raw: 'low score junk',
+          effectiveScore: 0.1,
+          confidence: 0.2,
+          layer: null,
+          memoryType: null,
+          subjectType: null,
+          usedCount: 0,
+          createdAt: new Date(),
+          safetyCritical: false,
+          archivedReason: null,
+          supersededById: null,
+          consolidatedInto: null,
         },
       ]);
       prisma.$queryRawUnsafe.mockResolvedValue([]);
@@ -83,10 +112,19 @@ describe('GenerateContextService', () => {
     it('should filter superseded memories', async () => {
       prisma.memory.findMany.mockResolvedValue([
         {
-          id: 'm1', raw: 'superseded memory', effectiveScore: 0.9, confidence: 0.8,
-          layer: null, memoryType: null, subjectType: null,
-          usedCount: 0, createdAt: new Date(), safetyCritical: false,
-          archivedReason: null, supersededById: 'm2', consolidatedInto: null,
+          id: 'm1',
+          raw: 'superseded memory',
+          effectiveScore: 0.9,
+          confidence: 0.8,
+          layer: null,
+          memoryType: null,
+          subjectType: null,
+          usedCount: 0,
+          createdAt: new Date(),
+          safetyCritical: false,
+          archivedReason: null,
+          supersededById: 'm2',
+          consolidatedInto: null,
         },
       ]);
       prisma.$queryRawUnsafe.mockResolvedValue([]);
@@ -98,16 +136,27 @@ describe('GenerateContextService', () => {
 
     it('should respect token budget', async () => {
       const memories = Array.from({ length: 50 }, (_, i) => ({
-        id: `m${i}`, raw: `Memory number ${i} with some content padding words here`,
-        effectiveScore: 0.9, confidence: 0.8,
-        layer: 'IDENTITY', memoryType: 'FACT', subjectType: 'USER',
-        usedCount: 1, createdAt: new Date(), safetyCritical: false,
-        archivedReason: null, supersededById: null, consolidatedInto: null,
+        id: `m${i}`,
+        raw: `Memory number ${i} with some content padding words here`,
+        effectiveScore: 0.9,
+        confidence: 0.8,
+        layer: 'IDENTITY',
+        memoryType: 'FACT',
+        subjectType: 'USER',
+        usedCount: 1,
+        createdAt: new Date(),
+        safetyCritical: false,
+        archivedReason: null,
+        supersededById: null,
+        consolidatedInto: null,
       }));
       prisma.memory.findMany.mockResolvedValue(memories);
       prisma.$queryRawUnsafe.mockResolvedValue([]);
 
-      const result = await service.generate({ agentId: 'agent-1', tokenBudget: 50 });
+      const result = await service.generate({
+        agentId: 'agent-1',
+        tokenBudget: 50,
+      });
       expect(result.tokenCount).toBeLessThanOrEqual(100); // some overhead
     });
 
@@ -115,15 +164,27 @@ describe('GenerateContextService', () => {
       const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       prisma.memory.findMany.mockResolvedValue([
         {
-          id: 'm1', raw: 'Never deploy on Friday', effectiveScore: 0.9, confidence: 0.9,
-          layer: null, memoryType: 'LESSON', subjectType: null,
-          usedCount: 3, createdAt: oldDate, safetyCritical: false,
-          archivedReason: null, supersededById: null, consolidatedInto: null,
+          id: 'm1',
+          raw: 'Never deploy on Friday',
+          effectiveScore: 0.9,
+          confidence: 0.9,
+          layer: null,
+          memoryType: 'LESSON',
+          subjectType: null,
+          usedCount: 3,
+          createdAt: oldDate,
+          safetyCritical: false,
+          archivedReason: null,
+          supersededById: null,
+          consolidatedInto: null,
         },
       ]);
       prisma.$queryRawUnsafe.mockResolvedValue([]);
 
-      const result = await service.generate({ agentId: 'agent-1', includeStale: true });
+      const result = await service.generate({
+        agentId: 'agent-1',
+        includeStale: true,
+      });
       expect(result.categories.keyLessons).toBe(1);
       expect(result.markdown).toContain('Key Lessons');
     });

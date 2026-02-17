@@ -78,7 +78,10 @@ export class AutoExtractorService {
       // Format conversation for LLM
       const conversation = this.formatConversation(turns);
       const signalHints = this.formatSignalHints(signals);
-      const prompt = buildExtractionPrompt(context?.userName, context?.timestamp);
+      const prompt = buildExtractionPrompt(
+        context?.userName,
+        context?.timestamp,
+      );
 
       const result = await this.llm.json<ExtractionResponse>(
         [

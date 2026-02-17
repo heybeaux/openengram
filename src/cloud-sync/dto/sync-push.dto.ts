@@ -1,4 +1,12 @@
-import { IsArray, IsString, IsOptional, IsNumber, IsEnum, ValidateNested, ArrayMaxSize } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  ValidateNested,
+  ArrayMaxSize,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -114,7 +122,9 @@ export class SyncMemoryPayloadDto {
   @IsString()
   localAgentId?: string;
 
-  @ApiPropertyOptional({ description: 'User external ID for attribution mapping' })
+  @ApiPropertyOptional({
+    description: 'User external ID for attribution mapping',
+  })
   @IsOptional()
   @IsString()
   userExternalId?: string;

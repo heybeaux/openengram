@@ -34,7 +34,7 @@ export class PrismaService
     return new Proxy(this, {
       get(target, prop, receiver) {
         // For non-transactional props or symbols, always use the real PrismaService
-        if (typeof prop === 'symbol' || NON_TRANSACTIONAL_PROPS.has(prop as string)) {
+        if (typeof prop === 'symbol' || NON_TRANSACTIONAL_PROPS.has(prop)) {
           return Reflect.get(target, prop, receiver);
         }
 

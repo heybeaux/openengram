@@ -46,7 +46,10 @@ export function encrypt(text: string): string {
   const derivedKey = deriveKey(passphrase, salt);
   const iv = randomBytes(16);
   const cipher = createCipheriv(ALGORITHM, derivedKey, iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(text, 'utf8'),
+    cipher.final(),
+  ]);
   return [
     salt.toString('base64'),
     iv.toString('base64'),
@@ -70,7 +73,9 @@ export function decrypt(encrypted: string): string {
     const enc = Buffer.from(parts[2], 'base64');
     const derivedKey = deriveKey(passphrase, salt);
     const decipher = createDecipheriv(ALGORITHM, derivedKey, iv);
-    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString(
+      'utf8',
+    );
   }
 
   if (parts.length === 2) {
@@ -79,7 +84,9 @@ export function decrypt(encrypted: string): string {
     const enc = Buffer.from(parts[1], 'hex');
     const derivedKey = deriveKey(passphrase, LEGACY_SALT);
     const decipher = createDecipheriv(ALGORITHM, derivedKey, iv);
-    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString(
+      'utf8',
+    );
   }
 
   throw new Error('Invalid encrypted value format');

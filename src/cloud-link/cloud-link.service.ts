@@ -64,9 +64,7 @@ export class CloudLinkService {
         const syncKeyData = (await syncKeyResponse.json()) as { key: string };
         if (syncKeyData.key) {
           encryptedSyncKey = encrypt(syncKeyData.key);
-          this.logger.log(
-            `Created cloud sync key for instance ${hostname}`,
-          );
+          this.logger.log(`Created cloud sync key for instance ${hostname}`);
         }
       } else {
         this.logger.warn(
@@ -185,7 +183,9 @@ export class CloudLinkService {
           `Cloud API auth failure ${this.consecutiveAuthFailures}/${CloudLinkService.MAX_AUTH_FAILURES} for account ${accountId}`,
         );
 
-        if (this.consecutiveAuthFailures >= CloudLinkService.MAX_AUTH_FAILURES) {
+        if (
+          this.consecutiveAuthFailures >= CloudLinkService.MAX_AUTH_FAILURES
+        ) {
           this.logger.warn(
             `Unlinking cloud for account ${accountId} after ${CloudLinkService.MAX_AUTH_FAILURES} consecutive auth failures`,
           );
@@ -220,7 +220,9 @@ export class CloudLinkService {
 
     const cloudUser = (await response.json()) as CloudAuthResponse;
     if (!cloudUser.id || !cloudUser.email) {
-      this.logger.warn(`Invalid response from cloud API for account ${accountId}`);
+      this.logger.warn(
+        `Invalid response from cloud API for account ${accountId}`,
+      );
       return {
         linked: true,
         plan: link.cloudPlan ?? undefined,
@@ -247,7 +249,9 @@ export class CloudLinkService {
     };
   }
 
-  private async validateCloudApiKey(apiKey: string): Promise<CloudAuthResponse> {
+  private async validateCloudApiKey(
+    apiKey: string,
+  ): Promise<CloudAuthResponse> {
     const response = await fetch(`${this.CLOUD_API_BASE}/v1/auth/me`, {
       headers: { 'X-AM-API-Key': apiKey },
     });

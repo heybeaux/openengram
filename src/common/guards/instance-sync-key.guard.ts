@@ -52,7 +52,11 @@ export class InstanceSyncKeyGuard implements CanActivate {
     }
 
     // Fallback: accept eng_inst_ keys (instance API keys with sync scope)
-    if (apiKey && typeof apiKey === 'string' && apiKey.startsWith('eng_inst_')) {
+    if (
+      apiKey &&
+      typeof apiKey === 'string' &&
+      apiKey.startsWith('eng_inst_')
+    ) {
       const keyHash = createHash('sha256').update(apiKey).digest('hex');
       const instanceApiKey = await this.prisma.instanceApiKey.findUnique({
         where: { keyHash },
@@ -78,12 +82,15 @@ export class InstanceSyncKeyGuard implements CanActivate {
 
       // Use instanceId from X-Instance-Id header or generate from key id
       request.accountId = instanceApiKey.accountId;
-      request.instanceId = request.headers['x-instance-id'] || instanceApiKey.id;
+      request.instanceId =
+        request.headers['x-instance-id'] || instanceApiKey.id;
       request.instanceName = instanceApiKey.name;
       return true;
     }
 
-    throw new UnauthorizedException('Missing X-Sync-Key or X-AM-API-Key header');
+    throw new UnauthorizedException(
+      'Missing X-Sync-Key or X-AM-API-Key header',
+    );
 
     return true;
   }

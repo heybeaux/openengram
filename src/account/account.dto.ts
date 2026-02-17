@@ -23,7 +23,10 @@ export class RegisterDto {
   @IsNotEmpty()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'STARTER', enum: ['STARTER', 'PRO', 'SCALE'] })
+  @ApiPropertyOptional({
+    example: 'STARTER',
+    enum: ['STARTER', 'PRO', 'SCALE'],
+  })
   @IsOptional()
   @IsString()
   plan?: string;

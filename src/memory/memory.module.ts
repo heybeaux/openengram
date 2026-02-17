@@ -22,7 +22,8 @@ import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.mo
 import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [AccountModule, 
+  imports: [
+    AccountModule,
     LLMModule,
     forwardRef(() => HierarchyModule),
     MemoryPoolModule,

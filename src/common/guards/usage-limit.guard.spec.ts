@@ -5,7 +5,11 @@ describe('UsageLimitGuard', () => {
   let guard: UsageLimitGuard;
   let prisma: any;
 
-  const mockContext = (accountId: string | null, method = 'GET', path = '/v1/account') => {
+  const mockContext = (
+    accountId: string | null,
+    method = 'GET',
+    path = '/v1/account',
+  ) => {
     const req = { accountId, method, path };
     return {
       switchToHttp: () => ({

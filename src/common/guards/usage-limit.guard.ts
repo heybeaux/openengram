@@ -41,7 +41,10 @@ export class UsageLimitGuard implements CanActivate {
     }
 
     // Check API calls limit
-    if (limits.apiCallsPerDay !== -1 && apiCallsToday >= limits.apiCallsPerDay) {
+    if (
+      limits.apiCallsPerDay !== -1 &&
+      apiCallsToday >= limits.apiCallsPerDay
+    ) {
       throw new HttpException(
         {
           statusCode: 429,

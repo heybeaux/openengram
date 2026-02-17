@@ -5,7 +5,5 @@ import { createHash } from 'crypto';
  * Normalizes by trimming and lowercasing before hashing.
  */
 export function generateContentHash(raw: string): string {
-  return createHash('sha256')
-    .update(raw.trim().toLowerCase())
-    .digest('hex');
+  return createHash('sha256').update(raw.trim().toLowerCase()).digest('hex');
 }

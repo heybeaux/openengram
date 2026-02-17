@@ -163,9 +163,9 @@ export class CloudEnsembleService implements OnModuleInit {
    */
   getModelsForCount(count: number): CloudModel[] {
     if (count <= 0) return [];
-    const prioritized = CLOUD_MODEL_PRIORITY
-      .map((id) => this.models.find((m) => m.modelId === id))
-      .filter((m): m is CloudModel => m !== undefined);
+    const prioritized = CLOUD_MODEL_PRIORITY.map((id) =>
+      this.models.find((m) => m.modelId === id),
+    ).filter((m): m is CloudModel => m !== undefined);
     return prioritized.slice(0, count);
   }
 

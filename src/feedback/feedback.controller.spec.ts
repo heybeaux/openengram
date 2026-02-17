@@ -19,9 +19,7 @@ describe('FeedbackController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FeedbackController],
-      providers: [
-        { provide: FeedbackService, useValue: mockFeedbackService },
-      ],
+      providers: [{ provide: FeedbackService, useValue: mockFeedbackService }],
     })
       .overrideGuard(AccountJwtGuard)
       .useValue(mockGuard)

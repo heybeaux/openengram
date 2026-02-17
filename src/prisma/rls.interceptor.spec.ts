@@ -16,10 +16,7 @@ describe('RlsInterceptor', () => {
     config = {
       get: jest.fn(),
     };
-    interceptor = new RlsInterceptor(
-      prisma as any,
-      config as any,
-    );
+    interceptor = new RlsInterceptor(prisma as any, config as any);
   });
 
   function createMockContext(request: any): ExecutionContext {

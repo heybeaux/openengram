@@ -57,10 +57,7 @@ export class UsageLimitMiddleware implements NestMiddleware {
     const memoriesUsed = result[0]?.memories_used ?? account.memoriesUsed;
 
     // Check API calls limit
-    if (
-      limits.apiCallsPerDay !== -1 &&
-      apiCallsToday > limits.apiCallsPerDay
-    ) {
+    if (limits.apiCallsPerDay !== -1 && apiCallsToday > limits.apiCallsPerDay) {
       throw new HttpException(
         {
           statusCode: 429,

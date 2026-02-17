@@ -72,13 +72,18 @@ export interface ExtractionContext {
   conversationId?: string;
 }
 
-const EXTRACTION_PROMPT_TEMPLATE = (
-  userName?: string,
-  timestamp?: Date,
-) => {
+const EXTRACTION_PROMPT_TEMPLATE = (userName?: string, timestamp?: Date) => {
   const now = timestamp ?? new Date();
   const isoNow = now.toISOString();
-  const humanNow = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  const humanNow = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
 
   return `You are a memory extraction system. Given a piece of text, extract structured information using the 5W1H framework AND classify the memory type.
 
@@ -217,7 +222,10 @@ export class ExtractionService {
     });
 
     try {
-      const prompt = EXTRACTION_PROMPT_TEMPLATE(context?.userName, context?.timestamp);
+      const prompt = EXTRACTION_PROMPT_TEMPLATE(
+        context?.userName,
+        context?.timestamp,
+      );
 
       const rawResult = await this.llm.json<Record<string, unknown>>(
         [

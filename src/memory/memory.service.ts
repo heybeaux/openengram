@@ -17,7 +17,11 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
-import { ExportedMemory, ImportMemoryItemDto, ImportResult } from './dto/export-import.dto';
+import {
+  ExportedMemory,
+  ImportMemoryItemDto,
+  ImportResult,
+} from './dto/export-import.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 import { Memory, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
@@ -99,7 +103,10 @@ export class MemoryService {
    * This ensures background ops (extraction, embedding, etc.) that outlive the
    * HTTP request still respect tenant isolation instead of bypassing RLS.
    */
-  private runWithRls(accountId: string | undefined, fn: () => Promise<void>): void {
+  private runWithRls(
+    accountId: string | undefined,
+    fn: () => Promise<void>,
+  ): void {
     if (!accountId) {
       // No account context (self-hosted / LAN mode) — run without RLS
       fn().catch((err) => console.error('[Memory] Background op failed:', err));
@@ -133,7 +140,12 @@ export class MemoryService {
     // 1. Fetch user info for extraction context
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, externalId: true, displayName: true, agent: { select: { accountId: true } } },
+      select: {
+        id: true,
+        externalId: true,
+        displayName: true,
+        agent: { select: { accountId: true } },
+      },
     });
     const accountId = user?.agent?.accountId ?? undefined;
 
@@ -253,14 +265,16 @@ export class MemoryService {
 
     // 9. Extract structure asynchronously (with fresh RLS context)
     this.runWithRls(accountId, () =>
-      this.pipelineService
-        .extractAndEmbed(memory.id, rawContent, userId, extractionContext),
+      this.pipelineService.extractAndEmbed(
+        memory.id,
+        rawContent,
+        userId,
+        extractionContext,
+      ),
     );
 
     // 10a. Increment account memoriesUsed
-    this.runWithRls(accountId, () =>
-      this.incrementMemoriesUsed(userId, 1),
-    );
+    this.runWithRls(accountId, () => this.incrementMemoriesUsed(userId, 1));
 
     // 10. Emit memory.created event
     this.emitEvent(
@@ -278,7 +292,11 @@ export class MemoryService {
     // 11. Check for contradictions
     if (this.correctionService) {
       this.runWithRls(accountId, async () => {
-        await this.correctionService!.checkForContradictions(memory.id, userId, rawContent);
+        await this.correctionService!.checkForContradictions(
+          memory.id,
+          userId,
+          rawContent,
+        );
       });
     }
 
@@ -349,7 +367,10 @@ export class MemoryService {
   /**
    * Semantic search for memories — delegates to MemoryQueryService
    */
-  async recall(userId: string | string[], dto: QueryMemoryDto): Promise<QueryResult> {
+  async recall(
+    userId: string | string[],
+    dto: QueryMemoryDto,
+  ): Promise<QueryResult> {
     return this.queryService.recall(userId, dto);
   }
 
@@ -618,9 +639,19 @@ export class MemoryService {
   ): Promise<MemoryWithExtraction> {
     const original = await this.prisma.memory.findUnique({
       where: { id: memoryId },
-      include: { user: { select: { id: true, externalId: true, displayName: true, agent: { select: { accountId: true } } } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            externalId: true,
+            displayName: true,
+            agent: { select: { accountId: true } },
+          },
+        },
+      },
     });
-    const correctionAccountId = (original?.user as any)?.agent?.accountId ?? undefined;
+    const correctionAccountId =
+      (original?.user as any)?.agent?.accountId ?? undefined;
 
     if (!original) {
       throw new Error(`Memory not found: ${memoryId}`);
@@ -681,10 +712,16 @@ export class MemoryService {
 
     const context: ExtractionContext = {
       userId,
-      userName: (original.user as any)?.displayName || original.user?.externalId,
+      userName:
+        (original.user as any)?.displayName || original.user?.externalId,
     };
     this.runWithRls(correctionAccountId, () =>
-      this.pipelineService.extractAndEmbed(correction.id, dto.correctedContent, userId, context),
+      this.pipelineService.extractAndEmbed(
+        correction.id,
+        dto.correctedContent,
+        userId,
+        context,
+      ),
     );
 
     // Increment memoriesUsed for the correction
@@ -769,10 +806,12 @@ export class MemoryService {
     // Batch-fetch ensemble embeddings
     const memoryIds = memories.map((m) => m.id);
     const ensembleRows = memoryIds.length
-      ? await this.prisma.memoryEmbedding.findMany({
-          where: { memoryId: { in: memoryIds } },
-          select: { memoryId: true, modelId: true },
-        }).catch(() => [] as any[])
+      ? await this.prisma.memoryEmbedding
+          .findMany({
+            where: { memoryId: { in: memoryIds } },
+            select: { memoryId: true, modelId: true },
+          })
+          .catch(() => [] as any[])
       : [];
 
     const ensembleMap = new Map<string, Record<string, number[]>>();
@@ -835,7 +874,7 @@ export class MemoryService {
     });
 
     const account = user?.agent?.account as any;
-    let memoriesUsed = account?.memoriesUsed ?? 0;
+    const memoriesUsed = account?.memoriesUsed ?? 0;
     let memoryLimit = Infinity;
 
     if (account) {
@@ -871,14 +910,16 @@ export class MemoryService {
 
         // Determine layer
         const layer =
-          item.layer && Object.values(MemoryLayer).includes(item.layer as MemoryLayer)
+          item.layer &&
+          Object.values(MemoryLayer).includes(item.layer as MemoryLayer)
             ? (item.layer as MemoryLayer)
             : this.extraction.classifyLayer(item.raw);
 
         // Calculate importance
-        const importanceScore = item.importance != null
-          ? Math.max(0, Math.min(1, item.importance))
-          : this.importance.calculate({ layer });
+        const importanceScore =
+          item.importance != null
+            ? Math.max(0, Math.min(1, item.importance))
+            : this.importance.calculate({ layer });
 
         // Create memory
         const memory = await this.prisma.memory.create({
@@ -901,7 +942,12 @@ export class MemoryService {
         };
 
         this.runWithRls(user?.agent?.accountId ?? undefined, () =>
-          this.pipelineService.extractAndEmbed(memory.id, item.raw, userId, extractionContext),
+          this.pipelineService.extractAndEmbed(
+            memory.id,
+            item.raw,
+            userId,
+            extractionContext,
+          ),
         );
 
         // Emit memory.created so ensemble embeddings get generated

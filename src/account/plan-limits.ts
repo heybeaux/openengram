@@ -10,7 +10,13 @@ export interface PlanLimit {
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimit> = {
-  FREE: { memories: 1000, apiCallsPerDay: 100, agents: 1, usersPerAgent: 1, ensembleModels: 0 },
+  FREE: {
+    memories: 1000,
+    apiCallsPerDay: 100,
+    agents: 1,
+    usersPerAgent: 1,
+    ensembleModels: 0,
+  },
   STARTER: {
     memories: 10000,
     apiCallsPerDay: 1000,

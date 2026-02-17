@@ -69,7 +69,10 @@ describe('EnsembleController', () => {
     it('should return ensemble status and config', () => {
       const result = controller.getStatus();
       expect(result.enabled).toBe(true);
-      expect(result.models).toEqual(['text-embedding-3-small', 'nomic-embed-text-v1.5']);
+      expect(result.models).toEqual([
+        'text-embedding-3-small',
+        'nomic-embed-text-v1.5',
+      ]);
       expect(result.config).toBeDefined();
     });
 
@@ -104,15 +107,21 @@ describe('EnsembleController', () => {
 
     it('should throw BadRequestException when ensemble is disabled', async () => {
       ensembleService.isEnabled.mockReturnValue(false);
-      await expect(controller.query(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.query(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when query is missing', async () => {
-      await expect(controller.query({ userId: 'u1' } as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.query({ userId: 'u1' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when userId is missing', async () => {
-      await expect(controller.query({ query: 'q' } as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.query({ query: 'q' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -136,11 +145,15 @@ describe('EnsembleController', () => {
 
     it('should throw when ensemble is disabled', async () => {
       ensembleService.isEnabled.mockReturnValue(false);
-      await expect(controller.upsert(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.upsert(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw when required fields are missing', async () => {
-      await expect(controller.upsert({ memoryId: 'm1' } as any)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.upsert({ memoryId: 'm1' } as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -150,11 +163,15 @@ describe('EnsembleController', () => {
   describe('compare', () => {
     it('should throw when ensemble is disabled', async () => {
       ensembleService.isEnabled.mockReturnValue(false);
-      await expect(controller.compare({ query: 'q', userId: 'u' } as any)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.compare({ query: 'q', userId: 'u' } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw when query/userId missing', async () => {
-      await expect(controller.compare({} as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.compare({} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should return comparison results', async () => {
@@ -173,7 +190,10 @@ describe('EnsembleController', () => {
         singleModel,
       } as any);
 
-      const result = await controller.compare({ query: 'q', userId: 'u' } as any);
+      const result = await controller.compare({
+        query: 'q',
+        userId: 'u',
+      } as any);
       expect(result.ensemble.results).toHaveLength(1);
       expect(result.singleModel['text-embedding-3-small']).toHaveLength(1);
     });
@@ -184,13 +204,20 @@ describe('EnsembleController', () => {
   // =========================================================================
   describe('embed', () => {
     it('should throw when text is missing', async () => {
-      await expect(controller.embed({} as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.embed({} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should return embeddings without vectors', async () => {
       ensembleService.embedAll.mockResolvedValue({
         embeddings: [
-          { model: 'text-embedding-3-small', dimensions: 1536, latencyMs: 10, embedding: [0.1] },
+          {
+            model: 'text-embedding-3-small',
+            dimensions: 1536,
+            latencyMs: 10,
+            embedding: [0.1],
+          },
         ],
         totalMs: 10,
       } as any);
@@ -230,11 +257,15 @@ describe('EnsembleController', () => {
   // =========================================================================
   describe('targetedReembed', () => {
     it('should throw when memoryIds is empty', async () => {
-      await expect(controller.targetedReembed({ memoryIds: [], models: ['m1'] } as any)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.targetedReembed({ memoryIds: [], models: ['m1'] } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw when models is empty', async () => {
-      await expect(controller.targetedReembed({ memoryIds: ['m1'], models: [] } as any)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.targetedReembed({ memoryIds: ['m1'], models: [] } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should return job info for valid request', async () => {
@@ -278,7 +309,15 @@ describe('EnsembleController', () => {
   describe('getDriftHistory', () => {
     it('should return drift snapshots', async () => {
       (prisma.driftSnapshot.findMany as jest.Mock).mockResolvedValue([
-        { id: '1', modelId: 'model-a', avgDrift: 0.05, maxDrift: 0.1, sampleCount: 50, alertLevel: 'normal', createdAt: new Date() },
+        {
+          id: '1',
+          modelId: 'model-a',
+          avgDrift: 0.05,
+          maxDrift: 0.1,
+          sampleCount: 50,
+          alertLevel: 'normal',
+          createdAt: new Date(),
+        },
       ]);
 
       const result = await controller.getDriftHistory();
@@ -310,13 +349,29 @@ describe('EnsembleController', () => {
       (prisma.memory.findMany as jest.Mock).mockResolvedValue([
         { id: 'm1', raw: 'test' },
       ]);
-      ensembleService.getConfig.mockReturnValue({ models: ['model-a'], fusionMethod: 'rrf', k: 60 } as any);
+      ensembleService.getConfig.mockReturnValue({
+        models: ['model-a'],
+        fusionMethod: 'rrf',
+        k: 60,
+      } as any);
       ensembleService.embedAll.mockResolvedValue({
-        embeddings: [{ model: 'model-a', embedding: [0.1, 0.2], dimensions: 2, latencyMs: 5 }],
+        embeddings: [
+          {
+            model: 'model-a',
+            embedding: [0.1, 0.2],
+            dimensions: 2,
+            latencyMs: 5,
+          },
+        ],
         totalMs: 5,
       } as any);
-      driftDetectionService.measureBatchDrift.mockResolvedValue([{ drift: 0.05 }] as any);
-      driftDetectionService.summarizeDrift.mockReturnValue({ avgCosineDrift: 0.05, maxCosineDrift: 0.08 } as any);
+      driftDetectionService.measureBatchDrift.mockResolvedValue([
+        { drift: 0.05 },
+      ] as any);
+      driftDetectionService.summarizeDrift.mockReturnValue({
+        avgCosineDrift: 0.05,
+        maxCosineDrift: 0.08,
+      } as any);
       (prisma.driftSnapshot.create as jest.Mock).mockResolvedValue({});
 
       const result = await controller.analyzeDrift();
@@ -326,14 +381,27 @@ describe('EnsembleController', () => {
     });
 
     it('should flag critical drift', async () => {
-      (prisma.memory.findMany as jest.Mock).mockResolvedValue([{ id: 'm1', raw: 'test' }]);
-      ensembleService.getConfig.mockReturnValue({ models: ['model-a'], fusionMethod: 'rrf', k: 60 } as any);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([
+        { id: 'm1', raw: 'test' },
+      ]);
+      ensembleService.getConfig.mockReturnValue({
+        models: ['model-a'],
+        fusionMethod: 'rrf',
+        k: 60,
+      } as any);
       ensembleService.embedAll.mockResolvedValue({
-        embeddings: [{ model: 'model-a', embedding: [0.1], dimensions: 1, latencyMs: 5 }],
+        embeddings: [
+          { model: 'model-a', embedding: [0.1], dimensions: 1, latencyMs: 5 },
+        ],
         totalMs: 5,
       } as any);
-      driftDetectionService.measureBatchDrift.mockResolvedValue([{ drift: 0.3 }] as any);
-      driftDetectionService.summarizeDrift.mockReturnValue({ avgCosineDrift: 0.3, maxCosineDrift: 0.5 } as any);
+      driftDetectionService.measureBatchDrift.mockResolvedValue([
+        { drift: 0.3 },
+      ] as any);
+      driftDetectionService.summarizeDrift.mockReturnValue({
+        avgCosineDrift: 0.3,
+        maxCosineDrift: 0.5,
+      } as any);
       (prisma.driftSnapshot.create as jest.Mock).mockResolvedValue({});
 
       const result = await controller.analyzeDrift();
@@ -358,7 +426,10 @@ describe('EnsembleController', () => {
 
       const result = await controller.getCoverage();
       expect(result.perModel).toEqual([
-        expect.objectContaining({ model: 'text-embedding-3-small', embeddedCount: 90 }),
+        expect.objectContaining({
+          model: 'text-embedding-3-small',
+          embeddedCount: 90,
+        }),
       ]);
       expect(result.fullCoveragePercentage).toBe(80);
     });
@@ -366,7 +437,9 @@ describe('EnsembleController', () => {
 
   describe('getMemoryEmbeddings', () => {
     it('should throw when memoryId is empty', async () => {
-      await expect(controller.getMemoryEmbeddings('')).rejects.toThrow(BadRequestException);
+      await expect(controller.getMemoryEmbeddings('')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should return embedding status', async () => {
@@ -385,13 +458,19 @@ describe('EnsembleController', () => {
       ensembleService.getABTestResults.mockResolvedValue([]);
       const result = await controller.getABTestResults();
       expect(result.count).toBe(0);
-      expect(ensembleService.getABTestResults).toHaveBeenCalledWith(undefined, 100);
+      expect(ensembleService.getABTestResults).toHaveBeenCalledWith(
+        undefined,
+        100,
+      );
     });
 
     it('should parse limit string', async () => {
       ensembleService.getABTestResults.mockResolvedValue([]);
       await controller.getABTestResults('test-1', '5');
-      expect(ensembleService.getABTestResults).toHaveBeenCalledWith('test-1', 5);
+      expect(ensembleService.getABTestResults).toHaveBeenCalledWith(
+        'test-1',
+        5,
+      );
     });
   });
 });

@@ -50,7 +50,10 @@ export class CloudEnsembleEmbedProvider implements EmbeddingProvider {
     }
 
     try {
-      const response = await this.cloudEnsemble.embedAll('health check', 'document');
+      const response = await this.cloudEnsemble.embedAll(
+        'health check',
+        'document',
+      );
       return response.embeddings.length > 0;
     } catch (err) {
       this.logger.warn(`Health check failed: ${err}`);

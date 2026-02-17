@@ -41,7 +41,10 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
-          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
+          {
+            provide: CloudEnsembleEmbedProvider,
+            useValue: mockCloudEnsembleProvider,
+          },
           {
             provide: ConfigService,
             useValue: {
@@ -104,7 +107,10 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
-          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
+          {
+            provide: CloudEnsembleEmbedProvider,
+            useValue: mockCloudEnsembleProvider,
+          },
           {
             provide: ConfigService,
             useValue: {
@@ -146,7 +152,10 @@ describe('EmbeddingService', () => {
           EmbeddingService,
           { provide: LocalEmbedProvider, useValue: mockLocalProvider },
           { provide: OpenAIEmbedProvider, useValue: mockOpenAIProvider },
-          { provide: CloudEnsembleEmbedProvider, useValue: mockCloudEnsembleProvider },
+          {
+            provide: CloudEnsembleEmbedProvider,
+            useValue: mockCloudEnsembleProvider,
+          },
           {
             provide: ConfigService,
             useValue: {

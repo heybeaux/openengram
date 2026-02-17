@@ -35,7 +35,11 @@ describe('CloudLinkService', () => {
     it('should validate key and store cloud link', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ id: 'cloud-123', email: 'test@example.com', plan: 'PRO' }),
+        json: async () => ({
+          id: 'cloud-123',
+          email: 'test@example.com',
+          plan: 'PRO',
+        }),
       });
       mockPrisma.cloudLink.findUnique.mockResolvedValue(null);
       mockPrisma.cloudLink.upsert.mockResolvedValue({});
@@ -119,7 +123,10 @@ describe('CloudLinkService', () => {
       const iv = randomBytes(16);
       const cipher = createCipheriv('aes-256-cbc', derivedKey, iv);
       const original = 'legacy-secret-key';
-      const enc = Buffer.concat([cipher.update(original, 'utf8'), cipher.final()]);
+      const enc = Buffer.concat([
+        cipher.update(original, 'utf8'),
+        cipher.final(),
+      ]);
       const legacyEncrypted = iv.toString('hex') + ':' + enc.toString('hex');
 
       const decrypted = decrypt(legacyEncrypted);

@@ -32,7 +32,11 @@ import {
   ConsolidationResult,
 } from './consolidation.service';
 import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
-import { ExportQueryDto, ImportMemoriesDto, ImportResult } from './dto/export-import.dto';
+import {
+  ExportQueryDto,
+  ImportMemoriesDto,
+  ImportResult,
+} from './dto/export-import.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
 import { ContextualRecallService } from './contextual-recall.service';

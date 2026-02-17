@@ -19,10 +19,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { CloudEnsembleService } from '../embedding/cloud-ensemble.service';
 import { CohereEmbeddingProvider } from '../embedding/providers';
-import {
-  MemoryCreatedEvent,
-  MemoryDeletedEvent,
-} from '../events/event-types';
+import { MemoryCreatedEvent, MemoryDeletedEvent } from '../events/event-types';
 import {
   PgVectorEnsembleProvider,
   EnsembleEmbeddingRecord,
@@ -187,7 +184,9 @@ export class EnsembleService implements OnModuleInit {
    * Look up a user's plan and return the allowed ensemble model count.
    * Returns undefined if not using cloud (local always uses all models).
    */
-  private async getEnsembleModelCount(userId?: string): Promise<number | undefined> {
+  private async getEnsembleModelCount(
+    userId?: string,
+  ): Promise<number | undefined> {
     if (!this.useCloud || !userId) return undefined;
 
     try {
@@ -200,7 +199,9 @@ export class EnsembleService implements OnModuleInit {
       const plan: Plan = account?.plan ?? 'FREE';
       return PLAN_LIMITS[plan].ensembleModels;
     } catch (err) {
-      this.logger.warn(`Failed to look up plan for user ${userId}, defaulting to FREE limits: ${err}`);
+      this.logger.warn(
+        `Failed to look up plan for user ${userId}, defaulting to FREE limits: ${err}`,
+      );
       return PLAN_LIMITS.FREE.ensembleModels;
     }
   }
@@ -371,7 +372,11 @@ export class EnsembleService implements OnModuleInit {
     }
 
     // Generate embeddings from all models (plan-limited for cloud)
-    const { embeddings, errors } = await this.embedAll(options.content, 'document', options.userId);
+    const { embeddings, errors } = await this.embedAll(
+      options.content,
+      'document',
+      options.userId,
+    );
 
     if (embeddings.length === 0) {
       this.logger.warn(
@@ -477,7 +482,11 @@ export class EnsembleService implements OnModuleInit {
     const k = options.k ?? this.config.rrfK;
 
     // Generate query embeddings for all models (plan-limited for cloud)
-    const { embeddings } = await this.embedAll(options.query, 'query', options.userId);
+    const { embeddings } = await this.embedAll(
+      options.query,
+      'query',
+      options.userId,
+    );
     const embeddingMap = new Map(embeddings.map((e) => [e.model, e.embedding]));
 
     // Query each model using pgvector

@@ -38,11 +38,18 @@ export class AccountController {
   @Get('auth/me')
   @UseGuards(ApiKeyOrJwtGuard)
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get current authenticated user info (via API key or JWT)' })
+  @ApiOperation({
+    summary: 'Get current authenticated user info (via API key or JWT)',
+  })
   async getMe(@Req() req: any) {
     const accountId = req.accountId;
     if (!accountId) {
-      return { id: 'local', email: 'local@localhost', plan: 'self-hosted', name: 'Local User' };
+      return {
+        id: 'local',
+        email: 'local@localhost',
+        plan: 'self-hosted',
+        name: 'Local User',
+      };
     }
     const account = await this.accountService.getAccount(accountId);
     const response: any = {
@@ -60,7 +67,9 @@ export class AccountController {
 
   @Get('auth/setup-status')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Check if initial setup is needed (no auth required)' })
+  @ApiOperation({
+    summary: 'Check if initial setup is needed (no auth required)',
+  })
   async getSetupStatus() {
     return this.accountService.getSetupStatus();
   }
@@ -71,7 +80,13 @@ export class AccountController {
   @RateLimit(5) // 5 per minute per IP
   @ApiOperation({ summary: 'Register a new account' })
   async register(@Body() body: RegisterDto) {
-    return this.accountService.register(body.email, body.password, body.name, body.plan, body.accessCode);
+    return this.accountService.register(
+      body.email,
+      body.password,
+      body.name,
+      body.plan,
+      body.accessCode,
+    );
   }
 
   @Post('auth/login')
@@ -171,7 +186,9 @@ export class AccountController {
 
   @Get('account/agents')
   @UseGuards(ApiKeyOrJwtGuard)
-  @ApiOperation({ summary: 'List agents with memory counts (instance key or JWT)' })
+  @ApiOperation({
+    summary: 'List agents with memory counts (instance key or JWT)',
+  })
   async listAgents(@Req() req: any) {
     const accountId = req.accountId;
     if (!accountId) {
@@ -212,7 +229,10 @@ export class AccountController {
     for (const mc of memoryCounts) {
       const agentId = userToAgent.get(mc.userId);
       if (agentId) {
-        agentMemoryCounts.set(agentId, (agentMemoryCounts.get(agentId) || 0) + mc._count);
+        agentMemoryCounts.set(
+          agentId,
+          (agentMemoryCounts.get(agentId) || 0) + mc._count,
+        );
       }
     }
 
@@ -245,8 +265,15 @@ export class AccountController {
   @ApiBearerAuth()
   @HttpCode(201)
   @ApiOperation({ summary: 'Create an instance API key' })
-  async createInstanceKey(@Req() req: any, @Body() body: { name: string; scopes?: string[] }) {
-    return this.accountService.createInstanceKey(req.accountId, body.name, body.scopes);
+  async createInstanceKey(
+    @Req() req: any,
+    @Body() body: { name: string; scopes?: string[] },
+  ) {
+    return this.accountService.createInstanceKey(
+      req.accountId,
+      body.name,
+      body.scopes,
+    );
   }
 
   @Delete('account/instance-keys/:id')

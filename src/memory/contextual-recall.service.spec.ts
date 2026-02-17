@@ -44,12 +44,15 @@ describe('ContextualRecallService', () => {
 
   describe('recall', () => {
     it('should trigger recall on first message (topic shift)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.8 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.8 }] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test memory', layer: 'EPISODIC', extraction: { topics: ['test'] } },
+        {
+          id: 'm1',
+          raw: 'test memory',
+          layer: 'EPISODIC',
+          extraction: { topics: ['test'] },
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -91,11 +94,14 @@ describe('ContextualRecallService', () => {
 
       // Second call with orthogonal embedding — topic shift
       embedding.generate.mockResolvedValue([0, 1, 0]);
-      embedding.search.mockResolvedValue([
-        { id: 'm2', score: 0.7 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm2', score: 0.7 }] as any);
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm2', raw: 'different topic', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm2',
+          raw: 'different topic',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -115,7 +121,12 @@ describe('ContextualRecallService', () => {
       ] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'relevant', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm1',
+          raw: 'relevant',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -134,7 +145,12 @@ describe('ContextualRecallService', () => {
       embedding.generate.mockResolvedValue([1, 0, 0]);
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.8 }] as any);
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'first', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm1',
+          raw: 'first',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
       await service.recall(userId, { text: 'A', sessionKey: 'sess-5' } as any);
 
@@ -145,10 +161,18 @@ describe('ContextualRecallService', () => {
         { id: 'm2', score: 0.7 },
       ] as any);
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm2', raw: 'second', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm2',
+          raw: 'second',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
-      const result = await service.recall(userId, { text: 'B', sessionKey: 'sess-5' } as any);
+      const result = await service.recall(userId, {
+        text: 'B',
+        sessionKey: 'sess-5',
+      } as any);
       // m1 was already recalled, so only m2 should appear
       const ids = result.memories.map((m) => m.id);
       expect(ids).not.toContain('m1');
@@ -163,8 +187,18 @@ describe('ContextualRecallService', () => {
 
       // Each memory ~100 chars = ~25 tokens
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'a'.repeat(100), layer: 'EPISODIC', extraction: { topics: [] } },
-        { id: 'm2', raw: 'b'.repeat(100), layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm1',
+          raw: 'a'.repeat(100),
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
+        {
+          id: 'm2',
+          raw: 'b'.repeat(100),
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -187,11 +221,16 @@ describe('ContextualRecallService', () => {
         agentSessionKey: 'agent-1',
       } as any);
 
-      expect(memoryPoolService.getAccessiblePoolIds).toHaveBeenCalledWith('agent-1', userId);
+      expect(memoryPoolService.getAccessiblePoolIds).toHaveBeenCalledWith(
+        'agent-1',
+        userId,
+      );
     });
 
     it('should handle pool resolution failure gracefully', async () => {
-      memoryPoolService.getAccessiblePoolIds.mockRejectedValue(new Error('fail'));
+      memoryPoolService.getAccessiblePoolIds.mockRejectedValue(
+        new Error('fail'),
+      );
       embedding.generate.mockResolvedValue([1, 0, 0]);
       embedding.search.mockResolvedValue([]);
 
@@ -208,7 +247,12 @@ describe('ContextualRecallService', () => {
       embedding.generate.mockResolvedValue([1, 0, 0]);
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.8 }] as any);
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm1',
+          raw: 'test',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
       await service.recall(userId, {
@@ -225,13 +269,19 @@ describe('ContextualRecallService', () => {
     it('should remove session state', async () => {
       // Create a session
       embedding.generate.mockResolvedValue([1, 0, 0]);
-      await service.recall(userId, { text: 'test', sessionKey: 'sess-clear' } as any);
+      await service.recall(userId, {
+        text: 'test',
+        sessionKey: 'sess-clear',
+      } as any);
 
       service.clearSession('sess-clear');
 
       // Next recall should treat as first message (topic shift)
       embedding.search.mockResolvedValue([]);
-      const result = await service.recall(userId, { text: 'test', sessionKey: 'sess-clear' } as any);
+      const result = await service.recall(userId, {
+        text: 'test',
+        sessionKey: 'sess-clear',
+      } as any);
       expect(result.topicShift).toBe(true);
     });
   });
@@ -247,7 +297,12 @@ describe('ContextualRecallService', () => {
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
         { id: 'm1', raw: 'top', layer: 'EPISODIC', extraction: { topics: [] } },
-        { id: 'm2', raw: 'good', layer: 'EPISODIC', extraction: { topics: [] } },
+        {
+          id: 'm2',
+          raw: 'good',
+          layer: 'EPISODIC',
+          extraction: { topics: [] },
+        },
       ]);
 
       const result = await service.recall(userId, {

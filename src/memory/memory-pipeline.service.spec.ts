@@ -48,14 +48,22 @@ describe('MemoryPipelineService', () => {
       isEnabled: jest.fn().mockReturnValue(false),
       processMemory: jest.fn(),
     };
-    service = new MemoryPipelineService(prisma, extraction, embedding, hierarchy);
+    service = new MemoryPipelineService(
+      prisma,
+      extraction,
+      embedding,
+      hierarchy,
+    );
   });
 
   describe('extractAndEmbed', () => {
     it('should extract, save extraction, embed, and link', async () => {
       await service.extractAndEmbed('m1', 'test content', 'user-1');
 
-      expect(extraction.extract).toHaveBeenCalledWith('test content', undefined);
+      expect(extraction.extract).toHaveBeenCalledWith(
+        'test content',
+        undefined,
+      );
       expect(prisma.memoryExtraction.create).toHaveBeenCalled();
       expect(prisma.memory.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -77,10 +85,24 @@ describe('MemoryPipelineService', () => {
 
     it('should store entities when extraction produces them', async () => {
       extraction.extract.mockResolvedValue({
-        who: 'user', what: 'test', when: null, where: null, why: null, how: null,
-        topics: [], memoryType: 'FACT', typeConfidence: 0.9,
+        who: 'user',
+        what: 'test',
+        when: null,
+        where: null,
+        why: null,
+        how: null,
+        topics: [],
+        memoryType: 'FACT',
+        typeConfidence: 0.9,
         entities: [{ name: 'TypeScript', type: 'TECHNOLOGY' }],
-        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        confidence: {
+          whoConfidence: 0.8,
+          whatConfidence: 0.9,
+          whenConfidence: 0,
+          whereConfidence: 0,
+          whyConfidence: 0,
+          howConfidence: 0,
+        },
         lesson: null,
       });
       prisma.entity.upsert.mockResolvedValue({ id: 'ent-1' });
@@ -90,14 +112,25 @@ describe('MemoryPipelineService', () => {
 
       expect(prisma.entity.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId_normalizedName_type: { userId: 'user-1', normalizedName: 'typescript', type: 'TECHNOLOGY' } },
+          where: {
+            userId_normalizedName_type: {
+              userId: 'user-1',
+              normalizedName: 'typescript',
+              type: 'TECHNOLOGY',
+            },
+          },
         }),
       );
       expect(prisma.memoryEntity.upsert).toHaveBeenCalled();
     });
 
     it('should pass context to extraction', async () => {
-      const ctx = { userName: 'Bob', timestamp: new Date(), turnIndex: 3, conversationId: 'conv-1' };
+      const ctx = {
+        userName: 'Bob',
+        timestamp: new Date(),
+        turnIndex: 3,
+        conversationId: 'conv-1',
+      };
       await service.extractAndEmbed('m1', 'test', 'user-1', ctx);
       expect(extraction.extract).toHaveBeenCalledWith('test', ctx);
     });
@@ -107,7 +140,11 @@ describe('MemoryPipelineService', () => {
       hierarchy.processMemory.mockResolvedValue(undefined);
 
       await service.extractAndEmbed('m1', 'test', 'user-1');
-      expect(hierarchy.processMemory).toHaveBeenCalledWith('m1', 'test', 'user-1');
+      expect(hierarchy.processMemory).toHaveBeenCalledWith(
+        'm1',
+        'test',
+        'user-1',
+      );
     });
   });
 
@@ -124,10 +161,24 @@ describe('MemoryPipelineService', () => {
   describe('extractAndEmbed - LESSON auto-promotion', () => {
     it('should auto-promote critical lessons to CONSTRAINT', async () => {
       extraction.extract.mockResolvedValue({
-        who: 'user', what: 'critical rule', when: null, where: null, why: null, how: null,
-        topics: [], memoryType: 'LESSON', typeConfidence: 0.95,
+        who: 'user',
+        what: 'critical rule',
+        when: null,
+        where: null,
+        why: null,
+        how: null,
+        topics: [],
+        memoryType: 'LESSON',
+        typeConfidence: 0.95,
         entities: [],
-        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        confidence: {
+          whoConfidence: 0.8,
+          whatConfidence: 0.9,
+          whenConfidence: 0,
+          whereConfidence: 0,
+          whyConfidence: 0,
+          howConfidence: 0,
+        },
         lesson: { lessonSeverity: 'critical' },
       });
       extraction.getPriorityForType.mockReturnValue(3);
@@ -137,7 +188,10 @@ describe('MemoryPipelineService', () => {
       // Should have been called twice: once for type update, once for promotion
       expect(prisma.memory.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ memoryType: 'CONSTRAINT', priority: 1 }),
+          data: expect.objectContaining({
+            memoryType: 'CONSTRAINT',
+            priority: 1,
+          }),
         }),
       );
     });
@@ -179,7 +233,9 @@ describe('MemoryPipelineService', () => {
     it('should handle entity storage failure gracefully', async () => {
       prisma.entity.upsert.mockRejectedValue(new Error('unique constraint'));
       // Should not throw — errors are caught per-entity
-      await service.storeEntities('user-1', 'm1', [{ name: 'X', type: 'other' }]);
+      await service.storeEntities('user-1', 'm1', [
+        { name: 'X', type: 'other' },
+      ]);
     });
   });
 });

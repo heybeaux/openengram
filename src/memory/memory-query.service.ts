@@ -32,12 +32,13 @@ export class MemoryQueryService {
   /**
    * Semantic search for memories
    */
-  async recall(userId: string | string[], dto: QueryMemoryDto): Promise<QueryResult> {
+  async recall(
+    userId: string | string[],
+    dto: QueryMemoryDto,
+  ): Promise<QueryResult> {
     const startTime = Date.now();
     // Normalize userId for Prisma where clauses
-    const userIdFilter = Array.isArray(userId)
-      ? { in: userId }
-      : userId;
+    const userIdFilter = Array.isArray(userId) ? { in: userId } : userId;
 
     // v0.9: Use explicit poolIds if provided, otherwise resolve from agentSessionKey
     let poolIds: string[] | undefined = dto.poolIds;

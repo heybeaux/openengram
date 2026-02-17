@@ -140,7 +140,11 @@ describe('CloudSyncService', () => {
         status: 200,
         json: async () => ({
           results: [
-            { sourceMemoryId: 'mem-1', cloudMemoryId: 'cloud-1', status: 'created' },
+            {
+              sourceMemoryId: 'mem-1',
+              cloudMemoryId: 'cloud-1',
+              status: 'created',
+            },
           ],
         }),
       });
@@ -174,8 +178,16 @@ describe('CloudSyncService', () => {
         status: 200,
         json: async () => ({
           results: [
-            { sourceMemoryId: 'mem-1', cloudMemoryId: 'cloud-1', status: 'created' },
-            { sourceMemoryId: 'mem-2', status: 'failed', error: 'content_too_large' },
+            {
+              sourceMemoryId: 'mem-1',
+              cloudMemoryId: 'cloud-1',
+              status: 'created',
+            },
+            {
+              sourceMemoryId: 'mem-2',
+              status: 'failed',
+              error: 'content_too_large',
+            },
           ],
         }),
       });
@@ -191,7 +203,10 @@ describe('CloudSyncService', () => {
       let resolveFirst: () => void;
       prisma.memory.count.mockResolvedValue(0);
       prisma.memory.findMany.mockImplementation(
-        () => new Promise((resolve) => { resolveFirst = () => resolve([]); }),
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = () => resolve([]);
+          }),
       );
 
       const first = service.triggerSync('acc-1');
@@ -225,18 +240,20 @@ describe('CloudSyncService', () => {
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
       const result = await service.handleSyncPush('acc-1', 'inst-1', {
-        memories: [{
-          raw: 'hello world',
-          layer: 'SESSION',
-          source: 'EXPLICIT_STATEMENT',
-          contentHash: 'abc123',
-          localId: 'local-1',
-          instanceId: 'inst-1',
-          agentName: 'Test Agent',
-          localAgentId: 'local-agent-1',
-          userExternalId: 'user@test.com',
-          localUserId: 'local-user-1',
-        }],
+        memories: [
+          {
+            raw: 'hello world',
+            layer: 'SESSION',
+            source: 'EXPLICIT_STATEMENT',
+            contentHash: 'abc123',
+            localId: 'local-1',
+            instanceId: 'inst-1',
+            agentName: 'Test Agent',
+            localAgentId: 'local-agent-1',
+            userExternalId: 'user@test.com',
+            localUserId: 'local-user-1',
+          },
+        ],
         syncProtocolVersion: 2,
       });
 
@@ -251,14 +268,16 @@ describe('CloudSyncService', () => {
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
       const result = await service.handleSyncPush('acc-1', 'inst-1', {
-        memories: [{
-          raw: 'hello world',
-          layer: 'SESSION',
-          source: 'EXPLICIT_STATEMENT',
-          contentHash: 'abc123',
-          localId: 'local-1',
-          instanceId: 'inst-1',
-        }],
+        memories: [
+          {
+            raw: 'hello world',
+            layer: 'SESSION',
+            source: 'EXPLICIT_STATEMENT',
+            contentHash: 'abc123',
+            localId: 'local-1',
+            instanceId: 'inst-1',
+          },
+        ],
       });
 
       expect(result.results[0].status).toBe('skipped');

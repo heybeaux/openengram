@@ -98,7 +98,10 @@ export class ConversationObserverService {
     }
 
     // 2b. Build extraction context (original path when summarization is off)
-    const extractorContext: ExtractorContext = { userName, timestamp: new Date() };
+    const extractorContext: ExtractorContext = {
+      userName,
+      timestamp: new Date(),
+    };
 
     // 3. Detect importance signals
     const signals = this.importanceDetector.detect(dto.turns);

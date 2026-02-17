@@ -70,7 +70,10 @@ export class RateLimitGuard implements CanActivate {
       const retryAfterSecs = Math.ceil(result.retryAfterMs / 1000);
       response.set('Retry-After', String(retryAfterSecs));
       response.set('X-RateLimit-Remaining', '0');
-      response.set('X-RateLimit-Reset', String(Math.ceil((Date.now() + result.retryAfterMs) / 1000)));
+      response.set(
+        'X-RateLimit-Reset',
+        String(Math.ceil((Date.now() + result.retryAfterMs) / 1000)),
+      );
       throw new HttpException(
         {
           statusCode: 429,

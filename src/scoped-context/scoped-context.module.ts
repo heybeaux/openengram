@@ -8,7 +8,8 @@ import { MemoryModule } from '../memory/memory.module';
 import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [AccountModule, 
+  imports: [
+    AccountModule,
     AgentSessionModule,
     MemoryPoolModule,
     MemoryAccessLogModule,

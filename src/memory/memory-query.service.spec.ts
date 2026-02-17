@@ -80,7 +80,9 @@ describe('MemoryQueryService', () => {
         { id: 'm2', raw: 'memory 2', effectiveScore: 0.6, extraction: {} },
       ]);
 
-      const result = await service.recall(userId, { query: 'test query' } as any);
+      const result = await service.recall(userId, {
+        query: 'test query',
+      } as any);
 
       expect(result.memories).toHaveLength(2);
       expect(result.latencyMs).toBeGreaterThanOrEqual(0);
@@ -98,14 +100,27 @@ describe('MemoryQueryService', () => {
       } as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'yesterday meeting', effectiveScore: 0.8, createdAt: new Date('2026-02-14T10:00:00Z'), extraction: {} },
+        {
+          id: 'm1',
+          raw: 'yesterday meeting',
+          effectiveScore: 0.8,
+          createdAt: new Date('2026-02-14T10:00:00Z'),
+          extraction: {},
+        },
       ]);
 
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
-      const result = await service.recall(userId, { query: 'yesterday meeting' } as any);
+      const result = await service.recall(userId, {
+        query: 'yesterday meeting',
+      } as any);
       expect(result.memories).toHaveLength(1);
-      expect(temporalParser.blendScores).toHaveBeenCalledWith(0.9, 0.8, 0.8, true);
+      expect(temporalParser.blendScores).toHaveBeenCalledWith(
+        0.9,
+        0.8,
+        0.8,
+        true,
+      );
     });
 
     it('should resolve pool IDs from agentSessionKey', async () => {
@@ -115,12 +130,17 @@ describe('MemoryQueryService', () => {
         agentSessionKey: 'session-1',
       } as any);
 
-      expect(memoryPoolService.getAccessiblePoolIds).toHaveBeenCalledWith('session-1', userId);
+      expect(memoryPoolService.getAccessiblePoolIds).toHaveBeenCalledWith(
+        'session-1',
+        userId,
+      );
       expect(result.memories).toHaveLength(0);
     });
 
     it('should handle pool resolution failure gracefully', async () => {
-      memoryPoolService.getAccessiblePoolIds.mockRejectedValue(new Error('fail'));
+      memoryPoolService.getAccessiblePoolIds.mockRejectedValue(
+        new Error('fail'),
+      );
       embedding.search.mockResolvedValue([]);
 
       const result = await service.recall(userId, {
@@ -133,9 +153,11 @@ describe('MemoryQueryService', () => {
 
     it('should update retrieval counts for returned memories', async () => {
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
-      prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
-      ]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
+        ]);
 
       await service.recall(userId, { query: 'test' } as any);
 
@@ -150,9 +172,11 @@ describe('MemoryQueryService', () => {
 
     it('should log access when agentSessionKey provided', async () => {
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
-      prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
-      ]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
+        ]);
 
       await service.recall(userId, {
         query: 'test',
@@ -174,11 +198,15 @@ describe('MemoryQueryService', () => {
     });
 
     it('should respect explicit enabled=false', () => {
-      expect(service.shouldUseMultiQuery({ multiQuery: { enabled: false } } as any)).toBe(false);
+      expect(
+        service.shouldUseMultiQuery({ multiQuery: { enabled: false } } as any),
+      ).toBe(false);
     });
 
     it('should respect explicit enabled=true', () => {
-      expect(service.shouldUseMultiQuery({ multiQuery: { enabled: true } } as any)).toBe(true);
+      expect(
+        service.shouldUseMultiQuery({ multiQuery: { enabled: true } } as any),
+      ).toBe(true);
     });
 
     it('should fall back to service isEnabled', () => {
@@ -195,11 +223,15 @@ describe('MemoryQueryService', () => {
         metadata: {},
       } as any);
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
-      ]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
+        ]);
 
-      const result = await service.recall(userId, { query: 'complex query' } as any);
+      const result = await service.recall(userId, {
+        query: 'complex query',
+      } as any);
       expect(result.memories).toHaveLength(1);
       expect(multiQueryService.search).toHaveBeenCalled();
     });

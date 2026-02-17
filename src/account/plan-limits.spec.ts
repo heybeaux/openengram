@@ -9,14 +9,20 @@ describe('PLAN_LIMITS', () => {
   });
 
   it('should have increasing memory limits', () => {
-    expect(PLAN_LIMITS.FREE.memories).toBeLessThan(PLAN_LIMITS.STARTER.memories);
+    expect(PLAN_LIMITS.FREE.memories).toBeLessThan(
+      PLAN_LIMITS.STARTER.memories,
+    );
     expect(PLAN_LIMITS.STARTER.memories).toBeLessThan(PLAN_LIMITS.PRO.memories);
     expect(PLAN_LIMITS.PRO.memories).toBeLessThan(PLAN_LIMITS.SCALE.memories);
   });
 
   it('should have increasing API call limits', () => {
-    expect(PLAN_LIMITS.FREE.apiCallsPerDay).toBeLessThan(PLAN_LIMITS.STARTER.apiCallsPerDay);
-    expect(PLAN_LIMITS.STARTER.apiCallsPerDay).toBeLessThan(PLAN_LIMITS.PRO.apiCallsPerDay);
+    expect(PLAN_LIMITS.FREE.apiCallsPerDay).toBeLessThan(
+      PLAN_LIMITS.STARTER.apiCallsPerDay,
+    );
+    expect(PLAN_LIMITS.STARTER.apiCallsPerDay).toBeLessThan(
+      PLAN_LIMITS.PRO.apiCallsPerDay,
+    );
   });
 
   it('FREE plan should have no ensemble models', () => {

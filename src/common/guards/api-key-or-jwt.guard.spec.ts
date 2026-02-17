@@ -157,7 +157,11 @@ describe('ApiKeyOrJwtGuard', () => {
     });
 
     it('should auto-create user if x-am-user-id provided but user not found', async () => {
-      const newUser = { id: 'user-new', agentId: 'agent-1', externalId: 'NewUser' };
+      const newUser = {
+        id: 'user-new',
+        agentId: 'agent-1',
+        externalId: 'NewUser',
+      };
       mockPrisma.instanceApiKey.findUnique.mockResolvedValue({
         id: 'ik-1',
         keyHash,
@@ -233,7 +237,11 @@ describe('ApiKeyOrJwtGuard', () => {
         headers: { 'x-am-api-key': apiKey },
       });
 
-      try { await guard.canActivate(ctx); } catch {}
+      try {
+        await guard.canActivate(ctx);
+      } catch {
+        /* expected */
+      }
 
       expect(mockPrisma.instanceApiKey.findUnique).toHaveBeenCalledWith({
         where: { keyHash },
@@ -257,7 +265,9 @@ describe('ApiKeyOrJwtGuard', () => {
       });
 
       // ApiKeyGuard should throw for invalid key
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -322,7 +332,11 @@ describe('ApiKeyOrJwtGuard', () => {
     });
 
     it('should auto-create user from JWT when not found', async () => {
-      const newUser = { id: 'user-new', agentId: 'agent-1', externalId: 'acc-1' };
+      const newUser = {
+        id: 'user-new',
+        agentId: 'agent-1',
+        externalId: 'acc-1',
+      };
       mockJwt.verify.mockReturnValue({ sub: 'acc-1' });
       mockPrisma.agent.findFirst.mockResolvedValue(agent);
       mockPrisma.user.findUnique.mockResolvedValue(null);
@@ -415,7 +429,10 @@ describe('ApiKeyOrJwtGuard', () => {
       mockPrisma.agent.findFirst.mockResolvedValue(agent);
       mockPrisma.user.findFirst.mockResolvedValue(user);
 
-      const { ctx } = createMockContext({ ip: '::ffff:127.0.0.1', headers: {} });
+      const { ctx } = createMockContext({
+        ip: '::ffff:127.0.0.1',
+        headers: {},
+      });
       expect(await guard.canActivate(ctx)).toBe(true);
     });
 
@@ -445,7 +462,10 @@ describe('ApiKeyOrJwtGuard', () => {
       mockPrisma.agent.findFirst.mockResolvedValue(agent);
       mockPrisma.user.findFirst.mockResolvedValue(user);
 
-      const { ctx, request } = createMockContext({ ip: '127.0.0.1', headers: {} });
+      const { ctx, request } = createMockContext({
+        ip: '127.0.0.1',
+        headers: {},
+      });
       expect(await guard.canActivate(ctx)).toBe(true);
       expect(request.isLanBypass).toBe(true);
     });
@@ -481,7 +501,11 @@ describe('ApiKeyOrJwtGuard', () => {
     });
 
     it('should auto-create user via external ID in LAN bypass', async () => {
-      const newUser = { id: 'user-new', agentId: 'agent-1', externalId: 'NewUser' };
+      const newUser = {
+        id: 'user-new',
+        agentId: 'agent-1',
+        externalId: 'NewUser',
+      };
       mockPrisma.agent.findFirst.mockResolvedValue(agent);
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue(newUser);
@@ -550,7 +574,10 @@ describe('ApiKeyOrJwtGuard', () => {
 
     localIps.forEach((ip) => {
       it(`should treat ${ip} as local`, async () => {
-        mockPrisma.agent.findFirst.mockResolvedValue({ id: 'a', accountId: 'x' });
+        mockPrisma.agent.findFirst.mockResolvedValue({
+          id: 'a',
+          accountId: 'x',
+        });
         mockPrisma.user.findFirst.mockResolvedValue({ id: 'u' });
 
         const { ctx } = createMockContext({ ip, headers: {} });
@@ -585,7 +612,10 @@ describe('ApiKeyOrJwtGuard', () => {
       scopes: [],
       account: { id: 'acc-1' },
     });
-    mockPrisma.agent.findFirst.mockResolvedValue({ id: 'agent-1', accountId: 'acc-1' });
+    mockPrisma.agent.findFirst.mockResolvedValue({
+      id: 'agent-1',
+      accountId: 'acc-1',
+    });
     mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
 
     const { ctx } = createMockContext({

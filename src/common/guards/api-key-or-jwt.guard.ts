@@ -50,10 +50,12 @@ export class ApiKeyOrJwtGuard implements CanActivate {
           throw new UnauthorizedException('Instance API key has expired');
         }
         // Update lastUsedAt (best-effort)
-        this.prisma.instanceApiKey.update({
-          where: { id: instanceKey.id },
-          data: { lastUsedAt: new Date() },
-        }).catch(() => {});
+        this.prisma.instanceApiKey
+          .update({
+            where: { id: instanceKey.id },
+            data: { lastUsedAt: new Date() },
+          })
+          .catch(() => {});
 
         request.accountId = instanceKey.accountId;
         request.isInstanceKey = true;

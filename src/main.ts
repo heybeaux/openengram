@@ -36,21 +36,28 @@ async function bootstrap() {
 
   // Security headers (HSTS, X-Content-Type-Options, X-Frame-Options, hides X-Powered-By)
   // Relax CSP for the memory-graph static page (needs inline scripts/styles + d3 CDN)
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://d3js.org"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
-        fontSrc: ["'self'", "https:", "data:"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-        frameAncestors: ["'self'", "https://openengram.ai", "https://app.openengram.ai", "https://*.vercel.app"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", 'https://d3js.org'],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: [
+            "'self'",
+            'https://openengram.ai',
+            'https://app.openengram.ai',
+            'https://*.vercel.app',
+          ],
+        },
       },
-    },
-  }));
+    }),
+  );
 
   // Enable global validation pipe with transform
   app.useGlobalPipes(

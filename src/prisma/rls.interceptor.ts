@@ -30,8 +30,7 @@ export class RlsInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
 
     // Resolve accountId: from JWT auth or from agent (API key auth)
-    const accountId =
-      request.accountId || request.agent?.accountId || null;
+    const accountId = request.accountId || request.agent?.accountId || null;
 
     // Skip RLS wrapping when:
     // 1. No accountId (LAN bypass mode / unauthenticated local access)
@@ -47,42 +46,57 @@ export class RlsInterceptor implements NestInterceptor {
     }
 
     // Determine timeout: long-running endpoints (sync) need more time
-    const isLongRunning = url.includes('/sync') || url.includes('/cloud/sync') || url.includes('/admin/');
+    const isLongRunning =
+      url.includes('/sync') ||
+      url.includes('/cloud/sync') ||
+      url.includes('/admin/');
     const txTimeout = isLongRunning ? 300_000 : 30_000; // 5 min for sync/admin, 30s default
 
     // Wrap the request handler in an interactive transaction with SET LOCAL
     return from(
-      this.prisma.$transaction(async (tx) => {
-        // Note: SET LOCAL ROLE app would enforce RLS, but requires the app role
-        // to have proper grants on all tables. For now, rely on application-level
-        // filtering via SET LOCAL app.current_account_id. RLS policies exist as
-        // defense-in-depth for direct DB access.
-        // TODO: Grant SELECT/INSERT/UPDATE/DELETE on all tables to app role, then enable:
-        // await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
+      this.prisma
+        .$transaction(
+          async (tx) => {
+            // Note: SET LOCAL ROLE app would enforce RLS, but requires the app role
+            // to have proper grants on all tables. For now, rely on application-level
+            // filtering via SET LOCAL app.current_account_id. RLS policies exist as
+            // defense-in-depth for direct DB access.
+            // TODO: Grant SELECT/INSERT/UPDATE/DELETE on all tables to app role, then enable:
+            // await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
 
-        // SET LOCAL only persists within this transaction
-        // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
-        // accountId is always from our own auth resolution, never user input
-        const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
-        await tx.$executeRawUnsafe(`SET LOCAL app.current_account_id = '${sanitized}'`);
+            // SET LOCAL only persists within this transaction
+            // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
+            // accountId is always from our own auth resolution, never user input
+            const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
+            await tx.$executeRawUnsafe(
+              `SET LOCAL app.current_account_id = '${sanitized}'`,
+            );
 
-        // Store the transactional client on the request (legacy)
-        request.prismaTransaction = tx;
+            // Store the transactional client on the request (legacy)
+            request.prismaTransaction = tx;
 
-        // Run the handler inside AsyncLocalStorage so PrismaService
-        // automatically delegates to this transactional client
-        return rlsContext.run(tx as any, () => {
-          return new Promise((resolve, reject) => {
-            next.handle().subscribe({
-              next: (val) => resolve(val),
-              error: (err: unknown) => reject(err instanceof Error ? err : new Error(String(err))),
+            // Run the handler inside AsyncLocalStorage so PrismaService
+            // automatically delegates to this transactional client
+            return rlsContext.run(tx as any, () => {
+              return new Promise((resolve, reject) => {
+                next.handle().subscribe({
+                  next: (val) => resolve(val),
+                  error: (err: unknown) =>
+                    reject(err instanceof Error ? err : new Error(String(err))),
+                });
+              });
             });
-          });
-        });
-      }, { timeout: txTimeout, maxWait: 10_000 }).catch((err) => {
-        console.error('[RLS_INTERCEPTOR_ERROR]', err?.message || err, err?.stack?.split('\n').slice(0, 3).join('\n'));
-        throw err;
-      }),
+          },
+          { timeout: txTimeout, maxWait: 10_000 },
+        )
+        .catch((err) => {
+          console.error(
+            '[RLS_INTERCEPTOR_ERROR]',
+            err?.message || err,
+            err?.stack?.split('\n').slice(0, 3).join('\n'),
+          );
+          throw err;
+        }),
     ).pipe(switchMap((result) => from(Promise.resolve(result))));
   }
 }

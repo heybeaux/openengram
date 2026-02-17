@@ -35,17 +35,17 @@ describe('AdminController', () => {
     it('should throw ForbiddenException for non-admin user', async () => {
       prisma.account.findUnique.mockResolvedValue({ email: 'user@test.com' });
 
-      await expect(controller.listAccounts({ accountId: 'acc-2' })).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        controller.listAccounts({ accountId: 'acc-2' }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw ForbiddenException when account not found', async () => {
       prisma.account.findUnique.mockResolvedValue(null);
 
-      await expect(controller.listAccounts({ accountId: 'missing' })).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        controller.listAccounts({ accountId: 'missing' }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should be case-insensitive for admin email check', async () => {
@@ -67,7 +67,9 @@ describe('AdminController', () => {
 
   describe('constructor', () => {
     it('should use default admin email when config is empty', () => {
-      const defaultConfig = { get: jest.fn().mockReturnValue('hello@heybeaux.dev') } as any;
+      const defaultConfig = {
+        get: jest.fn().mockReturnValue('hello@heybeaux.dev'),
+      } as any;
       const ctrl = new AdminController(prisma, defaultConfig);
       // Just verify it constructs without error
       expect(ctrl).toBeDefined();

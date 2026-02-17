@@ -73,7 +73,13 @@ export class AccountService {
     return this.config.get<string>('DEPLOYMENT_MODE') !== 'cloud';
   }
 
-  async register(email: string, password: string, name?: string, plan?: string, accessCode?: string) {
+  async register(
+    email: string,
+    password: string,
+    name?: string,
+    plan?: string,
+    accessCode?: string,
+  ) {
     // Self-hosted first-run: allow registration without plan/accessCode
     const selfHosted = this.isSelfHosted();
     const { needsSetup } = await this.getSetupStatus();
@@ -81,11 +87,15 @@ export class AccountService {
     if (!needsSetup || !selfHosted) {
       // Normal cloud registration rules
       if (!accessCode && !plan) {
-        throw new BadRequestException('Please select a plan or enter an access code');
+        throw new BadRequestException(
+          'Please select a plan or enter an access code',
+        );
       }
 
       if (plan && plan.toUpperCase() === 'FREE') {
-        throw new BadRequestException('Registration requires a valid access code. Visit openengram.ai for cloud plans.');
+        throw new BadRequestException(
+          'Registration requires a valid access code. Visit openengram.ai for cloud plans.',
+        );
       }
     }
 
@@ -106,7 +116,9 @@ export class AccountService {
     } else if (plan) {
       const upperPlan = plan.toUpperCase();
       if (!['STARTER', 'PRO', 'SCALE'].includes(upperPlan)) {
-        throw new BadRequestException('Invalid plan. Choose STARTER, PRO, or SCALE');
+        throw new BadRequestException(
+          'Invalid plan. Choose STARTER, PRO, or SCALE',
+        );
       }
       resolvedPlan = upperPlan;
     }
@@ -207,10 +219,12 @@ export class AccountService {
 
     // Sync the cached counter if it drifted
     if (actualMemoryCount !== account.memoriesUsed) {
-      await this.prisma.account.update({
-        where: { id: accountId },
-        data: { memoriesUsed: actualMemoryCount },
-      }).catch(() => {}); // best-effort sync
+      await this.prisma.account
+        .update({
+          where: { id: accountId },
+          data: { memoriesUsed: actualMemoryCount },
+        })
+        .catch(() => {}); // best-effort sync
     }
 
     return {
@@ -298,7 +312,9 @@ export class AccountService {
     const account = await this.prisma.account.findUnique({ where: { email } });
     // Always return success to prevent email enumeration
     if (!account) {
-      return { message: 'If that email is registered, a reset link has been sent.' };
+      return {
+        message: 'If that email is registered, a reset link has been sent.',
+      };
     }
 
     // Generate token and store hash
@@ -311,7 +327,10 @@ export class AccountService {
       data: { resetToken: tokenHash, resetTokenExpiresAt: expiresAt },
     });
 
-    const dashboardUrl = this.config.get<string>('DASHBOARD_URL', 'https://app.openengram.ai');
+    const dashboardUrl = this.config.get<string>(
+      'DASHBOARD_URL',
+      'https://app.openengram.ai',
+    );
     const resetUrl = `${dashboardUrl}/reset-password?token=${rawToken}`;
 
     // Send email via Resend
@@ -334,7 +353,9 @@ export class AccountService {
       this.logger.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
     }
 
-    return { message: 'If that email is registered, a reset link has been sent.' };
+    return {
+      message: 'If that email is registered, a reset link has been sent.',
+    };
   }
 
   async resetPassword(token: string, newPassword: string) {
@@ -344,7 +365,11 @@ export class AccountService {
       where: { resetToken: tokenHash },
     });
 
-    if (!account || !account.resetTokenExpiresAt || account.resetTokenExpiresAt < new Date()) {
+    if (
+      !account ||
+      !account.resetTokenExpiresAt ||
+      account.resetTokenExpiresAt < new Date()
+    ) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
@@ -358,7 +383,11 @@ export class AccountService {
     return { message: 'Password has been reset successfully.' };
   }
 
-  async changePassword(accountId: string, currentPassword: string, newPassword: string) {
+  async changePassword(
+    accountId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     const account = await this.prisma.account.findUniqueOrThrow({
       where: { id: accountId },
     });
@@ -500,10 +529,12 @@ export class AccountService {
     if (key.expiresAt && key.expiresAt < new Date()) return null;
 
     // Update lastUsedAt (best-effort, don't block)
-    this.prisma.instanceApiKey.update({
-      where: { id: key.id },
-      data: { lastUsedAt: new Date() },
-    }).catch(() => {});
+    this.prisma.instanceApiKey
+      .update({
+        where: { id: key.id },
+        data: { lastUsedAt: new Date() },
+      })
+      .catch(() => {});
 
     return {
       accountId: key.accountId,

@@ -1,6 +1,10 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { InstanceService, type InstanceInfo, type InstanceInfoDetailed } from './instance.service';
+import {
+  InstanceService,
+  type InstanceInfo,
+  type InstanceInfoDetailed,
+} from './instance.service';
 import { SkipRateLimit } from '../rate-limit/rate-limit.decorator';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 

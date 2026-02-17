@@ -10,7 +10,13 @@ import { FogIndexModule } from '../fog-index/fog-index.module';
 import { AccountModule } from '../account/account.module';
 
 @Module({
-  imports: [AccountModule, MemoryModule, LLMModule, ClusteringModule, FogIndexModule],
+  imports: [
+    AccountModule,
+    MemoryModule,
+    LLMModule,
+    ClusteringModule,
+    FogIndexModule,
+  ],
   controllers: [ConsolidationController],
   providers: [
     DreamCycleService,

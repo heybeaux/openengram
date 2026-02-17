@@ -32,7 +32,9 @@ export class CloudLinkController {
   @Delete('link')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AdminGuard)
-  @ApiOperation({ summary: 'Unlink instance from OpenEngram Cloud (admin only)' })
+  @ApiOperation({
+    summary: 'Unlink instance from OpenEngram Cloud (admin only)',
+  })
   async unlink(@Req() req: any) {
     await this.cloudLinkService.unlinkCloud(req.accountId);
   }

@@ -1,15 +1,15 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { MemoryCreatedEvent } from '../events/event-types';
 import { decrypt } from '../common/encryption.util';
 import { generateContentHash } from '../common/content-hash.util';
-import { SyncPushDto, SyncPushResponse, SyncPushResultItem } from './dto/sync-push.dto';
+import {
+  SyncPushDto,
+  SyncPushResponse,
+  SyncPushResultItem,
+} from './dto/sync-push.dto';
 import { randomUUID, createHash } from 'crypto';
 
 const BATCH_SIZE = 50;
@@ -64,15 +64,30 @@ export class CloudSyncService {
     this.syncProgress = { synced: 0, total: 0 };
     const startTime = Date.now();
     try {
-      const result = await this.performSync(syncKey, link.instanceId, this.syncAbortController.signal);
+      const result = await this.performSync(
+        syncKey,
+        link.instanceId,
+        this.syncAbortController.signal,
+      );
       // Store sync event for history
       await this.storeSyncEvent(accountId, result, 'completed');
       return result;
     } catch (error: any) {
       const durationMs = Date.now() - startTime;
-      await this.storeSyncEvent(accountId, {
-        syncedCount: 0, newCount: 0, updatedCount: 0, skippedCount: 0, errorCount: 0, lastSyncedAt: null, durationMs,
-      }, 'failed', error.message);
+      await this.storeSyncEvent(
+        accountId,
+        {
+          syncedCount: 0,
+          newCount: 0,
+          updatedCount: 0,
+          skippedCount: 0,
+          errorCount: 0,
+          lastSyncedAt: null,
+          durationMs,
+        },
+        'failed',
+        error.message,
+      );
       throw error;
     } finally {
       this.syncing = false;
@@ -252,18 +267,28 @@ export class CloudSyncService {
 
         if (existingMap) {
           // Update existing cloud memory metadata if content changed
-          if (memPayload.contentHash && existingMap.contentHash !== memPayload.contentHash) {
-            await this.prisma.memory.update({
-              where: { id: existingMap.cloudMemoryId },
-              data: {
-                raw: memPayload.raw,
-                contentHash: memPayload.contentHash,
-                memoryType: memPayload.memoryType as any || undefined,
-                effectiveScore: memPayload.effectiveScore ?? undefined,
-                priority: memPayload.priority ?? undefined,
-              },
-            }).catch(() => {});
-            await this.upsertSyncIdMap(instanceId, memPayload.localId, existingMap.cloudMemoryId, memPayload.contentHash);
+          if (
+            memPayload.contentHash &&
+            existingMap.contentHash !== memPayload.contentHash
+          ) {
+            await this.prisma.memory
+              .update({
+                where: { id: existingMap.cloudMemoryId },
+                data: {
+                  raw: memPayload.raw,
+                  contentHash: memPayload.contentHash,
+                  memoryType: (memPayload.memoryType as any) || undefined,
+                  effectiveScore: memPayload.effectiveScore ?? undefined,
+                  priority: memPayload.priority ?? undefined,
+                },
+              })
+              .catch(() => {});
+            await this.upsertSyncIdMap(
+              instanceId,
+              memPayload.localId,
+              existingMap.cloudMemoryId,
+              memPayload.contentHash,
+            );
             results.push({
               sourceMemoryId: memPayload.localId,
               cloudMemoryId: existingMap.cloudMemoryId,
@@ -286,13 +311,15 @@ export class CloudSyncService {
             raw: memPayload.raw,
             layer: memPayload.layer as any,
             source: (memPayload.source as any) || 'EXPLICIT_STATEMENT',
-            memoryType: memPayload.memoryType as any || undefined,
-            importanceHint: memPayload.importanceHint as any || undefined,
+            memoryType: (memPayload.memoryType as any) || undefined,
+            importanceHint: (memPayload.importanceHint as any) || undefined,
             importanceScore: memPayload.importanceScore ?? 0.5,
             effectiveScore: memPayload.effectiveScore ?? 0.5,
             priority: memPayload.priority ?? 3,
             contentHash: memPayload.contentHash,
-            createdAt: memPayload.createdAt ? new Date(memPayload.createdAt) : undefined,
+            createdAt: memPayload.createdAt
+              ? new Date(memPayload.createdAt)
+              : undefined,
           },
         });
 
@@ -339,8 +366,13 @@ export class CloudSyncService {
     }
 
     // Track this instance
-    const createdCount = results.filter(r => r.status === 'created').length;
-    await this.updateCloudInstance(accountId, instanceId, undefined, createdCount).catch((err) => {
+    const createdCount = results.filter((r) => r.status === 'created').length;
+    await this.updateCloudInstance(
+      accountId,
+      instanceId,
+      undefined,
+      createdCount,
+    ).catch((err) => {
       this.logger.warn(`Failed to update cloud instance: ${err.message}`);
     });
 
@@ -377,14 +409,16 @@ export class CloudSyncService {
     });
     if (byName) {
       // Create additional localAgentId mapping
-      await this.prisma.syncAgentMap.create({
-        data: {
-          instanceId,
-          localAgentId,
-          cloudAgentId: byName.cloudAgentId,
-          agentName,
-        },
-      }).catch(() => {}); // ignore if already exists
+      await this.prisma.syncAgentMap
+        .create({
+          data: {
+            instanceId,
+            localAgentId,
+            cloudAgentId: byName.cloudAgentId,
+            agentName,
+          },
+        })
+        .catch(() => {}); // ignore if already exists
       return byName.cloudAgentId;
     }
 
@@ -489,7 +523,9 @@ export class CloudSyncService {
       this.logger.log(`Backfilled ${updated} content hashes...`);
     }
 
-    this.logger.log(`Content hash backfill complete: ${updated} memories updated`);
+    this.logger.log(
+      `Content hash backfill complete: ${updated} memories updated`,
+    );
     return { updated };
   }
 
@@ -497,7 +533,11 @@ export class CloudSyncService {
   // Local-side: Push sync using /v1/sync/push batch endpoint
   // =========================================================================
 
-  private async performSync(apiKey: string, instanceId: string | null, signal: AbortSignal): Promise<SyncResult> {
+  private async performSync(
+    apiKey: string,
+    instanceId: string | null,
+    signal: AbortSignal,
+  ): Promise<SyncResult> {
     let syncedCount = 0;
     let newCount = 0;
     let updatedCount = 0;
@@ -516,12 +556,16 @@ export class CloudSyncService {
     let cursor: string | undefined;
     while (true) {
       if (signal.aborted) {
-        this.logger.log(`Sync cancelled. Synced ${syncedCount} memories before cancellation.`);
+        this.logger.log(
+          `Sync cancelled. Synced ${syncedCount} memories before cancellation.`,
+        );
         break;
       }
 
       if (Date.now() - startTime > MAX_SYNC_DURATION_MS) {
-        this.logger.warn(`Sync timed out after ${MAX_SYNC_DURATION_MS / 1000}s. Synced ${syncedCount} memories.`);
+        this.logger.warn(
+          `Sync timed out after ${MAX_SYNC_DURATION_MS / 1000}s. Synced ${syncedCount} memories.`,
+        );
         break;
       }
 
@@ -578,14 +622,28 @@ export class CloudSyncService {
     }
 
     const durationMs = Date.now() - startTime;
-    return { syncedCount, newCount, updatedCount, skippedCount, errorCount, lastSyncedAt, durationMs };
+    return {
+      syncedCount,
+      newCount,
+      updatedCount,
+      skippedCount,
+      errorCount,
+      lastSyncedAt,
+      durationMs,
+    };
   }
 
   private async syncBatchToCloud(
     memories: any[],
     apiKey: string,
     instanceId: string | null,
-  ): Promise<{ synced: number; errors: number; newCount: number; updatedCount: number; skippedCount: number }> {
+  ): Promise<{
+    synced: number;
+    errors: number;
+    newCount: number;
+    updatedCount: number;
+    skippedCount: number;
+  }> {
     const effectiveInstanceId = instanceId || 'unknown';
 
     const payload: SyncPushDto = {
@@ -645,7 +703,7 @@ export class CloudSyncService {
       throw new Error(`Cloud API error ${response.status}: ${body}`);
     }
 
-    const result: SyncPushResponse = await response.json() as any;
+    const result: SyncPushResponse = await response.json();
 
     // Mark successfully synced memories
     let synced = 0;
@@ -654,7 +712,11 @@ export class CloudSyncService {
     let updatedCount = 0;
     let skippedCount = 0;
     for (const item of result.results) {
-      if (item.status === 'created' || item.status === 'updated' || item.status === 'skipped') {
+      if (
+        item.status === 'created' ||
+        item.status === 'updated' ||
+        item.status === 'skipped'
+      ) {
         await this.prisma.memory.update({
           where: { id: item.sourceMemoryId },
           data: { cloudSyncedAt: new Date() },
@@ -913,7 +975,9 @@ export class CloudSyncService {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new BadRequestException(`Cloud pull failed: ${response.status} ${body}`);
+        throw new BadRequestException(
+          `Cloud pull failed: ${response.status} ${body}`,
+        );
       }
 
       const data = (await response.json()) as {
@@ -1015,7 +1079,9 @@ export class CloudSyncService {
           newMemoryIds.push(created.id);
           newCount++;
         } catch (err: any) {
-          this.logger.warn(`Pull sync error for cloud memory ${mem.cloudId}: ${err.message}`);
+          this.logger.warn(
+            `Pull sync error for cloud memory ${mem.cloudId}: ${err.message}`,
+          );
         }
 
         pulledCount++;
@@ -1044,10 +1110,22 @@ export class CloudSyncService {
 
     // Store sync event
     await this.storePullSyncEvent(accountId, {
-      pulledCount, newCount, updatedCount, skippedCount, deletedCount, durationMs,
+      pulledCount,
+      newCount,
+      updatedCount,
+      skippedCount,
+      deletedCount,
+      durationMs,
     });
 
-    return { pulledCount, newCount, updatedCount, skippedCount, deletedCount, durationMs };
+    return {
+      pulledCount,
+      newCount,
+      updatedCount,
+      skippedCount,
+      deletedCount,
+      durationMs,
+    };
   }
 
   private async triggerEmbeddingBackfill(memoryIds: string[]): Promise<void> {
@@ -1062,13 +1140,22 @@ export class CloudSyncService {
       }
     } catch (err: any) {
       // Fallback: try the NestJS embedding endpoint
-      this.logger.warn(`Embedding service unreachable (${err.message}), memories will be embedded on next backfill cycle`);
+      this.logger.warn(
+        `Embedding service unreachable (${err.message}), memories will be embedded on next backfill cycle`,
+      );
     }
   }
 
   private async storePullSyncEvent(
     accountId: string,
-    result: { pulledCount: number; newCount: number; updatedCount: number; skippedCount: number; deletedCount: number; durationMs: number },
+    result: {
+      pulledCount: number;
+      newCount: number;
+      updatedCount: number;
+      skippedCount: number;
+      deletedCount: number;
+      durationMs: number;
+    },
   ): Promise<void> {
     try {
       await this.prisma.syncEvent.create({

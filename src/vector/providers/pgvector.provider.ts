@@ -76,7 +76,9 @@ export class PgVectorProvider implements VectorProvider {
     const limit = options.limit || 10;
 
     // Build WHERE clause for the memories table filters
-    const userIds = Array.isArray(options.userId) ? options.userId : [options.userId];
+    const userIds = Array.isArray(options.userId)
+      ? options.userId
+      : [options.userId];
     // params[0] = embedding string ($1)
     // params[1] = search model ($2)
     const params: any[] = [embeddingStr, this.searchModel];
@@ -89,7 +91,9 @@ export class PgVectorProvider implements VectorProvider {
       params.push(userIds[0]);
       paramIndex++;
     } else {
-      const userPlaceholders = userIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      const userPlaceholders = userIds
+        .map((_, i) => `$${paramIndex + i}`)
+        .join(', ');
       memoryWhereClause = `m.user_id IN (${userPlaceholders}) AND m.deleted_at IS NULL`;
       params.push(...userIds);
       paramIndex += userIds.length;

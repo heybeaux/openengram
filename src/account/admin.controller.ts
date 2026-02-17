@@ -19,7 +19,8 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.adminEmails = (config.get<string>('ADMIN_EMAILS', 'hello@heybeaux.dev'))
+    this.adminEmails = config
+      .get<string>('ADMIN_EMAILS', 'hello@heybeaux.dev')
       .split(',')
       .map((e) => e.trim().toLowerCase());
   }

@@ -39,7 +39,12 @@ describe('FeedbackService', () => {
         category: 'general' as const,
         page: '/dashboard',
       };
-      const expected = { id: 'fb-1', ...dto, accountId: 'acc-1', createdAt: new Date() };
+      const expected = {
+        id: 'fb-1',
+        ...dto,
+        accountId: 'acc-1',
+        createdAt: new Date(),
+      };
       mockPrisma.uxFeedback.create.mockResolvedValue(expected);
 
       const result = await service.create('acc-1', dto);
@@ -58,7 +63,12 @@ describe('FeedbackService', () => {
 
     it('should create feedback with optional fields omitted', async () => {
       const dto = { rating: 5, category: 'nps' as const };
-      const expected = { id: 'fb-2', ...dto, accountId: 'acc-1', createdAt: new Date() };
+      const expected = {
+        id: 'fb-2',
+        ...dto,
+        accountId: 'acc-1',
+        createdAt: new Date(),
+      };
       mockPrisma.uxFeedback.create.mockResolvedValue(expected);
 
       const result = await service.create('acc-1', dto);
@@ -79,7 +89,13 @@ describe('FeedbackService', () => {
   describe('findByAccount', () => {
     it('should return feedback for an account with default limit', async () => {
       const feedbacks = [
-        { id: 'fb-1', accountId: 'acc-1', rating: 8, category: 'general', createdAt: new Date() },
+        {
+          id: 'fb-1',
+          accountId: 'acc-1',
+          rating: 8,
+          category: 'general',
+          createdAt: new Date(),
+        },
       ];
       mockPrisma.uxFeedback.findMany.mockResolvedValue(feedbacks);
 
