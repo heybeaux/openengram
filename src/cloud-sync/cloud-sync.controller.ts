@@ -53,6 +53,12 @@ export class CloudSyncController {
     await this.cloudSyncService.setAutoSync(req.accountId, body.enabled);
     return { autoSync: body.enabled };
   }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Get sync history (last N events)' })
+  async history(@Req() req: any) {
+    return this.cloudSyncService.getSyncHistory(req.accountId, 10);
+  }
 }
 
 /**
@@ -82,5 +88,12 @@ export class SyncIngestController {
       req.instanceId,
       dto,
     );
+  }
+
+  @Get('instances')
+  @UseGuards(ApiKeyOrJwtGuard)
+  @ApiOperation({ summary: 'List connected instances for the account' })
+  async listInstances(@Req() req: any) {
+    return this.cloudSyncService.getInstances(req.accountId);
   }
 }

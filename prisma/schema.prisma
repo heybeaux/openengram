@@ -1363,6 +1363,43 @@ model InstanceApiKey {
   @@map("instance_api_keys")
 }
 
+/// Tracks connected local instances on the cloud side
+model CloudInstance {
+  id            String   @id @default(cuid())
+  accountId     String   @map("account_id")
+  instanceId    String   @map("instance_id") // The InstanceSyncKey ID or X-Instance-Id header
+  instanceName  String?  @map("instance_name")
+  lastSyncAt    DateTime? @map("last_sync_at")
+  memoryCount   Int      @default(0) @map("memory_count")
+  lastPushCount Int      @default(0) @map("last_push_count")
+  status        String   @default("active") // active, stale, disconnected
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([accountId, instanceId])
+  @@index([accountId])
+  @@map("cloud_instances")
+}
+
+/// Tracks sync events for history display
+model SyncEvent {
+  id          String   @id @default(cuid())
+  accountId   String   @map("account_id")
+  direction   String   @default("push") // push, pull
+  status      String   @default("completed") // completed, failed, cancelled
+  totalCount  Int      @default(0) @map("total_count")
+  newCount    Int      @default(0) @map("new_count")
+  updatedCount Int     @default(0) @map("updated_count")
+  skippedCount Int     @default(0) @map("skipped_count")
+  failedCount Int      @default(0) @map("failed_count")
+  error       String?
+  durationMs  Int?     @map("duration_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([accountId, createdAt])
+  @@map("sync_events")
+}
+
 /// Maps local memory IDs to cloud memory IDs for sync tracking
 model SyncIdMap {
   id             String   @id @default(cuid())

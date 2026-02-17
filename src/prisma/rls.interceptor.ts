@@ -43,6 +43,11 @@ export class RlsInterceptor implements NestInterceptor {
     // Wrap the request handler in an interactive transaction with SET LOCAL
     return from(
       this.prisma.$transaction(async (tx) => {
+        // Switch to non-BYPASSRLS role so RLS policies are enforced.
+        // The postgres role has BYPASSRLS which overrides all policies.
+        // SET LOCAL ROLE only persists within this transaction.
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
+
         // SET LOCAL only persists within this transaction
         // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
         // accountId is always from our own auth resolution, never user input

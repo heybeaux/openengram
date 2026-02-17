@@ -18,8 +18,12 @@ const MAX_SYNC_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface SyncResult {
   syncedCount: number;
+  newCount: number;
+  updatedCount: number;
+  skippedCount: number;
   errorCount: number;
   lastSyncedAt: string | null;
+  durationMs: number;
 }
 
 export interface SyncStatus {
@@ -56,12 +60,30 @@ export class CloudSyncService {
     this.syncing = true;
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
+    const startTime = Date.now();
     try {
-      return await this.performSync(apiKey, link.instanceId, this.syncAbortController.signal);
+      const result = await this.performSync(apiKey, link.instanceId, this.syncAbortController.signal);
+      // Store sync event for history
+      await this.storeSyncEvent(accountId, result, 'completed');
+      return result;
+    } catch (error: any) {
+      const durationMs = Date.now() - startTime;
+      await this.storeSyncEvent(accountId, {
+        syncedCount: 0, newCount: 0, updatedCount: 0, skippedCount: 0, errorCount: 0, lastSyncedAt: null, durationMs,
+      }, 'failed', error.message);
+      throw error;
     } finally {
       this.syncing = false;
       this.syncAbortController = null;
     }
+  }
+
+  async getSyncHistory(accountId: string, limit = 5) {
+    return this.prisma.syncEvent.findMany({
+      where: { accountId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   }
 
   cancelSync(): void {
@@ -214,7 +236,7 @@ export class CloudSyncService {
           }
         }
 
-        // 4. Check SyncIdMap — already synced this localId?
+        // 4. Check SyncIdMap — already synced this localId? If so, update metadata
         const existingMap = await this.prisma.syncIdMap.findUnique({
           where: {
             instanceId_localMemoryId: {
@@ -225,11 +247,31 @@ export class CloudSyncService {
         });
 
         if (existingMap) {
-          results.push({
-            sourceMemoryId: memPayload.localId,
-            cloudMemoryId: existingMap.cloudMemoryId,
-            status: 'skipped',
-          });
+          // Update existing cloud memory metadata if content changed
+          if (memPayload.contentHash && existingMap.contentHash !== memPayload.contentHash) {
+            await this.prisma.memory.update({
+              where: { id: existingMap.cloudMemoryId },
+              data: {
+                raw: memPayload.raw,
+                contentHash: memPayload.contentHash,
+                memoryType: memPayload.memoryType as any || undefined,
+                effectiveScore: memPayload.effectiveScore ?? undefined,
+                priority: memPayload.priority ?? undefined,
+              },
+            }).catch(() => {});
+            await this.upsertSyncIdMap(instanceId, memPayload.localId, existingMap.cloudMemoryId, memPayload.contentHash);
+            results.push({
+              sourceMemoryId: memPayload.localId,
+              cloudMemoryId: existingMap.cloudMemoryId,
+              status: 'updated',
+            });
+          } else {
+            results.push({
+              sourceMemoryId: memPayload.localId,
+              cloudMemoryId: existingMap.cloudMemoryId,
+              status: 'skipped',
+            });
+          }
           continue;
         }
 
@@ -291,6 +333,12 @@ export class CloudSyncService {
         });
       }
     }
+
+    // Track this instance
+    const createdCount = results.filter(r => r.status === 'created').length;
+    await this.updateCloudInstance(accountId, instanceId, undefined, createdCount).catch((err) => {
+      this.logger.warn(`Failed to update cloud instance: ${err.message}`);
+    });
 
     return { results };
   }
@@ -447,6 +495,9 @@ export class CloudSyncService {
 
   private async performSync(apiKey: string, instanceId: string | null, signal: AbortSignal): Promise<SyncResult> {
     let syncedCount = 0;
+    let newCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
     let errorCount = 0;
     let lastSyncedAt: string | null = null;
     const startTime = Date.now();
@@ -498,6 +549,9 @@ export class CloudSyncService {
       try {
         const result = await this.syncBatchToCloud(batch, apiKey, instanceId);
         syncedCount += result.synced;
+        newCount += result.newCount;
+        updatedCount += result.updatedCount;
+        skippedCount += result.skippedCount;
         errorCount += result.errors;
         this.syncProgress.synced = syncedCount;
         if (result.synced > 0) {
@@ -519,14 +573,15 @@ export class CloudSyncService {
       }
     }
 
-    return { syncedCount, errorCount, lastSyncedAt };
+    const durationMs = Date.now() - startTime;
+    return { syncedCount, newCount, updatedCount, skippedCount, errorCount, lastSyncedAt, durationMs };
   }
 
   private async syncBatchToCloud(
     memories: any[],
     apiKey: string,
     instanceId: string | null,
-  ): Promise<{ synced: number; errors: number }> {
+  ): Promise<{ synced: number; errors: number; newCount: number; updatedCount: number; skippedCount: number }> {
     const effectiveInstanceId = instanceId || 'unknown';
 
     const payload: SyncPushDto = {
@@ -589,19 +644,25 @@ export class CloudSyncService {
     // Mark successfully synced memories
     let synced = 0;
     let errors = 0;
+    let newCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
     for (const item of result.results) {
-      if (item.status === 'created' || item.status === 'skipped') {
+      if (item.status === 'created' || item.status === 'updated' || item.status === 'skipped') {
         await this.prisma.memory.update({
           where: { id: item.sourceMemoryId },
           data: { cloudSyncedAt: new Date() },
         });
         synced++;
+        if (item.status === 'created') newCount++;
+        else if (item.status === 'updated') updatedCount++;
+        else skippedCount++;
       } else {
         errors++;
       }
     }
 
-    return { synced, errors };
+    return { synced, errors, newCount, updatedCount, skippedCount };
   }
 
   private async upsertSyncIdMap(
@@ -651,5 +712,80 @@ export class CloudSyncService {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // =========================================================================
+  // Sync event history
+  // =========================================================================
+
+  private async storeSyncEvent(
+    accountId: string,
+    result: SyncResult,
+    status: string,
+    error?: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.syncEvent.create({
+        data: {
+          accountId,
+          direction: 'push',
+          status,
+          totalCount: result.syncedCount,
+          newCount: result.newCount,
+          updatedCount: result.updatedCount,
+          skippedCount: result.skippedCount,
+          failedCount: result.errorCount,
+          error: error ?? null,
+          durationMs: result.durationMs,
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to store sync event: ${err.message}`);
+    }
+  }
+
+  // =========================================================================
+  // Cloud-side: Instance tracking
+  // =========================================================================
+
+  async updateCloudInstance(
+    accountId: string,
+    instanceId: string,
+    instanceName: string | undefined,
+    pushCount: number,
+  ): Promise<void> {
+    // Count total memories for this instance
+    const memoryCount = await this.prisma.syncIdMap.count({
+      where: { instanceId },
+    });
+
+    await this.prisma.cloudInstance.upsert({
+      where: {
+        accountId_instanceId: { accountId, instanceId },
+      },
+      create: {
+        accountId,
+        instanceId,
+        instanceName: instanceName ?? null,
+        lastSyncAt: new Date(),
+        memoryCount,
+        lastPushCount: pushCount,
+        status: 'active',
+      },
+      update: {
+        instanceName: instanceName ?? undefined,
+        lastSyncAt: new Date(),
+        memoryCount,
+        lastPushCount: pushCount,
+        status: 'active',
+      },
+    });
+  }
+
+  async getInstances(accountId: string) {
+    return this.prisma.cloudInstance.findMany({
+      where: { accountId },
+      orderBy: { lastSyncAt: 'desc' },
+    });
   }
 }

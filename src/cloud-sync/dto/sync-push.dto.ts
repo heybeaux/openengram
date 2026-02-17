@@ -160,7 +160,7 @@ export class SyncPushDto {
 export interface SyncPushResultItem {
   sourceMemoryId: string;
   cloudMemoryId?: string;
-  status: 'created' | 'skipped' | 'failed';
+  status: 'created' | 'updated' | 'skipped' | 'failed';
   error?: string;
 }
 
