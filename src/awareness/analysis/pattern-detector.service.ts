@@ -35,6 +35,10 @@ export interface DetectedPattern {
 export class PatternDetectorService {
   private readonly logger = new Logger(PatternDetectorService.name);
 
+  /**
+   * Detect patterns across a set of observations.
+   * Returns patterns sorted by type with heuristic confidence scores.
+   */
   detect(observations: Observation[]): DetectedPattern[] {
     const patterns: DetectedPattern[] = [];
 

@@ -82,6 +82,7 @@ export class WakingCycleService {
     }
   }
 
+  /** Execute the full cycle pipeline: collect → detect → generate → store. */
   private async _execute(): Promise<{
     observations: number;
     patterns: number;
@@ -121,6 +122,7 @@ export class WakingCycleService {
     };
   }
 
+  /** Load all signal source checkpoints from the database. */
   private async loadCheckpoints(): Promise<Map<string, Record<string, unknown>>> {
     const states = await this.prisma.awarenessState.findMany();
     const map = new Map<string, Record<string, unknown>>();
@@ -130,6 +132,7 @@ export class WakingCycleService {
     return map;
   }
 
+  /** Persist a signal source checkpoint via upsert. */
   private async saveCheckpoint(
     signalSource: string,
     checkpoint: Record<string, unknown>,
@@ -162,6 +165,7 @@ export class WakingCycleService {
     });
   }
 
+  /** Store generated insights as INSIGHT layer memories, with dedup check. */
   private async storeInsights(insights: GeneratedInsight[]): Promise<void> {
     if (insights.length === 0) return;
 
@@ -209,6 +213,7 @@ export class WakingCycleService {
     }
   }
 
+  /** Returns a promise that rejects after `ms` milliseconds (cycle timeout). */
   private timeout(ms: number): Promise<never> {
     return new Promise((_, reject) =>
       setTimeout(() => reject(new Error(`Waking Cycle timed out after ${ms}ms`)), ms),

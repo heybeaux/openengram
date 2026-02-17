@@ -33,11 +33,13 @@ export const AwarenessConfig = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+/** Parse an integer environment variable with a fallback default. */
 function int(key: string, fallback: number): number {
   const v = process.env[key];
   return v ? parseInt(v, 10) : fallback;
 }
 
+/** Parse a float environment variable with a fallback default. */
 function float(key: string, fallback: number): number {
   const v = process.env[key];
   return v ? parseFloat(v) : fallback;

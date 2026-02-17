@@ -143,6 +143,7 @@ export class MemorySignalService implements SignalSource {
     };
   }
 
+  /** Extract top keywords from memory content for observation summaries. */
   private summarizeTopics(memories: { raw: string; layer: string }[]): string {
     // Simple keyword extraction — the LLM will do the real synthesis
     const words = memories
