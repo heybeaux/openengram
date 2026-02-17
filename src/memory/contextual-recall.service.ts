@@ -76,7 +76,7 @@ export class ContextualRecallService {
 
     // 4. Semantic search
     const limit = dto.maxResults ?? 5;
-    const minScore = dto.minScore ?? 0.5;
+    const minScore = dto.minScore ?? 0.35;
     const excludeSet = new Set([
       ...(dto.excludeIds ?? []),
       ...session.recalledIds,
