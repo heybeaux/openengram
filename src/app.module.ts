@@ -39,6 +39,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { InstanceModule } from './instance/instance.module';
 import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
+import { AwarenessModule } from './awareness/awareness.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
@@ -109,6 +110,7 @@ const coreModules = [
   AccountModule,
   CloudLinkModule,
   CloudSyncModule,
+  AwarenessModule,
 ];
 
 const cloudModules = [
