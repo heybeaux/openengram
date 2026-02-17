@@ -20,7 +20,8 @@ describe('AccountController', () => {
       deleteApiKey: jest.fn(),
       updateAccount: jest.fn(),
     } as any;
-    controller = new AccountController(accountService);
+    const prisma = {} as any;
+    controller = new AccountController(accountService, prisma);
   });
 
   describe('getSetupStatus', () => {
