@@ -36,12 +36,17 @@ export class RlsInterceptor implements NestInterceptor {
     // Skip RLS wrapping when:
     // 1. No accountId (LAN bypass mode / unauthenticated local access)
     // 2. LAN bypass is enabled and no auth context
+    // 3. Sync push endpoint (uses InstanceSyncKeyGuard, manages own account scoping)
     if (!accountId) {
       return next.handle();
     }
 
-    // Determine timeout: long-running endpoints (sync) need more time
     const url: string = request.url || '';
+    if (url.includes('/v1/sync/push')) {
+      return next.handle();
+    }
+
+    // Determine timeout: long-running endpoints (sync) need more time
     const isLongRunning = url.includes('/sync') || url.includes('/cloud/sync') || url.includes('/admin/');
     const txTimeout = isLongRunning ? 300_000 : 30_000; // 5 min for sync/admin, 30s default
 
