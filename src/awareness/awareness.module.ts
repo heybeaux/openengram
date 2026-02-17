@@ -5,6 +5,7 @@ import { MemorySignalService } from './signals/memory-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { LLMModule } from '../llm/llm.module';
 import { AwarenessConfig } from './config/awareness.config';
 import { Logger } from '@nestjs/common';
 
@@ -25,7 +26,7 @@ const logger = new Logger('AwarenessModule');
   // If other modules need @Cron/@Interval, move .forRoot() to AppModule and import
   // ScheduleModule (without .forRoot()) here instead.
   imports: AwarenessConfig.enabled
-    ? [PrismaModule, ScheduleModule.forRoot()]
+    ? [PrismaModule, LLMModule, ScheduleModule.forRoot()]
     : [],
   providers: AwarenessConfig.enabled
     ? [
