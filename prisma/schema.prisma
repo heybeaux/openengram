@@ -199,6 +199,10 @@ model Memory {
   lastDreamCycleAt DateTime? @map("last_dream_cycle_at")
   patternSourceIds String[]  @default([]) @map("pattern_source_ids")
 
+  // Extensible metadata (used by Awareness/Waking Cycle for insight metadata,
+  // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
+  metadata         Json?     @map("metadata")
+
   // Semantic Memory Graph relations
   graphMentions        GraphEntityMention[]
   graphEntityFirstSeen GraphEntity[]        @relation("GraphEntityFirstSeen")
