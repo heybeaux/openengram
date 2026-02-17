@@ -31,6 +31,7 @@ model Account {
   cloudLink           CloudLink?
   instanceSyncKeys    InstanceSyncKey[]
   instanceApiKeys     InstanceApiKey[]
+  awarenessStates     AwarenessState[]
 
   @@map("accounts")
 }
@@ -197,6 +198,10 @@ model Memory {
   archivedReason   String?   @map("archived_reason")
   lastDreamCycleAt DateTime? @map("last_dream_cycle_at")
   patternSourceIds String[]  @default([]) @map("pattern_source_ids")
+
+  // Extensible metadata (used by Awareness/Waking Cycle for insight metadata,
+  // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
+  metadata         Json?     @map("metadata")
 
   // Semantic Memory Graph relations
   graphMentions        GraphEntityMention[]
@@ -577,6 +582,7 @@ enum MemoryLayer {
   PROJECT
   SESSION
   TASK
+  INSIGHT
 }
 
 /// Memory type for classification (priority-based)
@@ -1177,6 +1183,26 @@ model MemoryCluster {
   memories          Memory[]
 
   @@map("memory_clusters")
+}
+
+// ============================================================================
+// AWARENESS / WAKING CYCLE
+// ============================================================================
+
+/// Tracks observation state for each signal source in the Waking Cycle
+model AwarenessState {
+  id            String   @id @default(cuid())
+  accountId     String   @map("account_id")
+  signalSource  String   @map("signal_source") // "memory", "github", "linear"
+  lastCheckedAt DateTime @map("last_checked_at")
+  checkpoint    Json?    // source-specific cursor/state (e.g., last memory ID processed)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, signalSource])
+  @@map("awareness_states")
 }
 
 /// Dream Cycle consolidation reports

@@ -33,6 +33,7 @@ export class ImportanceService {
     [MemoryLayer.PROJECT]: 1.5,
     [MemoryLayer.SESSION]: 1.0,
     [MemoryLayer.TASK]: 0.5,
+    [MemoryLayer.INSIGHT]: 1.8,
   };
 
   // Boost values for hints
@@ -139,6 +140,7 @@ export class ImportanceService {
       [MemoryLayer.PROJECT]: 0.01, // 1% per day
       [MemoryLayer.SESSION]: 0.02, // 2% per day
       [MemoryLayer.TASK]: 0.05, // 5% per day
+      [MemoryLayer.INSIGHT]: 0.005, // 0.5% per day
     };
 
     const decayRate = decayRates[layer];
