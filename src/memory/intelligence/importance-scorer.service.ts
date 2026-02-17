@@ -36,6 +36,7 @@ const DEFAULT_CONFIG: ScoringConfig = {
     [MemoryLayer.PROJECT]: 60,
     [MemoryLayer.SESSION]: 30,
     [MemoryLayer.TASK]: 7,
+    [MemoryLayer.INSIGHT]: 90,
   },
   minDecayFactor: 0.1,
 

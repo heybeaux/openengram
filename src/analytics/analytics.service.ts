@@ -318,7 +318,7 @@ export class AnalyticsService {
         if (!byTimestamp.has(ts)) {
           byTimestamp.set(ts, {
             timestamp: ts,
-            layers: { IDENTITY: 0, PROJECT: 0, SESSION: 0, TASK: 0 },
+            layers: { IDENTITY: 0, PROJECT: 0, SESSION: 0, TASK: 0, INSIGHT: 0 },
           });
         }
         byTimestamp.get(ts)!.layers[row.layer] = Number(row.count);

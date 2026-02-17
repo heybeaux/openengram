@@ -89,6 +89,7 @@ describe('ContextEnricherService', () => {
       patternSourceIds: [],
       cloudSyncedAt: null,
       contentHash: null,
+      metadata: null,
       extraction: null,
       entities: [],
       ...overrides,
