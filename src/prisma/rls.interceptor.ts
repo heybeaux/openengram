@@ -40,6 +40,11 @@ export class RlsInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    // Determine timeout: long-running endpoints (sync) need more time
+    const url: string = request.url || '';
+    const isLongRunning = url.includes('/sync') || url.includes('/cloud/sync') || url.includes('/admin/');
+    const txTimeout = isLongRunning ? 300_000 : 30_000; // 5 min for sync/admin, 30s default
+
     // Wrap the request handler in an interactive transaction with SET LOCAL
     return from(
       this.prisma.$transaction(async (tx) => {
@@ -69,7 +74,7 @@ export class RlsInterceptor implements NestInterceptor {
             });
           });
         });
-      }).catch((err) => {
+      }, { timeout: txTimeout, maxWait: 10_000 }).catch((err) => {
         console.error('[RLS_INTERCEPTOR_ERROR]', err?.message || err, err?.stack?.split('\n').slice(0, 3).join('\n'));
         throw err;
       }),
