@@ -157,7 +157,7 @@ describe('FogIndexService', () => {
       prisma.memory.groupBy.mockResolvedValue([]);
       prisma.$queryRawUnsafe.mockResolvedValue([{ count: BigInt(0) }]);
 
-      const result = await service.compute('specific-user');
+      const result = await service.compute({ userId: 'specific-user' });
       expect(result).toBeDefined();
       // Should not call findFirst to resolve user
       expect(prisma.memory.findFirst).not.toHaveBeenCalled();
