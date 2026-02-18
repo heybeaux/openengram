@@ -363,14 +363,37 @@ export class GraphController {
   }
 
   /**
-   * Backfill graph data for existing memories
+   * Backfill graph data for existing memories.
+   * If userId is omitted, resolves from account context.
    */
   @Post('backfill')
-  async backfill(@Body() body: { userId: string; limit?: number }) {
-    if (!body.userId) {
+  async backfill(
+    @Req() req: any,
+    @Body() body: { userId?: string; limit?: number },
+  ) {
+    const limit = body.limit ?? 500;
+
+    // If userId provided, backfill just that user
+    if (body.userId) {
+      return this.graphService.backfill(body.userId, { limit });
+    }
+
+    // Otherwise backfill all users under the account
+    const accountUserIds = await this.resolveAccountUserIds(req);
+    const userIds = accountUserIds ?? (req.user?.id ? [req.user.id] : null);
+
+    if (!userIds?.length) {
       throw new BadRequestException('userId is required');
     }
 
-    return this.graphService.backfill(body.userId, { limit: body.limit });
+    let totalProcessed = 0;
+    let totalSkipped = 0;
+    for (const uid of userIds) {
+      const result = await this.graphService.backfill(uid, { limit });
+      totalProcessed += result.processed;
+      totalSkipped += result.skipped;
+    }
+
+    return { processed: totalProcessed, skipped: totalSkipped, users: userIds.length };
   }
 }
