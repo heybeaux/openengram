@@ -130,7 +130,7 @@ export class EntityService {
     dto: ListEntitiesDto,
   ): Promise<{ entities: GraphEntity[]; total: number }> {
     const where: Prisma.GraphEntityWhereInput = {
-      userId: dto.userId,
+      userId: Array.isArray(dto.userId) ? { in: dto.userId } : dto.userId,
     };
 
     if (dto.type) {

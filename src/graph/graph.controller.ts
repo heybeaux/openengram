@@ -55,18 +55,18 @@ export class GraphController {
   ) {}
 
   /**
-   * Resolve first userId for the account when none is provided.
-   * Returns the first user under the account's first agent.
+   * Resolve all user IDs under the authenticated account.
+   * Returns null if no accountId is available.
    */
-  private async resolveDefaultUserId(req: any): Promise<string | null> {
+  private async resolveAccountUserIds(req: any): Promise<string[] | null> {
     const accountId = req.accountId ?? req.agent?.accountId;
     if (!accountId) return null;
-    const user = await this.prisma.user.findFirst({
+
+    const users = await this.prisma.user.findMany({
       where: { agent: { accountId, deletedAt: null } },
-      orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
-    return user?.id ?? null;
+    return users.length > 0 ? users.map((u) => u.id) : null;
   }
 
   // ==================== Health & Status ====================
@@ -96,15 +96,18 @@ export class GraphController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
+    let userIdOrIds: string | string[] | undefined = userId;
     if (!userId) {
-      userId = req.user?.id ?? await this.resolveDefaultUserId(req);
-    }
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+      const accountUserIds = await this.resolveAccountUserIds(req);
+      if (accountUserIds) {
+        userIdOrIds = accountUserIds;
+      } else {
+        throw new BadRequestException('userId is required');
+      }
     }
 
     const dto: ListEntitiesDto = {
-      userId,
+      userId: userIdOrIds as any,
       type: type as any,
       search,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -200,15 +203,18 @@ export class GraphController {
     @Query('direction') direction?: 'outgoing' | 'incoming' | 'both',
     @Query('limit') limit?: string,
   ) {
+    let userIdOrIds: string | string[] | undefined = userId;
     if (!userId) {
-      userId = req.user?.id ?? await this.resolveDefaultUserId(req);
-    }
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+      const accountUserIds = await this.resolveAccountUserIds(req);
+      if (accountUserIds) {
+        userIdOrIds = accountUserIds;
+      } else {
+        throw new BadRequestException('userId is required');
+      }
     }
 
     const dto: ListRelationshipsDto = {
-      userId,
+      userId: userIdOrIds as any,
       entityId,
       type: type as any,
       direction,

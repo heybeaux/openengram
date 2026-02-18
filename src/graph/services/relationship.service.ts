@@ -196,7 +196,7 @@ export class RelationshipService {
    */
   async list(dto: ListRelationshipsDto): Promise<GraphRelationship[]> {
     const where: Prisma.GraphRelationshipWhereInput = {
-      userId: dto.userId,
+      userId: Array.isArray(dto.userId) ? { in: dto.userId } : dto.userId,
     };
 
     if (dto.entityId) {
