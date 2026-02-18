@@ -182,6 +182,17 @@ export class MemoryQueryService {
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     }
 
+    // ── Active Insight Surfacing ──────────────────────────────────────
+    // Inject high-confidence, unacknowledged INSIGHT memories that are
+    // semantically relevant to the query. Insights get boosted to appear
+    // near the top of results so agents actually see them.
+    scoredMemories = await this.surfaceInsights(
+      scoredMemories,
+      Array.isArray(userId) ? userId : [userId],
+      searchQuery,
+      limit,
+    );
+
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
       result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
@@ -219,6 +230,106 @@ export class MemoryQueryService {
     if (dto.multiQuery?.enabled === false) return false;
     if (dto.multiQuery?.enabled === true) return true;
     return this.multiQueryService.isEnabled();
+  }
+
+  /**
+   * Surface relevant INSIGHT memories by injecting them into recall results.
+   *
+   * Finds unacknowledged, high-confidence insights and boosts their score
+   * so they appear near the top of results. Insights that aren't semantically
+   * relevant to the current query are excluded.
+   *
+   * @param existingResults - Current recall results
+   * @param userIds - User IDs to scope the insight query
+   * @param query - The original search query text
+   * @param limit - Max total results to return
+   */
+  private async surfaceInsights(
+    existingResults: MemoryWithScore[],
+    userIds: string[],
+    query: string,
+    limit: number,
+  ): Promise<MemoryWithScore[]> {
+    try {
+      // Find recent, high-confidence INSIGHT memories
+      const insights = await this.prisma.memory.findMany({
+        where: {
+          userId: { in: userIds },
+          layer: 'INSIGHT',
+          deletedAt: null,
+          importanceScore: { gte: 0.6 }, // confidence threshold
+          // Only surface insights from the last 14 days
+          createdAt: { gt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+        },
+        include: { extraction: true },
+        orderBy: { importanceScore: 'desc' },
+        take: 5,
+      });
+
+      if (insights.length === 0) return existingResults;
+
+      // Check semantic relevance — only surface insights related to the query
+      const queryEmbedding = await this.embedding.generate(query);
+      const insightEmbeddings = await Promise.all(
+        insights.map(async (insight) => {
+          const emb = await this.embedding.generate(insight.raw);
+          return { insight, embedding: emb };
+        }),
+      );
+
+      // Calculate cosine similarity and filter by relevance
+      const relevantInsights: MemoryWithScore[] = [];
+      const existingIds = new Set(existingResults.map(r => r.id));
+
+      for (const { insight, embedding } of insightEmbeddings) {
+        // Skip if already in results
+        if (existingIds.has(insight.id)) continue;
+
+        const similarity = this.cosineSimilarity(queryEmbedding, embedding);
+
+        // Only surface if moderately relevant (> 0.3 similarity)
+        if (similarity > 0.3) {
+          // Boost score: base similarity + confidence bonus
+          const boostedScore = similarity + (insight.importanceScore * 0.3);
+          relevantInsights.push({
+            ...insight,
+            score: boostedScore,
+          } as MemoryWithScore);
+        }
+      }
+
+      if (relevantInsights.length === 0) return existingResults;
+
+      // Merge: insert insights into results, maintaining sort order
+      const merged = [...existingResults, ...relevantInsights]
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, limit);
+
+      console.log(
+        `[Recall] Surfaced ${relevantInsights.length} INSIGHT memories (of ${insights.length} candidates)`,
+      );
+
+      return merged;
+    } catch (error) {
+      // Never let insight surfacing break recall
+      console.warn('[Recall] Insight surfacing failed, skipping:', error.message);
+      return existingResults;
+    }
+  }
+
+  /** Calculate cosine similarity between two embedding vectors. */
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
   /**
