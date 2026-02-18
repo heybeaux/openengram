@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -17,6 +18,7 @@ import { GraphService } from './services/graph.service';
 import { EntityService } from './services/entity.service';
 import { RelationshipService } from './services/relationship.service';
 import { GraphExtractionService } from './services/graph-extraction.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateEntityDto,
   UpdateEntityDto,
@@ -49,7 +51,23 @@ export class GraphController {
     private readonly entityService: EntityService,
     private readonly relationshipService: RelationshipService,
     private readonly extractionService: GraphExtractionService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Resolve first userId for the account when none is provided.
+   * Returns the first user under the account's first agent.
+   */
+  private async resolveDefaultUserId(req: any): Promise<string | null> {
+    const accountId = req.accountId ?? req.agent?.accountId;
+    if (!accountId) return null;
+    const user = await this.prisma.user.findFirst({
+      where: { agent: { accountId, deletedAt: null } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    return user?.id ?? null;
+  }
 
   // ==================== Health & Status ====================
 
@@ -71,12 +89,16 @@ export class GraphController {
    */
   @Get('entities')
   async listEntities(
-    @Query('userId') userId: string,
+    @Req() req: any,
+    @Query('userId') userId?: string,
     @Query('type') type?: string,
     @Query('search') search?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
+    if (!userId) {
+      userId = req.user?.id ?? await this.resolveDefaultUserId(req);
+    }
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
@@ -171,12 +193,16 @@ export class GraphController {
    */
   @Get('relationships')
   async listRelationships(
-    @Query('userId') userId: string,
+    @Req() req: any,
+    @Query('userId') userId?: string,
     @Query('entityId') entityId?: string,
     @Query('type') type?: string,
     @Query('direction') direction?: 'outgoing' | 'incoming' | 'both',
     @Query('limit') limit?: string,
   ) {
+    if (!userId) {
+      userId = req.user?.id ?? await this.resolveDefaultUserId(req);
+    }
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
