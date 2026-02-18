@@ -448,7 +448,7 @@ export class DreamCycleService {
       if (this.fogIndexService && !dryRun) {
         this.log('Stage 6: Computing Fog Index snapshot');
         try {
-          const fogResult = await this.fogIndexService.snapshot(userId);
+          const fogResult = await this.fogIndexService.snapshot({ userId });
           stageDetails.fogIndex = {
             score: fogResult.score,
             tier: fogResult.tier,

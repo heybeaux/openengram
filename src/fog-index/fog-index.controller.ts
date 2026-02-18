@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { FogIndexService, FogIndexResult } from './fog-index.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
@@ -8,8 +8,12 @@ export class FogIndexController {
   constructor(private fogIndex: FogIndexService) {}
 
   @Get()
-  async getCurrent(@Query('userId') userId?: string): Promise<FogIndexResult> {
-    return this.fogIndex.compute(userId);
+  async getCurrent(
+    @Query('userId') userId?: string,
+    @Req() req?: any,
+  ): Promise<FogIndexResult> {
+    const agentId = req?.agent?.id;
+    return this.fogIndex.compute({ userId, agentId });
   }
 
   @Get('history')
@@ -22,7 +26,9 @@ export class FogIndexController {
   @Get('snapshot')
   async takeSnapshot(
     @Query('userId') userId?: string,
+    @Req() req?: any,
   ): Promise<FogIndexResult> {
-    return this.fogIndex.snapshot(userId);
+    const agentId = req?.agent?.id;
+    return this.fogIndex.snapshot({ userId, agentId });
   }
 }
