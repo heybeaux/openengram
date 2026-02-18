@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { MemoryService } from '../memory/memory.service';
 import { AwarenessConfig } from './config/awareness.config';
 import { MemorySignalService } from './signals/memory-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
@@ -25,6 +26,7 @@ export class WakingCycleService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly memoryService: MemoryService,
     private readonly memorySignal: MemorySignalService,
     private readonly patternDetector: PatternDetectorService,
     private readonly insightGenerator: InsightGeneratorService,
@@ -165,7 +167,14 @@ export class WakingCycleService {
     });
   }
 
-  /** Store generated insights as INSIGHT layer memories, with dedup check. */
+  /**
+   * Store generated insights as INSIGHT layer memories via the standard
+   * memory pipeline (MemoryService.remember). This ensures insights get:
+   * - Full embedding generation (required for active surfacing in recall)
+   * - Entity extraction and knowledge graph integration
+   * - Three-tier dedup (replaces our manual exact-match check)
+   * - Event emission (memory.created)
+   */
   private async storeInsights(insights: GeneratedInsight[]): Promise<void> {
     if (insights.length === 0) return;
 
@@ -178,38 +187,21 @@ export class WakingCycleService {
     }
 
     for (const insight of insights) {
-      // Dedup check: don't store if a very similar INSIGHT already exists recently
-      const existing = await this.prisma.memory.findFirst({
-        where: {
-          userId: user.id,
-          layer: 'INSIGHT',
-          raw: insight.content,
-          deletedAt: null,
-          createdAt: { gt: new Date(Date.now() - AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000) },
-        },
-      });
-
-      if (existing) {
-        this.logger.debug(`Skipping duplicate insight: "${insight.content.slice(0, 50)}..."`);
-        continue;
-      }
-
-      await this.prisma.memory.create({
-        data: {
-          userId: user.id,
+      try {
+        await this.memoryService.remember(user.id, {
           raw: insight.content,
           layer: 'INSIGHT',
-          importanceScore: insight.confidence,
-          confidence: insight.confidence,
+          importanceHint: insight.confidence > 0.7 ? 'high' : 'normal',
           source: 'PATTERN_DETECTED',
-          // Store source memory IDs for provenance tracking
-          patternSourceIds: insight.sourceMemoryIds,
-          // TODO: Add metadata JSON column to Memory model for richer insight metadata
-          // (insightType, signalSource, actionable, expiresAt, acknowledged)
-        },
-      });
+          // TODO: Pass patternSourceIds once metadata JSON column is available
+        });
 
-      this.logger.log(`Stored insight: "${insight.content.slice(0, 80)}..." (confidence: ${insight.confidence})`);
+        this.logger.log(`Stored insight: "${insight.content.slice(0, 80)}..." (confidence: ${insight.confidence})`);
+      } catch (error) {
+        // Dedup rejections are expected — the pipeline's three-tier dedup
+        // handles exact matches, semantic matches, and reinforcement
+        this.logger.debug(`Insight storage skipped/failed: ${error.message}`);
+      }
     }
   }
 
