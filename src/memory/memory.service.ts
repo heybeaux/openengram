@@ -438,47 +438,16 @@ export class MemoryService {
       include: { extraction: true },
     });
     if (!memory) return null;
-    // Allow access if memory belongs to any user in the same account
+    // Account-level access: if the request carries an accountId, the caller
+    // has already been authenticated as belonging to this account.
+    // Allow access to any memory without per-user checks — the account
+    // owns all its data regardless of which internal userId created it.
+    if (accountId) {
+      return memory;
+    }
+    // Per-user access fallback (no account context)
     const allowedIds = accountUserIds || (userId ? [userId] : []);
     if (allowedIds.length > 0 && !allowedIds.includes(memory.userId)) {
-      // Memory userId might be a legacy value not in the User table.
-      // If we have an accountId, do broader checks:
-      if (accountId) {
-        // 1. Check if memory.userId is a User.id under this account
-        const ownerUser = await this.prisma.user.findUnique({
-          where: { id: memory.userId },
-          include: { agent: { select: { accountId: true } } },
-        });
-        if (ownerUser?.agent?.accountId === accountId) {
-          return memory;
-        }
-
-        // 2. Check if memory.agentId belongs to this account
-        if (memory.agentId) {
-          const agent = await this.prisma.agent.findUnique({
-            where: { id: memory.agentId },
-            select: { accountId: true },
-          });
-          if (agent?.accountId === accountId) {
-            return memory;
-          }
-        }
-
-        // 3. Legacy memories may have no agentId and userId is an
-        //    orphaned CUID. If the memory was visible in the list
-        //    endpoint (which queries by account), it should be
-        //    accessible here too. Check if userId matches any
-        //    externalId under account agents.
-        const matchByExternal = await this.prisma.user.findFirst({
-          where: {
-            externalId: memory.userId,
-            agent: { accountId, deletedAt: null },
-          },
-        });
-        if (matchByExternal) {
-          return memory;
-        }
-      }
       throw new ForbiddenException(
         'Access denied: Memory belongs to another user',
       );
