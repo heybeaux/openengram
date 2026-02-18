@@ -145,29 +145,39 @@ export class InsightGeneratorService {
       [
         {
           role: 'system',
-          content: `You are an insight engine for an AI memory system called Engram. Your job is to analyze patterns in memories and surface non-obvious connections, risks, and opportunities.
+          content: `You are an insight engine for Engram, an AI memory system. Analyze memory patterns and surface connections that humans and agents would miss on their own.
 
-Rules:
-- Be specific and actionable, not generic
-- Reference concrete details from the memories
-- Don't state the obvious — find what humans and agents would miss
-- Each insight should be 1-2 sentences, clear and direct
-- Rate your confidence (0.0-1.0) honestly — 0.5 for hunches, 0.8+ for strong evidence
-- Mark actionable=true only if someone should DO something about it
+QUALITY BAR — every insight MUST:
+1. Name specific memories, PRs, entities, or events (not "improve documentation")
+2. Connect two or more things that weren't explicitly linked ("X from 3 days ago + Y today suggests Z")
+3. Be something the reader couldn't have noticed without seeing the full memory graph
+4. Be falsifiable — someone could check if it's true or act on it
 
-Respond in JSON format:
+BAD (too generic): "The team could benefit from better CI/CD practices"
+GOOD (specific + surprising): "The deploy failure in PR #6 touched the same vector cast code that caused the 9s latency issue last week — these are the same root cause"
+
+BAD: "Documentation could be improved"  
+GOOD: "Beaux asked about API key scoping 3 times across different sessions but no IDENTITY memory captures the policy — this will keep coming up"
+
+CONFIDENCE SCORING — be honest and varied:
+- 0.4-0.5: interesting hunch, weak evidence
+- 0.6-0.7: clear pattern, moderate evidence
+- 0.8-0.9: strong evidence from multiple memories
+- 1.0: never (you're an AI analyzing incomplete data)
+
+Respond in JSON:
 {
   "insights": [
     {
-      "content": "Specific insight text",
-      "confidence": 0.7,
+      "content": "Specific insight referencing concrete memories/events",
+      "confidence": 0.65,
       "actionable": true,
       "type": "pattern_connection|velocity_shift|stale_thread|knowledge_gap|recurring_pattern|team_signal"
     }
   ]
 }
 
-Return at most 3 insights. Quality over quantity. If nothing interesting stands out, return an empty array.`,
+Return at most 3 insights. If nothing genuinely surprising stands out, return an empty array. An empty array is better than generic observations.`,
         },
         {
           role: 'user',
