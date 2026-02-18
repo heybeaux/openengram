@@ -7,6 +7,7 @@ import { MemorySignalService } from './signals/memory-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService, GeneratedInsight } from './analysis/insight-generator.service';
 import { Observation } from './signals/signal.interface';
+import { ImportanceHint } from '@prisma/client';
 
 /**
  * Waking Cycle — the core orchestrator for the Awareness module.
@@ -191,7 +192,7 @@ export class WakingCycleService {
         await this.memoryService.remember(user.id, {
           raw: insight.content,
           layer: 'INSIGHT',
-          importanceHint: insight.confidence > 0.7 ? 'high' : 'normal',
+          importanceHint: insight.confidence > 0.7 ? ImportanceHint.HIGH : ImportanceHint.MEDIUM,
           source: 'PATTERN_DETECTED',
           // TODO: Pass patternSourceIds once metadata JSON column is available
         });
