@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WakingCycleService } from './waking-cycle.service';
 import { MemorySignalService } from './signals/memory-signal.service';
+import { GitHubSignalService } from './signals/github-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -33,6 +34,7 @@ const logger = new Logger('AwarenessModule');
     ? [
         WakingCycleService,
         MemorySignalService,
+        GitHubSignalService,
         PatternDetectorService,
         InsightGeneratorService,
       ]

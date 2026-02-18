@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { AwarenessConfig } from './config/awareness.config';
 import { MemorySignalService } from './signals/memory-signal.service';
+import { GitHubSignalService } from './signals/github-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService, GeneratedInsight } from './analysis/insight-generator.service';
 import { Observation } from './signals/signal.interface';
@@ -29,6 +30,7 @@ export class WakingCycleService {
     private readonly prisma: PrismaService,
     private readonly memoryService: MemoryService,
     private readonly memorySignal: MemorySignalService,
+    private readonly githubSignal: GitHubSignalService,
     private readonly patternDetector: PatternDetectorService,
     private readonly insightGenerator: InsightGeneratorService,
   ) {}
@@ -99,12 +101,18 @@ export class WakingCycleService {
 
     const memoryResult = await this.memorySignal.collect(
       checkpoints.get('memory') || null,
-      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.8) }, // 80% budget to memory signal
+      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.6) }, // 60% budget to memory signal
     );
     allObservations.push(...memoryResult.observations);
-
-    // Save checkpoint
     await this.saveCheckpoint('memory', memoryResult.checkpoint);
+
+    // GitHub signal (optional — collects if configured)
+    const githubResult = await this.githubSignal.collect(
+      checkpoints.get('github') || null,
+      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.3) }, // 30% budget to GitHub
+    );
+    allObservations.push(...githubResult.observations);
+    await this.saveCheckpoint('github', githubResult.checkpoint);
 
     // ── 3. Detect patterns ────────────────────────────────────────────
     const patterns = this.patternDetector.detect(allObservations);
