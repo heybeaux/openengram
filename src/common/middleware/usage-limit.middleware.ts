@@ -49,7 +49,7 @@ export class UsageLimitMiddleware implements NestMiddleware {
           ELSE api_calls_today + 1
         END,
         api_calls_reset_at = NOW()
-      WHERE id = ${account.id}::uuid
+      WHERE id = ${account.id}
       RETURNING api_calls_today, memories_used
     `;
 

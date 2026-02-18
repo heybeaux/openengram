@@ -144,7 +144,7 @@ export class MemoryDedupService {
         used_count = used_count + 1,
         last_used_at = NOW(),
         importance_score = LEAST(1.0, importance_score + 0.05)
-      WHERE id = ${existingId}::uuid
+      WHERE id = ${existingId}
     `;
   }
 
@@ -157,7 +157,7 @@ export class MemoryDedupService {
         used_count = used_count + 1,
         last_used_at = NOW(),
         importance_score = LEAST(1.0, importance_score + 0.05)
-      WHERE id = ${memoryId}::uuid
+      WHERE id = ${memoryId}
     `;
 
     const memory = await this.prisma.memory.findUnique({
