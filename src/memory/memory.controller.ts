@@ -453,7 +453,8 @@ export class MemoryController {
     @Param('id') id: string,
   ): Promise<MemoryWithExtraction | null> {
     const accountUserIds = await this.resolveAccountUserIds(req);
-    return this.memoryService.getById(id, userId, accountUserIds ?? undefined);
+    const accountId = req.accountId ?? req.agent?.accountId;
+    return this.memoryService.getById(id, userId, accountUserIds ?? undefined, accountId);
   }
 
   /**

@@ -431,6 +431,7 @@ export class MemoryService {
     memoryId: string,
     userId?: string,
     accountUserIds?: string[],
+    accountId?: string,
   ): Promise<MemoryWithExtraction | null> {
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
@@ -440,6 +441,44 @@ export class MemoryService {
     // Allow access if memory belongs to any user in the same account
     const allowedIds = accountUserIds || (userId ? [userId] : []);
     if (allowedIds.length > 0 && !allowedIds.includes(memory.userId)) {
+      // Memory userId might be a legacy value not in the User table.
+      // If we have an accountId, do broader checks:
+      if (accountId) {
+        // 1. Check if memory.userId is a User.id under this account
+        const ownerUser = await this.prisma.user.findUnique({
+          where: { id: memory.userId },
+          include: { agent: { select: { accountId: true } } },
+        });
+        if (ownerUser?.agent?.accountId === accountId) {
+          return memory;
+        }
+
+        // 2. Check if memory.agentId belongs to this account
+        if (memory.agentId) {
+          const agent = await this.prisma.agent.findUnique({
+            where: { id: memory.agentId },
+            select: { accountId: true },
+          });
+          if (agent?.accountId === accountId) {
+            return memory;
+          }
+        }
+
+        // 3. Legacy memories may have no agentId and userId is an
+        //    orphaned CUID. If the memory was visible in the list
+        //    endpoint (which queries by account), it should be
+        //    accessible here too. Check if userId matches any
+        //    externalId under account agents.
+        const matchByExternal = await this.prisma.user.findFirst({
+          where: {
+            externalId: memory.userId,
+            agent: { accountId, deletedAt: null },
+          },
+        });
+        if (matchByExternal) {
+          return memory;
+        }
+      }
       throw new ForbiddenException(
         'Access denied: Memory belongs to another user',
       );

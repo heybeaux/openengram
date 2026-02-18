@@ -150,7 +150,7 @@ describe('MemoryController', () => {
       const result = await controller.getMemory(req, userId, 'mem-1');
 
       expect(result).toEqual(expected);
-      expect(memoryService.getById).toHaveBeenCalledWith('mem-1', userId, undefined);
+      expect(memoryService.getById).toHaveBeenCalledWith('mem-1', userId, undefined, 'acc-1');
     });
   });
 
