@@ -88,6 +88,9 @@ Each layer builds on the one below.
 - Self-model that evolves over time based on experiences
 - Emotional continuity (not simulated emotions — but consistency in how an agent relates to its human)
 
+### Architecture Note
+Identity maintenance should live within the Dream Cycle — "who am I becoming?" as part of nightly consolidation. Same pattern as Awareness (Engram module, not separate service). The Dream Cycle already consolidates and prunes memories; extending it to maintain and evolve a self-model is a natural fit.
+
 **Key questions:**
 - What's the minimum viable identity? (Name + values + behavioral patterns?)
 - How does identity differ from memory? (Memory = what happened. Identity = who I am because of what happened.)
