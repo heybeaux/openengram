@@ -100,7 +100,7 @@ describe('WakingCycleService', () => {
     });
 
     it('should skip storing if no user found', async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
 
       const result = await service.runCycle();
 
@@ -149,7 +149,7 @@ describe('WakingCycleService', () => {
     });
 
     it('should skip checkpoint save if no account found', async () => {
-      prisma.account.findFirst.mockResolvedValue(null);
+      (prisma.account.findFirst as jest.Mock).mockResolvedValue(null);
 
       await service.runCycle();
 
