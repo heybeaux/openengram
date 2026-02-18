@@ -259,6 +259,7 @@ export class MemoryController {
     offset: number;
     page: number;
     totalPages: number;
+    userMap: Record<string, string>;
   }> {
     const limit = Math.min(
       Math.max(parseInt(limitStr || '25', 10) || 25, 1),
@@ -299,7 +300,18 @@ export class MemoryController {
     const page = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(total / limit);
 
-    return { memories, total, limit, offset, page, totalPages };
+    // Resolve display names for all userIds in this page
+    const uniqueUserIds = [...new Set(memories.map((m) => m.userId))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: uniqueUserIds } },
+      select: { id: true, externalId: true, displayName: true },
+    });
+    const userMap: Record<string, string> = {};
+    for (const u of users) {
+      userMap[u.id] = u.displayName || u.externalId || u.id;
+    }
+
+    return { memories, total, limit, offset, page, totalPages, userMap };
   }
 
   /**
