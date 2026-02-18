@@ -430,13 +430,16 @@ export class MemoryService {
   async getById(
     memoryId: string,
     userId?: string,
+    accountUserIds?: string[],
   ): Promise<MemoryWithExtraction | null> {
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
       include: { extraction: true },
     });
     if (!memory) return null;
-    if (userId && memory.userId !== userId) {
+    // Allow access if memory belongs to any user in the same account
+    const allowedIds = accountUserIds || (userId ? [userId] : []);
+    if (allowedIds.length > 0 && !allowedIds.includes(memory.userId)) {
       throw new ForbiddenException(
         'Access denied: Memory belongs to another user',
       );

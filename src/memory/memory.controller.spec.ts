@@ -146,10 +146,11 @@ describe('MemoryController', () => {
       const expected = { id: 'mem-1', raw: 'test' };
       memoryService.getById.mockResolvedValue(expected as any);
 
-      const result = await controller.getMemory(userId, 'mem-1');
+      const req = { accountId: 'acc-1', isInstanceKey: true };
+      const result = await controller.getMemory(req, userId, 'mem-1');
 
       expect(result).toEqual(expected);
-      expect(memoryService.getById).toHaveBeenCalledWith('mem-1', userId);
+      expect(memoryService.getById).toHaveBeenCalledWith('mem-1', userId, undefined);
     });
   });
 

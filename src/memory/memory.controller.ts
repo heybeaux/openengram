@@ -436,10 +436,12 @@ export class MemoryController {
   @Get('memories/:id')
   @ApiOperation({ summary: 'Get a memory by ID' })
   async getMemory(
+    @Req() req: any,
     @UserId() userId: string,
     @Param('id') id: string,
   ): Promise<MemoryWithExtraction | null> {
-    return this.memoryService.getById(id, userId);
+    const accountUserIds = await this.resolveAccountUserIds(req);
+    return this.memoryService.getById(id, userId, accountUserIds ?? undefined);
   }
 
   /**
