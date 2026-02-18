@@ -426,6 +426,7 @@ export class MemoryController {
   @Get('memories/graph')
   async getGraph(
     @UserId() userId: string,
+    @Req() req: any,
     @Query('limit') limit?: string,
     @Query('includeAgent') includeAgent?: string,
   ): Promise<{
@@ -434,8 +435,11 @@ export class MemoryController {
     entities: any[];
     stats?: { human: number; agent: number };
   }> {
+    // For account-level access, resolve first userId if current one has no data
+    const accountUserIds = await this.resolveAccountUserIds(req);
+    const effectiveUserId = accountUserIds?.[0] ?? userId;
     return this.memoryService.getGraphData(
-      userId,
+      effectiveUserId,
       limit ? parseInt(limit, 10) : 500,
       includeAgent === 'true',
     );

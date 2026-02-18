@@ -114,7 +114,8 @@ describe('MemoryController', () => {
       const expected = { nodes: [], edges: [], entities: [] };
       memoryService.getGraphData.mockResolvedValue(expected as any);
 
-      const result = await controller.getGraph(userId);
+      const mockReq = { user: { id: userId } } as any;
+      const result = await controller.getGraph(userId, mockReq);
 
       expect(memoryService.getGraphData).toHaveBeenCalledWith(
         userId,
@@ -131,7 +132,8 @@ describe('MemoryController', () => {
         entities: [],
       } as any);
 
-      await controller.getGraph(userId, '100', 'true');
+      const mockReq = { user: { id: userId } } as any;
+      await controller.getGraph(userId, mockReq, '100', 'true');
 
       expect(memoryService.getGraphData).toHaveBeenCalledWith(
         userId,
