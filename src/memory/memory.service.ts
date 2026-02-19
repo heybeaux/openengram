@@ -43,7 +43,7 @@ import { rlsContext } from '../prisma/rls-context';
 import { MemoryGraphService } from './memory-graph.service';
 
 // Re-export types for backward compatibility
-export {
+export type {
   MemoryWithExtraction,
   MemoryWithScore,
   QueryResult,
