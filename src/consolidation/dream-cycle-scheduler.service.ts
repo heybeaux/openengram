@@ -1,30 +1,46 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { CronJob } from 'cron';
 import { DreamCycleService } from './dream-cycle.service';
 
 @Injectable()
 export class DreamCycleSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(DreamCycleSchedulerService.name);
   private readonly enabled: boolean;
+  private readonly timeZone: string;
 
   constructor(
     private readonly dreamCycle: DreamCycleService,
     private readonly config: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {
     this.enabled =
       this.config.get<string>('DREAM_CYCLE_ENABLED', 'true') !== 'false';
+    this.timeZone = this.config.get<string>('DREAM_CYCLE_TZ', 'UTC');
   }
 
   onModuleInit() {
     if (this.enabled) {
-      this.logger.log('Dream Cycle scheduler enabled — runs daily at 03:00 UTC');
+      const job = new CronJob(
+        '0 3 * * *',
+        () => this.handleDreamCycleCron(),
+        null,
+        false,
+        this.timeZone,
+      );
+      this.schedulerRegistry.addCronJob('dream-cycle', job);
+      job.start();
+      this.logger.log(
+        `Dream Cycle scheduler enabled - runs daily at 03:00 ${this.timeZone}`,
+      );
     } else {
-      this.logger.log('Dream Cycle scheduler disabled (DREAM_CYCLE_ENABLED=false)');
+      this.logger.log(
+        'Dream Cycle scheduler disabled (DREAM_CYCLE_ENABLED=false)',
+      );
     }
   }
 
-  @Cron('0 3 * * *', { name: 'dream-cycle' })
   async handleDreamCycleCron() {
     if (!this.enabled) return;
 
@@ -35,7 +51,7 @@ export class DreamCycleSchedulerService implements OnModuleInit {
       const result = await this.dreamCycle.run();
       const durationSec = ((Date.now() - start) / 1000).toFixed(1);
       this.logger.log(
-        `Dream Cycle completed in ${durationSec}s — ` +
+        `Dream Cycle completed in ${durationSec}s - ` +
           `status=${result.status}, merged=${result.duplicatesMerged}, ` +
           `archived=${result.memoriesArchived}, patterns=${result.patternsCreated}`,
       );
