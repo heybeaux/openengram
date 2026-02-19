@@ -67,33 +67,27 @@ jobs:
       - name: Test
         run: pnpm test -- --no-coverage --forceExit --ci
 
-  migrate-prod:
-    name: Migrate Production DB
-    needs: ci
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Deploy migrations to production
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-        continue-on-error: true
+  # migrate-prod: DISABLED — migrations now run as part of Railway deploy process
+  # See: https://docs.railway.com/guides/deploying#build-command
+  # To run migrations manually: railway run npx prisma migrate deploy
+  # migrate-prod:
+  #   name: Migrate Production DB
+  #   needs: ci
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 5
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: pnpm/action-setup@v4
+  #       with: { version: 9 }
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 20, cache: pnpm }
+  #     - run: pnpm install --frozen-lockfile
+  #     - name: Generate Prisma client
+  #       run: npx prisma generate
+  #     - name: Deploy migrations to production
+  #       run: npx prisma migrate deploy
+  #       env:
+  #         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  #         DIRECT_URL: ${{ secrets.DIRECT_URL }}
+  #       continue-on-error: true
