@@ -91,3 +91,18 @@ jobs:
   #         DATABASE_URL: ${{ secrets.DATABASE_URL }}
   #         DIRECT_URL: ${{ secrets.DIRECT_URL }}
   #       continue-on-error: true
+
+  notify-discord:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [ci]
+    if: failure()
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_CI_WEBHOOK }}
+        run: |
+          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -1 | sed 's/"/\\"/g')
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\": \"🔴 **CI Failed** | **${{ github.repository }}** | Branch: \`${{ github.ref_name }}\` | Commit: \`${GITHUB_SHA::7}\`\nWorkflow: ${{ github.workflow }}\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\nCommit: ${COMMIT_MSG}\"}" \
+            "$DISCORD_WEBHOOK"
