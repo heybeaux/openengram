@@ -114,7 +114,7 @@ jobs:
           Run: ${RUN_URL}" \
             '{content: $content}')
 
-          curl -sf -X POST \
+          curl -v -X POST \
             -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" \
