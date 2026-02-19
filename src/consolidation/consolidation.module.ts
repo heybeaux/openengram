@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConsolidationController } from './consolidation.controller';
 import { DreamCycleService } from './dream-cycle.service';
+import { DreamCycleSchedulerService } from './dream-cycle-scheduler.service';
 import { GenerateContextService } from './generate-context.service';
 import { MemoryModule } from '../memory/memory.module';
 import { LLMModule } from '../llm/llm.module';
@@ -20,6 +21,7 @@ import { AccountModule } from '../account/account.module';
   controllers: [ConsolidationController],
   providers: [
     DreamCycleService,
+    DreamCycleSchedulerService,
     GenerateContextService,
     ImportanceScorerService,
   ],
