@@ -100,22 +100,22 @@ jobs:
     steps:
       - name: Send Discord notification
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_CI_WEBHOOK }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
         run: |
-          WEBHOOK_URL=$(echo "$DISCORD_WEBHOOK" | tr -d '[:space:]')
           SHORT_SHA="${GITHUB_SHA:0:7}"
           REPO="${{ github.repository }}"
           BRANCH="${{ github.ref_name }}"
           WORKFLOW="${{ github.workflow }}"
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          # Build JSON safely with jq
           PAYLOAD=$(jq -n \
             --arg content "🔴 **CI Failed** | **${REPO}** | Branch: \`${BRANCH}\` | Commit: \`${SHORT_SHA}\`
           Workflow: ${WORKFLOW}
           Run: ${RUN_URL}" \
             '{content: $content}')
 
-          curl -sf -H "Content-Type: application/json" \
+          curl -sf -X POST \
+            -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
+            -H "Content-Type: application/json" \
             -d "$PAYLOAD" \
-            "$WEBHOOK_URL"
+            "https://discord.com/api/v10/channels/1474067664207872156/messages"
