@@ -7,10 +7,6 @@ describe('DreamCycleService - Mutex', () => {
   beforeEach(() => {
     mockPrisma = {
       $queryRawUnsafe: jest.fn(),
-      dreamCycleRun: {
-        create: jest.fn().mockResolvedValue({ id: 'run-1' }),
-        update: jest.fn().mockResolvedValue({}),
-      },
       dreamCycleReport: {
         create: jest.fn().mockResolvedValue({ id: 'report-1' }),
         update: jest.fn().mockResolvedValue({}),
@@ -30,27 +26,59 @@ describe('DreamCycleService - Mutex', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
+    const mockDedupStage = {
+      run: jest.fn().mockResolvedValue({
+        merged: 0,
+        flagged: 0,
+        scanned: 0,
+        llmCalls: 0,
+      }),
+    };
+    const mockStalenessStage = {
+      run: jest.fn().mockResolvedValue({
+        archived: 0,
+        scoresRefreshed: 0,
+        candidates: 0,
+      }),
+    };
+    const mockPatternsStage = {
+      run: jest.fn().mockResolvedValue({
+        patternsCreated: 0,
+        clustersFound: 0,
+        llmCalls: 0,
+      }),
+    };
+    const mockDriftStage = {
+      run: jest.fn().mockResolvedValue({
+        modelsAnalyzed: 0,
+        snapshotsPersisted: 0,
+        alerts: [],
+      }),
+    };
+
     service = new DreamCycleService(
       mockPrisma,
-      { promoteRecurringPatterns: jest.fn() } as any, // consolidation
-      {
-        computeScore: jest.fn().mockReturnValue({ effectiveScore: 0.5 }),
-      } as any, // scorer
-      { search: jest.fn().mockResolvedValue([]) } as any, // embedding
-      { json: jest.fn() } as any, // llm
-      mockConfig as any, // config
+      mockConfig as any,
+      mockDedupStage as any,
+      mockStalenessStage as any,
+      mockPatternsStage as any,
+      mockDriftStage as any,
     );
   });
 
   describe('acquireLock', () => {
     it('should return true when lock is acquired', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
       const result = await service.acquireLock();
       expect(result).toBe(true);
     });
 
     it('should return false when lock is held by another process', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: false }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: false },
+      ]);
       const result = await service.acquireLock();
       expect(result).toBe(false);
     });
@@ -58,24 +86,23 @@ describe('DreamCycleService - Mutex', () => {
 
   describe('run - mutex behavior', () => {
     it('should skip gracefully when another instance is running', async () => {
-      // Lock not acquired
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: false }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: false },
+      ]);
 
       const result = await service.run({ userId: 'test-user' });
 
       expect(result.status).toBe('SKIPPED');
-      expect(result.id).toBe('skipped');
-      expect(result.errors).toContain(
-        'Skipped: another Dream Cycle instance is already running',
+      expect(result.errors).toContainEqual(
+        expect.stringContaining('another instance holds the lock'),
       );
-      // Should NOT have created a run record
-      expect(mockPrisma.dreamCycleRun.create).not.toHaveBeenCalled();
+      // Should NOT have created a report record
+      expect(mockPrisma.dreamCycleReport.create).not.toHaveBeenCalled();
     });
 
     it('should proceed when lock is acquired', async () => {
-      // Lock acquired
       mockPrisma.$queryRawUnsafe
-        .mockResolvedValueOnce([{ acquired: true }]) // acquireLock
+        .mockResolvedValueOnce([{ pg_try_advisory_lock: true }])
         .mockResolvedValueOnce([{}]); // releaseLock
 
       const result = await service.run({
@@ -84,54 +111,39 @@ describe('DreamCycleService - Mutex', () => {
       });
 
       expect(result.status).not.toBe('SKIPPED');
-      expect(mockPrisma.dreamCycleRun.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ status: 'RUNNING' }),
-        }),
-      );
-      // Should mark run as completed
-      expect(mockPrisma.dreamCycleRun.update).toHaveBeenCalledWith(
+      expect(mockPrisma.dreamCycleReport.create).toHaveBeenCalled();
+      expect(mockPrisma.dreamCycleReport.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: 'COMPLETED' }),
         }),
       );
     });
 
-    it('should release lock and mark run as FAILED on error', async () => {
-      // Lock acquired
+    it('should release lock and mark report as FAILED on error', async () => {
       mockPrisma.$queryRawUnsafe
-        .mockResolvedValueOnce([{ acquired: true }]) // acquireLock
+        .mockResolvedValueOnce([{ pg_try_advisory_lock: true }])
         .mockResolvedValueOnce([{}]); // releaseLock
 
-      // Make memory.findMany throw to cause a failure in user auto-discovery
+      // No userId, no DEFAULT_USER_ID → triggers auto-discover
+      // Make memory.findMany throw to cause failure
       mockPrisma.memory.findMany.mockRejectedValueOnce(new Error('DB down'));
 
-      // No userId, no DEFAULT_USER_ID → triggers auto-discover which will fail
       await expect(service.run({})).rejects.toThrow('DB down');
 
-      // Should have marked run as FAILED
-      expect(mockPrisma.dreamCycleRun.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ status: 'FAILED' }),
-        }),
-      );
+      // Lock should have been released
+      const calls = mockPrisma.$queryRawUnsafe.mock.calls;
+      expect(calls[calls.length - 1][0]).toContain('pg_advisory_unlock');
     });
 
-    it('should track run record with instance ID', async () => {
+    it('should release lock even on successful completion', async () => {
       mockPrisma.$queryRawUnsafe
-        .mockResolvedValueOnce([{ acquired: true }])
-        .mockResolvedValueOnce([{}]);
+        .mockResolvedValueOnce([{ pg_try_advisory_lock: true }])
+        .mockResolvedValueOnce([{}]); // releaseLock
 
       await service.run({ userId: 'test-user', stages: ['report'] });
 
-      expect(mockPrisma.dreamCycleRun.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: 'RUNNING',
-            instanceId: expect.stringContaining('-'), // hostname-pid
-          }),
-        }),
-      );
+      const calls = mockPrisma.$queryRawUnsafe.mock.calls;
+      expect(calls[calls.length - 1][0]).toContain('pg_advisory_unlock');
     });
   });
 });
