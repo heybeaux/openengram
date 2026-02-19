@@ -3,6 +3,12 @@ import { ConsolidationController } from './consolidation.controller';
 import { DreamCycleService } from './dream-cycle.service';
 import { DreamCycleSchedulerService } from './dream-cycle-scheduler.service';
 import { GenerateContextService } from './generate-context.service';
+import {
+  DreamCycleDedupStage,
+  DreamCycleStalenessStage,
+  DreamCyclePatternsStage,
+  DreamCycleDriftStage,
+} from './stages';
 import { MemoryModule } from '../memory/memory.module';
 import { LLMModule } from '../llm/llm.module';
 import { ClusteringModule } from '../clustering/clustering.module';
@@ -22,6 +28,10 @@ import { AccountModule } from '../account/account.module';
   providers: [
     DreamCycleService,
     DreamCycleSchedulerService,
+    DreamCycleDedupStage,
+    DreamCycleStalenessStage,
+    DreamCyclePatternsStage,
+    DreamCycleDriftStage,
     GenerateContextService,
     ImportanceScorerService,
   ],

@@ -6,6 +6,12 @@ import { ImportanceScorerService } from '../memory/intelligence/importance-score
 import { EmbeddingService } from '../memory/embedding.service';
 import { LLMService } from '../llm/llm.service';
 import { ConfigService } from '@nestjs/config';
+import {
+  DreamCycleDedupStage,
+  DreamCycleStalenessStage,
+  DreamCyclePatternsStage,
+  DreamCycleDriftStage,
+} from './stages';
 
 const mockPrisma = {
   $queryRawUnsafe: jest.fn(),
@@ -58,11 +64,59 @@ const mockConfig = {
   }),
 };
 
+const mockDedupStage = {
+  run: jest
+    .fn()
+    .mockResolvedValue({ merged: 0, flagged: 0, scanned: 0, llmCalls: 0 }),
+};
+const mockStalenessStage = {
+  run: jest
+    .fn()
+    .mockResolvedValue({ archived: 0, scoresRefreshed: 0, candidates: 0 }),
+};
+const mockPatternsStage = {
+  run: jest
+    .fn()
+    .mockResolvedValue({ patternsCreated: 0, clustersFound: 0, llmCalls: 0 }),
+};
+const mockDriftStage = {
+  run: jest
+    .fn()
+    .mockResolvedValue({
+      modelsAnalyzed: 0,
+      snapshotsPersisted: 0,
+      alerts: [],
+    }),
+};
+
 describe('DreamCycleService', () => {
   let service: DreamCycleService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    // Reset stage mocks to default success
+    mockDedupStage.run.mockResolvedValue({
+      merged: 0,
+      flagged: 0,
+      scanned: 0,
+      llmCalls: 0,
+    });
+    mockStalenessStage.run.mockResolvedValue({
+      archived: 0,
+      scoresRefreshed: 0,
+      candidates: 0,
+    });
+    mockPatternsStage.run.mockResolvedValue({
+      patternsCreated: 0,
+      clustersFound: 0,
+      llmCalls: 0,
+    });
+    mockDriftStage.run.mockResolvedValue({
+      modelsAnalyzed: 0,
+      snapshotsPersisted: 0,
+      alerts: [],
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -73,6 +127,10 @@ describe('DreamCycleService', () => {
         { provide: EmbeddingService, useValue: mockEmbedding },
         { provide: LLMService, useValue: mockLlm },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: DreamCycleDedupStage, useValue: mockDedupStage },
+        { provide: DreamCycleStalenessStage, useValue: mockStalenessStage },
+        { provide: DreamCyclePatternsStage, useValue: mockPatternsStage },
+        { provide: DreamCycleDriftStage, useValue: mockDriftStage },
       ],
     }).compile();
 
@@ -83,12 +141,16 @@ describe('DreamCycleService', () => {
 
   describe('acquireLock', () => {
     it('should return true when lock is acquired', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { pg_try_advisory_lock: true },
+      ]);
       expect(await service.acquireLock()).toBe(true);
     });
 
     it('should return false when lock is held by another', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: false }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { pg_try_advisory_lock: false },
+      ]);
       expect(await service.acquireLock()).toBe(false);
     });
 
@@ -112,18 +174,22 @@ describe('DreamCycleService', () => {
 
   describe('run', () => {
     it('should return SKIPPED when lock cannot be acquired', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ acquired: false }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { pg_try_advisory_lock: false },
+      ]);
 
       const result = await service.run();
       expect(result.status).toBe('SKIPPED');
       expect(result.errors).toContainEqual(
-        expect.stringContaining('another Dream Cycle instance'),
+        expect.stringContaining('another instance holds the lock'),
       );
     });
 
     it('should create run record and execute stages when lock acquired', async () => {
       // Lock acquired
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
 
       // Run record
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
@@ -160,11 +226,13 @@ describe('DreamCycleService', () => {
 
       const result = await service.run({ userId: 'test-user' });
       expect(result.status).toBe('COMPLETED');
-      expect(mockPrisma.dreamCycleRun.create).toHaveBeenCalled();
+      expect(mockPrisma.dreamCycleReport.create).toHaveBeenCalled();
     });
 
     it('should release lock even on failure', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
 
       // Make internal run fail
@@ -183,7 +251,9 @@ describe('DreamCycleService', () => {
     });
 
     it('should support dryRun mode', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
       mockPrisma.dreamCycleRun.update.mockResolvedValue({});
       mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
@@ -206,7 +276,9 @@ describe('DreamCycleService', () => {
     });
 
     it('should run only specified stages', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
       mockPrisma.dreamCycleRun.update.mockResolvedValue({});
       mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
@@ -225,7 +297,7 @@ describe('DreamCycleService', () => {
       });
       expect(result.status).toBe('COMPLETED');
       // Dedup not called since not in stages
-      expect(mockPrisma.memory.findMany).not.toHaveBeenCalled();
+      expect(mockDedupStage.run).not.toHaveBeenCalled();
     });
   });
 
@@ -233,23 +305,16 @@ describe('DreamCycleService', () => {
 
   describe('stage error isolation', () => {
     it('should continue to next stage when one fails', async () => {
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ acquired: true }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: true },
+      ]);
       mockPrisma.dreamCycleRun.create.mockResolvedValue({ id: 'run-1' });
       mockPrisma.dreamCycleRun.update.mockResolvedValue({});
       mockPrisma.dreamCycleReport.create.mockResolvedValue({ id: 'report-1' });
       mockPrisma.consolidationJob.create.mockResolvedValue({ id: 'job-1' });
 
-      // Dedup fails
-      mockPrisma.memory.findMany
-        .mockRejectedValueOnce(new Error('Dedup DB error'))
-        // Staleness succeeds with empty
-        .mockResolvedValueOnce([]);
-
-      // Patterns
-      mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
-        clustersFound: 0,
-        details: [],
-      });
+      // Dedup stage fails
+      mockDedupStage.run.mockRejectedValueOnce(new Error('Dedup DB error'));
 
       // Report stage
       mockPrisma.memory.count.mockResolvedValue(10);
