@@ -314,7 +314,8 @@ export class GraphService {
   async backfill(
     userId: string,
     options?: { limit?: number; priority?: 'high' | 'normal' | 'low' },
-  ): Promise<{ processed: number; skipped: number }> {
+  ): Promise<{ processed: number; skipped: number; failed: number; total: number; durationMs: number }> {
+    const startTime = Date.now();
     this.logger.log(`Starting graph backfill for user ${userId}`);
 
     // Find memories without graph mentions
@@ -325,31 +326,48 @@ export class GraphService {
         deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
-      take: options?.limit || 100,
+      take: options?.limit || 50,
     });
 
+    const CONCURRENCY = parseInt(this.config.get('GRAPH_BACKFILL_CONCURRENCY') || '5', 10);
     let processed = 0;
     let skipped = 0;
+    let failed = 0;
 
-    for (const memory of memories) {
-      try {
-        const result = await this.processMemory(memory);
-        if (result.entitiesCreated > 0 || result.entitiesUpdated > 0) {
-          processed++;
+    for (let i = 0; i < memories.length; i += CONCURRENCY) {
+      const batch = memories.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (memory) => {
+          const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), 30000),
+          );
+          return Promise.race([this.processMemory(memory), timeout]);
+        }),
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          const res = r.value as { entitiesCreated: number; entitiesUpdated: number };
+          if (res.entitiesCreated > 0 || res.entitiesUpdated > 0) processed++;
+          else skipped++;
         } else {
-          skipped++;
+          failed++;
+          this.logger.warn(`Failed to process memory in batch: ${r.reason?.message || r.reason}`);
         }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to process memory ${memory.id}: ${error.message}`,
+      }
+
+      const done = i + batch.length;
+      if (done % 10 < CONCURRENCY || done >= memories.length) {
+        this.logger.log(
+          `Backfill progress: ${done}/${memories.length} (${processed} processed, ${skipped} skipped, ${failed} failed)`,
         );
-        skipped++;
       }
     }
 
+    const durationMs = Date.now() - startTime;
     this.logger.log(
-      `Backfill complete: ${processed} processed, ${skipped} skipped`,
+      `Backfill complete: ${processed} processed, ${skipped} skipped, ${failed} failed in ${durationMs}ms`,
     );
-    return { processed, skipped };
+    return { processed, skipped, failed, total: memories.length, durationMs };
   }
 }
