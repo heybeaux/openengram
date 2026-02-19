@@ -16,7 +16,7 @@ import {
   MemoryWithScore,
   QueryResult,
   ContextResult,
-} from './memory.service';
+} from './memory.types';
 
 @Injectable()
 export class MemoryQueryService {
