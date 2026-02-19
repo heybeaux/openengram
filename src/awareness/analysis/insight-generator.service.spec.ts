@@ -51,7 +51,7 @@ describe('InsightGeneratorService', () => {
       const lowConfidence = makePattern({ confidence: 0.1, type: 'recurring_pattern' });
 
       // validateSources returns empty
-      prisma.memory.findMany.mockResolvedValue([]);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([]);
 
       const result = await service.generate([lowConfidence], { maxLlmCalls: 1, maxInsights: 5 });
       expect(result).toEqual([]);
@@ -64,7 +64,7 @@ describe('InsightGeneratorService', () => {
         relatedMemoryIds: ['mem-1'],
       });
 
-      prisma.memory.findMany.mockResolvedValue([{ id: 'mem-1' }] as any);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([{ id: 'mem-1' }] as any);
 
       const result = await service.generate([pattern], { maxLlmCalls: 1, maxInsights: 5 });
 
@@ -83,7 +83,7 @@ describe('InsightGeneratorService', () => {
       });
 
       // Mock validateSources
-      prisma.memory.findMany
+      (prisma.memory.findMany as jest.Mock)
         .mockResolvedValueOnce([
           { id: 'mem-1', raw: 'Memory about X', layer: 'SESSION', createdAt: new Date(), agentId: null },
           { id: 'mem-2', raw: 'Memory about Y', layer: 'SESSION', createdAt: new Date(), agentId: null },
@@ -120,7 +120,7 @@ describe('InsightGeneratorService', () => {
         }),
       );
 
-      prisma.memory.findMany.mockResolvedValue([]);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([]);
 
       const result = await service.generate(patterns, { maxLlmCalls: 0, maxInsights: 3 });
       expect(result).toHaveLength(3);
@@ -134,7 +134,7 @@ describe('InsightGeneratorService', () => {
         relatedMemoryIds: ['mem-1'],
       });
 
-      prisma.memory.findMany
+      (prisma.memory.findMany as jest.Mock)
         .mockResolvedValueOnce([]) // synthesizeWithLlm memory fetch
         .mockResolvedValueOnce([{ id: 'mem-1' }] as any); // validateSources for passthrough
 
@@ -153,7 +153,7 @@ describe('InsightGeneratorService', () => {
         relatedMemoryIds: ['mem-1'],
       });
 
-      prisma.memory.findMany
+      (prisma.memory.findMany as jest.Mock)
         .mockResolvedValueOnce([
           { id: 'mem-1', raw: 'test', layer: 'SESSION', createdAt: new Date(), agentId: null },
         ] as any)
@@ -174,7 +174,7 @@ describe('InsightGeneratorService', () => {
       const low = makePattern({ confidence: 0.5, description: 'Low', relatedMemoryIds: ['m1'] });
       const high = makePattern({ confidence: 0.9, description: 'High', relatedMemoryIds: ['m2'] });
 
-      prisma.memory.findMany.mockResolvedValue([]);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([]);
 
       const result = await service.generate([low, high], { maxLlmCalls: 0, maxInsights: 2 });
 
@@ -189,7 +189,7 @@ describe('InsightGeneratorService', () => {
         relatedMemoryIds: ['mem-exists', 'mem-deleted'],
       });
 
-      prisma.memory.findMany.mockResolvedValue([{ id: 'mem-exists' }] as any);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([{ id: 'mem-exists' }] as any);
 
       const result = await service.generate([pattern], { maxLlmCalls: 0, maxInsights: 5 });
 
@@ -203,7 +203,7 @@ describe('InsightGeneratorService', () => {
         relatedMemoryIds: ['mem-1'],
       });
 
-      prisma.memory.findMany.mockResolvedValue([{ id: 'mem-1' }] as any);
+      (prisma.memory.findMany as jest.Mock).mockResolvedValue([{ id: 'mem-1' }] as any);
 
       const result = await service.generate([pattern], { maxLlmCalls: 0, maxInsights: 5 });
 
