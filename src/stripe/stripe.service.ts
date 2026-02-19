@@ -16,7 +16,7 @@ const PLAN_PRICES: Record<
 @Injectable()
 export class StripeService implements OnModuleInit {
   private readonly logger = new Logger(StripeService.name);
-  readonly stripe: Stripe;
+  readonly stripe: Stripe | null;
   private priceMap: Record<string, string> = {}; // plan -> priceId
   private readonly frontendUrl: string;
 
@@ -24,9 +24,10 @@ export class StripeService implements OnModuleInit {
     private config: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.stripe = new Stripe(this.config.get<string>('STRIPE_SECRET_KEY', ''), {
-      apiVersion: '2025-01-27.acacia' as any,
-    });
+    const stripeKey = this.config.get<string>('STRIPE_SECRET_KEY');
+    this.stripe = stripeKey
+      ? new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' as any })
+      : null;
     this.frontendUrl = this.config.get<string>(
       'FRONTEND_URL',
       'http://localhost:3000',
@@ -34,8 +35,7 @@ export class StripeService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    const key = this.config.get<string>('STRIPE_SECRET_KEY');
-    if (!key) {
+    if (!this.stripe) {
       this.logger.warn(
         'STRIPE_SECRET_KEY not set — Stripe integration disabled',
       );
@@ -44,9 +44,16 @@ export class StripeService implements OnModuleInit {
     await this.ensureProductsAndPrices();
   }
 
+  private requireStripe(): Stripe {
+    if (!this.stripe) {
+      throw new Error('Stripe is not configured — set STRIPE_SECRET_KEY');
+    }
+    return this.stripe;
+  }
+
   private async ensureProductsAndPrices() {
     // Look for existing products with our metadata
-    const products = await this.stripe.products.list({
+    const products = await this.requireStripe().products.list({
       limit: 100,
       active: true,
     });
@@ -54,7 +61,7 @@ export class StripeService implements OnModuleInit {
     for (const [key, config] of Object.entries(PLAN_PRICES)) {
       let product = products.data.find((p) => p.metadata?.plan === key);
       if (!product) {
-        product = await this.stripe.products.create({
+        product = await this.requireStripe().products.create({
           name: config.name,
           metadata: { plan: key },
         });
@@ -62,7 +69,7 @@ export class StripeService implements OnModuleInit {
       }
 
       // Find or create price
-      const prices = await this.stripe.prices.list({
+      const prices = await this.requireStripe().prices.list({
         product: product.id,
         active: true,
         limit: 10,
@@ -72,7 +79,7 @@ export class StripeService implements OnModuleInit {
           p.unit_amount === config.amount && p.recurring?.interval === 'month',
       );
       if (!price) {
-        price = await this.stripe.prices.create({
+        price = await this.requireStripe().prices.create({
           product: product.id,
           unit_amount: config.amount,
           currency: 'usd',
@@ -103,7 +110,7 @@ export class StripeService implements OnModuleInit {
 
     let customerId = account.stripeCustomerId;
     if (!customerId) {
-      const customer = await this.stripe.customers.create({
+      const customer = await this.requireStripe().customers.create({
         email: account.email,
         metadata: { accountId: account.id },
       });
@@ -114,7 +121,7 @@ export class StripeService implements OnModuleInit {
       });
     }
 
-    const session = await this.stripe.checkout.sessions.create({
+    const session = await this.requireStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -134,7 +141,7 @@ export class StripeService implements OnModuleInit {
       throw new Error('No Stripe customer found. Subscribe to a plan first.');
     }
 
-    const session = await this.stripe.billingPortal.sessions.create({
+    const session = await this.requireStripe().billingPortal.sessions.create({
       customer: account.stripeCustomerId,
       return_url: `${this.frontendUrl}/billing`,
     });
@@ -144,7 +151,7 @@ export class StripeService implements OnModuleInit {
 
   async handleWebhookEvent(rawBody: Buffer, signature: string) {
     const webhookSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET', '');
-    const event = this.stripe.webhooks.constructEvent(
+    const event = this.requireStripe().webhooks.constructEvent(
       rawBody,
       signature,
       webhookSecret,
@@ -196,7 +203,7 @@ export class StripeService implements OnModuleInit {
   }
 
   private async syncSubscription(customerId: string, subscriptionId: string) {
-    const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
+    const sub = await this.requireStripe().subscriptions.retrieve(subscriptionId);
     await this.syncSubscriptionFromObject(sub);
   }
 
@@ -206,7 +213,7 @@ export class StripeService implements OnModuleInit {
     if (!priceId) return;
 
     // Look up plan from price metadata
-    const price = await this.stripe.prices.retrieve(priceId);
+    const price = await this.requireStripe().prices.retrieve(priceId);
     const planKey = price.metadata?.plan as Plan | undefined;
     if (!planKey || !Object.values(Plan).includes(planKey)) {
       this.logger.warn(
