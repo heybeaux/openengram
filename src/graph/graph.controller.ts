@@ -371,7 +371,7 @@ export class GraphController {
     @Req() req: any,
     @Body() body: { userId?: string; limit?: number },
   ) {
-    const limit = body.limit ?? 500;
+    const limit = Math.min(Math.max(body.limit ?? 50, 1), 500);
 
     // If userId provided, backfill just that user
     if (body.userId) {
@@ -388,12 +388,14 @@ export class GraphController {
 
     let totalProcessed = 0;
     let totalSkipped = 0;
+    let totalFailed = 0;
     for (const uid of userIds) {
       const result = await this.graphService.backfill(uid, { limit });
       totalProcessed += result.processed;
       totalSkipped += result.skipped;
+      totalFailed += result.failed;
     }
 
-    return { processed: totalProcessed, skipped: totalSkipped, users: userIds.length };
+    return { processed: totalProcessed, skipped: totalSkipped, failed: totalFailed, users: userIds.length };
   }
 }

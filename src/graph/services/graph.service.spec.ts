@@ -363,7 +363,7 @@ describe('GraphService', () => {
 
       const result = await service.backfill('user-1');
 
-      expect(result.skipped).toBe(1);
+      expect(result.failed).toBe(1);
     });
   });
 });
