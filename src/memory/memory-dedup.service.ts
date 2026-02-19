@@ -8,6 +8,11 @@ export const DEDUP_AUTO_MERGE_THRESHOLD = 0.93;
 export const DEDUP_REINFORCE_THRESHOLD = 0.85;
 export const DEDUP_REVIEW_THRESHOLD = 0.78;
 export const DEDUP_SIMILARITY_THRESHOLD = DEDUP_AUTO_MERGE_THRESHOLD;
+
+// Insight-specific threshold — LLM-generated insights have more wording
+// variation for semantically identical content, so we use a slightly
+// lower bar for auto-merge (HEY-152)
+export const INSIGHT_DEDUP_THRESHOLD = 0.92;
 export const RELATED_SIMILARITY_THRESHOLD = 0.65;
 
 // Source-based confidence mapping

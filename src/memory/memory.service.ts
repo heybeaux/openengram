@@ -36,7 +36,11 @@ import { generateContentHash } from '../common/content-hash.util';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
 
 // Extracted services
-import { MemoryDedupService, SOURCE_CONFIDENCE } from './memory-dedup.service';
+import {
+  MemoryDedupService,
+  SOURCE_CONFIDENCE,
+  INSIGHT_DEDUP_THRESHOLD,
+} from './memory-dedup.service';
 import { MemoryQueryService } from './memory-query.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import { rlsContext } from '../prisma/rls-context';
@@ -129,9 +133,14 @@ export class MemoryService {
     const source = dto.source ?? MemorySource.EXPLICIT_STATEMENT;
 
     // 3. Check for duplicates (three-tier dedup v2)
+    // Insights use a lower threshold (0.92) because LLM-generated content
+    // has more wording variation for semantically identical ideas (HEY-152)
+    const dedupThreshold =
+      dto.layer === MemoryLayer.INSIGHT ? INSIGHT_DEDUP_THRESHOLD : undefined;
     const dedupResult = await this.dedupService.findDuplicateV2(
       userId,
       rawContent,
+      dedupThreshold,
     );
     if (dedupResult.action !== 'create' && dedupResult.existingMemory) {
       if (dedupResult.action === 'merged') {
