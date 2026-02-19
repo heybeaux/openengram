@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface InstanceInfo {
