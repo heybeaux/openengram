@@ -88,13 +88,13 @@ export class AccountService {
       // Normal cloud registration rules
       if (!accessCode && !plan) {
         throw new BadRequestException(
-          'Please select a plan or enter an access code',
+          'Please select a plan or provide an access code.',
         );
       }
 
       if (plan && plan.toUpperCase() === 'FREE') {
         throw new BadRequestException(
-          'Registration requires a valid access code. Visit openengram.ai for cloud plans.',
+          'Invalid plan selection.',
         );
       }
     }
@@ -117,7 +117,7 @@ export class AccountService {
       const upperPlan = plan.toUpperCase();
       if (!['STARTER', 'PRO', 'SCALE'].includes(upperPlan)) {
         throw new BadRequestException(
-          'Invalid plan. Choose STARTER, PRO, or SCALE',
+          'Invalid plan selection.',
         );
       }
       resolvedPlan = upperPlan;
