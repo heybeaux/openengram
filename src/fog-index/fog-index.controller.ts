@@ -13,7 +13,8 @@ export class FogIndexController {
     @Req() req?: any,
   ): Promise<FogIndexResult> {
     const agentId = req?.agent?.id;
-    return this.fogIndex.compute({ userId, agentId });
+    const accountId = req?.accountId ?? req?.agent?.accountId;
+    return this.fogIndex.compute({ userId, agentId, accountId });
   }
 
   @Get('history')
@@ -29,6 +30,7 @@ export class FogIndexController {
     @Req() req?: any,
   ): Promise<FogIndexResult> {
     const agentId = req?.agent?.id;
-    return this.fogIndex.snapshot({ userId, agentId });
+    const accountId = req?.accountId ?? req?.agent?.accountId;
+    return this.fogIndex.snapshot({ userId, agentId, accountId });
   }
 }

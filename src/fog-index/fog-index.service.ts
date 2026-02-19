@@ -18,6 +18,7 @@ export interface FogIndexResult {
 export interface FogScope {
   userId?: string;
   agentId?: string;
+  accountId?: string;
 }
 
 export type FogTier =
@@ -49,35 +50,52 @@ export class FogIndexService {
   }
 
   /**
-   * Build a Prisma `where` clause that scopes to the agent's memories.
-   * Priority: explicit userId > agentId (all users) > fallback to most recent user.
+   * Resolve scope to a list of userIds whose memories should be included.
+   * Priority: explicit userId > agentId (all users for that agent) >
+   *           accountId (all users across all agents) > fallback to first user.
    */
-  private async resolveWhere(
+  private async resolveUserIds(
     scope: FogScope,
-  ): Promise<{ userId?: string; agentId?: string } | null> {
-    if (scope.userId) return { userId: scope.userId };
-    if (scope.agentId) return { agentId: scope.agentId };
-    // Fallback: find the most recent memory's agent
+  ): Promise<string[] | null> {
+    if (scope.userId) return [scope.userId];
+
+    if (scope.agentId) {
+      const users = await this.prisma.user.findMany({
+        where: { agentId: scope.agentId, deletedAt: null },
+        select: { id: true },
+      });
+      if (users.length > 0) return users.map((u) => u.id);
+    }
+
+    if (scope.accountId) {
+      const users = await this.prisma.user.findMany({
+        where: { agent: { accountId: scope.accountId, deletedAt: null }, deletedAt: null },
+        select: { id: true },
+      });
+      if (users.length > 0) return users.map((u) => u.id);
+    }
+
+    // Fallback: find the most recent memory's user
     const mem = await this.prisma.memory.findFirst({
       where: { deletedAt: null },
-      select: { agentId: true, userId: true },
+      select: { userId: true },
       orderBy: { createdAt: 'desc' },
     });
     if (!mem) return null;
-    return mem.agentId ? { agentId: mem.agentId } : { userId: mem.userId };
+    return [mem.userId];
   }
 
   async compute(scope: FogScope = {}): Promise<FogIndexResult> {
-    const where = await this.resolveWhere(scope);
-    if (!where) return this.emptyResult();
+    const userIds = await this.resolveUserIds(scope);
+    if (!userIds || userIds.length === 0) return this.emptyResult();
 
     const components = await Promise.all([
-      this.memoryStaleness(where),
-      this.embeddingCoverage(where),
-      this.dedupDensity(where),
+      this.memoryStaleness(userIds),
+      this.embeddingCoverage(userIds),
+      this.dedupDensity(userIds),
       this.consolidationHealth(),
-      this.memoryDecayRate(where),
-      this.coverageGaps(where),
+      this.memoryDecayRate(userIds),
+      this.coverageGaps(userIds),
     ]);
 
     const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
@@ -141,14 +159,13 @@ export class FogIndexService {
 
   // ─── Components ──────────────────────────────────────────────────
 
-  /** Build a Prisma memory filter from the scope */
+  /** Build a Prisma memory filter from resolved userIds */
   private memoryFilter(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
     extra: Record<string, any> = {},
   ) {
     return {
-      ...(where.userId ? { userId: where.userId } : {}),
-      ...(where.agentId ? { agentId: where.agentId } : {}),
+      userId: userIds.length === 1 ? userIds[0] : { in: userIds },
       deletedAt: null,
       ...extra,
     };
@@ -156,12 +173,12 @@ export class FogIndexService {
 
   /** % of memories accessed (retrieved or used) in the last 7 days */
   private async memoryStaleness(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
   ): Promise<FogIndexComponent> {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const total = await this.prisma.memory.count({
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
     });
 
     if (total === 0) {
@@ -175,7 +192,7 @@ export class FogIndexService {
 
     const accessed = await this.prisma.memory.count({
       where: {
-        ...this.memoryFilter(where),
+        ...this.memoryFilter(userIds),
         OR: [
           { lastRetrievedAt: { gte: sevenDaysAgo } },
           { lastUsedAt: { gte: sevenDaysAgo } },
@@ -197,10 +214,10 @@ export class FogIndexService {
 
   /** % of memories with valid embeddings (legacy + ensemble) */
   private async embeddingCoverage(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
   ): Promise<FogIndexComponent> {
     const total = await this.prisma.memory.count({
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
     });
 
     if (total === 0) {
@@ -213,19 +230,17 @@ export class FogIndexService {
     }
 
     const withLegacy = await this.prisma.memory.count({
-      where: this.memoryFilter(where, { embeddingId: { not: null } }),
+      where: this.memoryFilter(userIds, { embeddingId: { not: null } }),
     });
 
-    // For agent-scoped queries, build the SQL condition dynamically
-    const scopeCol = where.agentId ? 'agent_id' : 'user_id';
-    const scopeVal = where.agentId ?? where.userId;
-
+    // Build parameterised IN clause for userIds
+    const placeholders = userIds.map((_, i) => `$${i + 1}`).join(', ');
     const withEnsemble = await this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT COUNT(DISTINCT me.memory_id) as count
        FROM memory_embeddings me
        JOIN memories m ON m.id = me.memory_id
-       WHERE m.${scopeCol} = $1 AND m.deleted_at IS NULL`,
-      scopeVal,
+       WHERE m.user_id IN (${placeholders}) AND m.deleted_at IS NULL`,
+      ...userIds,
     );
 
     const ensembleCount = Number(withEnsemble[0]?.count ?? 0);
@@ -242,10 +257,10 @@ export class FogIndexService {
 
   /** Near-duplicate density — lower is better */
   private async dedupDensity(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
   ): Promise<FogIndexComponent> {
     const total = await this.prisma.memory.count({
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
     });
 
     if (total === 0) {
@@ -257,28 +272,12 @@ export class FogIndexService {
       };
     }
 
-    // merge_candidates may only have userId — scope by userId if available,
-    // otherwise get all userIds for this agent
-    let pendingDups: number;
-    if (where.userId) {
-      pendingDups = await this.prisma.mergeCandidate.count({
-        where: { userId: where.userId, status: 'PENDING' },
-      });
-    } else if (where.agentId) {
-      const users = await this.prisma.user.findMany({
-        where: { agentId: where.agentId, deletedAt: null },
-        select: { id: true },
-      });
-      const userIds = users.map((u) => u.id);
-      pendingDups =
-        userIds.length > 0
-          ? await this.prisma.mergeCandidate.count({
-              where: { userId: { in: userIds }, status: 'PENDING' },
-            })
-          : 0;
-    } else {
-      pendingDups = 0;
-    }
+    const pendingDups = await this.prisma.mergeCandidate.count({
+      where: {
+        userId: userIds.length === 1 ? userIds[0] : { in: userIds },
+        status: 'PENDING',
+      },
+    });
 
     const score = Math.max(0, 100 - pendingDups * 5);
 
@@ -330,13 +329,13 @@ export class FogIndexService {
 
   /** How fast memories are becoming stale (high decay = low score) */
   private async memoryDecayRate(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
   ): Promise<FogIndexComponent> {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const total = await this.prisma.memory.count({
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
     });
 
     if (total === 0) {
@@ -348,21 +347,17 @@ export class FogIndexService {
       };
     }
 
-    const baseFilter = where.userId
-      ? { userId: where.userId }
-      : where.agentId
-        ? { agentId: where.agentId }
-        : {};
+    const userIdFilter = userIds.length === 1 ? userIds[0] : { in: userIds };
 
     const decayed = await this.prisma.memory.count({
       where: {
-        ...baseFilter,
+        userId: userIdFilter,
         deletedAt: { gte: thirtyDaysAgo },
       },
     });
 
     const lowScore = await this.prisma.memory.count({
-      where: this.memoryFilter(where, { effectiveScore: { lt: 0.2 } }),
+      where: this.memoryFilter(userIds, { effectiveScore: { lt: 0.2 } }),
     });
 
     const decayPct = ((decayed + lowScore) / (total + decayed)) * 100;
@@ -378,10 +373,10 @@ export class FogIndexService {
 
   /** Coverage gaps: are there important types with thin coverage? */
   private async coverageGaps(
-    where: { userId?: string; agentId?: string },
+    userIds: string[],
   ): Promise<FogIndexComponent> {
     const total = await this.prisma.memory.count({
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
     });
 
     if (total === 0) {
@@ -395,7 +390,7 @@ export class FogIndexService {
 
     const typeCounts = await this.prisma.memory.groupBy({
       by: ['memoryType'],
-      where: { ...this.memoryFilter(where), memoryType: { not: null } },
+      where: { ...this.memoryFilter(userIds), memoryType: { not: null } },
       _count: true,
     });
 
@@ -412,7 +407,7 @@ export class FogIndexService {
 
     const layerCounts = await this.prisma.memory.groupBy({
       by: ['layer'],
-      where: this.memoryFilter(where),
+      where: this.memoryFilter(userIds),
       _count: true,
     });
 
