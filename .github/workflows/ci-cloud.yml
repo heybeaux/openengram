@@ -102,7 +102,20 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_CI_WEBHOOK }}
         run: |
-          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -1 | sed 's/"/\\"/g')
-          curl -H "Content-Type: application/json" \
-            -d "{\"content\": \"🔴 **CI Failed** | **${{ github.repository }}** | Branch: \`${{ github.ref_name }}\` | Commit: \`${GITHUB_SHA::7}\`\nWorkflow: ${{ github.workflow }}\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\nCommit: ${COMMIT_MSG}\"}" \
-            "$DISCORD_WEBHOOK"
+          WEBHOOK_URL=$(echo "$DISCORD_WEBHOOK" | tr -d '[:space:]')
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          WORKFLOW="${{ github.workflow }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Build JSON safely with jq
+          PAYLOAD=$(jq -n \
+            --arg content "🔴 **CI Failed** | **${REPO}** | Branch: \`${BRANCH}\` | Commit: \`${SHORT_SHA}\`
+          Workflow: ${WORKFLOW}
+          Run: ${RUN_URL}" \
+            '{content: $content}')
+
+          curl -sf -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$WEBHOOK_URL"
