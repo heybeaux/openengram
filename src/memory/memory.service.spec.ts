@@ -6,7 +6,10 @@ import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { MemoryDedupService } from './memory-dedup.service';
+import {
+  MemoryDedupService,
+  INSIGHT_DEDUP_THRESHOLD,
+} from './memory-dedup.service';
 import { MemoryQueryService } from './memory-query.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import { MemoryGraphService } from './memory-graph.service';
@@ -309,6 +312,40 @@ describe('MemoryService', () => {
         'Test',
         'user-456',
         expect.any(Object),
+      );
+    });
+
+    it('should use lower dedup threshold (0.92) for INSIGHT layer memories', async () => {
+      mockImportance.calculate.mockReturnValue(0.7);
+      mockPrisma.memory.create.mockResolvedValue(mockMemory);
+
+      const dedupService = module.get(MemoryDedupService);
+
+      await service.remember('user-456', {
+        raw: 'Pattern detected: topic drift in sessions',
+        layer: MemoryLayer.INSIGHT,
+        source: MemorySource.PATTERN_DETECTED,
+      });
+
+      expect(dedupService.findDuplicateV2).toHaveBeenCalledWith(
+        'user-456',
+        'Pattern detected: topic drift in sessions',
+        INSIGHT_DEDUP_THRESHOLD,
+      );
+    });
+
+    it('should use default dedup threshold for non-INSIGHT layers', async () => {
+      mockImportance.calculate.mockReturnValue(0.5);
+      mockPrisma.memory.create.mockResolvedValue(mockMemory);
+
+      const dedupService = module.get(MemoryDedupService);
+
+      await service.remember('user-456', { raw: 'Regular memory' });
+
+      expect(dedupService.findDuplicateV2).toHaveBeenCalledWith(
+        'user-456',
+        'Regular memory',
+        undefined,
       );
     });
   });
