@@ -1,0 +1,328 @@
+# Self-Hosting Guide
+
+Production deployment guide for running Engram on your own infrastructure.
+
+## Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+The included `docker-compose.yml` provides a complete setup:
+
+```bash
+git clone https://github.com/openengram/engram.git
+cd engram
+docker compose up -d
+```
+
+This runs:
+- **PostgreSQL 16** with pgvector extension (`pgvector/pgvector:pg16`)
+- **Engram API** on port `3001` with local embeddings
+
+### Custom Docker Compose
+
+For production, create a `docker-compose.prod.yml`:
+
+```yaml
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: engram
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engram"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://engram:${POSTGRES_PASSWORD}@postgres:5432/engram
+      DIRECT_URL: postgresql://engram:${POSTGRES_PASSWORD}@postgres:5432/engram
+      EDITION: local
+      EMBEDDING_PROVIDER: local
+      AM_API_KEY: ${AM_API_KEY}
+      PORT: 3001
+      NODE_ENV: production
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+```
+
+### Building the Image
+
+The multi-stage Dockerfile creates a minimal production image:
+
+```bash
+docker build -t engram:latest .
+```
+
+The image:
+- Uses Node.js 20 Alpine
+- Runs as non-root user (`engram:1001`)
+- Includes a health check (`/v1/health`)
+- Runs Prisma migrations on startup via `docker-entrypoint.sh`
+
+## Environment Variables
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string (with pgvector) | `postgresql://engram:pass@localhost:5432/engram` |
+| `DIRECT_URL` | Direct database URL (bypasses connection pooling) | Same as `DATABASE_URL` for single-instance |
+
+### Core Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EDITION` | `local` or `cloud` | `local` |
+| `PORT` | HTTP server port | `3000` |
+| `AM_API_KEY` | API key for authentication (any random string) | _(none — unauthenticated)_ |
+| `NODE_ENV` | `development` or `production` | `development` |
+| `LOG_LEVEL` | Pino log level: `debug`, `info`, `warn`, `error` | `info` |
+| `CORS_ORIGINS` | Additional allowed origins (comma-separated) | _(none)_ |
+
+### Embedding Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EMBEDDING_PROVIDER` | `local`, `openai`, or `cloud-ensemble` | `local` |
+| `OPENAI_API_KEY` | Required for `openai` or `cloud-ensemble` provider | — |
+| `COHERE_API_KEY` | Optional, adds Cohere v3 model to ensemble | — |
+
+### Cloud Edition Only
+
+| Variable | Description |
+|----------|-------------|
+| `ENCRYPTION_KEY` | 32-byte hex key for cloud-link encryption |
+| `STRIPE_SECRET_KEY` | Stripe billing integration |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
+| `STRIPE_PRICE_ID_PRO` | Stripe price ID for Pro plan |
+
+### Observability
+
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_DSN` | Sentry error tracking DSN |
+| `POSTHOG_API_KEY` | PostHog analytics |
+| `GA4_MEASUREMENT_ID` | Google Analytics 4 |
+
+### Awareness Module
+
+| Variable | Description |
+|----------|-------------|
+| `AWARENESS_ENABLED` | Enable the awareness waking cycle (`true`/`false`) |
+| `GITHUB_TOKEN` | GitHub personal access token for signal integration |
+| `GITHUB_REPOS` | Comma-separated `owner/repo` list |
+| `LINEAR_API_KEY` | Linear API key for signal integration |
+
+## Embedding Setup
+
+### Local Embeddings (Default)
+
+Engram uses a local embedding server (`engram-embed`) by default. No API keys needed. This runs the `all-MiniLM-L6-v2` model locally.
+
+Good for: development, privacy-sensitive deployments, single-instance setups.
+
+### Cloud Ensemble (Production)
+
+For higher-quality recall, use the cloud ensemble which combines multiple embedding models:
+
+```env
+EMBEDDING_PROVIDER=cloud-ensemble
+OPENAI_API_KEY=sk-...
+COHERE_API_KEY=...  # optional, adds cohere-v3
+```
+
+The ensemble:
+- Embeds with multiple models simultaneously
+- Uses model-specific vector columns in pgvector
+- Includes drift detection and nightly re-embedding
+- Supports checkpointing for model version changes
+
+## Database Setup and Migrations
+
+### PostgreSQL Requirements
+
+- PostgreSQL **16** recommended
+- The **pgvector** extension must be available
+- Use the `pgvector/pgvector:pg16` Docker image for the easiest setup
+
+### Manual Database Setup
+
+```sql
+CREATE DATABASE engram;
+CREATE USER engram WITH PASSWORD 'your-password';
+GRANT ALL PRIVILEGES ON DATABASE engram TO engram;
+
+-- pgvector extension (requires superuser)
+\c engram
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### Running Migrations
+
+```bash
+# Deploy all pending migrations
+pnpm run migrate:deploy
+
+# Check migration status
+pnpm run migrate:status
+
+# Safe migration (recommended for production)
+pnpm run migrate:safe
+```
+
+The Docker entrypoint runs migrations automatically on startup.
+
+### Schema
+
+Engram uses Prisma ORM with row-level security (RLS). The schema includes:
+- `Memory` — core memory storage with vector embeddings
+- `Agent`, `User` — multi-agent, multi-user support
+- `Entity`, `Relationship` — knowledge graph
+- `DreamCycleReport` — consolidation history
+- `Account` — plans and usage limits
+- `SyncEvent` — cloud sync history
+
+## Backup Configuration
+
+### Database Backups
+
+Use `pg_dump` for reliable backups:
+
+```bash
+# Full backup
+pg_dump -U engram -Fc engram > engram_backup_$(date +%Y%m%d).dump
+
+# Restore
+pg_restore -U engram -d engram engram_backup.dump
+```
+
+### Automated Backup Script
+
+```bash
+#!/bin/bash
+BACKUP_DIR=/backups/engram
+RETENTION_DAYS=30
+
+mkdir -p $BACKUP_DIR
+pg_dump -U engram -Fc engram > "$BACKUP_DIR/engram_$(date +%Y%m%d_%H%M%S).dump"
+
+# Clean old backups
+find $BACKUP_DIR -name "*.dump" -mtime +$RETENTION_DAYS -delete
+```
+
+### Docker Volume Backup
+
+```bash
+# Backup the PostgreSQL data volume
+docker run --rm -v engram_pgdata:/data -v $(pwd):/backup \
+  alpine tar czf /backup/pgdata_backup.tar.gz /data
+```
+
+## Health Monitoring
+
+### Health Endpoint
+
+```
+GET /v1/health
+```
+
+Returns:
+
+```json
+{
+  "status": "healthy",
+  "uptime": 86400,
+  "dependencies": {
+    "database": { "status": "up", "latencyMs": 2, "memoryCount": 15000 },
+    "engramEmbed": { "status": "up", "latencyMs": 15 }
+  },
+  "dreamCycle": { "lastRun": "2026-02-20T06:00:00Z", "status": "completed" },
+  "memory": { "heapUsed": "128MB", "heapTotal": "256MB" },
+  "monitoring": { "alertCount": 0, "hasCriticalAlerts": false }
+}
+```
+
+Status values: `healthy`, `degraded` (embedding down or critical alerts), `unhealthy` (database down, returns 503).
+
+### Docker Health Check
+
+The Dockerfile includes a built-in health check:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:3001/v1/health || exit 1
+```
+
+### Monitoring Integration
+
+For the cloud edition, the monitoring module (`/v1/monitoring`) provides:
+- Alert aggregation
+- Request tracking via the monitoring interceptor
+- Integration with Sentry for error tracking
+
+## Reverse Proxy Setup
+
+### Nginx
+
+```nginx
+upstream engram {
+    server 127.0.0.1:3001;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name engram.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/engram.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/engram.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://engram;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Memory payloads can be large
+        client_max_body_size 10m;
+    }
+
+    # Health check (no auth needed)
+    location /v1/health {
+        proxy_pass http://engram;
+    }
+}
+```
+
+### Caddy
+
+```
+engram.yourdomain.com {
+    reverse_proxy localhost:3001
+}
+```
+
+Caddy handles TLS certificates automatically via Let's Encrypt.
+
+### Important Notes
+
+- Engram sets `trust proxy` to `true`, so `X-Forwarded-For` headers are respected for rate limiting
+- The API uses `helmet` for security headers (HSTS, CSP, etc.)
+- CORS is configured via the `CORS_ORIGINS` environment variable
+- The Swagger UI is available at `/api/docs` — consider restricting access in production
