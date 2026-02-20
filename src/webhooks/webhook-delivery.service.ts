@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WebhookService } from './webhook.service';
 import { EngramEvent } from '../events/event-types';
 import * as crypto from 'crypto';
+import { validateWebhookUrl } from './url-validator';
 
 @Injectable()
 export class WebhookDeliveryService {
@@ -82,6 +83,9 @@ export class WebhookDeliveryService {
     eventType: string,
     payload: any,
   ): Promise<void> {
+    // Validate URL at delivery time (DNS resolution + IP blocklist)
+    await validateWebhookUrl(sub.url);
+
     const maxAttempts = sub.maxRetries + 1;
     const deliveryId = crypto.randomUUID();
 
