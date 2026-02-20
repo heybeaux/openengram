@@ -205,7 +205,7 @@ export class WakingCycleService {
 
     // Find the first user belonging to this account
     const user = await this.prisma.user.findFirst({
-      where: { accountId },
+      where: { agent: { accountId } },
     });
     if (!user) {
       this.logger.warn(`No user found for account ${accountId} — cannot store insights`);
