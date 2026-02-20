@@ -4,6 +4,7 @@ import { WakingCycleService } from './waking-cycle.service';
 import { AwarenessController } from './awareness.controller';
 import { MemorySignalService } from './signals/memory-signal.service';
 import { GitHubSignalService } from './signals/github-signal.service';
+import { LinearSignalService } from './signals/linear-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -38,6 +39,7 @@ const logger = new Logger('AwarenessModule');
         WakingCycleService,
         MemorySignalService,
         GitHubSignalService,
+        LinearSignalService,
         PatternDetectorService,
         InsightGeneratorService,
       ]

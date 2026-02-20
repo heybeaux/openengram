@@ -1,19 +1,50 @@
 /**
  * HEY-132: User table cleanup script
  *
- * Identifies and cleans up:
- * 1. Duplicate users (same externalId + agentId)
- * 2. Test/demo users with 0 memories
+ * Identifies and safely removes orphaned/duplicate/test users from the database.
  *
- * Usage:
- *   npx ts-node scripts/cleanup-users.ts           # dry run (default)
- *   DRY_RUN=false npx ts-node scripts/cleanup-users.ts  # actually apply changes
+ * ## What it does
+ * 1. **Duplicate users**: Finds users with the same (externalId, agentId) pair.
+ *    Keeps the oldest record, migrates all related data (memories, sessions, etc.)
+ *    from duplicates to the keeper, then soft-deletes the duplicates.
+ * 2. **Test/demo users**: Finds users whose externalId or displayName contains
+ *    "test", "demo", "fake", "seed", or "sample" AND have 0 memories.
+ *    Deletes related rows (should be 0) and soft-deletes the user.
+ * 3. **Other orphans**: Finds non-duplicate, non-test users with 0 memories
+ *    AND no related data in any FK table. Soft-deletes them if truly orphaned.
+ *
+ * ## Safety
+ * - **Dry run by default**: Running without DRY_RUN=false only prints what
+ *   would happen — no database changes are made.
+ * - **Soft delete**: Users are never hard-deleted; `deletedAt` is set instead.
+ * - **Data migration**: For duplicates, all FK references are migrated to the
+ *   keeper before soft-deleting.
+ * - **Confirmation prompt**: In live mode, you must type "yes" to proceed.
+ *
+ * ## Usage
+ *   npx ts-node scripts/cleanup-users.ts                  # dry run (default)
+ *   DRY_RUN=false npx ts-node scripts/cleanup-users.ts    # live run (with confirmation)
+ *
+ * ## Known results (dry-run 2025)
+ * - 1 safe-to-remove orphan: cmlq314uk001ec9jy8yx7efhp (0 memories, 0 related data)
  */
 
 import { PrismaClient } from '@prisma/client';
+import * as readline from 'readline';
 
 const prisma = new PrismaClient();
 const DRY_RUN = process.env.DRY_RUN !== 'false';
+
+/** Prompt user for confirmation. Returns true if they type "yes". */
+async function confirm(message: string): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(`${message} (type "yes" to confirm): `, answer => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'yes');
+    });
+  });
+}
 
 // Tables that reference user_id and need to be migrated or cleaned
 const USER_FK_TABLES = [
@@ -98,6 +129,18 @@ async function countRelatedRows(userId: string): Promise<Record<string, number>>
 
 async function main() {
   console.log(`\n🔍 HEY-132 User Cleanup — ${DRY_RUN ? 'DRY RUN' : '⚠️  LIVE RUN'}\n`);
+
+  if (!DRY_RUN) {
+    const confirmed = await confirm(
+      '⚠️  This will modify the database. Are you sure you want to proceed?',
+    );
+    if (!confirmed) {
+      console.log('Aborted.');
+      await prisma.$disconnect();
+      process.exit(0);
+    }
+    console.log('');
+  }
 
   const users = await getUsers();
   console.log(`Total active users: ${users.length}\n`);

@@ -64,11 +64,20 @@ describe('WakingCycleService', () => {
       ]),
     } as any;
 
+    const linearSignal = {
+      name: 'linear',
+      collect: jest.fn().mockResolvedValue({
+        observations: [],
+        checkpoint: {},
+      }),
+    } as any;
+
     service = new WakingCycleService(
       prisma,
       memoryService,
       memorySignal,
       githubSignal,
+      linearSignal,
       patternDetector,
       insightGenerator,
     );
@@ -136,7 +145,7 @@ describe('WakingCycleService', () => {
     it('should save checkpoints after collecting signals', async () => {
       await service.runCycle();
 
-      expect(prisma.awarenessState.upsert).toHaveBeenCalledTimes(2);
+      expect(prisma.awarenessState.upsert).toHaveBeenCalledTimes(3);
       expect(prisma.awarenessState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
