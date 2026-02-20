@@ -41,8 +41,15 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", 'https://d3js.org'],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: [
+            "'self'",
+            "'sha256-Arub96V7tDYxeyefl/tch5uyLEsB1uyQdjWYNnmy6u0='",
+            'https://d3js.org',
+          ],
+          styleSrc: [
+            "'self'",
+            "'sha256-t5OiADah+ItveAkWwAGbQAHn9EHDXW7RJYCNvsSNi/Q='",
+          ],
           imgSrc: ["'self'", 'data:'],
           fontSrc: ["'self'", 'https:', 'data:'],
           objectSrc: ["'none'"],
