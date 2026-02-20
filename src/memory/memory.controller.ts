@@ -564,7 +564,7 @@ export class MemoryController {
     @UserId() userId: string,
     @Param('id') id: string,
   ): Promise<void> {
-    // TODO: Implement feedback service
+    // Stub — use POST /v1/feedback for memory feedback (HEY-227)
     return;
   }
 

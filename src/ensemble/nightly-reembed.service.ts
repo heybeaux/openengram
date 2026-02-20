@@ -394,7 +394,7 @@ export class NightlyReembedService implements OnModuleInit {
         OR: [
           { updatedAt: { gt: lastRun } },
           { embeddingModel: null },
-          // TODO: Add embeddingVersion check when field exists
+          // NOTE: embeddingVersion check deferred — field not yet in schema
         ],
         ...(afterId ? { id: { gt: afterId } } : {}),
       },

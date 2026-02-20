@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Model Registry Service
  *
@@ -11,6 +10,7 @@
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EnsembleModelConfig } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ModelId,
@@ -193,7 +193,7 @@ export class ModelRegistryService implements OnModuleInit {
     modelId: ModelId,
     status: ModelStatus,
   ): Promise<void> {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: status.toUpperCase(),
     };
 
@@ -369,7 +369,7 @@ export class ModelRegistryService implements OnModuleInit {
   // Private Methods
   // ===========================================================================
 
-  private dbToEntry(model: any): ModelRegistryEntry {
+  private dbToEntry(model: EnsembleModelConfig): ModelRegistryEntry {
     return {
       modelId: model.modelId as ModelId,
       status: model.status.toLowerCase() as ModelStatus,
@@ -380,14 +380,14 @@ export class ModelRegistryService implements OnModuleInit {
       queryTypeWeights: model.queryTypeWeights as
         | Record<QueryType, number>
         | undefined,
-      qualityMetrics: (model.qualityMetrics as ModelQualityMetrics) ?? {
+      qualityMetrics: (model.qualityMetrics as unknown as ModelQualityMetrics) ?? {
         sampleQueries: 0,
         avgRankContribution: 0,
         uniqueHits: 0,
         correlationWithGoldStandard: 0,
       },
       promotionThresholds:
-        (model.promotionThresholds as PromotionThresholds) ??
+        (model.promotionThresholds as unknown as PromotionThresholds) ??
         DEFAULT_PROMOTION_THRESHOLDS,
     };
   }
