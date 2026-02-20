@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto/webhook.dto';
+import { validateWebhookUrlSync } from './url-validator';
 
 @Injectable()
 export class WebhookService {
@@ -27,6 +28,8 @@ export class WebhookService {
         `Maximum webhook subscriptions (${this.maxSubscriptions}) reached`,
       );
     }
+
+    validateWebhookUrlSync(dto.url);
 
     return this.prisma.webhookSubscription.create({
       data: {
@@ -61,6 +64,10 @@ export class WebhookService {
   async update(id: string, userId: string, dto: UpdateWebhookDto) {
     const sub = await this.getById(id, userId);
     if (!sub) throw new Error('Webhook subscription not found');
+
+    if (dto.url !== undefined) {
+      validateWebhookUrlSync(dto.url);
+    }
 
     return this.prisma.webhookSubscription.update({
       where: { id },

@@ -38,3 +38,4 @@ reports/
 node_modules
 worktrees/
 .env.cloud
+prisma/engram.db

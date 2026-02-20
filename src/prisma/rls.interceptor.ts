@@ -41,9 +41,6 @@ export class RlsInterceptor implements NestInterceptor {
     }
 
     const url: string = request.url || '';
-    if (url.includes('/v1/sync/push')) {
-      return next.handle();
-    }
 
     // Determine timeout: long-running endpoints (sync) need more time
     const isLongRunning =
