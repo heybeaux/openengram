@@ -48,6 +48,7 @@ import { ChallengeModule } from './challenge/challenge.module';
 import { TeamsModule } from './teams/teams.module';
 import { DelegationModule } from './delegation/delegation.module';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
+import { AuthModule } from './common/auth.module';
 
 const EDITION = process.env.EDITION || 'local';
 
@@ -55,6 +56,7 @@ const coreModules = [
   ConfigModule.forRoot({
     isGlobal: true,
   }),
+  AuthModule,
   ScheduleModule.forRoot(),
   LoggerModule.forRoot({
     pinoHttp: {

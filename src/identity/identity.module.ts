@@ -1,6 +1,4 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EmbeddingModule } from '../embedding/embedding.module';
 import { IdentityController } from './identity.controller';
@@ -21,14 +19,6 @@ import { TrustProfileService } from './trust-profile.service';
   imports: [
     PrismaModule,
     EmbeddingModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'engram-dev-secret-change-me'),
-        signOptions: { expiresIn: '7d' },
-      }),
-    }),
   ],
   controllers: [
     IdentityController,
