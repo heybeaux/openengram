@@ -4,6 +4,7 @@ import { ReembeddingService } from './reembedding.service';
 import { ContextEnricherService } from './context-enricher.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
+import { EmbeddingService as EmbeddingProviderService } from '../embedding/embedding.service';
 import { ReembeddingJobStatus } from './dto/reembedding.dto';
 import { MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
 
@@ -27,6 +28,11 @@ describe('ReembeddingService', () => {
   const mockEmbedding = {
     generate: jest.fn(),
     store: jest.fn(),
+  };
+
+  const mockEmbeddingProvider = {
+    healthCheck: jest.fn().mockResolvedValue(true),
+    getProviderName: jest.fn().mockReturnValue('mock'),
   };
 
   const mockPrisma = {
@@ -88,6 +94,7 @@ describe('ReembeddingService', () => {
         { provide: ContextEnricherService, useValue: mockEnricher },
         { provide: EmbeddingService, useValue: mockEmbedding },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EmbeddingProviderService, useValue: mockEmbeddingProvider },
       ],
     }).compile();
 

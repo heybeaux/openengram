@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
+import { EmbeddingService as EmbeddingProviderService } from '../embedding/embedding.service';
 import {
   ContextEnricherService,
   MemoryWithRelations,
@@ -43,6 +44,7 @@ interface ReembeddingJob {
  */
 @Injectable()
 export class ReembeddingService {
+  private readonly logger = new Logger(ReembeddingService.name);
   // In-memory job storage (MVP - would use DB/Redis in production)
   private jobs: Map<string, ReembeddingJob> = new Map();
   private currentJob: string | null = null;
@@ -52,6 +54,7 @@ export class ReembeddingService {
     private prisma: PrismaService,
     private embedding: EmbeddingService,
     private enricher: ContextEnricherService,
+    private embeddingProvider: EmbeddingProviderService,
   ) {}
 
   /**
@@ -237,9 +240,22 @@ export class ReembeddingService {
     job.status = ReembeddingJobStatus.RUNNING;
     job.startedAt = new Date();
 
-    console.log(`[ReembeddingService] Starting job ${jobId}`, job.options);
+    this.logger.log(`Starting job ${jobId} (provider: ${this.embeddingProvider.getProviderName()})`);
 
     try {
+      // Pre-flight check: verify embedding provider is reachable
+      const healthy = await this.embeddingProvider.healthCheck();
+      if (!healthy) {
+        const provider = this.embeddingProvider.getProviderName();
+        throw new Error(
+          `Embedding provider '${provider}' is not reachable. ` +
+            (provider === 'local'
+              ? 'The local engram-embed server (port 8080) is not running. ' +
+                'Set EMBEDDING_PROVIDER=cloud-ensemble for cloud deployments.'
+              : 'Check provider configuration and API keys.'),
+        );
+      }
+
       // Fetch memories to process
       const memories = await this.enricher.getMemoriesForEnrichment({
         userId: job.options.userId,
