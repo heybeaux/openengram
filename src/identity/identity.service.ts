@@ -227,6 +227,7 @@ export class IdentityService {
       }
 
       // 2. Pattern-based extraction
+      if (!memory.raw) continue;
       for (const { regex, strength } of PREFERENCE_PATTERNS) {
         const match = memory.raw.match(regex);
         if (match && match[1]) {

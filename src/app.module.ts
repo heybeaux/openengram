@@ -42,8 +42,6 @@ import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
 import { AwarenessModule } from './awareness/awareness.module';
 import { IdentityModule } from './identity/identity.module';
-import { IdentityModule } from './identity/identity.module';
-import { IdentityModule } from './identity/identity.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
@@ -117,8 +115,6 @@ const coreModules = [
   CloudSyncModule,
   AwarenessModule,
   IdentityModule,
-  IdentityModule,
-];
 
 const cloudModules = [
   ReembeddingModule,
