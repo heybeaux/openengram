@@ -42,6 +42,7 @@ import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
 import { AwarenessModule } from './awareness/awareness.module';
 import { IdentityModule } from './identity/identity.module';
+import { ChallengeModule } from './challenge/challenge.module';
 import { TeamsModule } from './teams/teams.module';
 import { DelegationModule } from './delegation/delegation.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
@@ -117,6 +118,7 @@ const coreModules = [
   CloudSyncModule,
   AwarenessModule,
   IdentityModule,
+  ChallengeModule,
   TeamsModule,
   DelegationModule,
 ];
