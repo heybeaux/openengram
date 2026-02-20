@@ -470,7 +470,7 @@ export class PgVectorEnsembleProvider {
     `;
 
     const perModel: Record<string, ModelCoverageStats> = {};
-    for (const modelId of ALL_MODELS) {
+    for (const modelId of activeModels) {
       const row = perModelResults.find((r) => r.model_id === modelId);
       const embeddingCount = row ? Number(row.count) : 0;
       perModel[modelId] = {
@@ -524,7 +524,7 @@ export class PgVectorEnsembleProvider {
     // Create a map of existing embeddings
     const existingMap = new Map(results.map((r) => [r.model_id, r]));
 
-    // Return status for all models
+    // Return status for all known models (useful for debugging)
     return ALL_MODELS.map((modelId) => {
       const existing = existingMap.get(modelId);
       return {
