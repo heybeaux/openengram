@@ -69,7 +69,7 @@ describe('IdentityController', () => {
     it('should return delegation template', async () => {
       const result = await controller.getDelegationTemplates('Build auth');
 
-      expect(result.suggestedAgent).toBe('agent-a');
+      expect('suggestedAgent' in result && result.suggestedAgent).toBe('agent-a');
       expect(delegationTemplateService.suggest).toHaveBeenCalledWith('Build auth');
     });
 

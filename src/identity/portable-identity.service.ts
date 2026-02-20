@@ -95,7 +95,7 @@ export class PortableIdentityService {
         data: {
           userId: agentId,
           raw: `Agent capability: ${cap.name} (score: ${cap.score}, evidence: ${cap.evidenceCount})`,
-          layer: 'CORE',
+          layer: 'IDENTITY',
           subjectType: SubjectType.AGENT,
           subjectId: agentId,
           source: MemorySource.SYSTEM,
@@ -111,7 +111,7 @@ export class PortableIdentityService {
       data: {
         userId: agentId,
         raw: `Imported trust profile: ${identity.trustProfile.totalTasks} tasks, ${Math.round(identity.trustProfile.successRate * 100)}% success rate, specializations: ${identity.trustProfile.specializations.join(', ')}`,
-        layer: 'CORE',
+        layer: 'IDENTITY',
         subjectType: SubjectType.AGENT,
         subjectId: agentId,
         source: MemorySource.SYSTEM,

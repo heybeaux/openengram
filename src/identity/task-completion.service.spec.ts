@@ -35,7 +35,7 @@ describe('TaskCompletionService', () => {
     };
 
     embedding = {
-      embedSingle: jest.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+      embedOne: jest.fn().mockResolvedValue([0.1, 0.2, 0.3]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -86,12 +86,12 @@ describe('TaskCompletionService', () => {
 
       await service.create(dto);
 
-      expect(embedding.embedSingle).toHaveBeenCalledWith('Build REST API');
+      expect(embedding.embedOne).toHaveBeenCalledWith('Build REST API');
       expect(prisma.$executeRawUnsafe).toHaveBeenCalled();
     });
 
     it('should handle embedding failure gracefully', async () => {
-      embedding.embedSingle.mockRejectedValue(new Error('embed fail'));
+      embedding.embedOne.mockRejectedValue(new Error('embed fail'));
 
       const dto: CreateTaskCompletionDto = {
         taskId: 'task-003',
@@ -154,13 +154,13 @@ describe('TaskCompletionService', () => {
 
       const result = await service.findSimilar('user authentication');
 
-      expect(embedding.embedSingle).toHaveBeenCalledWith('user authentication');
+      expect(embedding.embedOne).toHaveBeenCalledWith('user authentication');
       expect(result).toHaveLength(1);
       expect(result[0].similarity).toBe(0.95);
     });
 
     it('should fall back to text search on embedding failure', async () => {
-      embedding.embedSingle.mockRejectedValue(new Error('fail'));
+      embedding.embedOne.mockRejectedValue(new Error('fail'));
       prisma.taskCompletion.findMany.mockResolvedValue([mockCompletion]);
 
       const result = await service.findSimilar('user authentication');
