@@ -28,6 +28,23 @@ export class ContextualRecallDto {
   @IsOptional()
   @IsString()
   agentSessionKey?: string;
+
+  // HEY-189: Delegation context for boosting delegator's memories
+  @IsOptional()
+  delegationContext?: DelegationContextDto;
+}
+
+export class DelegationContextDto {
+  @IsString()
+  delegatingAgentSessionKey: string;
+
+  @IsOptional()
+  @IsString()
+  taskDescription?: string;
+
+  @IsOptional()
+  @IsNumber()
+  boostFactor?: number; // default 1.5
 }
 
 export class ContextualRecallResponseDto {

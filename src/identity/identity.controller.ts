@@ -10,6 +10,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { IdentityService } from './identity.service';
+import { PortableIdentityService } from './portable-identity.service';
+import { TrustMemoryService } from './trust-memory.service';
+import { FailurePatternService } from './failure-pattern.service';
 import {
   CreateTaskOutcomeDto,
   CreateSelfAssessmentDto,
@@ -28,7 +31,12 @@ import { UserId } from '../common/decorators/user-id.decorator';
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
 @UseInterceptors(SanitizeInterceptor)
 export class IdentityController {
-  constructor(private readonly identityService: IdentityService) {}
+  constructor(
+    private readonly identityService: IdentityService,
+    private readonly portableIdentity: PortableIdentityService,
+    private readonly trustMemory: TrustMemoryService,
+    private readonly failurePattern: FailurePatternService,
+  ) {}
 
   // ── HEY-177: Task Outcomes ──────────────────────────────────────────
 
@@ -126,5 +134,89 @@ export class IdentityController {
     @Param('id') agentId: string,
   ): Promise<IdentityProfileResponseDto> {
     return this.identityService.getIdentityProfile(agentId, userId);
+  }
+
+  // ── HEY-190: Portable Agent Identity ───────────────────────────────
+
+  /**
+   * GET /v1/agents/:id/export
+   * Export agent identity as a portable JSON bundle
+   */
+  @Get('agents/:id/export')
+  @ApiOperation({ summary: 'Export agent identity bundle' })
+  async exportAgent(
+    @UserId() userId: string,
+    @Param('id') agentId: string,
+  ) {
+    return this.portableIdentity.exportAgent(userId, agentId);
+  }
+
+  /**
+   * POST /v1/agents/:id/import
+   * Import an agent identity bundle
+   */
+  @Post('agents/:id/import')
+  @ApiOperation({ summary: 'Import agent identity bundle' })
+  async importAgent(
+    @UserId() userId: string,
+    @Param('id') agentId: string,
+    @Body() bundle: any,
+  ) {
+    return this.portableIdentity.importAgent(userId, agentId, bundle);
+  }
+
+  // ── HEY-184: Trust Scores as Living Memory ─────────────────────────
+
+  /**
+   * POST /v1/agents/:agentId/trust/recompute
+   * Recompute trust score and store as living memory
+   */
+  @Post('agents/:agentId/trust/recompute')
+  @ApiOperation({ summary: 'Recompute trust score and create trust memory' })
+  @ApiResponse({ status: 201, description: 'Trust score recomputed and memory created.' })
+  async recomputeTrust(
+    @UserId() userId: string,
+    @Param('agentId') agentId: string,
+    @Query('category') category?: string,
+  ) {
+    return this.trustMemory.recomputeAndRemember(userId, { agentId, category });
+  }
+
+  /**
+   * GET /v1/agents/:agentId/trust/narrative
+   * Get the living trust narrative
+   */
+  @Get('agents/:agentId/trust/narrative')
+  @ApiOperation({ summary: 'Get trust score narrative history' })
+  async getTrustNarrative(
+    @UserId() userId: string,
+    @Param('agentId') agentId: string,
+    @Query('category') category?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.trustMemory.getTrustNarrative(userId, {
+      agentId,
+      category,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  // ── HEY-187: Failure Pattern Detection ─────────────────────────────
+
+  /**
+   * GET /v1/agents/:agentId/failure-patterns
+   * Analyze and return failure patterns
+   */
+  @Get('agents/:agentId/failure-patterns')
+  @ApiOperation({ summary: 'Detect failure patterns for an agent' })
+  async getFailurePatterns(
+    @UserId() userId: string,
+    @Param('agentId') agentId: string,
+    @Query('storeInsights') storeInsights?: string,
+  ) {
+    return this.failurePattern.analyze(userId, {
+      agentId,
+      storeInsights: storeInsights !== 'false',
+    });
   }
 }

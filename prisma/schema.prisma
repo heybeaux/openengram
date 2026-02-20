@@ -1581,6 +1581,61 @@ model ExperienceWeight {
   @@map("experience_weights")
 }
 
+// ============================================================================
+// MULTI-AGENT TEAMS (HEY-188)
+// ============================================================================
+
+/// Team of agents with shared context and collaboration history
+model AgentTeam {
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  userId              String               @map("user_id")
+  sharedCapabilities  String[]             @default([]) @map("shared_capabilities")
+  trustScore          Float                @default(0) @map("trust_score")
+  collaborationCount  Int                  @default(0) @map("collaboration_count")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  deletedAt           DateTime?            @map("deleted_at")
+
+  members        AgentTeamMember[]
+  collaborations AgentTeamCollaboration[]
+
+  @@index([userId])
+  @@map("agent_teams")
+}
+
+/// Membership of an agent in a team
+model AgentTeamMember {
+  id       String   @id @default(cuid())
+  teamId   String   @map("team_id")
+  agentId  String   @map("agent_id")
+  role     String?
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  team AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, agentId])
+  @@index([agentId])
+  @@map("agent_team_members")
+}
+
+/// Record of agents collaborating on a task within a team
+model AgentTeamCollaboration {
+  id                  String   @id @default(cuid())
+  teamId              String   @map("team_id")
+  taskDescription     String   @map("task_description")
+  participantAgentIds String[] @map("participant_agent_ids")
+  outcome             String?
+  score               Float?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  team AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+  @@map("agent_team_collaborations")
+}
+
 /// Tracks sync events for history display
 model SyncEvent {
   id          String   @id @default(cuid())
@@ -1614,4 +1669,99 @@ model SyncIdMap {
   @@unique([instanceId, cloudMemoryId])
   @@index([contentHash])
   @@map("sync_id_map")
+}
+
+// ============================================================================
+// DELEGATION (HEY-182, HEY-183, HEY-185)
+// ============================================================================
+
+/// Task status lifecycle for delegation tracking (HEY-182)
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+/// Delegated task tracked through its lifecycle (HEY-182)
+model DelegatedTask {
+  id              String     @id @default(cuid())
+  userId          String     @map("user_id")
+  assignedTo      String     @map("assigned_to")
+  assignedBy      String     @map("assigned_by")
+  taskDescription String     @map("task_description")
+  status          TaskStatus @default(ASSIGNED)
+  deadline        DateTime?
+  completedAt     DateTime?  @map("completed_at")
+  result          String?
+  metadata        Json?
+  memoryId        String?    @map("memory_id") // Link to memory storing this task
+  templateId      String?    @map("template_id")
+  contractId      String?    @map("contract_id")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  template DelegationTemplate? @relation(fields: [templateId], references: [id])
+  contract DelegationContract? @relation(fields: [contractId], references: [id])
+
+  @@index([userId, status])
+  @@index([assignedTo, status])
+  @@index([assignedBy])
+  @@index([contractId])
+  @@map("delegated_tasks")
+}
+
+/// Reusable delegation template (HEY-183)
+model DelegationTemplate {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  name                 String
+  taskType             String   @map("task_type")
+  requiredCapabilities String[] @default([]) @map("required_capabilities")
+  defaultInstructions  String?  @map("default_instructions")
+  expectedOutputs      String?  @map("expected_outputs")
+  typicalDurationMs    Int?     @map("typical_duration_ms")
+  metadata             Json?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  tasks DelegatedTask[]
+
+  @@unique([userId, name])
+  @@index([userId, taskType])
+  @@map("delegation_templates")
+}
+
+/// Contract status lifecycle (HEY-185)
+enum ContractStatus {
+  PROPOSED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  REJECTED
+}
+
+/// Formal delegation contract between agents (HEY-185)
+model DelegationContract {
+  id               String         @id @default(cuid())
+  userId           String         @map("user_id")
+  delegator        String
+  delegate         String
+  taskDescription  String         @map("task_description")
+  status           ContractStatus @default(PROPOSED)
+  terms            Json           // { deadline, qualityCriteria, escalationRules }
+  result           String?
+  verifiedAt       DateTime?      @map("verified_at")
+  completedAt      DateTime?      @map("completed_at")
+  metadata         Json?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  tasks DelegatedTask[]
+
+  @@index([userId, status])
+  @@index([delegator])
+  @@index([delegate])
+  @@map("delegation_contracts")
 }
