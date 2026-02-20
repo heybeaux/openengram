@@ -54,7 +54,15 @@ describe('RlsInterceptor', () => {
     });
   });
 
-  it('should skip RLS wrapping for sync push endpoint', (done) => {
+  it('should enforce RLS wrapping for sync push endpoint', (done) => {
+    const mockTx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    };
+
+    prisma.$transaction = jest.fn().mockImplementation(async (fn) => {
+      return fn(mockTx);
+    });
+
     const ctx = createMockContext({
       accountId: 'acc-123',
       url: '/v1/sync/push',
@@ -63,8 +71,10 @@ describe('RlsInterceptor', () => {
 
     interceptor.intercept(ctx, handler).subscribe({
       next: (val) => {
-        expect(val).toBe('sync-result');
-        expect(prisma.$transaction).not.toHaveBeenCalled();
+        expect(prisma.$transaction).toHaveBeenCalled();
+        expect(mockTx.$executeRawUnsafe).toHaveBeenCalledWith(
+          "SET LOCAL app.current_account_id = 'acc-123'",
+        );
         done();
       },
       error: done,
@@ -117,6 +127,55 @@ describe('RlsInterceptor', () => {
       next: () => {
         expect(mockTx.$executeRawUnsafe).toHaveBeenCalledWith(
           "SET LOCAL app.current_account_id = 'acc-123DROPTABLEmemories--'",
+        );
+        done();
+      },
+      error: done,
+    });
+  });
+
+  it('should use long timeout for sync endpoints', (done) => {
+    const mockTx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    };
+
+    prisma.$transaction = jest.fn().mockImplementation(async (fn, opts) => {
+      expect(opts.timeout).toBe(300_000); // 5 min for sync
+      return fn(mockTx);
+    });
+
+    const ctx = createMockContext({
+      accountId: 'acc-123',
+      url: '/v1/sync/push',
+    });
+    const handler = createMockCallHandler('sync-result');
+
+    interceptor.intercept(ctx, handler).subscribe({
+      next: () => done(),
+      error: done,
+    });
+  });
+
+  it('should enforce RLS for sync pull endpoint', (done) => {
+    const mockTx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    };
+
+    prisma.$transaction = jest.fn().mockImplementation(async (fn) => {
+      return fn(mockTx);
+    });
+
+    const ctx = createMockContext({
+      accountId: 'acc-789',
+      url: '/v1/sync/pull?since=2024-01-01',
+    });
+    const handler = createMockCallHandler('pull-result');
+
+    interceptor.intercept(ctx, handler).subscribe({
+      next: () => {
+        expect(prisma.$transaction).toHaveBeenCalled();
+        expect(mockTx.$executeRawUnsafe).toHaveBeenCalledWith(
+          "SET LOCAL app.current_account_id = 'acc-789'",
         );
         done();
       },

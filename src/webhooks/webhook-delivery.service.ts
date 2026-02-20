@@ -83,7 +83,7 @@ export class WebhookDeliveryService {
     eventType: string,
     payload: any,
   ): Promise<void> {
-    // Validate URL at delivery time (DNS resolution + IP blocklist)
+    // Validate URL before delivery (DNS resolution + IP blocklist)
     await validateWebhookUrl(sub.url);
 
     const maxAttempts = sub.maxRetries + 1;

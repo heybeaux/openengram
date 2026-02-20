@@ -1,12 +1,15 @@
 import { lookup } from 'dns/promises';
 import * as net from 'net';
 
-export class WebhookUrlValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'WebhookUrlValidationError';
-  }
-}
+const BLOCKED_IPV4_RANGES = [
+  { prefix: '127.', mask: 8 },
+  { prefix: '10.', mask: 8 },
+  { prefix: '0.', mask: 8 },
+  { prefix: '169.254.', mask: 16 },
+  { prefix: '192.168.', mask: 16 },
+];
+
+// 172.16.0.0/12 = 172.16.x.x – 172.31.x.x
 
 function isPrivateIPv4(ip: string): boolean {
   if (
@@ -18,18 +21,22 @@ function isPrivateIPv4(ip: string): boolean {
   ) {
     return true;
   }
+
   // 172.16.0.0/12
   if (ip.startsWith('172.')) {
     const second = parseInt(ip.split('.')[1], 10);
     if (second >= 16 && second <= 31) return true;
   }
+
   return false;
 }
 
 function isPrivateIPv6(ip: string): boolean {
   const normalized = ip.toLowerCase();
   if (normalized === '::1' || normalized === '::') return true;
+  // fc00::/7 covers fc and fd prefixes
   if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  // fe80::/10 link-local
   if (normalized.startsWith('fe80')) return true;
   return false;
 }
@@ -40,11 +47,23 @@ function isBlockedIP(ip: string): boolean {
   return false;
 }
 
+export class WebhookUrlValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WebhookUrlValidationError';
+  }
+}
+
 /**
- * Async validation: scheme check + DNS resolution + IP blocklist.
- * Use at delivery time to prevent DNS rebinding attacks.
+ * Validates a webhook URL is safe to deliver to.
+ * - Only https:// (and optionally http://) schemes allowed
+ * - Resolves DNS and checks resolved IP against blocklist
+ * - Blocks private/internal IPs to prevent SSRF
  */
-export async function validateWebhookUrl(url: string): Promise<void> {
+export async function validateWebhookUrl(
+  url: string,
+  options?: { allowHttp?: boolean },
+): Promise<void> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -52,7 +71,11 @@ export async function validateWebhookUrl(url: string): Promise<void> {
     throw new WebhookUrlValidationError('Invalid URL');
   }
 
-  if (!['https:', 'http:'].includes(parsed.protocol)) {
+  // Scheme check
+  const allowedSchemes = options?.allowHttp
+    ? ['https:', 'http:']
+    : ['https:', 'http:'];
+  if (!allowedSchemes.includes(parsed.protocol)) {
     throw new WebhookUrlValidationError(
       `Scheme "${parsed.protocol}" is not allowed. Only http(s) is permitted.`,
     );
@@ -60,6 +83,7 @@ export async function validateWebhookUrl(url: string): Promise<void> {
 
   const hostname = parsed.hostname;
 
+  // If hostname is already an IP, check directly
   if (net.isIP(hostname)) {
     if (isBlockedIP(hostname)) {
       throw new WebhookUrlValidationError(
@@ -69,9 +93,11 @@ export async function validateWebhookUrl(url: string): Promise<void> {
     return;
   }
 
+  // Resolve DNS and check all results
   try {
     const result = await lookup(hostname, { all: true });
     const addresses = Array.isArray(result) ? result : [result];
+
     for (const entry of addresses) {
       if (isBlockedIP(entry.address)) {
         throw new WebhookUrlValidationError(
@@ -88,8 +114,9 @@ export async function validateWebhookUrl(url: string): Promise<void> {
 }
 
 /**
- * Synchronous pre-check (scheme + literal IP only, no DNS).
- * Use at create/update time for fast feedback.
+ * Synchronous pre-check (scheme + literal IP check only, no DNS).
+ * Use for fast validation at create/update time; full validation
+ * (with DNS) happens at delivery time.
  */
 export function validateWebhookUrlSync(url: string): void {
   let parsed: URL;

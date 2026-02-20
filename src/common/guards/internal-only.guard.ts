@@ -76,6 +76,7 @@ export class InternalOnlyGuard implements CanActivate {
   }
 
   private isIn172PrivateRange(ip: string): boolean {
+    // Match 172.16.0.0 - 172.31.255.255 and ::ffff: variants
     const raw = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
     if (!raw.startsWith('172.')) return false;
     const second = parseInt(raw.split('.')[1], 10);

@@ -29,6 +29,8 @@ export class WebhookService {
       );
     }
 
+    validateWebhookUrlSync(dto.url);
+
     return this.prisma.webhookSubscription.create({
       data: {
         userId,
@@ -62,6 +64,10 @@ export class WebhookService {
   async update(id: string, userId: string, dto: UpdateWebhookDto) {
     const sub = await this.getById(id, userId);
     if (!sub) throw new Error('Webhook subscription not found');
+
+    if (dto.url !== undefined) {
+      validateWebhookUrlSync(dto.url);
+    }
 
     return this.prisma.webhookSubscription.update({
       where: { id },
