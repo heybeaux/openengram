@@ -113,6 +113,30 @@ export class DeduplicationService {
   }
 
   /**
+   * Resolve all internal CUIDs for a given userId, including deleted users
+   * with the same externalId. This ensures stats/queries find data created
+   * under previous user records (e.g., after agent migration).
+   */
+  private async resolveAllUserIds(userId: string): Promise<string[]> {
+    let externalId: string | null = null;
+    if (userId.startsWith('cm')) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { externalId: true },
+      });
+      externalId = user?.externalId ?? null;
+    } else {
+      externalId = userId;
+    }
+    if (!externalId) return [userId];
+    const users = await this.prisma.user.findMany({
+      where: { externalId },
+      select: { id: true },
+    });
+    return users.length > 0 ? users.map((u) => u.id) : [userId];
+  }
+
+  /**
    * Check if deduplication is enabled
    */
   isEnabled(): boolean {
@@ -640,7 +664,8 @@ export class DeduplicationService {
    * Get deduplication statistics
    */
   async getStats(userId: string): Promise<StatsResponseDto> {
-    userId = await this.resolveUserId(userId);
+    const allUserIds = await this.resolveAllUserIds(userId);
+    const userFilter = { in: allUserIds };
     const now = new Date();
     const todayStart = new Date(
       now.getFullYear(),
@@ -657,20 +682,20 @@ export class DeduplicationService {
       autoMergedToday,
       deletedMemories,
     ] = await Promise.all([
-      this.prisma.memory.count({ where: { userId, deletedAt: null } }),
+      this.prisma.memory.count({ where: { userId: userFilter, deletedAt: null } }),
       this.prisma.mergeCandidate.count({
-        where: { userId, status: 'PENDING' },
+        where: { userId: userFilter, status: 'PENDING' },
       }),
       this.prisma.memoryMergeEvent.count({
-        where: { userId, createdAt: { gte: weekStart } },
+        where: { userId: userFilter, createdAt: { gte: weekStart } },
       }),
       this.prisma.memoryMergeEvent.count({
-        where: { userId, rolledBackAt: { gte: weekStart } },
+        where: { userId: userFilter, rolledBackAt: { gte: weekStart } },
       }),
       this.prisma.memoryMergeEvent.count({
-        where: { userId, triggeredBy: 'auto', createdAt: { gte: todayStart } },
+        where: { userId: userFilter, triggeredBy: 'auto', createdAt: { gte: todayStart } },
       }),
-      this.prisma.memory.count({ where: { userId, deletedAt: { not: null } } }),
+      this.prisma.memory.count({ where: { userId: userFilter, deletedAt: { not: null } } }),
     ]);
 
     // Estimate clusters (simplified - count pending candidates)

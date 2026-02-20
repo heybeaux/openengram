@@ -4,6 +4,7 @@ import { ReembeddingController } from './reembedding.controller';
 import { ContextEnricherService } from './context-enricher.service';
 import { MemoryModule } from '../memory/memory.module';
 import { AccountModule } from '../account/account.module';
+import { EmbeddingModule } from '../embedding/embedding.module';
 
 /**
  * Re-embedding Module
@@ -22,7 +23,7 @@ import { AccountModule } from '../account/account.module';
  * - GET /v1/reembedding/preview/:memoryId - Preview enrichment
  */
 @Module({
-  imports: [AccountModule, MemoryModule],
+  imports: [AccountModule, MemoryModule, EmbeddingModule],
   controllers: [ReembeddingController],
   providers: [ReembeddingService, ContextEnricherService],
   exports: [ReembeddingService, ContextEnricherService],
