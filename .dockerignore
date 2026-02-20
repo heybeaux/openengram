@@ -1,11 +1,33 @@
 node_modules
 dist
 .git
-*.md
-docs/
-reports/
-worktrees/
-scripts/
+.gitignore
+
+# Environment files
 .env
 .env.*
 !.env.example
+
+# Documentation
+*.md
+docs/
+reports/
+
+# Test files
+**/*.spec.ts
+**/*.test.ts
+**/test/
+coverage/
+jest.config.*
+
+# Development
+.vscode/
+.idea/
+.DS_Store
+worktrees/
+scripts/
+docker-compose.override.yml*
+.eslintrc*
+.prettierrc*
+tsconfig.build.json
+nest-cli.json
