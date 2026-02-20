@@ -1443,3 +1443,27 @@ model SyncIdMap {
   @@index([contentHash])
   @@map("sync_id_map")
 }
+
+/// Task completion records for identity framework delegation tracking
+model TaskCompletion {
+  id              String   @id @default(cuid())
+  taskId          String   @map("task_id")
+  delegatedTo     String   @map("delegated_to")
+  delegatedBy     String   @map("delegated_by")
+  taskDescription String   @map("task_description")
+  domain          String?
+  outcome         String   // success, failure, partial
+  durationMs      Int      @map("duration_ms")
+  qualitySignals  Json     @default("{}") @map("quality_signals")
+  metadata        Json     @default("{}")
+  embeddingText   String?  @map("embedding_text")
+  embedding       Unsupported("vector")?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([delegatedTo])
+  @@index([delegatedBy])
+  @@index([taskId])
+  @@index([domain])
+  @@index([createdAt])
+  @@map("task_completions")
+}
