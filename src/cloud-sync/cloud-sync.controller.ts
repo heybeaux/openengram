@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CloudSyncService } from './cloud-sync.service';
+import { SyncReconciliationService } from './sync-reconciliation.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { SyncPushDto, SyncPushResponse } from './dto/sync-push.dto';
@@ -23,7 +24,10 @@ import { InstanceSyncKeyGuard } from '../common/guards/instance-sync-key.guard';
 @UseGuards(ApiKeyOrJwtGuard)
 @ApiBearerAuth()
 export class CloudSyncController {
-  constructor(private readonly cloudSyncService: CloudSyncService) {}
+  constructor(
+    private readonly cloudSyncService: CloudSyncService,
+    private readonly reconciliationService: SyncReconciliationService,
+  ) {}
 
   @Post()
   @HttpCode(200)
@@ -66,6 +70,39 @@ export class CloudSyncController {
   @ApiOperation({ summary: 'Pull memories from cloud to local' })
   async pull(@Req() req: any) {
     return this.cloudSyncService.triggerPull(req.accountId);
+  }
+}
+
+@ApiTags('cloud')
+@Controller('v1/cloud/reconcile')
+@UseGuards(ApiKeyOrJwtGuard)
+@ApiBearerAuth()
+export class ReconciliationController {
+  constructor(
+    private readonly reconciliationService: SyncReconciliationService,
+  ) {}
+
+  @Post('preview')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Preview reconciliation between local and cloud memories',
+  })
+  async preview(@Req() req: any) {
+    return this.reconciliationService.reconcile(req.accountId);
+  }
+
+  @Post('execute')
+  @HttpCode(200)
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary: 'Execute bidirectional reconciliation (admin only)',
+  })
+  async execute(@Req() req: any) {
+    const plan = await this.reconciliationService.reconcile(req.accountId);
+    return this.reconciliationService.executeReconciliation(
+      req.accountId,
+      plan,
+    );
   }
 }
 

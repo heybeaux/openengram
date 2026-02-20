@@ -25,8 +25,25 @@ export class CloudLinkController {
   @HttpCode(200)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Link instance to OpenEngram Cloud (admin only)' })
-  async link(@Req() req: any, @Body() body: { apiKey: string }) {
-    return this.cloudLinkService.linkCloud(req.accountId, body.apiKey);
+  async link(
+    @Req() req: any,
+    @Body()
+    body: {
+      apiKey: string;
+      localAgentId?: string;
+      cloudAgentId?: string;
+      localUserId?: string;
+      cloudUserId?: string;
+      userExternalId?: string;
+    },
+  ) {
+    return this.cloudLinkService.linkCloud(req.accountId, body.apiKey, {
+      localAgentId: body.localAgentId,
+      cloudAgentId: body.cloudAgentId,
+      localUserId: body.localUserId,
+      cloudUserId: body.cloudUserId,
+      userExternalId: body.userExternalId,
+    });
   }
 
   @Delete('link')
