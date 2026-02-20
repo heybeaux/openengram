@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ChallengeType, ChallengeResolution } from '../identity.types';
+import type { ChallengeType, ChallengeResolution } from '../identity.types';
 
 export class CreateChallengeRequestDto {
   @ApiPropertyOptional({ description: 'Associated contract ID' })
