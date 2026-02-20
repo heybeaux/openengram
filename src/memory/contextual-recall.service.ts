@@ -4,6 +4,7 @@ import { EmbeddingService } from './embedding.service';
 import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
+  DelegationContextDto,
 } from './dto/contextual-recall.dto';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
@@ -93,6 +94,16 @@ export class ContextualRecallService {
       poolIds,
     );
 
+    // HEY-189: If delegation context provided, fetch delegator's memories and merge
+    let delegatorMemoryIds: Set<string> | undefined;
+    const boostFactor = dto.delegationContext?.boostFactor ?? 1.5;
+    if (dto.delegationContext) {
+      delegatorMemoryIds = await this.getDelegatorMemoryIds(
+        dto.delegationContext,
+        userId,
+      );
+    }
+
     // 5. Filter: exclude already-known IDs, apply score threshold
     this.logger.log(
       `[ContextualRecall] vectorResults: ${vectorResults.length}, scores: [${vectorResults
@@ -100,10 +111,17 @@ export class ContextualRecallService {
         .map((r) => r.score.toFixed(3))
         .join(', ')}], minScore: ${minScore}`,
     );
-    // Filter by minimum score and exclusions
-    const candidates = vectorResults.filter(
-      (r) => r.score >= minScore && !excludeSet.has(r.id),
-    );
+    // Filter by minimum score and exclusions, apply delegation boost
+    const candidates = vectorResults
+      .filter((r) => r.score >= minScore && !excludeSet.has(r.id))
+      .map((r) => ({
+        ...r,
+        score:
+          delegatorMemoryIds && delegatorMemoryIds.has(r.id)
+            ? Math.min(r.score * boostFactor, 1.0)
+            : r.score,
+      }))
+      .sort((a, b) => b.score - a.score);
 
     // Apply relative score gap: drop results scoring < 70% of the top result.
     // This prunes irrelevant tail results that pass the absolute floor but are
@@ -248,5 +266,47 @@ export class ContextualRecallService {
    */
   clearSession(sessionKey: string): void {
     this.sessions.delete(sessionKey);
+  }
+
+  /**
+   * HEY-189: Get memory IDs associated with the delegating agent's session.
+   * These memories get a score boost so the delegatee surfaces the delegator's context.
+   */
+  private async getDelegatorMemoryIds(
+    delegation: DelegationContextDto,
+    userId: string | string[],
+  ): Promise<Set<string>> {
+    const singleUserId = Array.isArray(userId) ? userId[0] : userId;
+
+    // Find memories created/accessed by the delegating agent session
+    const accessLogs = await this.prisma.memoryAccessLog.findMany({
+      where: {
+        agentSession: {
+          sessionKey: delegation.delegatingAgentSessionKey,
+        },
+        accessType: { in: ['CREATED', 'READ', 'RECALLED'] },
+      },
+      select: { memoryId: true },
+      take: 200,
+    });
+
+    const ids = new Set(accessLogs.map((l) => l.memoryId));
+
+    // Also include memories created by the delegator's session directly
+    const createdMemories = await this.prisma.memory.findMany({
+      where: {
+        createdBySession: delegation.delegatingAgentSessionKey,
+        userId: singleUserId,
+        deletedAt: null,
+      },
+      select: { id: true },
+      take: 200,
+    });
+
+    for (const m of createdMemories) {
+      ids.add(m.id);
+    }
+
+    return ids;
   }
 }

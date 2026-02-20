@@ -215,6 +215,58 @@ describe('MemoryQueryService', () => {
     });
   });
 
+  describe('surfaceInsights (HEY-135)', () => {
+    it('should reuse cached query embedding instead of re-generating', async () => {
+      embedding.search.mockResolvedValue([
+        { id: 'm1', score: 0.9 },
+      ] as any);
+
+      prisma.memory.findMany = jest.fn()
+        .mockResolvedValueOnce([ // standard recall
+          { id: 'm1', raw: 'memory 1', effectiveScore: 0.8, extraction: {} },
+        ])
+        .mockResolvedValueOnce([]); // insight query returns none
+
+      await service.recall(userId, { query: 'test query' } as any);
+
+      // embedding.generate should be called exactly once (for the query),
+      // NOT twice (surfaceInsights reuses the cached embedding)
+      expect(embedding.generate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use vector search for insight relevance instead of re-embedding each', async () => {
+      const insightMemory = {
+        id: 'insight-1', raw: 'user prefers dark mode', layer: 'INSIGHT',
+        importanceScore: 0.8, effectiveScore: 0.8, createdAt: new Date(),
+        extraction: {}, deletedAt: null, supersededById: null,
+      };
+
+      // Mock findMany to return insights when queried with INSIGHT layer
+      prisma.memory.findMany = jest.fn().mockImplementation((args: any) => {
+        if (args?.where?.layer === 'INSIGHT') {
+          return Promise.resolve([insightMemory]);
+        }
+        return Promise.resolve([
+          { id: 'm1', raw: 'memory 1', effectiveScore: 0.8, extraction: {} },
+        ]);
+      });
+
+      embedding.search
+        .mockResolvedValueOnce([{ id: 'm1', score: 0.9 }]) // standard search
+        .mockResolvedValueOnce([{ id: 'insight-1', score: 0.5 }]); // insight vector search
+
+      await service.recall(userId, { query: 'test query' } as any);
+
+      // embedding.search called twice: main recall + insight relevance via vector search
+      const searchCalls = embedding.search.mock.calls;
+      expect(searchCalls.length).toBe(2);
+      // Second call should filter by INSIGHT layer
+      expect(searchCalls[1][3]).toEqual(['INSIGHT']);
+      // Should NOT re-embed each insight individually — only 1 generate call
+      expect(embedding.generate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('recall with multiQuery', () => {
     it('should use multi-query path when enabled', async () => {
       multiQueryService.isEnabled.mockReturnValue(true);

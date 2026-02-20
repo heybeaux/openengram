@@ -19,6 +19,17 @@ import {
 } from '@prisma/client';
 
 /**
+ * HEY-174: Memory visibility scope for cross-agent sharing.
+ * Defined here to avoid dependency on Prisma client regeneration.
+ * Must match the MemoryVisibility enum in schema.prisma.
+ */
+export enum MemoryVisibilityEnum {
+  PRIVATE = 'PRIVATE',
+  TEAM = 'TEAM',
+  PUBLIC = 'PUBLIC',
+}
+
+/**
  * Map legacy memoryType values to MemoryLayer enum
  */
 function mapMemoryType(value: string | undefined): MemoryLayer | undefined {
@@ -138,6 +149,11 @@ export class CreateMemoryDto {
   @IsOptional()
   @IsString()
   sourceMessageId?: string;
+
+  // HEY-174: Memory visibility scope
+  @IsOptional()
+  @IsEnum(MemoryVisibilityEnum)
+  visibility?: MemoryVisibilityEnum;
 
   // v0.7: Agent session attribution
   @IsOptional()

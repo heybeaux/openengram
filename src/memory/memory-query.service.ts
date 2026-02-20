@@ -83,6 +83,7 @@ export class MemoryQueryService {
     const queryEmbedding = await this.embedding.generate(searchQuery);
 
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+    const visibilityFilter = this.buildVisibilityFilter(dto);
     const limit = dto.limit ?? 10;
 
     let scoredMemories: MemoryWithScore[];
@@ -99,6 +100,7 @@ export class MemoryQueryService {
             lte: parsed.temporalFilter!.end,
           },
           ...subjectTypeFilter,
+          ...visibilityFilter,
         },
         include: { extraction: true },
         orderBy: { createdAt: 'desc' },
@@ -162,6 +164,7 @@ export class MemoryQueryService {
           deletedAt: null,
           supersededById: null,
           ...subjectTypeFilter,
+          ...visibilityFilter,
         },
         include: { extraction: true },
       });
@@ -192,6 +195,7 @@ export class MemoryQueryService {
       Array.isArray(userId) ? userId : [userId],
       searchQuery,
       limit,
+      queryEmbedding,
     );
 
     let result: MemoryWithScore[] = scoredMemories;
@@ -250,6 +254,7 @@ export class MemoryQueryService {
     userIds: string[],
     query: string,
     limit: number,
+    cachedQueryEmbedding?: number[],
   ): Promise<MemoryWithScore[]> {
     try {
       // Find recent, high-confidence INSIGHT memories
@@ -269,24 +274,36 @@ export class MemoryQueryService {
 
       if (insights.length === 0) return existingResults;
 
-      // Check semantic relevance — only surface insights related to the query
-      const queryEmbedding = await this.embedding.generate(query);
-      const insightEmbeddings = await Promise.all(
-        insights.map(async (insight) => {
-          const emb = await this.embedding.generate(insight.raw);
-          return { insight, embedding: emb };
-        }),
-      );
+      // HEY-135: Reuse cached query embedding to avoid redundant API call (~500ms saved)
+      const queryEmbedding = cachedQueryEmbedding ?? await this.embedding.generate(query);
 
-      // Calculate cosine similarity and filter by relevance
+      // HEY-135: Use vector search to find semantic similarity instead of
+      // re-embedding each insight individually (saves N embedding API calls, ~1-2s)
+      const insightIds = new Set(insights.map((i) => i.id));
+      const insightScoreMap = new Map<string, number>();
+
+      const vectorResults = await this.embedding.search(
+        userIds,
+        queryEmbedding,
+        50,
+        ['INSIGHT' as MemoryLayer],
+      );
+      for (const r of vectorResults) {
+        if (insightIds.has(r.id)) {
+          insightScoreMap.set(r.id, r.score);
+        }
+      }
+
+      // Filter by relevance using vector search scores
       const relevantInsights: MemoryWithScore[] = [];
       const existingIds = new Set(existingResults.map(r => r.id));
 
-      for (const { insight, embedding } of insightEmbeddings) {
+      for (const insight of insights) {
         // Skip if already in results
         if (existingIds.has(insight.id)) continue;
 
-        const similarity = this.cosineSimilarity(queryEmbedding, embedding);
+        const similarity = insightScoreMap.get(insight.id);
+        if (similarity === undefined) continue;
 
         // Only surface if moderately relevant (> 0.3 similarity)
         if (similarity > 0.3) {
@@ -316,21 +333,6 @@ export class MemoryQueryService {
       this.logger.warn('[Recall] Insight surfacing failed, skipping:', error.message);
       return existingResults;
     }
-  }
-
-  /** Calculate cosine similarity between two embedding vectors. */
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-    return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
   /**
@@ -368,6 +370,7 @@ export class MemoryQueryService {
 
     const memoryIds = multiQueryResult.results.map((r) => r.memoryId);
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+    const visibilityFilterMQ = this.buildVisibilityFilter(dto);
 
     const memories = await this.prisma.memory.findMany({
       where: {
@@ -375,6 +378,7 @@ export class MemoryQueryService {
         deletedAt: null,
         supersededById: null,
         ...subjectTypeFilter,
+        ...visibilityFilterMQ,
       },
       include: { extraction: true },
     });
@@ -673,6 +677,22 @@ export class MemoryQueryService {
   /**
    * Build subject type filter for queries
    */
+  /**
+   * HEY-174: Build visibility filter for cross-agent memory sharing.
+   * When visibility filter is provided, applies scoping rules:
+   * - PRIVATE: only the querying user's own memories
+   * - TEAM: memories visible to the team (same account)
+   * - PUBLIC: memories visible to everyone
+   * When no filter is provided, defaults to showing own private + team + public.
+   */
+  buildVisibilityFilter(dto: QueryMemoryDto): Record<string, any> {
+    if (dto.visibility && dto.visibility.length > 0) {
+      return { visibility: { in: dto.visibility } };
+    }
+    // Default: no filter (backward compatible — all memories for the queried userId)
+    return {};
+  }
+
   buildSubjectTypeFilter(dto: QueryMemoryDto): Record<string, any> {
     const filter: Record<string, any> = {};
 

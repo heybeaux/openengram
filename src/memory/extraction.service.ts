@@ -25,6 +25,17 @@ export interface LessonFields {
   lessonTriggerPatterns: string[];
 }
 
+export interface CapabilitySignal {
+  capability: string;
+  confidence: number;
+}
+
+export interface PreferenceSignal {
+  category: string;
+  preference: string;
+  strength: 'weak' | 'moderate' | 'strong';
+}
+
 export interface ExtractionResult {
   who: string | null;
   what: string | null;
@@ -41,6 +52,10 @@ export interface ExtractionResult {
   confidence: FieldConfidence;
   // LESSON-specific fields (populated when memoryType is LESSON)
   lesson: LessonFields | null;
+  // Capability signals (HEY-169)
+  capabilities: CapabilitySignal[];
+  // Preference signals (HEY-171)
+  preferenceSignals: PreferenceSignal[];
 }
 
 // Priority mapping for memory types
@@ -51,6 +66,8 @@ export const MEMORY_TYPE_PRIORITY: Record<MemoryType, number> = {
   TASK: 2, // Actionable items (same as preferences)
   FACT: 3, // Stable information
   EVENT: 4, // Conversational moments, lowest priority
+  TASK_OUTCOME: 3, // Structured task completion records
+  SELF_ASSESSMENT: 3, // Agent self-evaluation records
 };
 
 export interface EntityWithType {
@@ -292,6 +309,10 @@ export class ExtractionService {
             }
           : null;
 
+      // Extract capability and preference signals (HEY-169, HEY-171)
+      const capabilities = this.extractCapabilitySignals(raw);
+      const preferenceSignals = this.extractPreferenceSignals(raw, memoryType);
+
       const extractionResult: ExtractionResult = {
         who: result.who || null,
         what: result.what || null,
@@ -306,6 +327,8 @@ export class ExtractionService {
           typeof typeConfidence === 'number' ? typeConfidence : null,
         confidence,
         lesson,
+        capabilities,
+        preferenceSignals,
       };
 
       this.logger.log('[Extraction] Extraction complete:', {
@@ -439,6 +462,8 @@ export class ExtractionService {
       'TASK',
       'EVENT',
       'LESSON',
+      'TASK_OUTCOME',
+      'SELF_ASSESSMENT',
     ];
 
     if (validTypes.includes(normalized as MemoryType)) {
@@ -677,6 +702,8 @@ export class ExtractionService {
         howConfidence: null,
       },
       lesson: null, // Basic extraction doesn't extract lesson fields
+      capabilities: this.extractCapabilitySignals(processedRaw),
+      preferenceSignals: this.extractPreferenceSignals(processedRaw, memoryType),
     };
   }
 
@@ -886,6 +913,95 @@ export class ExtractionService {
     }
 
     return Array.from(entities);
+  }
+
+  /**
+   * Extract capability signals from text (HEY-169)
+   */
+  private extractCapabilitySignals(raw: string): CapabilitySignal[] {
+    const signals: CapabilitySignal[] = [];
+    const seen = new Set<string>();
+
+    const patterns = [
+      { regex: /successfully\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.8 },
+      { regex: /(?:built|created|developed|implemented|deployed|shipped|launched)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
+      { regex: /(?:fixed|resolved|debugged|patched)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
+      { regex: /(?:configured|set up|integrated)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.6 },
+      { regex: /(?:migrated|upgraded|optimized)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
+      { regex: /(?:proficient|skilled|experienced|expert)\s+(?:in|with|at)\s+(.{3,80}?)(?:\.|,|$)/i, confidence: 0.9 },
+    ];
+
+    for (const { regex, confidence } of patterns) {
+      const match = raw.match(regex);
+      if (match && match[1]) {
+        const capability = match[1].trim();
+        const key = capability.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          signals.push({ capability, confidence });
+        }
+      }
+    }
+
+    return signals;
+  }
+
+  /**
+   * Extract preference signals from text (HEY-171)
+   */
+  private extractPreferenceSignals(raw: string, memoryType: MemoryType | null): PreferenceSignal[] {
+    const signals: PreferenceSignal[] = [];
+    const seen = new Set<string>();
+
+    const patterns: Array<{ regex: RegExp; strength: PreferenceSignal['strength']; category?: string }> = [
+      { regex: /\bi\s+prefer\s+(.{3,100}?)(?:\.|,|$)/i, strength: 'strong' },
+      { regex: /\balways\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
+      { regex: /\bnever\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
+      { regex: /\bi?\s*(?:don't|doesn't|do not)\s+like\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'moderate' },
+      { regex: /\bi?\s*(?:like|enjoy)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'moderate' },
+      { regex: /\bfavorite\s+(?:\w+\s+)?is\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
+      { regex: /\busually\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'weak' },
+    ];
+
+    for (const { regex, strength } of patterns) {
+      const match = raw.match(regex);
+      if (match && match[1]) {
+        const preference = match[1].trim();
+        const key = preference.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          signals.push({
+            category: this.inferPrefCategory(raw),
+            preference,
+            strength,
+          });
+        }
+      }
+    }
+
+    // If memoryType is PREFERENCE but no pattern matched, treat the whole thing as a preference
+    if (memoryType === 'PREFERENCE' && signals.length === 0) {
+      signals.push({
+        category: this.inferPrefCategory(raw),
+        preference: raw.substring(0, 150),
+        strength: 'moderate',
+      });
+    }
+
+    return signals;
+  }
+
+  /**
+   * Infer preference category from text
+   */
+  private inferPrefCategory(text: string): string {
+    const lower = text.toLowerCase();
+    if (/\b(code|programming|language|framework|library|tool|editor|ide)\b/.test(lower)) return 'tooling';
+    if (/\b(ui|ux|design|theme|dark|light|color|font)\b/.test(lower)) return 'interface';
+    if (/\b(coffee|tea|food|drink|meal)\b/.test(lower)) return 'food';
+    if (/\b(communicate|email|slack|message|call|meeting)\b/.test(lower)) return 'communication';
+    if (/\b(deploy|ci|cd|pipeline|workflow|process)\b/.test(lower)) return 'workflow';
+    return 'general';
   }
 
   /**

@@ -187,6 +187,8 @@ export class AnalyticsService {
             TASK: 0,
             EVENT: 0,
             LESSON: 0,
+            TASK_OUTCOME: 0,
+            SELF_ASSESSMENT: 0,
           },
           total: 0,
         });

@@ -8,6 +8,7 @@ import { GitHubSignalService } from './signals/github-signal.service';
 import { LinearSignalService } from './signals/linear-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService, GeneratedInsight } from './analysis/insight-generator.service';
+import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
 import { Observation } from './signals/signal.interface';
 import { ImportanceHint } from '@prisma/client';
 
@@ -37,6 +38,7 @@ export class WakingCycleService {
     private readonly linearSignal: LinearSignalService,
     private readonly patternDetector: PatternDetectorService,
     private readonly insightGenerator: InsightGeneratorService,
+    private readonly behavioralConsistency: BehavioralConsistencyService,
   ) {}
 
   /**
@@ -154,7 +156,33 @@ export class WakingCycleService {
       maxInsights: AwarenessConfig.maxInsightsPerCycle,
     });
 
-    // ── 5. Store insights as INSIGHT layer memories ───────────────────
+    // ── 5. Behavioral consistency check (HEY-175) ──────────────────
+    let consistencyInsights = 0;
+    try {
+      const user = await this.prisma.user.findFirst();
+      if (user) {
+        const consistencyResult = await this.behavioralConsistency.check(
+          user.id,
+          { maxLlmCalls: Math.max(0, AwarenessConfig.maxLlmCalls - 1) },
+        );
+        for (const inconsistency of consistencyResult.inconsistencies) {
+          insights.push({
+            content: `[Behavioral Consistency] ${inconsistency.description}` +
+              (inconsistency.suggestion ? ` — Suggestion: ${inconsistency.suggestion}` : ''),
+            insightType: `consistency:${inconsistency.type}`,
+            confidence: inconsistency.confidence,
+            sourceMemoryIds: inconsistency.evidenceMemoryIds,
+            signalSource: 'behavioral_consistency',
+            actionable: inconsistency.severity !== 'low',
+          });
+          consistencyInsights++;
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Behavioral consistency check failed: ${error.message}`);
+    }
+
+    // ── 6. Store insights as INSIGHT layer memories ───────────────────
     await this.storeInsights(resolvedAccountId, insights);
 
     return {

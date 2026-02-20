@@ -44,6 +44,10 @@ import { AwarenessModule } from './awareness/awareness.module';
 import { IdentityModule } from './identity/identity.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { UsageTrackingInterceptor } from './common/interceptors/usage-tracking.interceptor';
+import { ChallengeModule } from './challenge/challenge.module';
+import { TeamsModule } from './teams/teams.module';
+import { DelegationModule } from './delegation/delegation.module';
+import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 
 const EDITION = process.env.EDITION || 'local';
 
@@ -115,6 +119,9 @@ const coreModules = [
   CloudSyncModule,
   AwarenessModule,
   IdentityModule,
+  ChallengeModule,
+  TeamsModule,
+  DelegationModule,
 ];
 
 const cloudModules = [

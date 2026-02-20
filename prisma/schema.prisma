@@ -199,6 +199,9 @@ model Memory {
   lastDreamCycleAt DateTime? @map("last_dream_cycle_at")
   patternSourceIds String[]  @default([]) @map("pattern_source_ids")
 
+  // HEY-174: Scoped memory visibility for cross-agent sharing
+  visibility       MemoryVisibility @default(PRIVATE)
+
   // Extensible metadata (used by Awareness/Waking Cycle for insight metadata,
   // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
   metadata         Json?     @map("metadata")
@@ -229,6 +232,7 @@ model Memory {
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
   @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
   @@index([contentHash])
+  @@index([visibility])
   @@map("memories")
 }
 
@@ -576,6 +580,13 @@ enum MemoryAccessType {
   SUPERSEDED
 }
 
+/// Visibility scope for cross-agent memory sharing (HEY-174)
+enum MemoryVisibility {
+  PRIVATE  // Only the owning agent can see (default)
+  TEAM     // Agents in the same account can see
+  PUBLIC   // Any agent can see
+}
+
 /// Memory layer enum
 enum MemoryLayer {
   IDENTITY
@@ -593,6 +604,8 @@ enum MemoryType {
   TASK // Priority 2: Actionable items (reminders, todos)
   EVENT // Priority 4: Conversational moments (recent events)
   LESSON // Priority 1: Mistakes, corrections, and learnings
+  TASK_OUTCOME // Priority 3: Structured task completion records
+  SELF_ASSESSMENT // Priority 3: Agent self-evaluation records
 }
 
 /// Subject type - who/what is this memory about?
@@ -1189,6 +1202,62 @@ model MemoryCluster {
 // AWARENESS / WAKING CYCLE
 // ============================================================================
 
+// ============================================================================
+// IDENTITY PROFILES (HEY-177, HEY-179, HEY-180, HEY-181)
+// ============================================================================
+
+/// Persistent capability profile for an agent — a living document updated with each task outcome
+model AgentCapabilityProfile {
+  id        String   @id @default(cuid())
+  agentId   String   @map("agent_id")
+  userId    String   @map("user_id")
+
+  /// Capability name (e.g., "code_review", "data_analysis", "writing")
+  capability    String
+  /// Confidence level 0.0-1.0 based on aggregated evidence
+  confidence    Float    @default(0.5)
+  /// Number of task outcomes that contributed evidence
+  evidenceCount Int      @default(0) @map("evidence_count")
+  /// Success rate for tasks using this capability (0.0-1.0)
+  successRate   Float    @default(0.0) @map("success_rate")
+  /// Average duration for tasks using this capability (ms)
+  avgDurationMs Float?   @map("avg_duration_ms")
+  /// Last observed usage
+  lastUsedAt    DateTime? @map("last_used_at")
+  /// Freeform notes aggregated from lessons learned
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([agentId, userId, capability])
+  @@index([agentId, userId])
+  @@map("agent_capability_profiles")
+}
+
+/// Tracks agent work style patterns extracted from behavioral data
+model AgentWorkStyle {
+  id      String @id @default(cuid())
+  agentId String @map("agent_id")
+  userId  String @map("user_id")
+
+  /// Style dimension (e.g., "response_time", "verbosity", "tool_usage", "collaboration_style")
+  dimension   String
+  /// Current observed value (JSON-encoded for flexibility)
+  value       Json
+  /// Number of observations
+  sampleCount Int      @default(0) @map("sample_count")
+  /// Trend direction: improving, stable, declining
+  trend       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([agentId, userId, dimension])
+  @@index([agentId, userId])
+  @@map("agent_work_styles")
+}
+
 /// Tracks observation state for each signal source in the Waking Cycle
 model AwarenessState {
   id            String   @id @default(cuid())
@@ -1234,6 +1303,29 @@ model DreamCycleReport {
 
   @@index([userId, createdAt])
   @@map("dream_cycle_reports")
+}
+
+/// HEY-176: Identity snapshots produced by Dream Cycle identity consolidation
+model IdentitySnapshot {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  agentId   String?  @map("agent_id")
+
+  /// Structured identity data
+  capabilities    Json     @default("[]")  // Array of { name, confidence, lastSeen }
+  preferences     Json     @default("{}")  // Key-value preference summary
+  trustScores     Json     @default("{}")  // { source: score } trends
+  behavioralTraits Json    @default("[]")  @map("behavioral_traits") // Array of { trait, strength, evidence }
+
+  /// Source tracking
+  sourceMemoryIds String[] @default([]) @map("source_memory_ids")
+  dreamReportId   String?  @map("dream_report_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([agentId, createdAt])
+  @@map("identity_snapshots")
 }
 
 /// Tracks Dream Cycle execution runs for mutex / concurrency control
@@ -1409,6 +1501,141 @@ model CloudInstance {
   @@map("cloud_instances")
 }
 
+// ============================================================================
+// IDENTITY SIGNALS (HEY-170, HEY-172, HEY-173)
+// ============================================================================
+
+/// Trust signals extracted from agent behavior (HEY-170)
+model TrustSignal {
+  id         String          @id @default(cuid())
+  userId     String          @map("user_id")
+  agentId    String?         @map("agent_id")
+  signalType TrustSignalType @map("signal_type")
+  context    String          // Description of what happened
+  category   String?         // Task category (e.g., "deploy", "code-review")
+  weight     Float           @default(1.0) // Signal strength 0.0-2.0
+  sourceMemoryId String?     @map("source_memory_id")
+  metadata   Json?           @map("metadata")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([userId, category])
+  @@index([userId, signalType])
+  @@index([agentId, createdAt])
+  @@map("trust_signals")
+}
+
+enum TrustSignalType {
+  SUCCESS
+  FAILURE
+  CORRECTION
+}
+
+/// Trust score snapshots computed from accumulated signals (HEY-170)
+model TrustScore {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  agentId        String?  @map("agent_id")
+  category       String?  // null = overall score
+  score          Float    // 0.0-1.0
+  signalCount    Int      @default(0) @map("signal_count")
+  successCount   Int      @default(0) @map("success_count")
+  failureCount   Int      @default(0) @map("failure_count")
+  correctionCount Int     @default(0) @map("correction_count")
+  computedAt     DateTime @default(now()) @map("computed_at")
+
+  @@index([userId, category])
+  @@index([userId, computedAt])
+  @@index([agentId, category])
+  @@map("trust_scores")
+}
+
+/// Capability checkpoints for tracking agent growth (HEY-172)
+model CapabilityCheckpoint {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  agentId      String?  @map("agent_id")
+  capabilities Json     // Array of { name, evidenceCount, firstSeen, lastSeen }
+  checkpointAt DateTime @default(now()) @map("checkpoint_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId, checkpointAt])
+  @@index([agentId, checkpointAt])
+  @@map("capability_checkpoints")
+}
+
+/// Experience weight per task category for recall boosting (HEY-173)
+model ExperienceWeight {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  agentId        String?  @map("agent_id")
+  category       String   // Task category (e.g., "deploy", "code-review")
+  successCount   Int      @default(0) @map("success_count")
+  totalCount     Int      @default(0) @map("total_count")
+  weight         Float    @default(1.0) // Computed multiplier for recall
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, agentId, category])
+  @@index([userId, weight(sort: Desc)])
+  @@map("experience_weights")
+}
+
+// ============================================================================
+// MULTI-AGENT TEAMS (HEY-188)
+// ============================================================================
+
+/// Team of agents with shared context and collaboration history
+model AgentTeam {
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  userId              String               @map("user_id")
+  sharedCapabilities  String[]             @default([]) @map("shared_capabilities")
+  trustScore          Float                @default(0) @map("trust_score")
+  collaborationCount  Int                  @default(0) @map("collaboration_count")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  deletedAt           DateTime?            @map("deleted_at")
+
+  members        AgentTeamMember[]
+  collaborations AgentTeamCollaboration[]
+
+  @@index([userId])
+  @@map("agent_teams")
+}
+
+/// Membership of an agent in a team
+model AgentTeamMember {
+  id       String   @id @default(cuid())
+  teamId   String   @map("team_id")
+  agentId  String   @map("agent_id")
+  role     String?
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  team AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, agentId])
+  @@index([agentId])
+  @@map("agent_team_members")
+}
+
+/// Record of agents collaborating on a task within a team
+model AgentTeamCollaboration {
+  id                  String   @id @default(cuid())
+  teamId              String   @map("team_id")
+  taskDescription     String   @map("task_description")
+  participantAgentIds String[] @map("participant_agent_ids")
+  outcome             String?
+  score               Float?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  team AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+  @@map("agent_team_collaborations")
+}
+
 /// Tracks sync events for history display
 model SyncEvent {
   id          String   @id @default(cuid())
@@ -1466,4 +1693,99 @@ model TaskCompletion {
   @@index([domain])
   @@index([createdAt])
   @@map("task_completions")
+}
+
+// ============================================================================
+// DELEGATION (HEY-182, HEY-183, HEY-185)
+// ============================================================================
+
+/// Task status lifecycle for delegation tracking (HEY-182)
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+/// Delegated task tracked through its lifecycle (HEY-182)
+model DelegatedTask {
+  id              String     @id @default(cuid())
+  userId          String     @map("user_id")
+  assignedTo      String     @map("assigned_to")
+  assignedBy      String     @map("assigned_by")
+  taskDescription String     @map("task_description")
+  status          TaskStatus @default(ASSIGNED)
+  deadline        DateTime?
+  completedAt     DateTime?  @map("completed_at")
+  result          String?
+  metadata        Json?
+  memoryId        String?    @map("memory_id") // Link to memory storing this task
+  templateId      String?    @map("template_id")
+  contractId      String?    @map("contract_id")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  template DelegationTemplate? @relation(fields: [templateId], references: [id])
+  contract DelegationContract? @relation(fields: [contractId], references: [id])
+
+  @@index([userId, status])
+  @@index([assignedTo, status])
+  @@index([assignedBy])
+  @@index([contractId])
+  @@map("delegated_tasks")
+}
+
+/// Reusable delegation template (HEY-183)
+model DelegationTemplate {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  name                 String
+  taskType             String   @map("task_type")
+  requiredCapabilities String[] @default([]) @map("required_capabilities")
+  defaultInstructions  String?  @map("default_instructions")
+  expectedOutputs      String?  @map("expected_outputs")
+  typicalDurationMs    Int?     @map("typical_duration_ms")
+  metadata             Json?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  tasks DelegatedTask[]
+
+  @@unique([userId, name])
+  @@index([userId, taskType])
+  @@map("delegation_templates")
+}
+
+/// Contract status lifecycle (HEY-185)
+enum ContractStatus {
+  PROPOSED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  REJECTED
+}
+
+/// Formal delegation contract between agents (HEY-185)
+model DelegationContract {
+  id               String         @id @default(cuid())
+  userId           String         @map("user_id")
+  delegator        String
+  delegate         String
+  taskDescription  String         @map("task_description")
+  status           ContractStatus @default(PROPOSED)
+  terms            Json           // { deadline, qualityCriteria, escalationRules }
+  result           String?
+  verifiedAt       DateTime?      @map("verified_at")
+  completedAt      DateTime?      @map("completed_at")
+  metadata         Json?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  tasks DelegatedTask[]
+
+  @@index([userId, status])
+  @@index([delegator])
+  @@index([delegate])
+  @@map("delegation_contracts")
 }

@@ -8,6 +8,7 @@ import {
   DreamCycleStalenessStage,
   DreamCyclePatternsStage,
   DreamCycleDriftStage,
+  DreamCycleIdentityStage,
 } from './stages';
 import { MemoryModule } from '../memory/memory.module';
 import { LLMModule } from '../llm/llm.module';
@@ -34,6 +35,7 @@ import { IdentityModule } from '../identity/identity.module';
     DreamCycleStalenessStage,
     DreamCyclePatternsStage,
     DreamCycleDriftStage,
+    DreamCycleIdentityStage,
     GenerateContextService,
     ImportanceScorerService,
   ],

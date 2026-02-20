@@ -161,6 +161,35 @@ export class MemoryPipelineService {
       }
     }
 
+    // 3b. Store capability/preference signals in metadata (HEY-169, HEY-171)
+    if (extracted.capabilities.length > 0 || extracted.preferenceSignals.length > 0) {
+      const existingMem = await this.prisma.memory.findUnique({ where: { id: memoryId }, select: { metadata: true } });
+      const existingMeta = (existingMem?.metadata as Record<string, any>) || {};
+      const metadataUpdate: Record<string, any> = { ...existingMeta };
+
+      if (extracted.capabilities.length > 0) {
+        metadataUpdate.capabilities = extracted.capabilities;
+      }
+      if (extracted.preferenceSignals.length > 0) {
+        metadataUpdate.preferenceCategory = extracted.preferenceSignals[0].category;
+        metadataUpdate.preference = extracted.preferenceSignals[0].preference;
+        metadataUpdate.preferenceStrength = extracted.preferenceSignals[0].strength;
+        if (extracted.preferenceSignals.length > 1) {
+          metadataUpdate.additionalPreferences = extracted.preferenceSignals.slice(1);
+        }
+      }
+
+      await this.prisma.memory.update({
+        where: { id: memoryId },
+        data: { metadata: metadataUpdate },
+      });
+      console.log('[Memory] Capability/preference signals stored:', {
+        memoryId,
+        capabilities: extracted.capabilities.length,
+        preferences: extracted.preferenceSignals.length,
+      });
+    }
+
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
       this.logger.log('[Memory] Storing entities:', {

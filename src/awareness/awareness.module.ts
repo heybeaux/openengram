@@ -7,6 +7,7 @@ import { GitHubSignalService } from './signals/github-signal.service';
 import { LinearSignalService } from './signals/linear-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
+import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { LLMModule } from '../llm/llm.module';
 import { MemoryModule } from '../memory/memory.module';
@@ -42,9 +43,10 @@ const logger = new Logger('AwarenessModule');
         LinearSignalService,
         PatternDetectorService,
         InsightGeneratorService,
+        BehavioralConsistencyService,
       ]
     : [],
-  exports: AwarenessConfig.enabled ? [WakingCycleService] : [],
+  exports: AwarenessConfig.enabled ? [WakingCycleService, BehavioralConsistencyService] : [],
 })
 export class AwarenessModule {
   constructor() {
