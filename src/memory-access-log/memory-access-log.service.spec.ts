@@ -42,6 +42,9 @@ describe('MemoryAccessLogService', () => {
       memory: {
         findUnique: jest.fn(),
       },
+      memoryPoolMembership: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -157,10 +160,9 @@ describe('MemoryAccessLogService', () => {
       const result = await service.getAttribution('mem-1');
 
       expect(result.memoryId).toBe('mem-1');
-      expect(result.createdBy?.sessionKey).toBe('agent:main');
-      expect(result.accessHistory).toHaveLength(1);
-      expect(result.accessCount).toBe(1);
-      expect(result.uniqueSessions).toBe(1);
+      expect(result.createdBySession?.sessionKey).toBe('agent:main');
+      expect(result.accessLog).toHaveLength(1);
+      expect(result.pools).toHaveLength(0);
     });
 
     it('should handle memory with no creator session', async () => {
@@ -169,8 +171,8 @@ describe('MemoryAccessLogService', () => {
 
       const result = await service.getAttribution('mem-1');
 
-      expect(result.createdBy).toBeNull();
-      expect(result.accessHistory).toHaveLength(0);
+      expect(result.createdBySession).toBeNull();
+      expect(result.accessLog).toHaveLength(0);
     });
   });
 

@@ -17,6 +17,7 @@ describe('ReviewService', () => {
   const mockPrisma = {
     user: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([{ id: 'user_123' }]),
     },
     memory: {
       findMany: jest.fn(),
