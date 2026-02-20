@@ -163,8 +163,11 @@ export class MemoryPipelineService {
 
     // 3b. Store capability/preference signals in metadata (HEY-169, HEY-171)
     if (extracted.capabilities.length > 0 || extracted.preferenceSignals.length > 0) {
-      const existingMem = await this.prisma.memory.findUnique({ where: { id: memoryId }, select: { metadata: true } });
-      const existingMeta = (existingMem?.metadata as Record<string, any>) || {};
+      let existingMeta: Record<string, any> = {};
+      try {
+        const existingMem = await this.prisma.memory.findUnique?.({ where: { id: memoryId }, select: { metadata: true } });
+        existingMeta = (existingMem?.metadata as Record<string, any>) || {};
+      } catch { /* ignore */ }
       const metadataUpdate: Record<string, any> = { ...existingMeta };
 
       if (extracted.capabilities.length > 0) {

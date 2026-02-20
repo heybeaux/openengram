@@ -35,7 +35,7 @@ describe('MemoryPipelineService', () => {
           whyConfidence: 0,
           howConfidence: 0,
         },
-        lesson: null,
+        lesson: null, capabilities: [], preferenceSignals: [],
       }),
       getPriorityForType: jest.fn().mockReturnValue(5),
     };
@@ -103,7 +103,7 @@ describe('MemoryPipelineService', () => {
           whyConfidence: 0,
           howConfidence: 0,
         },
-        lesson: null,
+        lesson: null, capabilities: [], preferenceSignals: [],
       });
       prisma.entity.upsert.mockResolvedValue({ id: 'ent-1' });
       prisma.memoryEntity.upsert.mockResolvedValue({});
@@ -179,7 +179,7 @@ describe('MemoryPipelineService', () => {
           whyConfidence: 0,
           howConfidence: 0,
         },
-        lesson: { lessonSeverity: 'critical' },
+        lesson: { lessonSeverity: 'critical' }, capabilities: [], preferenceSignals: [],
       });
       extraction.getPriorityForType.mockReturnValue(3);
 
@@ -204,7 +204,7 @@ describe('MemoryPipelineService', () => {
         why: null, how: null, topics: [], entities: [],
         memoryType: 'TASK', typeConfidence: 0.9,
         confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
-        lesson: null,
+        lesson: null, capabilities: [], preferenceSignals: [],
       });
       extraction.getPriorityForType.mockReturnValue(4);
 
@@ -223,7 +223,7 @@ describe('MemoryPipelineService', () => {
         why: null, how: null, topics: [], entities: [],
         memoryType: 'LESSON', typeConfidence: 0.9,
         confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
-        lesson: { lessonSeverity: 'minor' },
+        lesson: { lessonSeverity: 'minor' }, capabilities: [], preferenceSignals: [],
       });
       extraction.getPriorityForType.mockReturnValue(3);
 
@@ -242,7 +242,7 @@ describe('MemoryPipelineService', () => {
         why: null, how: null, topics: [], entities: [],
         memoryType: 'CONSTRAINT', typeConfidence: 0.95,
         confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
-        lesson: null,
+        lesson: null, capabilities: [], preferenceSignals: [],
       });
       extraction.getPriorityForType.mockReturnValue(1);
 
@@ -261,7 +261,7 @@ describe('MemoryPipelineService', () => {
         why: null, how: null, topics: [], entities: [],
         memoryType: 'FACT', typeConfidence: 0.9,
         confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
-        lesson: null,
+        lesson: null, capabilities: [], preferenceSignals: [],
       });
       extraction.getPriorityForType.mockReturnValue(5);
 

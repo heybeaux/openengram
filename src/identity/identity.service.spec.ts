@@ -62,19 +62,6 @@ describe('IdentityService', () => {
       extractFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    prisma = {
-      agent: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: 'agent-1',
-          name: 'TestAgent',
-          createdAt: new Date(),
-        }),
-      },
-      memory: {
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-    } as any;
-
     service = new IdentityService(
       prisma,
       taskOutcome,
@@ -119,14 +106,56 @@ describe('IdentityService', () => {
   });
 
   describe('getIdentityProfile', () => {
-    it('should aggregate all identity data', async () => {
+    it('should aggregate all identity data including new fields', async () => {
       const profile = await service.getIdentityProfile('agent-1', 'user-1');
 
       expect(profile.agentId).toBe('agent-1');
+      expect(profile.name).toBe('TestAgent');
       expect(profile.capabilities).toBeDefined();
       expect(profile.workStyle).toBeDefined();
       expect(profile.selfAssessments).toBeDefined();
       expect(profile.recentOutcomes).toBeDefined();
+      // HEY-178: New fields
+      expect(profile.preferences).toBeDefined();
+      expect(profile.trustSignals).toBeDefined();
+      expect(profile.recentPatterns).toBeDefined();
+    });
+
+    it('should include trust signals with correct structure', async () => {
+      prisma.memory.findMany.mockResolvedValue([
+        { layer: 'IDENTITY', memoryType: 'LESSON', confidence: 0.9, createdAt: new Date('2025-01-01') },
+        { layer: 'IDENTITY', memoryType: 'CONSTRAINT', confidence: 1.0, createdAt: new Date('2025-02-01') },
+      ]);
+
+      const profile = await service.getIdentityProfile('agent-1', 'user-1');
+
+      expect(profile.trustSignals).toBeDefined();
+      expect(profile.trustSignals!.totalMemories).toBeGreaterThanOrEqual(0);
+      expect(profile.trustSignals!.averageConfidence).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should extract preferences from PREFERENCE type memories', async () => {
+      prisma.memory.findMany.mockImplementation((args: any) => {
+        const str = JSON.stringify(args);
+        if (str.includes('PREFERENCE')) {
+          return Promise.resolve([
+            {
+              id: 'pref-1',
+              raw: 'I prefer using TypeScript over JavaScript',
+              memoryType: 'PREFERENCE',
+              metadata: null,
+              extraction: { what: 'Prefers TypeScript over JavaScript' },
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const profile = await service.getIdentityProfile('agent-1', 'user-1');
+
+      expect(profile.preferences).toBeDefined();
+      expect(profile.preferences!.length).toBeGreaterThan(0);
+      expect(profile.preferences![0].strength).toBe('strong');
     });
   });
 
