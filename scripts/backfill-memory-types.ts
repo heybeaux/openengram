@@ -23,6 +23,8 @@ const TYPE_PRIORITY: Record<MemoryType, number> = {
   TASK: 2,
   FACT: 3,
   EVENT: 4,
+  TASK_OUTCOME: 3,
+  SELF_ASSESSMENT: 3,
 };
 
 // Classification prompt
@@ -145,6 +147,8 @@ async function main() {
     TASK: 0,
     FACT: 0,
     EVENT: 0,
+    TASK_OUTCOME: 0,
+    SELF_ASSESSMENT: 0,
   };
 
   let processed = 0;

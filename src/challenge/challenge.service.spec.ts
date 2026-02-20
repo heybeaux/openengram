@@ -5,7 +5,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('ChallengeService', () => {
   let service: ChallengeService;
-  let prisma: jest.Mocked<PrismaService>;
+  let prisma: any;
 
   const mockMemory = {
     id: 'mem-1',

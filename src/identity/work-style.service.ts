@@ -27,7 +27,7 @@ export class WorkStyleService {
 
     return styles.map((s) => ({
       dimension: s.dimension,
-      value: s.value,
+      value: (s.value as Record<string, any>) ?? {},
       sampleCount: s.sampleCount,
       trend: s.trend ?? undefined,
     }));

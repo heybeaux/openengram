@@ -56,6 +56,10 @@ describe('DreamCycleService - Mutex', () => {
       }),
     };
 
+    const mockIdentityStage = {
+      run: jest.fn().mockResolvedValue({ processed: 0 }),
+    };
+
     service = new DreamCycleService(
       mockPrisma,
       mockConfig as any,
@@ -63,6 +67,7 @@ describe('DreamCycleService - Mutex', () => {
       mockStalenessStage as any,
       mockPatternsStage as any,
       mockDriftStage as any,
+      mockIdentityStage as any,
     );
   });
 

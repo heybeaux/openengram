@@ -1,5 +1,18 @@
 import { IsString, IsOptional, IsArray, IsNumber } from 'class-validator';
 
+export class DelegationContextDto {
+  @IsString()
+  delegatingAgentSessionKey: string;
+
+  @IsOptional()
+  @IsString()
+  taskDescription?: string;
+
+  @IsOptional()
+  @IsNumber()
+  boostFactor?: number; // default 1.5
+}
+
 export class ContextualRecallDto {
   @IsString()
   text: string;
@@ -32,19 +45,6 @@ export class ContextualRecallDto {
   // HEY-189: Delegation context for boosting delegator's memories
   @IsOptional()
   delegationContext?: DelegationContextDto;
-}
-
-export class DelegationContextDto {
-  @IsString()
-  delegatingAgentSessionKey: string;
-
-  @IsOptional()
-  @IsString()
-  taskDescription?: string;
-
-  @IsOptional()
-  @IsNumber()
-  boostFactor?: number; // default 1.5
 }
 
 export class ContextualRecallResponseDto {

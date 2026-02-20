@@ -55,7 +55,7 @@ export class SelfAssessmentService {
       id: memory.id,
       area: dto.area,
       selfRating: dto.selfRating,
-      confidence: dto.confidence,
+      confidence: dto.confidence ?? 0,
       evidence: dto.evidence,
       goals: dto.goals,
       createdAt: memory.createdAt,

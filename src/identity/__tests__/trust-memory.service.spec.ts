@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 describe('TrustMemoryService', () => {
   let service: TrustMemoryService;
-  let prisma: jest.Mocked<PrismaService>;
+  let prisma: any;
   let trustSignal: jest.Mocked<TrustSignalService>;
 
   beforeEach(() => {

@@ -84,6 +84,7 @@ describe('ContextEnricherService', () => {
       consolidatedInto: null,
       archivedReason: null,
       clusterId: null,
+      visibility: 'PRIVATE' as any,
       createdBySession: null,
       lastDreamCycleAt: null,
       patternSourceIds: [],

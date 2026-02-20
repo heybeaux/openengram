@@ -1,10 +1,10 @@
 import { IsOptional, IsString, IsIn } from 'class-validator';
-import { TASK_STATUSES, TaskStatus } from './update-task.dto';
+import { TASK_STATUSES } from './update-task.dto';
 
 export class QueryTaskDto {
   @IsOptional()
   @IsIn(TASK_STATUSES)
-  status?: TaskStatus;
+  status?: string;
 
   @IsOptional()
   @IsString()

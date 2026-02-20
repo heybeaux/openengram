@@ -13,7 +13,6 @@ import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
-import { ContractStatus } from './dto/update-contract.dto';
 
 @Controller('v1/delegation-contracts')
 @UseGuards(ApiKeyOrJwtGuard)
@@ -28,9 +27,9 @@ export class ContractController {
   @Get()
   findAll(
     @UserId() userId: string,
-    @Query('status') status?: ContractStatus,
+    @Query('status') status?: string,
   ) {
-    return this.contractService.findAll(userId, status);
+    return this.contractService.findAll(userId, status as any);
   }
 
   @Get(':id')

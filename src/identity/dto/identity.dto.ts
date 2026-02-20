@@ -104,6 +104,16 @@ export class CreateSelfAssessmentDto {
   @IsOptional()
   @IsString()
   reasoning?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  evidence?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  goals?: string[];
 }
 
 export class SelfAssessmentResponseDto {
@@ -112,6 +122,8 @@ export class SelfAssessmentResponseDto {
   selfRating: number;
   confidence: number;
   reasoning?: string;
+  evidence?: string[];
+  goals?: string[];
   createdAt: Date;
 }
 
@@ -129,6 +141,7 @@ export class CapabilityProfileDto {
 export class CapabilityProfileResponseDto {
   agentId: string;
   capabilities: CapabilityProfileDto[];
+  updatedAt?: Date;
 }
 
 // ── HEY-169: Capability Signals (extraction pipeline) ─────────────────

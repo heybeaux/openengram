@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AgentController } from './agent.controller';
 import { AgentService } from './agent.service';
+import { TrustHistoryService } from './trust-history.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { MemoryLayer } from '@prisma/client';
 
@@ -17,7 +18,10 @@ describe('AgentController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AgentController],
-      providers: [{ provide: AgentService, useValue: mockAgentService }],
+      providers: [
+        { provide: AgentService, useValue: mockAgentService },
+        { provide: TrustHistoryService, useValue: {} },
+      ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)
       .useValue({ canActivate: () => true })

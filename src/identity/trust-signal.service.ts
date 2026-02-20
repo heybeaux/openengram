@@ -40,7 +40,7 @@ export class TrustSignalService {
         category: input.category ?? null,
         weight: effectiveWeight,
         sourceMemoryId: input.sourceMemoryId ?? null,
-        metadata: input.metadata ?? undefined,
+        metadata: (input.metadata as any) ?? undefined,
       },
     });
   }

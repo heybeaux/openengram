@@ -18,6 +18,7 @@ describe('WakingCycleService', () => {
   let patternDetector: any;
   let insightGenerator: any;
   let behavioralConsistency: any;
+  let linearSignal: any;
   let proactiveNotification: any;
   let insightFeedback: any;
 
@@ -102,7 +103,7 @@ describe('WakingCycleService', () => {
       }),
     };
 
-    const linearSignal = {
+    linearSignal = {
       name: 'linear',
       collect: jest.fn().mockResolvedValue({
         observations: [],
@@ -286,6 +287,7 @@ describe('WakingCycleService', () => {
         memoryService,
         memorySignal,
         githubSignal,
+        linearSignal,
         patternDetector,
         insightGenerator,
         behavioralConsistency,

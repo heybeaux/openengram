@@ -9,6 +9,9 @@ const mockPrisma = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  memory: {
+    count: jest.fn().mockResolvedValue(0),
+  },
 };
 
 // Mock fetch
