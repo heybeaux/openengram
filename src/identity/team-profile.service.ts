@@ -55,6 +55,13 @@ export class TeamProfileService {
   }
 
   /**
+   * List all teams
+   */
+  async listTeams(): Promise<TeamProfile[]> {
+    return Array.from(this.teams.values());
+  }
+
+  /**
    * Get team by ID
    */
   async getTeam(teamId: string): Promise<TeamProfile> {

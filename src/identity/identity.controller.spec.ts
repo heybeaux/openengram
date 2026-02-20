@@ -6,9 +6,18 @@ describe('IdentityController', () => {
   let taskCompletionService: any;
   let delegationTemplateService: any;
   let trustProfileService: any;
+  let delegationContractService: any;
+  let challengeService: any;
+  let teamProfileService: any;
 
   beforeEach(() => {
-    const teamProfileService = { createTeam: jest.fn(), getTeam: jest.fn(), getTeamCapabilities: jest.fn() } as any;
+    teamProfileService = {
+      createTeam: jest.fn().mockResolvedValue({ id: 'team_1', name: 'Test' }),
+      getTeam: jest.fn().mockResolvedValue({ id: 'team_1', name: 'Test', agentIds: ['a', 'b'] }),
+      getTeamCapabilities: jest.fn().mockResolvedValue([{ name: 'coding', score: 0.8, contributors: ['a'] }]),
+      listTeams: jest.fn().mockResolvedValue([{ id: 'team_1', name: 'Test' }]),
+      getCollaborationPairs: jest.fn().mockResolvedValue([{ agentA: 'a', agentB: 'b', taskCount: 5, successRate: 0.9 }]),
+    };
     const delegationRecallService = { recall: jest.fn() } as any;
     const portableIdentityService = { exportIdentity: jest.fn(), importIdentity: jest.fn() } as any;
 
@@ -30,6 +39,25 @@ describe('IdentityController', () => {
       }),
     };
 
+    delegationContractService = {
+      create: jest.fn().mockResolvedValue({ id: 'contract_1', status: 'pending' }),
+      listAll: jest.fn().mockReturnValue([
+        { id: 'c1', status: 'pending', delegatedTo: 'agent-a' },
+        { id: 'c2', status: 'completed', delegatedTo: 'agent-b' },
+      ]),
+      getById: jest.fn().mockReturnValue({ id: 'contract_1', status: 'pending' }),
+      complete: jest.fn().mockResolvedValue({ id: 'contract_1', status: 'completed' }),
+    };
+
+    challengeService = {
+      create: jest.fn().mockResolvedValue({ id: 'challenge_1', challengeType: 'unsafe' }),
+      listAll: jest.fn().mockReturnValue([
+        { id: 'ch1', contractId: 'c1', resolution: null },
+        { id: 'ch2', contractId: 'c2', resolution: 'accepted' },
+      ]),
+      resolve: jest.fn().mockResolvedValue({ id: 'challenge_1', resolution: 'accepted' }),
+    };
+
     controller = new IdentityController(
       teamProfileService,
       delegationRecallService,
@@ -37,8 +65,134 @@ describe('IdentityController', () => {
       taskCompletionService,
       delegationTemplateService,
       trustProfileService,
+      delegationContractService,
+      challengeService,
     );
   });
+
+  // === HEY-281: Contracts ===
+
+  describe('POST /contracts', () => {
+    it('should create a delegation contract', async () => {
+      const result = await controller.createContract({
+        taskDescription: 'Build feature',
+        expectedOutputs: ['code'],
+        successCriteria: ['tests pass'],
+        timeout: 60000,
+        delegatedTo: 'agent-a',
+      });
+      expect(result.id).toBe('contract_1');
+      expect(delegationContractService.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /contracts', () => {
+    it('should list all contracts', async () => {
+      const result = await controller.listContracts();
+      expect(result).toHaveLength(2);
+    });
+
+    it('should filter by status', async () => {
+      const result = await controller.listContracts('pending');
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('c1');
+    });
+
+    it('should filter by agentId', async () => {
+      const result = await controller.listContracts(undefined, 'agent-b');
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('c2');
+    });
+  });
+
+  describe('GET /contracts/:id', () => {
+    it('should get contract by ID', async () => {
+      const result = await controller.getContract('contract_1');
+      expect(result.id).toBe('contract_1');
+    });
+  });
+
+  describe('PATCH /contracts/:id/complete', () => {
+    it('should complete a contract', async () => {
+      const result = await controller.completeContract('contract_1', {
+        status: 'completed',
+        result: 'Done',
+      });
+      expect(result.status).toBe('completed');
+    });
+  });
+
+  // === HEY-282: Challenges ===
+
+  describe('POST /challenges', () => {
+    it('should create a challenge', async () => {
+      const result = await controller.createChallenge({
+        taskDescription: 'Dangerous task',
+        challengeType: 'unsafe',
+        reasoning: 'Too risky',
+      });
+      expect(result.id).toBe('challenge_1');
+    });
+  });
+
+  describe('GET /challenges', () => {
+    it('should list all challenges', async () => {
+      const result = await controller.listChallenges();
+      expect(result).toHaveLength(2);
+    });
+
+    it('should filter by contractId', async () => {
+      challengeService.listAll.mockReturnValue([
+        { id: 'ch1', contractId: 'c1', resolution: null },
+      ]);
+      const result = await controller.listChallenges('c1');
+      expect(challengeService.listAll).toHaveBeenCalledWith({ contractId: 'c1' });
+    });
+
+    it('should filter by resolved status', async () => {
+      const result = await controller.listChallenges(undefined, 'resolved');
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('ch2');
+    });
+
+    it('should filter by unresolved status', async () => {
+      const result = await controller.listChallenges(undefined, 'unresolved');
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('ch1');
+    });
+  });
+
+  describe('PATCH /challenges/:id/resolve', () => {
+    it('should resolve a challenge', async () => {
+      const result = await controller.resolveChallenge('challenge_1', {
+        resolution: 'accepted',
+        resolvedBy: 'human',
+      });
+      expect(result.resolution).toBe('accepted');
+    });
+  });
+
+  // === HEY-283: Teams ===
+
+  describe('GET /teams', () => {
+    it('should list all teams', async () => {
+      const result = await controller.listTeams();
+      expect(result).toHaveLength(1);
+      expect(teamProfileService.listTeams).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /teams/:id/collaboration', () => {
+    it('should return collaboration pairs', async () => {
+      const result = await controller.getTeamCollaboration('team_1');
+      expect(result).toHaveLength(1);
+      expect(result[0].successRate).toBe(0.9);
+      expect(teamProfileService.getTeam).toHaveBeenCalledWith('team_1');
+      expect(teamProfileService.getCollaborationPairs).toHaveBeenCalledWith(['a', 'b']);
+    });
+  });
+
+  // === Existing tests ===
 
   describe('POST /task-completions', () => {
     it('should create a task completion', async () => {
