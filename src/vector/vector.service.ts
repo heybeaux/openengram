@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PgVectorProvider } from './providers/pgvector.provider';
 import { PineconeProvider } from './providers/pinecone.provider';
@@ -18,6 +18,7 @@ import {
  */
 @Injectable()
 export class VectorService {
+  private readonly logger = new Logger(VectorService.name);
   private provider: VectorProvider;
   private providers: Map<string, VectorProvider> = new Map();
 
@@ -37,13 +38,13 @@ export class VectorService {
 
     // If configured provider isn't available, fall back to pgvector
     if (!this.provider.isConfigured()) {
-      console.warn(
+      this.logger.warn(
         `Vector provider '${providerName}' not configured, falling back to pgvector`,
       );
       this.provider = pgvector;
     }
 
-    console.log(`Vector storage: ${this.provider.name}`);
+    this.logger.log(`Vector storage: ${this.provider.name}`);
   }
 
   /**

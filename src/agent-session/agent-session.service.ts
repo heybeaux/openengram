@@ -4,6 +4,7 @@ import {
   Inject,
   Optional,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -15,6 +16,7 @@ import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 
 @Injectable()
 export class AgentSessionService {
+  private readonly logger = new Logger(AgentSessionService.name);
   constructor(
     private readonly prisma: PrismaService,
     @Optional()
@@ -102,7 +104,7 @@ export class AgentSessionService {
             .catch(() => {}); // Ignore if already granted
         }
       } catch (err) {
-        console.error('[AgentSession] Auto-pool creation failed:', err);
+        this.logger.error('[AgentSession] Auto-pool creation failed:', err);
       }
     }
 
@@ -141,7 +143,7 @@ export class AgentSessionService {
     // On COMPLETED: promote high-scoring memories from task pool to global pool
     if (dto.status === AgentSessionStatus.COMPLETED && this.memoryPoolService) {
       await this.promoteHighScoringMemories(session, sessionKey).catch((err) =>
-        console.error('[AgentSession] Memory promotion failed:', err),
+        this.logger.error('[AgentSession] Memory promotion failed:', err),
       );
     }
 
@@ -215,7 +217,7 @@ export class AgentSessionService {
       }
     }
 
-    console.log(
+    this.logger.log(
       `[AgentSession] Promoted ${promoted}/${taskPool.memberships.length} memories from ${poolName} to global`,
     );
 

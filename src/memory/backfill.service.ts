@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ExtractionService,
@@ -48,6 +48,7 @@ export interface UserIdentityBackfillResult {
  */
 @Injectable()
 export class BackfillService {
+  private readonly logger = new Logger(BackfillService.name);
   constructor(
     private prisma: PrismaService,
     private extraction: ExtractionService,
@@ -99,7 +100,7 @@ export class BackfillService {
     const allMemories = await this.findMemoriesNeedingBackfill();
     const total = allMemories.length;
 
-    console.log(
+    this.logger.log(
       `[Backfill] Found ${total} memories needing backfill (dryRun: ${dryRun})`,
     );
 
@@ -111,7 +112,7 @@ export class BackfillService {
     const memories = allMemories.slice(0, batchSize);
     const skipped = total - memories.length;
 
-    console.log(
+    this.logger.log(
       `[Backfill] Processing batch of ${memories.length} memories (${skipped} remaining for future batches)`,
     );
 
@@ -133,7 +134,7 @@ export class BackfillService {
         const extracted = await this.extraction.extract(memory.raw, context);
 
         if (dryRun) {
-          console.log(
+          this.logger.log(
             `${progress} [DRY RUN] Would update ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`,
           );
           details.push({
@@ -168,7 +169,7 @@ export class BackfillService {
             );
           }
 
-          console.log(
+          this.logger.log(
             `${progress} Updated ${memory.id}: who="${extracted.who}", what="${extracted.what?.substring(0, 50)}..."`,
           );
           details.push({
@@ -187,7 +188,7 @@ export class BackfillService {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.error(`${progress} Failed ${memory.id}: ${errorMessage}`);
+        this.logger.error(`${progress} Failed ${memory.id}: ${errorMessage}`);
         details.push({
           memoryId: memory.id,
           status: 'error',
@@ -198,7 +199,7 @@ export class BackfillService {
       }
     }
 
-    console.log(
+    this.logger.log(
       `[Backfill] Complete: ${processed} processed, ${errors} errors, ${skipped} remaining`,
     );
 
@@ -253,7 +254,7 @@ export class BackfillService {
           update: {},
         });
       } catch (error) {
-        console.error(
+        this.logger.error(
           `[Backfill] Failed to store entity ${entity.name}:`,
           error,
         );
@@ -286,7 +287,7 @@ export class BackfillService {
   ): Promise<UserIdentityBackfillResult> {
     const { dryRun = false, batchSize = 1000 } = options;
 
-    console.log(
+    this.logger.log(
       `[Backfill:UserIdentity] Starting backfill for userId=${userId}, actualName="${actualName}", dryRun=${dryRun}`,
     );
 
@@ -396,11 +397,11 @@ export class BackfillService {
           });
         }
 
-        console.log(
+        this.logger.log(
           `[Backfill:UserIdentity] Updated ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`,
         );
       } else {
-        console.log(
+        this.logger.log(
           `[Backfill:UserIdentity] [DRY RUN] Would update ${memory.id}: "${memory.raw.substring(0, 30)}..." → "${rawUpdated.substring(0, 30)}..."`,
         );
       }
@@ -408,7 +409,7 @@ export class BackfillService {
       updated++;
     }
 
-    console.log(
+    this.logger.log(
       `[Backfill:UserIdentity] Complete: ${updated} updated, ${skipped} skipped, ${total} total (dryRun=${dryRun})`,
     );
 

@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DreamPatternFoundEvent } from '../../events/event-types';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -14,6 +14,7 @@ export interface PatternsStageResult {
 
 @Injectable()
 export class DreamCyclePatternsStage {
+  private readonly logger = new Logger(DreamCyclePatternsStage.name);
   private readonly patternClusterMinSize: number;
 
   constructor(
@@ -146,7 +147,7 @@ export class DreamCyclePatternsStage {
           patternsCreated++;
         }
       } catch (err) {
-        console.error(
+        this.logger.error(
           `[DreamCycle:Patterns] Pattern extraction failed for cluster`,
           String(err),
         );
@@ -160,7 +161,7 @@ export class DreamCyclePatternsStage {
     try {
       this.eventEmitter?.emit(eventName, payload);
     } catch (err) {
-      console.error(`[DreamCycle:Patterns] Failed to emit ${eventName}:`, err);
+      this.logger.error(`[DreamCycle:Patterns] Failed to emit ${eventName}:`, err);
     }
   }
 }

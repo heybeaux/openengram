@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DreamStartedEvent, DreamCompletedEvent } from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -59,6 +59,7 @@ const ALL_STAGES: DreamCycleStage[] = [
 
 @Injectable()
 export class DreamCycleService {
+  private readonly logger = new Logger(DreamCycleService.name);
   private readonly maxLlmCalls: number;
 
   constructor(
@@ -474,7 +475,11 @@ export class DreamCycleService {
     data?: any,
     level: 'log' | 'error' = 'log',
   ): void {
-    const fn = level === 'error' ? console.error : console.log;
-    fn(`[DreamCycle] ${message}`, data ? JSON.stringify(data) : '');
+    const msg = data ? `${message} ${JSON.stringify(data)}` : message;
+    if (level === 'error') {
+      this.logger.error(msg);
+    } else {
+      this.logger.log(msg);
+    }
   }
 }

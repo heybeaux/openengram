@@ -4,6 +4,7 @@ import {
   Optional,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -62,6 +63,7 @@ import {
 
 @Injectable()
 export class MemoryService {
+  private readonly logger = new Logger(MemoryService.name);
   constructor(
     private prisma: PrismaService,
     private extraction: ExtractionService,
@@ -89,7 +91,7 @@ export class MemoryService {
   ): void {
     if (!accountId) {
       // No account context (self-hosted / LAN mode) — run without RLS
-      fn().catch((err) => console.error('[Memory] Background op failed:', err));
+      fn().catch((err) => this.logger.error('[Memory] Background op failed:', err));
       return;
     }
     const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -100,7 +102,7 @@ export class MemoryService {
         );
         await rlsContext.run(tx as any, () => fn());
       })
-      .catch((err) => console.error('[Memory] Background RLS op failed:', err));
+      .catch((err) => this.logger.error('[Memory] Background RLS op failed:', err));
   }
 
   /**
@@ -179,7 +181,7 @@ export class MemoryService {
     let layer = dto.layer;
     if (!layer) {
       layer = this.extraction.classifyLayer(rawContent);
-      console.log('[Memory] Smart layer classification:', {
+      this.logger.log('[Memory] Smart layer classification:', {
         rawPreview: rawContent.substring(0, 50),
         layer,
       });
@@ -216,7 +218,7 @@ export class MemoryService {
     if (dto.agentSessionKey) {
       this.addToGlobalPoolAndLog(memory.id, userId, dto.agentSessionKey).catch(
         (err) => {
-          console.error(
+          this.logger.error(
             `[Memory] Failed to add to global pool / log creation for ${memory.id}:`,
             err,
           );
@@ -232,7 +234,7 @@ export class MemoryService {
           addedBy: dto.agentSessionKey ?? 'system',
         })
         .catch((err) => {
-          console.error(
+          this.logger.error(
             `[Memory] Failed to add memory ${memory.id} to pool ${dto.poolId}:`,
             err,
           );
@@ -341,7 +343,7 @@ export class MemoryService {
         });
         created++;
       } catch (err) {
-        console.error('Batch create failed:', err);
+        this.logger.error('Batch create failed:', err);
         failed++;
       }
     }
@@ -459,7 +461,7 @@ export class MemoryService {
     // Decrement account memoriesUsed
     if (userId) {
       this.incrementMemoriesUsed(userId, -1).catch((err) => {
-        console.error(`[Memory] Failed to decrement memoriesUsed:`, err);
+        this.logger.error(`[Memory] Failed to decrement memoriesUsed:`, err);
       });
     }
 
@@ -567,7 +569,7 @@ export class MemoryService {
 
     // 5. Re-embed if content changed
     if (contentChanged && dto.raw) {
-      console.log(`[Memory] Content changed, re-embedding: ${memoryId}`);
+      this.logger.log(`[Memory] Content changed, re-embedding: ${memoryId}`);
 
       const embedding = await this.embedding.generate(dto.raw);
       await this.embedding.store(memoryId, embedding, {
@@ -625,7 +627,7 @@ export class MemoryService {
           }
         })
         .catch((err) => {
-          console.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
+          this.logger.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
         });
     }
 
@@ -732,7 +734,7 @@ export class MemoryService {
       this.incrementMemoriesUsed(userId, 1),
     );
 
-    console.log(
+    this.logger.log(
       `[Memory] Created correction: ${correction.id} supersedes ${memoryId}`,
     );
 
@@ -787,7 +789,7 @@ export class MemoryService {
     try {
       this.eventEmitter?.emit(eventName, payload);
     } catch (err) {
-      console.error(`[Memory] Failed to emit ${eventName}:`, err);
+      this.logger.error(`[Memory] Failed to emit ${eventName}:`, err);
     }
   }
 
@@ -1035,7 +1037,7 @@ export class MemoryService {
 
         imported++;
       } catch (err) {
-        console.error('[Import] Failed to import memory:', err);
+        this.logger.error('[Import] Failed to import memory:', err);
         errors++;
       }
     }
@@ -1043,7 +1045,7 @@ export class MemoryService {
     // Increment memoriesUsed in bulk
     if (imported > 0) {
       this.incrementMemoriesUsed(userId, imported).catch((err) => {
-        console.error(`[Import] Failed to increment memoriesUsed:`, err);
+        this.logger.error(`[Import] Failed to increment memoriesUsed:`, err);
       });
     }
 

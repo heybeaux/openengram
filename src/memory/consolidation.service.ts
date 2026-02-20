@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { LLMService } from '../llm/llm.service';
@@ -39,6 +39,7 @@ export interface MemoryCluster {
  */
 @Injectable()
 export class ConsolidationService {
+  private readonly logger = new Logger(ConsolidationService.name);
   // Minimum occurrences to consider promoting a pattern
   private readonly MIN_OCCURRENCES = 3;
   // Similarity threshold for clustering (0.85 = very similar)
@@ -78,7 +79,7 @@ export class ConsolidationService {
       similarityThreshold = this.CLUSTERING_THRESHOLD,
     } = options;
 
-    console.log('[Consolidation] Starting promoteRecurringPatterns:', {
+    this.logger.log('[Consolidation] Starting promoteRecurringPatterns:', {
       userId,
       dryRun,
       minOccurrences,
@@ -108,13 +109,13 @@ export class ConsolidationService {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log(
+    this.logger.log(
       '[Consolidation] Found SESSION memories:',
       sessionMemories.length,
     );
 
     if (sessionMemories.length < minOccurrences) {
-      console.log('[Consolidation] Not enough memories to consolidate');
+      this.logger.log('[Consolidation] Not enough memories to consolidate');
       return result;
     }
 
@@ -131,7 +132,7 @@ export class ConsolidationService {
       similarityThreshold,
     );
 
-    console.log('[Consolidation] Found clusters:', clusters.length);
+    this.logger.log('[Consolidation] Found clusters:', clusters.length);
 
     // 3. Process clusters with enough members
     for (const cluster of clusters) {
@@ -148,7 +149,7 @@ export class ConsolidationService {
         // Extract gist from the cluster (sleep consolidation!)
         const { gist, confidence } = await this.extractGist(cluster.memories);
 
-        console.log('[Consolidation] Promoting cluster:', {
+        this.logger.log('[Consolidation] Promoting cluster:', {
           canonicalId: canonical.id,
           originalRaw: canonical.raw.substring(0, 50),
           gist: gist.substring(0, 50),
@@ -215,7 +216,7 @@ export class ConsolidationService {
       }
     }
 
-    console.log('[Consolidation] Complete:', {
+    this.logger.log('[Consolidation] Complete:', {
       promoted: result.promoted,
       duplicatesRemoved: result.duplicatesRemoved,
       clustersFound: result.clustersFound,
@@ -267,7 +268,7 @@ export class ConsolidationService {
           embedding = JSON.parse(raw[0].embedding);
         }
       } catch (error) {
-        console.error(
+        this.logger.error(
           `[Consolidation] Failed to get embedding for ${memory.id}:`,
           error,
         );
@@ -387,7 +388,7 @@ Respond with JSON:
         confidence: result.confidence || 0.7,
       };
     } catch (error) {
-      console.error('[Consolidation] Gist extraction failed:', error);
+      this.logger.error('[Consolidation] Gist extraction failed:', error);
       // Fallback to longest memory
       const longest = memories.sort((a, b) => b.raw.length - a.raw.length)[0];
       return { gist: longest.raw, confidence: 0.5 };

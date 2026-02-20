@@ -1,3 +1,6 @@
+import { Logger } from '@nestjs/common';
+
+const logger = new Logger('V07Backfill');
 /**
  * v0.7 Multi-Agent Backfill Script
  *
@@ -15,7 +18,7 @@ async function main() {
   const prisma = new PrismaClient();
 
   try {
-    console.log('Starting v0.7 multi-agent backfill...');
+    logger.log('Starting v0.7 multi-agent backfill...');
 
     // 1. Create default agent session
     const agentSession = await prisma.agentSession.upsert({
@@ -27,7 +30,7 @@ async function main() {
         status: 'ACTIVE',
       },
     });
-    console.log(
+    logger.log(
       `✓ Agent session: ${agentSession.id} (${agentSession.sessionKey})`,
     );
 
@@ -48,7 +51,7 @@ async function main() {
           createdBy: 'agent:main',
         },
       });
-      console.log(`✓ Global pool for user ${user.externalId}: ${pool.id}`);
+      logger.log(`✓ Global pool for user ${user.externalId}: ${pool.id}`);
 
       // 3. Add all existing memories to global pool
       const memories = await prisma.memory.findMany({
@@ -72,7 +75,7 @@ async function main() {
           if (e.code !== 'P2002') throw e;
         }
       }
-      console.log(
+      logger.log(
         `  ✓ Added ${added}/${memories.length} memories to global pool`,
       );
     }
@@ -82,15 +85,15 @@ async function main() {
       where: { createdBySession: null },
       data: { createdBySession: 'agent:main' },
     });
-    console.log(`✓ Attributed ${updated.count} memories to agent:main`);
+    logger.log(`✓ Attributed ${updated.count} memories to agent:main`);
 
-    console.log('\nBackfill complete!');
+    logger.log('\nBackfill complete!');
   } finally {
     await prisma.$disconnect();
   }
 }
 
 main().catch((e) => {
-  console.error('Backfill failed:', e);
+  logger.error('Backfill failed:', e);
   process.exit(1);
 });

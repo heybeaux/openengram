@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
 import { MergeResult } from './merge.service';
@@ -21,6 +21,7 @@ interface OriginalContent {
  */
 @Injectable()
 export class LineageService {
+  private readonly logger = new Logger(LineageService.name);
   constructor(
     private prisma: PrismaService,
     private embedding: EmbeddingService,
@@ -97,7 +98,7 @@ export class LineageService {
       try {
         await this.embedding.delete(absorbedId);
       } catch (error) {
-        console.warn(`Failed to delete vector for ${absorbedId}:`, error);
+        this.logger.warn(`Failed to delete vector for ${absorbedId}:`, error);
       }
     }
 
@@ -126,7 +127,7 @@ export class LineageService {
           });
         }
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Failed to re-embed survivor ${result.survivorId}:`,
           error,
         );
@@ -200,7 +201,7 @@ export class LineageService {
           });
         }
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Failed to restore vector for ${original.memoryId}:`,
           error,
         );
@@ -243,7 +244,7 @@ export class LineageService {
             });
           }
         } catch (error) {
-          console.warn(
+          this.logger.warn(
             `Failed to re-embed survivor ${event.survivorMemoryId}:`,
             error,
           );

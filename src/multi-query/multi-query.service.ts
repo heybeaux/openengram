@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MemoryLayer } from '@prisma/client';
 import {
@@ -147,6 +147,7 @@ const DEFAULT_CONFIG: MultiQueryConfig = {
  */
 @Injectable()
 export class MultiQueryService {
+  private readonly logger = new Logger(MultiQueryService.name);
   private globalConfig: MultiQueryConfig;
 
   constructor(
@@ -212,7 +213,7 @@ export class MultiQueryService {
       );
     } catch (error) {
       // Fallback to rules-only on timeout
-      console.warn('[MultiQuery] Expansion timeout, falling back to rules');
+      this.logger.warn('[MultiQuery] Expansion timeout, falling back to rules');
       expansion = await this.expansion.expand(query, {
         strategy: ExpansionStrategy.RULES,
         maxVariants: 3,
@@ -233,7 +234,7 @@ export class MultiQueryService {
       config.latency.degradeGracefully &&
       elapsedAfterExpansion > config.latency.targetMs * 0.5
     ) {
-      console.warn(
+      this.logger.warn(
         `[MultiQuery] Over budget after expansion (${elapsedAfterExpansion}ms), limiting variants`,
       );
       expansion.variants = expansion.variants.slice(0, 3);

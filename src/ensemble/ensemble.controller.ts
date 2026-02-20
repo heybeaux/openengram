@@ -16,6 +16,7 @@ import {
   BadRequestException,
   NotFoundException,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import {
@@ -138,6 +139,7 @@ class ReembedDto {
 @UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/ensemble')
 export class EnsembleController {
+  private readonly logger = new Logger(EnsembleController.name);
   constructor(
     private readonly ensembleService: EnsembleService,
     private readonly nightlyReembedService: NightlyReembedService,
@@ -702,7 +704,7 @@ export class EnsembleController {
     memoryIds: string[],
     models: ModelId[],
   ): Promise<void> {
-    console.log(
+    this.logger.log(
       `[${jobId}] Starting targeted re-embed for ${memoryIds.length} memories`,
     );
 
@@ -718,14 +720,14 @@ export class EnsembleController {
         // Call the batch embedding method which handles storage
         await this.ensembleService.embedBatchForMemories(batchIds, models);
         processed += batchIds.length;
-        console.log(`[${jobId}] Processed ${processed}/${memoryIds.length}`);
+        this.logger.log(`[${jobId}] Processed ${processed}/${memoryIds.length}`);
       } catch (error) {
-        console.error(`[${jobId}] Batch error:`, error);
+        this.logger.error(`[${jobId}] Batch error:`, error);
         errors += batchIds.length;
       }
     }
 
-    console.log(
+    this.logger.log(
       `[${jobId}] Completed: ${processed} processed, ${errors} errors`,
     );
   }

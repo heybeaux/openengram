@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -72,6 +72,7 @@ interface BatchJob {
  */
 @Injectable()
 export class DeduplicationService {
+  private readonly logger = new Logger(DeduplicationService.name);
   private config: DedupConfig;
   private safetyConfig: SafetyConfig;
   private jobs: Map<string, BatchJob> = new Map();
@@ -242,7 +243,7 @@ export class DeduplicationService {
 
       return { action: 'none' };
     } catch (error) {
-      console.error(`[DeduplicationService] Error checking duplicates:`, error);
+      this.logger.error(`[DeduplicationService] Error checking duplicates:`, error);
       return { action: 'none' };
     }
   }
@@ -303,7 +304,7 @@ export class DeduplicationService {
       this.config.autoResolveThreshold = userConfig.autoResolveThreshold;
       this.config.autoMergeThreshold = userConfig.autoMergeThreshold;
 
-      console.log(
+      this.logger.log(
         `[DeduplicationService] Starting batch job ${jobId} for user ${userId}` +
           ` (autoResolve=${this.config.autoResolveThreshold}, autoMerge=${this.config.autoMergeThreshold})`,
       );
@@ -323,7 +324,7 @@ export class DeduplicationService {
       );
       job.clustersFound = clusters.length;
 
-      console.log(`[DeduplicationService] Found ${clusters.length} clusters`);
+      this.logger.log(`[DeduplicationService] Found ${clusters.length} clusters`);
 
       // Emit cluster found events
       for (const cluster of clusters) {
@@ -349,7 +350,7 @@ export class DeduplicationService {
           const errorMsg =
             error instanceof Error ? error.message : String(error);
           job.errors.push(`Cluster ${cluster.id}: ${errorMsg}`);
-          console.error(
+          this.logger.error(
             `[DeduplicationService] Error processing cluster:`,
             error,
           );
@@ -359,7 +360,7 @@ export class DeduplicationService {
       job.status = BatchJobStatus.COMPLETED;
       job.completedAt = new Date();
 
-      console.log(
+      this.logger.log(
         `[DeduplicationService] Batch job ${jobId} completed: ` +
           `${job.autoMerged} auto-merged (incl. auto-resolved), ${job.queuedForReview} queued for review`,
       );

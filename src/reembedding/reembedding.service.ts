@@ -106,7 +106,7 @@ export class ReembeddingService {
 
     // Start processing asynchronously
     this.runJob(jobId).catch((error) => {
-      console.error(`[ReembeddingService] Job ${jobId} failed:`, error);
+      this.logger.error(`[ReembeddingService] Job ${jobId} failed:`, error);
       const failedJob = this.jobs.get(jobId);
       if (failedJob) {
         failedJob.status = ReembeddingJobStatus.FAILED;
@@ -209,7 +209,7 @@ export class ReembeddingService {
       // Update embedding version in database
       await this.updateEmbeddingVersion(memoryId, newVersion, enrichment);
 
-      console.log(
+      this.logger.log(
         `[ReembeddingService] Re-embedded memory ${memoryId} (v${newVersion})`,
       );
     }
@@ -264,7 +264,7 @@ export class ReembeddingService {
       });
 
       job.totalMemories = memories.length;
-      console.log(
+      this.logger.log(
         `[ReembeddingService] Found ${memories.length} memories to process`,
       );
 
@@ -279,7 +279,7 @@ export class ReembeddingService {
               await this.processMemory(memory, job.options.dryRun ?? false);
               job.successCount++;
             } catch (error) {
-              console.error(
+              this.logger.error(
                 `[ReembeddingService] Failed to process memory ${memory.id}:`,
                 error,
               );
@@ -294,7 +294,7 @@ export class ReembeddingService {
           job.processedCount % 100 === 0 ||
           job.processedCount === job.totalMemories
         ) {
-          console.log(
+          this.logger.log(
             `[ReembeddingService] Progress: ${job.processedCount}/${job.totalMemories} ` +
               `(${job.successCount} success, ${job.failureCount} failed)`,
           );
@@ -304,7 +304,7 @@ export class ReembeddingService {
       job.status = ReembeddingJobStatus.COMPLETED;
       job.completedAt = new Date();
 
-      console.log(
+      this.logger.log(
         `[ReembeddingService] Job ${jobId} completed: ` +
           `${job.successCount} success, ${job.failureCount} failed`,
       );
@@ -329,7 +329,7 @@ export class ReembeddingService {
 
     if (dryRun) {
       // Just log what would happen
-      console.debug(
+      this.logger.debug(
         `[ReembeddingService] [DRY RUN] Would re-embed ${memory.id} to v${newVersion}`,
       );
       return;

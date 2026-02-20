@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
@@ -20,6 +20,7 @@ import {
 
 @Injectable()
 export class MemoryQueryService {
+  private readonly logger = new Logger(MemoryQueryService.name);
   constructor(
     private prisma: PrismaService,
     private embedding: EmbeddingService,
@@ -50,7 +51,7 @@ export class MemoryQueryService {
           singleUserId,
         );
       } catch (err) {
-        console.warn(
+        this.logger.warn(
           '[Recall] Failed to resolve pool IDs, proceeding without pool filter:',
           err,
         );
@@ -70,7 +71,7 @@ export class MemoryQueryService {
     const searchQuery = parsed.semanticQuery;
 
     if (hasTemporalIntent) {
-      console.log('[Recall] Temporal intent detected:', {
+      this.logger.log('[Recall] Temporal intent detected:', {
         expression: parsed.temporalFilter!.expression,
         start: parsed.temporalFilter!.start.toISOString(),
         end: parsed.temporalFilter!.end.toISOString(),
@@ -104,7 +105,7 @@ export class MemoryQueryService {
         take: 200,
       });
 
-      console.log(
+      this.logger.log(
         '[Recall] Temporal path: found',
         temporalMemories.length,
         'memories in range',
@@ -305,14 +306,14 @@ export class MemoryQueryService {
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
         .slice(0, limit);
 
-      console.log(
+      this.logger.log(
         `[Recall] Surfaced ${relevantInsights.length} INSIGHT memories (of ${insights.length} candidates)`,
       );
 
       return merged;
     } catch (error) {
       // Never let insight surfacing break recall
-      console.warn('[Recall] Insight surfacing failed, skipping:', error.message);
+      this.logger.warn('[Recall] Insight surfacing failed, skipping:', error.message);
       return existingResults;
     }
   }
@@ -346,7 +347,7 @@ export class MemoryQueryService {
     const hasTemporalIntent = parsed.temporalFilter !== null;
 
     if (hasTemporalIntent) {
-      console.log(
+      this.logger.log(
         '[Recall] Temporal intent detected, falling back to standard search',
       );
       const dtoWithoutMultiQuery = { ...dto, multiQuery: { enabled: false } };
@@ -579,7 +580,7 @@ export class MemoryQueryService {
     const context = this.formatContext(memories, dto.maxTokens ?? 4000);
 
     if (evictions.length > 0) {
-      console.log('[Memory] Context evictions:', {
+      this.logger.log('[Memory] Context evictions:', {
         userId,
         totalEvicted: evictions.length,
         byReason: evictions.reduce(

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
 import { MemoryLayer, MemoryType } from '@prisma/client';
 
@@ -201,6 +201,7 @@ interface ExtractionResponse {
  */
 @Injectable()
 export class ExtractionService {
+  private readonly logger = new Logger(ExtractionService.name);
   constructor(private llm: LLMService) {}
 
   /**
@@ -214,7 +215,7 @@ export class ExtractionService {
   ): Promise<ExtractionResult> {
     const inputPreview = raw.length > 100 ? raw.substring(0, 100) + '...' : raw;
 
-    console.log('[Extraction] Starting extraction:', {
+    this.logger.log('[Extraction] Starting extraction:', {
       inputPreview,
       inputLength: raw.length,
       userName: context?.userName,
@@ -238,7 +239,7 @@ export class ExtractionService {
 
       // Log raw LLM response keys to catch case sensitivity issues
       const rawEntities = rawResult.entities ?? rawResult.ENTITIES;
-      console.log('[Extraction] Raw LLM response:', {
+      this.logger.log('[Extraction] Raw LLM response:', {
         keys: Object.keys(rawResult),
         hasUppercaseKeys: Object.keys(rawResult).some(
           (k) => k !== k.toLowerCase(),
@@ -307,7 +308,7 @@ export class ExtractionService {
         lesson,
       };
 
-      console.log('[Extraction] Extraction complete:', {
+      this.logger.log('[Extraction] Extraction complete:', {
         who: extractionResult.who,
         what: extractionResult.what?.substring(0, 50),
         topicCount: extractionResult.topics.length,
@@ -320,7 +321,7 @@ export class ExtractionService {
 
       return extractionResult;
     } catch (error) {
-      console.error('[Extraction] LLM extraction FAILED:', {
+      this.logger.error('[Extraction] LLM extraction FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         inputPreview,
@@ -329,7 +330,7 @@ export class ExtractionService {
         userId: context?.userId,
         timestamp: new Date().toISOString(),
       });
-      console.log('[Extraction] Falling back to basicExtraction');
+      this.logger.log('[Extraction] Falling back to basicExtraction');
       return this.basicExtraction(raw, context?.userName);
     }
   }
@@ -459,7 +460,7 @@ export class ExtractionService {
       return mappings[normalized];
     }
 
-    console.warn(
+    this.logger.warn(
       '[Extraction] Unknown memory type:',
       type,
       '-> defaulting to FACT',
@@ -527,7 +528,7 @@ export class ExtractionService {
     // TASK patterns - actionable items, reminders, todos (HEY-193)
     // Check memoryType from LLM extraction first (most reliable)
     if (extracted?.memoryType === 'TASK') {
-      console.log(
+      this.logger.log(
         '[classifyLayer] LLM-extracted memoryType is TASK → TASK layer',
       );
       return MemoryLayer.TASK;
@@ -545,7 +546,7 @@ export class ExtractionService {
 
     for (const pattern of taskPatterns) {
       if (pattern.test(raw)) {
-        console.log(
+        this.logger.log(
           '[classifyLayer] Matched TASK pattern:',
           pattern.toString(),
         );
@@ -572,7 +573,7 @@ export class ExtractionService {
     // Check for identity patterns
     for (const pattern of identityPatterns) {
       if (pattern.test(raw)) {
-        console.log(
+        this.logger.log(
           '[classifyLayer] Matched IDENTITY pattern:',
           pattern.toString(),
         );
@@ -596,7 +597,7 @@ export class ExtractionService {
     // Check for project patterns
     for (const pattern of projectPatterns) {
       if (pattern.test(raw)) {
-        console.log(
+        this.logger.log(
           '[classifyLayer] Matched PROJECT pattern:',
           pattern.toString(),
         );
@@ -610,7 +611,7 @@ export class ExtractionService {
         (e) => e.type === 'project' || e.type === 'organization',
       );
       if (hasProjectEntity) {
-        console.log('[classifyLayer] Entity-based classification: PROJECT');
+        this.logger.log('[classifyLayer] Entity-based classification: PROJECT');
         return MemoryLayer.PROJECT;
       }
 
@@ -621,7 +622,7 @@ export class ExtractionService {
       if (personEntities.length > 0 && extracted.who) {
         // Check if it's about family/relationships
         if (/\b(wife|husband|daughter|son|friend|colleague)\b/i.test(raw)) {
-          console.log(
+          this.logger.log(
             '[classifyLayer] Relationship-based classification: IDENTITY',
           );
           return MemoryLayer.IDENTITY;
@@ -630,7 +631,7 @@ export class ExtractionService {
     }
 
     // Default to SESSION for transient/temporary memories
-    console.log('[classifyLayer] Default classification: SESSION');
+    this.logger.log('[classifyLayer] Default classification: SESSION');
     return MemoryLayer.SESSION;
   }
 

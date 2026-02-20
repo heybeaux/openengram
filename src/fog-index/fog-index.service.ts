@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface FogIndexComponent {
@@ -40,6 +40,7 @@ const TIERS: Array<{ min: number; name: FogTier }> = [
 
 @Injectable()
 export class FogIndexService {
+  private readonly logger = new Logger(FogIndexService.name);
   constructor(private prisma: PrismaService) {}
 
   static getTier(score: number): FogTier {
@@ -128,7 +129,7 @@ export class FogIndexService {
         JSON.stringify(result.components),
       );
     } catch (error) {
-      console.warn('Failed to persist fog index snapshot:', error?.message);
+      this.logger.warn('Failed to persist fog index snapshot:', error?.message);
     }
 
     return result;
@@ -152,7 +153,7 @@ export class FogIndexService {
         computedAt: r.computed_at.toISOString(),
       }));
     } catch (error) {
-      console.warn('Failed to query fog index history:', error?.message);
+      this.logger.warn('Failed to query fog index history:', error?.message);
       return [];
     }
   }

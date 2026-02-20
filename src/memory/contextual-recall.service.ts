@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import {
@@ -17,6 +17,7 @@ interface SessionState {
 
 @Injectable()
 export class ContextualRecallService {
+  private readonly logger = new Logger(ContextualRecallService.name);
   private sessions = new Map<string, SessionState>();
 
   // Cosine distance threshold for topic shift detection
@@ -71,7 +72,7 @@ export class ContextualRecallService {
           singleUserId,
         );
       } catch (err) {
-        console.warn('[ContextualRecall] Failed to resolve pool IDs:', err);
+        this.logger.warn('[ContextualRecall] Failed to resolve pool IDs:', err);
       }
     }
 
@@ -93,7 +94,7 @@ export class ContextualRecallService {
     );
 
     // 5. Filter: exclude already-known IDs, apply score threshold
-    console.log(
+    this.logger.log(
       `[ContextualRecall] vectorResults: ${vectorResults.length}, scores: [${vectorResults
         .slice(0, 5)
         .map((r) => r.score.toFixed(3))

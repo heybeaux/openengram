@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { ImportanceDetectorService } from './importance-detector.service';
@@ -27,6 +27,7 @@ export interface ObserveContext {
  */
 @Injectable()
 export class ConversationObserverService {
+  private readonly logger = new Logger(ConversationObserverService.name);
   constructor(
     private prisma: PrismaService,
     private memoryService: MemoryService,
@@ -166,7 +167,7 @@ export class ConversationObserverService {
         });
         created++;
       } catch (error) {
-        console.error('Failed to store extracted memory:', error);
+        this.logger.error('Failed to store extracted memory:', error);
       }
     }
 

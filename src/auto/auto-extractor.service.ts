@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
 import {
   MessageTurnDto,
@@ -61,6 +61,7 @@ export interface ExtractorContext {
  */
 @Injectable()
 export class AutoExtractorService {
+  private readonly logger = new Logger(AutoExtractorService.name);
   constructor(private llm: LLMService) {}
 
   /**
@@ -103,7 +104,7 @@ export class AutoExtractorService {
         context?.userName,
       );
     } catch (error) {
-      console.error(
+      this.logger.error(
         'LLM extraction failed, falling back to signal-based extraction:',
         error,
       );

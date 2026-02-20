@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ExtractionService,
@@ -15,6 +15,7 @@ import {
 
 @Injectable()
 export class MemoryPipelineService {
+  private readonly logger = new Logger(MemoryPipelineService.name);
   constructor(
     private prisma: PrismaService,
     private extraction: ExtractionService,
@@ -33,7 +34,7 @@ export class MemoryPipelineService {
   ): Promise<void> {
     const inputPreview = raw.length > 80 ? raw.substring(0, 80) + '...' : raw;
 
-    console.log('[Memory] extractAndEmbed starting:', {
+    this.logger.log('[Memory] extractAndEmbed starting:', {
       memoryId,
       inputPreview,
       userId,
@@ -43,7 +44,7 @@ export class MemoryPipelineService {
     // 1. Extract 5W1H structure with user context
     const extracted = await this.extraction.extract(raw, context);
 
-    console.log('[Memory] Extraction result:', {
+    this.logger.log('[Memory] Extraction result:', {
       memoryId,
       who: extracted.who,
       what: extracted.what?.substring(0, 50),
@@ -76,7 +77,7 @@ export class MemoryPipelineService {
     );
 
     if (extracted.when && !parsedWhen) {
-      console.warn('[Memory] Could not parse date:', {
+      this.logger.warn('[Memory] Could not parse date:', {
         memoryId,
         rawWhen: extracted.when,
         contextTimestamp: context?.timestamp?.toISOString(),
@@ -114,7 +115,7 @@ export class MemoryPipelineService {
         howConfidence: extracted.confidence.howConfidence,
       },
     });
-    console.log('[Memory] MemoryExtraction saved for:', memoryId, {
+    this.logger.log('[Memory] MemoryExtraction saved for:', memoryId, {
       parsedWhen: parsedWhen?.toISOString() ?? null,
       memoryType: extracted.memoryType,
       typeConfidence: extracted.typeConfidence,
@@ -145,7 +146,7 @@ export class MemoryPipelineService {
           ...layerUpdate,
         },
       });
-      console.log('[Memory] Memory Intelligence updated:', {
+      this.logger.log('[Memory] Memory Intelligence updated:', {
         memoryId,
         memoryType: extracted.memoryType,
         priority,
@@ -162,22 +163,22 @@ export class MemoryPipelineService {
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
-      console.log('[Memory] Storing entities:', {
+      this.logger.log('[Memory] Storing entities:', {
         memoryId,
         count: extracted.entities.length,
         entities: extracted.entities.map((e) => `${e.name}:${e.type}`),
       });
       await this.storeEntities(userId, memoryId, extracted.entities);
-      console.log('[Memory] Entities stored successfully for:', memoryId);
+      this.logger.log('[Memory] Entities stored successfully for:', memoryId);
     } else {
-      console.log('[Memory] No entities to store for:', memoryId);
+      this.logger.log('[Memory] No entities to store for:', memoryId);
     }
 
     // 5. Generate and store embedding
     try {
       const embedding = await this.embedding.generate(raw);
       const embeddingId = await this.embedding.store(memoryId, embedding);
-      console.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
 
       await this.prisma.memory.update({
         where: { id: memoryId },
@@ -187,20 +188,20 @@ export class MemoryPipelineService {
       // 7. Link to related memories
       await this.linkRelatedMemories(memoryId, embedding, userId);
     } catch (embedError) {
-      console.warn(
+      this.logger.warn(
         `[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`,
         embedError instanceof Error ? embedError.message : embedError,
       );
     }
 
-    console.log('[Memory] extractAndEmbed complete:', memoryId);
+    this.logger.log('[Memory] extractAndEmbed complete:', memoryId);
 
     // 8. Process hierarchical embeddings
     if (this.hierarchyService?.isEnabled()) {
       this.hierarchyService
         .processMemory(memoryId, raw, userId)
         .catch((err) => {
-          console.error(
+          this.logger.error(
             `[Memory] Hierarchy processing failed for ${memoryId}:`,
             err,
           );
@@ -247,7 +248,7 @@ export class MemoryPipelineService {
           update: {},
         });
       } catch (error) {
-        console.error(`Failed to store entity ${entity.name}:`, error);
+        this.logger.error(`Failed to store entity ${entity.name}:`, error);
       }
     }
   }
@@ -271,7 +272,7 @@ export class MemoryPipelineService {
       );
 
       if (related.length > 0) {
-        console.debug(
+        this.logger.debug(
           `[linkRelatedMemories] Memory ${memoryId}: found ${related.length} linkable memories (scores: ${related.map((r) => r.score.toFixed(3)).join(', ')})`,
         );
       }
@@ -300,19 +301,19 @@ export class MemoryPipelineService {
           });
           linksCreated++;
         } catch (error) {
-          console.debug(
+          this.logger.debug(
             `[linkRelatedMemories] Link skipped (may exist): ${memoryId} -> ${match.id}`,
           );
         }
       }
 
       if (linksCreated > 0) {
-        console.debug(
+        this.logger.debug(
           `[linkRelatedMemories] Memory ${memoryId}: created ${linksCreated} links`,
         );
       }
     } catch (error) {
-      console.error(
+      this.logger.error(
         '[linkRelatedMemories] Failed to link related memories:',
         error,
       );
@@ -331,7 +332,7 @@ export class MemoryPipelineService {
         promotedFrom: memoryId,
       },
     });
-    console.log(
+    this.logger.log(
       `[LESSON→CONSTRAINT] Auto-promoted critical lesson: ${memoryId}`,
     );
   }

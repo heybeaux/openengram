@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   VectorProvider,
@@ -15,6 +15,7 @@ import {
  */
 @Injectable()
 export class PgVectorProvider implements VectorProvider {
+  private readonly logger = new Logger(PgVectorProvider.name);
   readonly name = 'pgvector';
   private readonly searchModel: string;
 
@@ -126,7 +127,7 @@ export class PgVectorProvider implements VectorProvider {
     }
 
     // DEBUG: log search params
-    console.log(
+    this.logger.log(
       `[PgVector] search: model=${this.searchModel}, userId=${Array.isArray(options.userId) ? options.userId.join(',') : options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`,
     );
 
@@ -170,7 +171,7 @@ export class PgVectorProvider implements VectorProvider {
       ...params,
     );
 
-    console.log(
+    this.logger.log(
       `[PgVector] search results: ${results.length}`,
       results.slice(0, 3),
     );

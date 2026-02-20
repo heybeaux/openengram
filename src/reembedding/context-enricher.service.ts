@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Memory, MemoryExtraction, Entity, MemoryEntity } from '@prisma/client';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -39,6 +39,7 @@ export interface MemoryWithRelations extends Memory {
  */
 @Injectable()
 export class ContextEnricherService {
+  private readonly logger = new Logger(ContextEnricherService.name);
   // Current enrichment algorithm version
   static readonly ENRICHMENT_VERSION = '1.0.0';
 
@@ -111,7 +112,7 @@ export class ContextEnricherService {
 
       return `[Time: ${absoluteDate}, ${relativeTime}]`;
     } catch (error) {
-      console.warn(
+      this.logger.warn(
         '[ContextEnricher] Failed to generate temporal context:',
         error,
       );

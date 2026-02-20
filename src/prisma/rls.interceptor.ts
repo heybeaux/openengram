@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  Logger,
 } from '@nestjs/common';
 import { Observable, from, switchMap } from 'rxjs';
 import { PrismaService } from './prisma.service';
@@ -21,6 +22,7 @@ import { rlsContext } from './rls-context';
  */
 @Injectable()
 export class RlsInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(RlsInterceptor.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -58,8 +60,8 @@ export class RlsInterceptor implements NestInterceptor {
             // to have proper grants on all tables. For now, rely on application-level
             // filtering via SET LOCAL app.current_account_id. RLS policies exist as
             // defense-in-depth for direct DB access.
-            // TODO: Grant SELECT/INSERT/UPDATE/DELETE on all tables to app role, then enable:
-            // await tx.$executeRawUnsafe(`SET LOCAL ROLE app`);
+            // NOTE: Full RLS enforcement (SET LOCAL ROLE app) deferred until
+            // proper grants are configured on all tables.
 
             // SET LOCAL only persists within this transaction
             // SET LOCAL doesn't support parameterized values — use $executeRawUnsafe
@@ -87,7 +89,7 @@ export class RlsInterceptor implements NestInterceptor {
           { timeout: txTimeout, maxWait: 10_000 },
         )
         .catch((err) => {
-          console.error(
+          this.logger.error(
             '[RLS_INTERCEPTOR_ERROR]',
             err?.message || err,
             err?.stack?.split('\n').slice(0, 3).join('\n'),

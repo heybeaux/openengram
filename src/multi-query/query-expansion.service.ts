@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLMService } from '../llm/llm.service';
 import {
@@ -71,6 +71,7 @@ const DEFAULT_CONFIG: ExpansionConfig = {
  */
 @Injectable()
 export class QueryExpansionService {
+  private readonly logger = new Logger(QueryExpansionService.name);
   // Person-specific expansions (can be populated dynamically)
   private personExpansions: Map<string, string[]> = new Map();
 
@@ -154,7 +155,7 @@ export class QueryExpansionService {
           }
         }
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           '[QueryExpansion] LLM expansion failed, using rules only:',
           error instanceof Error ? error.message : 'Unknown error',
         );
@@ -294,7 +295,7 @@ Example format:
       return variants.filter((v) => v.length > 0 && v.length < 100);
     }
 
-    console.warn(
+    this.logger.warn(
       '[QueryExpansion] LLM returned invalid format:',
       typeof variants,
     );

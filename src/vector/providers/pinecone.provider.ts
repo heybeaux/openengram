@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pinecone } from '@pinecone-database/pinecone';
 import {
@@ -16,6 +16,7 @@ import {
  */
 @Injectable()
 export class PineconeProvider implements VectorProvider {
+  private readonly logger = new Logger(PineconeProvider.name);
   readonly name = 'pinecone';
 
   private client: Pinecone | null = null;
@@ -106,7 +107,7 @@ export class PineconeProvider implements VectorProvider {
 
     // Pinecone doesn't support filter-based deletion in all tiers
     // For production, consider namespace-per-user strategy
-    console.warn(
+    this.logger.warn(
       'Pinecone deleteByUser requires namespace-per-user strategy for efficiency',
     );
   }

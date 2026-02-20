@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { Memory, MemorySource } from '@prisma/client';
@@ -33,6 +33,7 @@ export interface DedupResult {
 
 @Injectable()
 export class MemoryDedupService {
+  private readonly logger = new Logger(MemoryDedupService.name);
   constructor(
     private prisma: PrismaService,
     private embedding: EmbeddingService,
@@ -75,7 +76,7 @@ export class MemoryDedupService {
         return { action: 'create' };
 
       if (bestMatch.score >= threshold) {
-        console.log(
+        this.logger.log(
           `[Dedup] Auto-merge: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
         );
         return {
@@ -86,7 +87,7 @@ export class MemoryDedupService {
       }
 
       if (bestMatch.score >= DEDUP_REINFORCE_THRESHOLD) {
-        console.log(
+        this.logger.log(
           `[Dedup] Reinforce: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
         );
         return {
@@ -97,7 +98,7 @@ export class MemoryDedupService {
       }
 
       if (bestMatch.score >= DEDUP_REVIEW_THRESHOLD) {
-        console.log(
+        this.logger.log(
           `[Dedup] Queue for review: score=${bestMatch.score.toFixed(3)} memory=${bestMatch.id}`,
         );
         try {
@@ -112,14 +113,14 @@ export class MemoryDedupService {
             },
           });
         } catch (err) {
-          console.error('[Dedup] Failed to create MergeCandidate:', err);
+          this.logger.error('[Dedup] Failed to create MergeCandidate:', err);
         }
         return { action: 'create' };
       }
 
       return { action: 'create' };
     } catch (error) {
-      console.error('Duplicate check failed:', error);
+      this.logger.error('Duplicate check failed:', error);
       return { action: 'create' };
     }
   }

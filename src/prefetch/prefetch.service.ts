@@ -5,7 +5,7 @@
  * Coordinates topic detection, memory selection, caching, and metrics.
  */
 
-import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, OnModuleInit, Optional, Logger } from '@nestjs/common';
 import { MemoryService, MemoryWithScore } from '../memory/memory.service';
 import { EmbeddingService } from '../memory/embedding.service';
 import { TopicDetectionService } from './topic-detection.service';
@@ -52,6 +52,7 @@ export const DEFAULT_PREFETCH_CONFIG: PrefetchConfig = {
 
 @Injectable()
 export class PrefetchService implements OnModuleInit {
+  private readonly logger = new Logger(PrefetchService.name);
   private config: PrefetchConfig;
   private prefetchQueue: Array<{ userId: string; topics: TopicScore[] }> = [];
   private isProcessingQueue = false;
@@ -457,7 +458,7 @@ export class PrefetchService implements OnModuleInit {
       try {
         await this.prefetchForTopics(item.userId, item.topics);
       } catch (error) {
-        console.error('Prefetch failed:', error);
+        this.logger.error('Prefetch failed:', error);
       }
 
       // Small delay between prefetches to avoid overwhelming the system
@@ -519,7 +520,7 @@ export class PrefetchService implements OnModuleInit {
         if (memories.length >= limit) break;
       }
     } catch (error) {
-      console.error('Memory selection failed:', error);
+      this.logger.error('Memory selection failed:', error);
     }
 
     return {

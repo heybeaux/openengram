@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLMService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
@@ -41,6 +41,7 @@ interface LLMSummarizationResponse {
 
 @Injectable()
 export class SummarizationService {
+  private readonly logger = new Logger(SummarizationService.name);
   private enabled: boolean;
   private batchSize: number;
 
@@ -112,7 +113,7 @@ export class SummarizationService {
 
       return facts;
     } catch (error) {
-      console.error('[Summarization] LLM summarization failed:', error);
+      this.logger.error('[Summarization] LLM summarization failed:', error);
       return [];
     }
   }
@@ -153,7 +154,7 @@ export class SummarizationService {
         });
         created++;
       } catch (error) {
-        console.error('[Summarization] Failed to store summary fact:', error);
+        this.logger.error('[Summarization] Failed to store summary fact:', error);
       }
     }
 

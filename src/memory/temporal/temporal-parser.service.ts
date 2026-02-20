@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 /**
  * A resolved time range for filtering memories
@@ -35,6 +35,7 @@ interface TemporalPattern {
  */
 @Injectable()
 export class TemporalParserService {
+  private readonly logger = new Logger(TemporalParserService.name);
   /**
    * Parse a query for temporal intent
    *
@@ -51,7 +52,7 @@ export class TemporalParserService {
     // Try fast pattern matching
     const result = this.patternMatch(query, now);
     if (result) {
-      console.log('[TemporalParser] Detected temporal intent:', {
+      this.logger.log('[TemporalParser] Detected temporal intent:', {
         expression: result.temporalFilter?.expression,
         start: result.temporalFilter?.start.toISOString(),
         end: result.temporalFilter?.end.toISOString(),

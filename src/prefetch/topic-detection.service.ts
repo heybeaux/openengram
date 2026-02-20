@@ -5,7 +5,7 @@
  * embedding-based classification. Fast (<10ms target).
  */
 
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { EmbeddingService } from '../memory/embedding.service';
 import {
   TopicId,
@@ -39,6 +39,7 @@ export const DEFAULT_DETECTION_CONFIG: TopicDetectionConfig = {
 
 @Injectable()
 export class TopicDetectionService {
+  private readonly logger = new Logger(TopicDetectionService.name);
   private config: TopicDetectionConfig;
   private prototypes: Map<TopicId, TopicPrototype> = new Map();
   private recentTopics: Map<string, TopicScore[][]> = new Map(); // userId -> history
@@ -81,7 +82,7 @@ export class TopicDetectionService {
           threshold: 0.5,
         });
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Failed to initialize prototype for topic ${topic.id}:`,
           error,
         );
@@ -309,7 +310,7 @@ export class TopicDetectionService {
         }
       }
     } catch (error) {
-      console.warn('Embedding classification failed:', error);
+      this.logger.warn('Embedding classification failed:', error);
     }
 
     return scores;

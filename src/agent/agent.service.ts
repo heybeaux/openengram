@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LLMService } from '../llm/llm.service';
 import { EmbeddingService } from '../memory/embedding.service';
@@ -20,6 +20,7 @@ import { ReflectDto, ReflectionResultDto } from './dto/reflect.dto';
  */
 @Injectable()
 export class AgentService {
+  private readonly logger = new Logger(AgentService.name);
   constructor(
     private prisma: PrismaService,
     private llm: LLMService,
@@ -39,7 +40,7 @@ export class AgentService {
     const minImportance = dto.minImportance ?? 0.5;
     const maxMemories = dto.maxMemories ?? 5;
 
-    console.log('[AgentService] Starting reflection:', {
+    this.logger.log('[AgentService] Starting reflection:', {
       agentId,
       turnCount: dto.recentTurns.length,
       agentName: dto.agentName,
@@ -50,7 +51,7 @@ export class AgentService {
     // 1. Call LLM to extract self-knowledge
     const insights = await this.extractInsights(dto.recentTurns, dto.agentName);
 
-    console.log('[AgentService] Extracted insights:', {
+    this.logger.log('[AgentService] Extracted insights:', {
       agentId,
       totalInsights: insights.length,
       categories: this.countCategories(insights),
@@ -61,7 +62,7 @@ export class AgentService {
       .filter((i) => i.importance >= minImportance)
       .slice(0, maxMemories);
 
-    console.log('[AgentService] After filtering:', {
+    this.logger.log('[AgentService] After filtering:', {
       agentId,
       filteredCount: filteredInsights.length,
       threshold: minImportance,
@@ -81,7 +82,7 @@ export class AgentService {
         // Check for duplicate (semantic dedup)
         const isDuplicate = await this.checkDuplicate(agentId, insight.content);
         if (isDuplicate) {
-          console.log(
+          this.logger.log(
             '[AgentService] Skipping duplicate insight:',
             insight.content.substring(0, 50),
           );
@@ -97,14 +98,14 @@ export class AgentService {
         createdMemoryIds.push(memory.id);
         categories[insight.category]++;
 
-        console.log('[AgentService] Created memory:', {
+        this.logger.log('[AgentService] Created memory:', {
           memoryId: memory.id,
           category: insight.category,
           importance: insight.importance,
           contentPreview: insight.content.substring(0, 50),
         });
       } catch (error) {
-        console.error('[AgentService] Failed to create memory:', {
+        this.logger.error('[AgentService] Failed to create memory:', {
           agentId,
           insight: insight.content.substring(0, 50),
           error: error.message,
@@ -230,7 +231,7 @@ export class AgentService {
 
       return result.insights;
     } catch (error) {
-      console.error('[AgentService] LLM extraction failed:', error);
+      this.logger.error('[AgentService] LLM extraction failed:', error);
       return [];
     }
   }
@@ -268,7 +269,7 @@ export class AgentService {
 
       return similar.some((m) => m.score >= threshold);
     } catch (error) {
-      console.error('[AgentService] Duplicate check failed:', error);
+      this.logger.error('[AgentService] Duplicate check failed:', error);
       return false; // Fail open - allow creation
     }
   }
@@ -326,7 +327,7 @@ export class AgentService {
         data: { embeddingId },
       });
     } catch (error) {
-      console.error('[AgentService] Failed to store embedding:', error);
+      this.logger.error('[AgentService] Failed to store embedding:', error);
     }
 
     return memory;
