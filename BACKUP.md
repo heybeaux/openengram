@@ -1,61 +1,53 @@
 # Engram Backup Strategy
 
-## Overview
+## Local (Development / Self-Hosted)
 
-Two independent backup systems protect Engram data:
+### Automated Backups via LaunchAgent
 
-| Target | Script | Schedule | Retention | Location |
-|--------|--------|----------|-----------|----------|
-| Local DB | `scripts/backup-verified.sh` | 3x daily (LaunchAgent `ai.engram.backup`) | 30 days | `~/engram-backups/` |
-| Cloud (Supabase) | `scripts/backup-cloud.sh` | Daily at 4 AM (LaunchAgent `ai.engram.backup-cloud`) | 30 days | `~/engram-backups/cloud/` |
+A macOS LaunchAgent (`ai.engram.backup`) runs the verified backup script **3 times daily** (every 8 hours).
 
-## Supabase Built-in Backups
+- **Script**: `scripts/backup-verified.sh`
+- **Backup directory**: `~/engram-backups/`
+- **Offsite mirror**: `~/engram-backups-offsite/` (git-based)
+- **Retention**: 30 days (auto-pruned)
+- **Format**: `pg_dump` compressed with gzip (`.sql.gz`)
 
-- **Free plan**: No automated backups
-- **Pro plan**: Daily backups, 7-day retention
-- **Check your plan**: Supabase Dashboard → Settings → Billing
+### Verification
 
-Regardless of plan, our local pg_dump backup provides independent protection.
+Each backup run:
+1. Records pre-backup memory count
+2. Dumps the database via `pg_dump`
+3. Verifies file size ≥ 1MB (guards against empty/corrupt dumps)
+4. Pushes to the offsite git repository
 
-## Cloud Backup Setup
-
-### 1. Credentials
-
-Create `.env.cloud` in the engram repo root (gitignored):
-
-```bash
-SUPABASE_DIRECT_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres"
-```
-
-**Important**: Use the DIRECT connection URL, not the pooler URL. pg_dump doesn't work through connection poolers.
-
-### 2. Manual Run
+### Manual Restore
 
 ```bash
-cd ~/projects/agent-memory/engram
-./scripts/backup-cloud.sh
+./scripts/restore.sh ~/engram-backups/engram-backup-YYYY-MM-DD-HHMMSS.sql.gz
 ```
 
-### 3. Enable Daily Schedule
+## Cloud (Railway)
 
-```bash
-launchctl load ~/Library/LaunchAgents/ai.engram.backup-cloud.plist
-```
+### Railway Automated Backups
 
-### 4. Check Status
+Railway provides automated daily backups for PostgreSQL databases on paid plans. To verify or configure:
 
-```bash
-launchctl list | grep engram
-ls -la ~/engram-backups/cloud/
-cat /tmp/engram-backup-cloud.log
-```
+1. Go to the Railway dashboard → your Engram project → PostgreSQL service
+2. Navigate to **Settings → Backups**
+3. Ensure automated backups are **enabled**
+4. Railway retains backups for 7 days by default
 
-## Restore
+> **Note**: If Railway backups are not yet configured, enable them in the dashboard. For production workloads, also consider supplementing with `scripts/backup-cloud.sh` for off-platform backup redundancy.
 
-To restore a cloud backup to a local database:
+### Cloud Backup Script
 
-```bash
-gunzip -c ~/engram-backups/cloud/engram-cloud-YYYY-MM-DD-HHMMSS.sql.gz | psql -U clawdbot -d engram_restore
-```
+For additional safety, `scripts/backup-cloud.sh` can be run as a cron job or CI step to dump the Railway database to external storage.
 
-**Never restore directly to the production cloud database without careful review.**
+## Recovery Procedures
+
+| Scenario | Action |
+|----------|--------|
+| Local corruption | Restore from `~/engram-backups/` using `restore.sh` |
+| Local machine loss | Clone from `~/engram-backups-offsite/` git repo |
+| Railway DB issue | Restore from Railway dashboard backups |
+| Railway + local needed | Run `backup-cloud.sh` to pull a fresh dump |
