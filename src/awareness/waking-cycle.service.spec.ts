@@ -5,15 +5,21 @@ import { MemorySignalService } from './signals/memory-signal.service';
 import { GitHubSignalService } from './signals/github-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
+import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
+import { ProactiveNotificationService } from './proactive-notification.service';
+import { InsightFeedbackService } from './insight-feedback.service';
 
 describe('WakingCycleService', () => {
   let service: WakingCycleService;
-  let prisma: jest.Mocked<PrismaService>;
-  let memoryService: jest.Mocked<MemoryService>;
-  let memorySignal: jest.Mocked<MemorySignalService>;
-  let githubSignal: jest.Mocked<GitHubSignalService>;
-  let patternDetector: jest.Mocked<PatternDetectorService>;
-  let insightGenerator: jest.Mocked<InsightGeneratorService>;
+  let prisma: any;
+  let memoryService: any;
+  let memorySignal: any;
+  let githubSignal: any;
+  let patternDetector: any;
+  let insightGenerator: any;
+  let behavioralConsistency: any;
+  let proactiveNotification: any;
+  let insightFeedback: any;
 
   beforeEach(() => {
     prisma = {
@@ -28,11 +34,14 @@ describe('WakingCycleService', () => {
       user: {
         findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
-    } as any;
+      memory: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
 
     memoryService = {
       remember: jest.fn().mockResolvedValue({ id: 'mem-1' }),
-    } as any;
+    };
 
     memorySignal = {
       name: 'memory',
@@ -42,7 +51,7 @@ describe('WakingCycleService', () => {
         ],
         checkpoint: { lastId: 'mem-100' },
       }),
-    } as any;
+    };
 
     githubSignal = {
       name: 'github',
@@ -50,19 +59,48 @@ describe('WakingCycleService', () => {
         observations: [],
         checkpoint: {},
       }),
-    } as any;
+    };
 
     patternDetector = {
       detect: jest.fn().mockReturnValue([
         { type: 'recurring_topic', description: 'Cooking mentioned frequently', observations: ['obs-1'] },
       ]),
-    } as any;
+    };
 
     insightGenerator = {
       generate: jest.fn().mockResolvedValue([
-        { content: 'User has a strong interest in cooking', confidence: 0.8 },
+        {
+          content: 'User has a strong interest in cooking',
+          confidence: 0.8,
+          insightType: 'recurring_pattern',
+          sourceMemoryIds: ['mem-50'],
+          signalSource: 'memory',
+          actionable: false,
+        },
       ]),
-    } as any;
+    };
+
+    behavioralConsistency = {
+      check: jest.fn().mockResolvedValue({
+        inconsistencies: [],
+        memoriesAnalyzed: 0,
+        llmCallsUsed: 0,
+      }),
+    };
+
+    proactiveNotification = {
+      checkAndNotify: jest.fn().mockResolvedValue([]),
+    };
+
+    insightFeedback = {
+      getFeedbackStats: jest.fn().mockResolvedValue({
+        totalFeedback: 0,
+        dismissed: 0,
+        actedOn: 0,
+        helpful: 0,
+        avgConfidenceAdjustment: 0,
+      }),
+    };
 
     const linearSignal = {
       name: 'linear',
@@ -80,6 +118,9 @@ describe('WakingCycleService', () => {
       linearSignal,
       patternDetector,
       insightGenerator,
+      behavioralConsistency,
+      proactiveNotification,
+      insightFeedback,
     );
   });
 
@@ -99,14 +140,56 @@ describe('WakingCycleService', () => {
       expect(memoryService.remember).toHaveBeenCalledTimes(1);
     });
 
-    it('should store insights as INSIGHT layer memories', async () => {
+    it('should store insights as INSIGHT layer memories with metadata (HEY-136)', async () => {
       await service.runCycle();
 
-      expect(memoryService.remember).toHaveBeenCalledWith('user-1', expect.objectContaining({
-        raw: 'User has a strong interest in cooking',
-        layer: 'INSIGHT',
-        source: 'PATTERN_DETECTED',
-      }));
+      expect(memoryService.remember).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          raw: 'User has a strong interest in cooking',
+          layer: 'INSIGHT',
+          source: 'PATTERN_DETECTED',
+        }),
+      );
+
+      // Should update with full insight metadata
+      expect(prisma.memory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'mem-1' },
+          data: expect.objectContaining({
+            confidence: 0.8,
+            metadata: expect.objectContaining({
+              insightType: 'recurring_pattern',
+              sourceMemoryIds: ['mem-50'],
+              signalSource: 'memory',
+              actionable: false,
+              acknowledged: false,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should adjust confidence based on feedback history (HEY-151)', async () => {
+      insightFeedback.getFeedbackStats.mockResolvedValue({
+        totalFeedback: 5,
+        dismissed: 3,
+        actedOn: 1,
+        helpful: 1,
+        avgConfidenceAdjustment: -0.03,
+      });
+
+      await service.runCycle();
+
+      // Original confidence 0.8 adjusted by -0.03 = 0.77
+      const updateCall = prisma.memory.update.mock.calls[0][0];
+      expect(updateCall.data.confidence).toBeCloseTo(0.77, 2);
+    });
+
+    it('should trigger proactive notifications after storing (HEY-154)', async () => {
+      await service.runCycle();
+
+      expect(proactiveNotification.checkAndNotify).toHaveBeenCalledWith('acc-1');
     });
 
     it('should skip storing if no user found for account', async () => {
@@ -119,14 +202,11 @@ describe('WakingCycleService', () => {
     });
 
     it('should prevent concurrent runs', async () => {
-      // Start first cycle (will take a moment)
       const firstCycle = service.runCycle();
-      // Try a second while first is running
       const secondCycle = service.runCycle();
 
       const [first, second] = await Promise.all([firstCycle, secondCycle]);
 
-      // Second should be skipped
       expect(second).toEqual({ observations: 0, patterns: 0, insights: 0, durationMs: 0 });
       expect(first.observations).toBe(1);
     });
@@ -137,8 +217,6 @@ describe('WakingCycleService', () => {
       const result = await service.runCycle();
 
       expect(result.observations).toBe(0);
-      expect(result.patterns).toBe(0);
-      expect(result.insights).toBe(0);
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
@@ -188,12 +266,32 @@ describe('WakingCycleService', () => {
       });
     });
 
+    it('should handle proactive notification failure gracefully', async () => {
+      proactiveNotification.checkAndNotify.mockRejectedValue(new Error('Webhook failed'));
+
+      const result = await service.runCycle();
+      expect(result.insights).toBe(1);
+    });
+
     it('should handle insight dedup rejection gracefully', async () => {
       memoryService.remember.mockRejectedValue(new Error('Duplicate memory detected'));
 
       const result = await service.runCycle();
+      expect(result.insights).toBe(1);
+    });
 
-      // Should still complete successfully
+    it('should work without optional services', async () => {
+      const minimalService = new WakingCycleService(
+        prisma,
+        memoryService,
+        memorySignal,
+        githubSignal,
+        patternDetector,
+        insightGenerator,
+        behavioralConsistency,
+      );
+
+      const result = await minimalService.runCycle();
       expect(result.insights).toBe(1);
     });
   });

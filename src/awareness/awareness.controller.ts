@@ -1,24 +1,25 @@
-import { Controller, Post, Get, Query, UseGuards, HttpCode, Optional } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards, HttpCode, Optional } from '@nestjs/common';
 import { WakingCycleService } from './waking-cycle.service';
+import { InsightFeedbackService } from './insight-feedback.service';
+import { ProactiveNotificationService } from './proactive-notification.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { AwarenessConfig } from './config/awareness.config';
+import { InsightFeedbackDto } from './dto/insight-feedback.dto';
+import { NotificationConfigDto } from './dto/notification-config.dto';
 
 /**
  * Awareness API — on-demand Waking Cycle trigger.
- *
- * POST /v1/awareness/cycle — run a cycle immediately and return results.
- * POST /v1/awareness/cycle?accountId=xxx — run for a specific account.
- * GET  /v1/awareness/status — check if awareness is enabled and configured.
- * Requires API key auth (same as memory endpoints).
  */
 @Controller('v1/awareness')
 @UseGuards(ApiKeyGuard)
 export class AwarenessController {
   constructor(
     @Optional() private readonly wakingCycle?: WakingCycleService,
+    @Optional() private readonly insightFeedback?: InsightFeedbackService,
+    @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
   ) {}
 
-  @Get('status')
+  @Get('awareness/status')
   @HttpCode(200)
   getStatus() {
     return {
@@ -26,14 +27,16 @@ export class AwarenessController {
       schedule: AwarenessConfig.schedule,
       signals: AwarenessConfig.signals,
       github: {
-        configured: !!AwarenessConfig.github.token && AwarenessConfig.github.repos.length > 0,
+        configured:
+          !!AwarenessConfig.github.token &&
+          AwarenessConfig.github.repos.length > 0,
         repos: AwarenessConfig.github.repos,
       },
       cycleAvailable: !!this.wakingCycle,
     };
   }
 
-  @Post('cycle')
+  @Post('awareness/cycle')
   @HttpCode(200)
   async triggerCycle(@Query('accountId') accountId?: string) {
     if (!this.wakingCycle) {
@@ -43,5 +46,53 @@ export class AwarenessController {
       };
     }
     return this.wakingCycle.runCycle(accountId);
+  }
+
+  /** HEY-151: PATCH /v1/insights/:id/feedback */
+  @Patch('insights/:id/feedback')
+  @HttpCode(200)
+  async submitInsightFeedback(
+    @Param('id') insightId: string,
+    @Body() dto: InsightFeedbackDto,
+  ) {
+    if (!this.insightFeedback) {
+      return {
+        error: 'Insight feedback not available. Set AWARENESS_ENABLED=true and redeploy.',
+        enabled: AwarenessConfig.enabled,
+      };
+    }
+    return this.insightFeedback.recordFeedback(insightId, dto.action, dto.comment);
+  }
+
+  /** HEY-154: POST /v1/notifications/configure */
+  @Post('notifications/configure')
+  @HttpCode(200)
+  async configureNotifications(@Body() dto: NotificationConfigDto) {
+    if (!this.proactiveNotification) {
+      return {
+        error: 'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
+        enabled: AwarenessConfig.enabled,
+      };
+    }
+    const accountId = 'default';
+    return this.proactiveNotification.configure(accountId, {
+      confidenceThreshold: dto.confidenceThreshold,
+      enabled: dto.enabled,
+      webhookUrl: dto.webhookUrl,
+      webhookSecret: dto.webhookSecret,
+    });
+  }
+
+  /** HEY-154: GET /v1/notifications/config */
+  @Get('notifications/config')
+  @HttpCode(200)
+  async getNotificationConfig() {
+    if (!this.proactiveNotification) {
+      return {
+        error: 'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
+        enabled: AwarenessConfig.enabled,
+      };
+    }
+    return this.proactiveNotification.getConfig('default');
   }
 }
