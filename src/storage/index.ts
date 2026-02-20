@@ -18,4 +18,3 @@ export type {
   HealthCheckResult,
 } from './storage-provider.interface';
 export { PrismaPostgresProvider } from './prisma-postgres.provider';
-export { SqliteProvider } from './sqlite.provider';

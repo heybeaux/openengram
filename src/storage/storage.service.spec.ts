@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { StorageService } from './storage.service';
 import { PrismaPostgresProvider } from './prisma-postgres.provider';
-import { SqliteProvider } from './sqlite.provider';
 
 const mockPrismaPostgresProvider = {
   name: 'prisma-postgres',
@@ -30,29 +29,6 @@ const mockPrismaPostgresProvider = {
   }),
 };
 
-const mockSqliteProvider = {
-  name: 'sqlite',
-  createMemory: jest.fn(),
-  getMemory: jest.fn(),
-  updateMemory: jest.fn(),
-  incrementMemory: jest.fn(),
-  deleteMemory: jest.fn(),
-  findMemories: jest.fn(),
-  countMemories: jest.fn(),
-  updateManyMemories: jest.fn(),
-  incrementManyMemories: jest.fn(),
-  vectorSearch: jest.fn(),
-  getMemoryEmbedding: jest.fn(),
-  bulkCreate: jest.fn(),
-  bulkUpdate: jest.fn(),
-  getStats: jest.fn(),
-  groupBy: jest.fn(),
-  aggregate: jest.fn(),
-  createMergeCandidate: jest.fn(),
-  healthCheck: jest
-    .fn()
-    .mockResolvedValue({ healthy: true, latencyMs: 1, provider: 'sqlite' }),
-};
 
 describe('StorageService', () => {
   let service: StorageService;
@@ -68,7 +44,6 @@ describe('StorageService', () => {
             provide: PrismaPostgresProvider,
             useValue: mockPrismaPostgresProvider,
           },
-          { provide: SqliteProvider, useValue: mockSqliteProvider },
           {
             provide: ConfigService,
             useValue: {
@@ -313,51 +288,6 @@ describe('StorageService', () => {
     });
   });
 
-  describe('with sqlite provider', () => {
-    beforeEach(async () => {
-      jest.clearAllMocks();
-
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          StorageService,
-          {
-            provide: PrismaPostgresProvider,
-            useValue: mockPrismaPostgresProvider,
-          },
-          { provide: SqliteProvider, useValue: mockSqliteProvider },
-          {
-            provide: ConfigService,
-            useValue: {
-              get: jest.fn((key: string, defaultValue?: any) => {
-                const config: Record<string, any> = {
-                  STORAGE_PROVIDER: 'sqlite',
-                };
-                return config[key] ?? defaultValue;
-              }),
-            },
-          },
-        ],
-      }).compile();
-
-      service = module.get<StorageService>(StorageService);
-    });
-
-    it('should use sqlite provider', () => {
-      expect(service.getProviderName()).toBe('sqlite');
-    });
-
-    it('should delegate to sqlite provider', async () => {
-      mockSqliteProvider.createMemory.mockResolvedValue({ id: 'm1' });
-
-      await service.createMemory({
-        userId: 'u1',
-        raw: 'test',
-        layer: 'IDENTITY' as any,
-      });
-      expect(mockSqliteProvider.createMemory).toHaveBeenCalled();
-      expect(mockPrismaPostgresProvider.createMemory).not.toHaveBeenCalled();
-    });
-  });
 
   describe('with unknown provider', () => {
     beforeEach(async () => {
@@ -370,7 +300,6 @@ describe('StorageService', () => {
             provide: PrismaPostgresProvider,
             useValue: mockPrismaPostgresProvider,
           },
-          { provide: SqliteProvider, useValue: mockSqliteProvider },
           {
             provide: ConfigService,
             useValue: {

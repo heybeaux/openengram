@@ -10,7 +10,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPostgresProvider } from './prisma-postgres.provider';
-import { SqliteProvider } from './sqlite.provider';
 import {
   StorageProvider,
   CreateMemoryData,
@@ -36,7 +35,6 @@ export class StorageService implements OnModuleInit {
   constructor(
     private configService: ConfigService,
     private prismaPostgresProvider: PrismaPostgresProvider,
-    private sqliteProvider: SqliteProvider,
   ) {
     const providerName = this.configService.get<string>(
       'STORAGE_PROVIDER',
@@ -170,8 +168,6 @@ export class StorageService implements OnModuleInit {
     switch (name) {
       case 'prisma-postgres':
         return this.prismaPostgresProvider;
-      case 'sqlite':
-        return this.sqliteProvider;
       default:
         this.logger.warn(
           `Unknown storage provider '${name}', falling back to 'prisma-postgres'`,

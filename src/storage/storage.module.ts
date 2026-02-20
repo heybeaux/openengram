@@ -12,12 +12,11 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageService } from './storage.service';
 import { PrismaPostgresProvider } from './prisma-postgres.provider';
-import { SqliteProvider } from './sqlite.provider';
 
 @Global()
 @Module({
   imports: [ConfigModule, PrismaModule],
-  providers: [PrismaPostgresProvider, SqliteProvider, StorageService],
+  providers: [PrismaPostgresProvider, StorageService],
   exports: [StorageService],
 })
 export class StorageModule {}
