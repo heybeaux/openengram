@@ -267,7 +267,7 @@ export class AnalyticsService {
       GROUP BY layer
     `;
 
-    const allLayers: MemoryLayer[] = ['IDENTITY', 'PROJECT', 'SESSION', 'TASK'];
+    const allLayers: MemoryLayer[] = ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'];
     const layerMap = new Map<MemoryLayer, number>();
     let total = 0;
 

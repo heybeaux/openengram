@@ -461,6 +461,61 @@ describe('ExtractionService', () => {
         );
       });
     });
+
+    describe('TASK classification', () => {
+      it('should classify LLM-extracted TASK memoryType as TASK', () => {
+        expect(
+          service.classifyLayer('Working on something', {
+            memoryType: 'TASK',
+          } as any),
+        ).toBe(MemoryLayer.TASK);
+      });
+
+      it('should classify reminder patterns as TASK', () => {
+        expect(service.classifyLayer('Remind me to call the doctor')).toBe(
+          MemoryLayer.TASK,
+        );
+        expect(service.classifyLayer('Remember to buy groceries')).toBe(
+          MemoryLayer.TASK,
+        );
+        expect(service.classifyLayer("Don't forget the meeting at 3pm")).toBe(
+          MemoryLayer.TASK,
+        );
+      });
+
+      it('should classify todo/action items as TASK', () => {
+        expect(service.classifyLayer('Add this to my todo list')).toBe(
+          MemoryLayer.TASK,
+        );
+        expect(
+          service.classifyLayer('Action item: update the deployment docs'),
+        ).toBe(MemoryLayer.TASK);
+        expect(service.classifyLayer('Follow up with Jackie on Friday')).toBe(
+          MemoryLayer.TASK,
+        );
+      });
+
+      it('should classify booking phrases as TASK', () => {
+        expect(service.classifyLayer('Book a meeting with the team')).toBe(
+          MemoryLayer.TASK,
+        );
+        expect(
+          service.classifyLayer('Book an appointment with the dentist'),
+        ).toBe(MemoryLayer.TASK);
+      });
+
+      it('should NOT classify reading a book as TASK', () => {
+        expect(
+          service.classifyLayer('I finished reading a book on TypeScript'),
+        ).toBe(MemoryLayer.SESSION);
+      });
+
+      it('should classify schedule patterns as TASK', () => {
+        expect(
+          service.classifyLayer('Schedule a call with the client for Monday'),
+        ).toBe(MemoryLayer.TASK);
+      });
+    });
   });
 
   describe('LESSON memory type', () => {

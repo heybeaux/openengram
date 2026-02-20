@@ -197,6 +197,81 @@ describe('MemoryPipelineService', () => {
     });
   });
 
+  describe('extractAndEmbed - layer promotion (HEY-193)', () => {
+    it('should promote layer to TASK when memoryType is TASK', async () => {
+      extraction.extract.mockResolvedValue({
+        who: 'user', what: 'call dentist', when: null, where: null,
+        why: null, how: null, topics: [], entities: [],
+        memoryType: 'TASK', typeConfidence: 0.9,
+        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        lesson: null,
+      });
+      extraction.getPriorityForType.mockReturnValue(4);
+
+      await service.extractAndEmbed('m1', 'remind me to call dentist', 'user-1');
+
+      expect(prisma.memory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ memoryType: 'TASK', layer: 'TASK' }),
+        }),
+      );
+    });
+
+    it('should promote layer to IDENTITY when memoryType is LESSON', async () => {
+      extraction.extract.mockResolvedValue({
+        who: 'user', what: 'learned something', when: null, where: null,
+        why: null, how: null, topics: [], entities: [],
+        memoryType: 'LESSON', typeConfidence: 0.9,
+        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        lesson: { lessonSeverity: 'minor' },
+      });
+      extraction.getPriorityForType.mockReturnValue(3);
+
+      await service.extractAndEmbed('m1', 'learned to always check tests', 'user-1');
+
+      expect(prisma.memory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ memoryType: 'LESSON', layer: 'IDENTITY' }),
+        }),
+      );
+    });
+
+    it('should promote layer to IDENTITY when memoryType is CONSTRAINT', async () => {
+      extraction.extract.mockResolvedValue({
+        who: 'user', what: 'never deploy friday', when: null, where: null,
+        why: null, how: null, topics: [], entities: [],
+        memoryType: 'CONSTRAINT', typeConfidence: 0.95,
+        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        lesson: null,
+      });
+      extraction.getPriorityForType.mockReturnValue(1);
+
+      await service.extractAndEmbed('m1', 'never deploy on Fridays', 'user-1');
+
+      expect(prisma.memory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ memoryType: 'CONSTRAINT', layer: 'IDENTITY' }),
+        }),
+      );
+    });
+
+    it('should NOT set layer when memoryType is FACT', async () => {
+      extraction.extract.mockResolvedValue({
+        who: 'user', what: 'just a fact', when: null, where: null,
+        why: null, how: null, topics: [], entities: [],
+        memoryType: 'FACT', typeConfidence: 0.9,
+        confidence: { whoConfidence: 0.8, whatConfidence: 0.9, whenConfidence: 0, whereConfidence: 0, whyConfidence: 0, howConfidence: 0 },
+        lesson: null,
+      });
+      extraction.getPriorityForType.mockReturnValue(5);
+
+      await service.extractAndEmbed('m1', 'the sky is blue', 'user-1');
+
+      const updateCall = prisma.memory.update.mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('layer');
+    });
+  });
+
   describe('linkRelatedMemories', () => {
     it('should link related memories within threshold', async () => {
       embedding.search.mockResolvedValue([
