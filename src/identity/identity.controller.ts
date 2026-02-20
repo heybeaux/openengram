@@ -36,6 +36,52 @@ export class IdentityController {
     private readonly trustProfileService: TrustProfileService,
   ) {}
 
+  // === HEY-182: Task Completion Tracking ===
+
+  @Post('task-completions')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Record a task completion' })
+  async createTaskCompletion(@Body() dto: CreateTaskCompletionDto) {
+    return this.taskCompletionService.create(dto);
+  }
+
+  @Get('task-completions')
+  @ApiOperation({ summary: 'Query task completions' })
+  @ApiQuery({ name: 'agentId', required: false })
+  @ApiQuery({ name: 'taskId', required: false })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  async queryTaskCompletions(@Query() query: QueryTaskCompletionsDto) {
+    return this.taskCompletionService.query(query);
+  }
+
+  // === HEY-183: Delegation Templates ===
+
+  @Get('delegation-templates')
+  @ApiOperation({ summary: 'Get delegation template suggestions for a task' })
+  @ApiQuery({
+    name: 'taskDescription',
+    description: 'Task to get suggestions for',
+    required: true,
+  })
+  async getDelegationTemplates(
+    @Query('taskDescription') taskDescription: string,
+  ) {
+    if (!taskDescription) {
+      return { error: 'taskDescription query parameter is required' };
+    }
+    return this.delegationTemplateService.suggest(taskDescription);
+  }
+
+  // === HEY-184: Trust Profiles ===
+
+  @Get('agents/:id/trust-profile')
+  @ApiOperation({ summary: 'Get domain-specific trust profile for an agent' })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getTrustProfile(@Param('id') agentId: string) {
+    return this.trustProfileService.getProfile(agentId);
+  }
+
   // === HEY-188: Team Profiles ===
 
   @Post('teams')
