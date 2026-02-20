@@ -48,6 +48,36 @@ export class ReviewService {
   }
 
   /**
+   * Resolve all internal CUIDs for a given userId, including deleted users
+   * with the same externalId. This ensures we find candidates created under
+   * previous user records (e.g., after agent migration or user recreation).
+   */
+  private async resolveAllUserIds(userId: string): Promise<string[]> {
+    // If it's already a CUID, look up its externalId first
+    let externalId: string | null = null;
+    if (userId.startsWith('cm')) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { externalId: true },
+      });
+      externalId = user?.externalId ?? null;
+    } else {
+      externalId = userId;
+    }
+
+    if (!externalId) return [userId];
+
+    // Find all user records (active and deleted) with this externalId
+    const users = await this.prisma.user.findMany({
+      where: { externalId },
+      select: { id: true },
+    });
+
+    if (users.length === 0) return [userId];
+    return users.map((u) => u.id);
+  }
+
+  /**
    * Queue a pair of memories for review
    */
   async queuePairForReview(
@@ -184,10 +214,10 @@ export class ReviewService {
     } = {},
   ): Promise<ListCandidatesResponseDto> {
     const { status, minSimilarity, limit = 50, offset = 0 } = options;
-    const resolvedUserId = await this.resolveUserId(userId);
+    const allUserIds = await this.resolveAllUserIds(userId);
 
     const where: any = {
-      userId: resolvedUserId,
+      userId: { in: allUserIds },
       ...(status ? { status } : {}),
       ...(minSimilarity ? { similarity: { gte: minSimilarity } } : {}),
       // Exclude skipped candidates whose skip time hasn't passed
@@ -207,7 +237,7 @@ export class ReviewService {
       }),
       this.prisma.mergeCandidate.count({ where }),
       this.prisma.mergeCandidate.count({
-        where: { userId: resolvedUserId, status: CandidateStatus.PENDING },
+        where: { userId: { in: allUserIds }, status: CandidateStatus.PENDING },
       }),
     ]);
 
