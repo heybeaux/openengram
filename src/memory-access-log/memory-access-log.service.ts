@@ -215,26 +215,33 @@ export class MemoryAccessLogService {
 
   /**
    * Get full attribution trail for a memory.
+   * Returns shape expected by the dashboard: { memoryId, createdBySession, accessLog, pools }
    */
-  async getAttribution(memoryId: string): Promise<AttributionResult> {
-    // Get the memory's creator session
+  async getAttribution(memoryId: string): Promise<any> {
+    // Get the memory's creator session key
     const memory = await this.prisma.memory.findUnique({
       where: { id: memoryId },
       select: { id: true, createdBySession: true } as any,
     });
 
-    let createdBy: AttributionResult['createdBy'] = null;
-    const createdBySession = (memory as any)?.createdBySession;
-    if (createdBySession) {
+    let createdBySession: any = null;
+    const createdBySessionKey = (memory as any)?.createdBySession;
+    if (createdBySessionKey) {
       const session = await (this.prisma as any).agentSession.findUnique({
-        where: { sessionKey: createdBySession },
-        select: { sessionKey: true, label: true, createdAt: true },
+        where: { sessionKey: createdBySessionKey },
       });
       if (session) {
-        createdBy = {
+        createdBySession = {
+          id: session.id,
           sessionKey: session.sessionKey,
-          label: session.label,
+          label: session.label ?? null,
+          status: session.status,
+          parentSessionKey: session.parentKey ?? null,
+          taskDescription: session.taskDescription ?? null,
+          startedAt: session.createdAt,
+          endedAt: session.endedAt ?? null,
           createdAt: session.createdAt,
+          updatedAt: session.updatedAt ?? session.createdAt,
         };
       }
     }
@@ -251,23 +258,42 @@ export class MemoryAccessLogService {
       take: 100,
     });
 
-    const accessHistory = logs.map((log: any) => ({
+    const accessLog = logs.map((log: any) => ({
+      id: log.id,
+      memoryId: log.memoryId,
       sessionKey: log.agentSession.sessionKey,
       accessType: log.accessType,
-      context: log.context,
-      at: log.createdAt,
+      metadata: log.context ? { context: log.context } : undefined,
+      createdAt: log.createdAt,
     }));
 
-    const uniqueSessions = new Set(
-      logs.map((l: any) => l.agentSession.sessionKey),
-    ).size;
+    // Get pool memberships
+    let pools: any[] = [];
+    try {
+      const memberships = await (this.prisma as any).memoryPoolMembership.findMany({
+        where: { memoryId },
+        include: {
+          pool: true,
+        },
+      });
+      pools = memberships.map((m: any) => ({
+        id: m.pool.id,
+        name: m.pool.name,
+        description: m.pool.description ?? null,
+        visibility: m.pool.visibility,
+        createdBySession: m.pool.createdBy ?? null,
+        createdAt: m.pool.createdAt,
+        updatedAt: m.pool.updatedAt,
+      }));
+    } catch (err) {
+      this.logger.warn(`Failed to fetch pool memberships: ${(err as Error).message}`);
+    }
 
     return {
       memoryId,
-      createdBy,
-      accessHistory,
-      accessCount: logs.length,
-      uniqueSessions,
+      createdBySession,
+      accessLog,
+      pools,
     };
   }
 
