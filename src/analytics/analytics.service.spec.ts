@@ -180,6 +180,36 @@ describe('AnalyticsService', () => {
       ).toBe(20);
     });
 
+    it('should include INSIGHT layer in distribution', async () => {
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: mockUserId } as any]);
+
+      const mockLayerData = [
+        { layer: 'IDENTITY', count: BigInt(30) },
+        { layer: 'PROJECT', count: BigInt(20) },
+        { layer: 'SESSION', count: BigInt(20) },
+        { layer: 'TASK', count: BigInt(15) },
+        { layer: 'INSIGHT', count: BigInt(15) },
+      ];
+      jest.spyOn(prisma, '$queryRaw').mockResolvedValue(mockLayerData);
+
+      const result = await service.getLayerDistribution(mockAgentId, {
+        includeTrend: false,
+      });
+
+      expect(result.total).toBe(100);
+      expect(
+        result.current.find((l) => l.layer === 'INSIGHT'),
+      ).toBeDefined();
+      expect(
+        result.current.find((l) => l.layer === 'INSIGHT')?.percentage,
+      ).toBe(15);
+      expect(
+        result.current.find((l) => l.layer === 'TASK')?.percentage,
+      ).toBe(15);
+    });
+
     it('should include trend data when requested', async () => {
       jest
         .spyOn(prisma.user, 'findMany')

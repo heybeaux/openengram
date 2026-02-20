@@ -524,7 +524,7 @@ export class ExtractionService {
   classifyLayer(raw: string, extracted?: ExtractionResult): MemoryLayer {
     const lowered = raw.toLowerCase();
 
-    // TASK patterns - actionable items, reminders, todos
+    // TASK patterns - actionable items, reminders, todos (HEY-193)
     // Check memoryType from LLM extraction first (most reliable)
     if (extracted?.memoryType === 'TASK') {
       console.log(
@@ -539,7 +539,8 @@ export class ExtractionService {
       /\b(don't forget|do not forget)\b/i,
       /\b(follow up|follow-up|followup)\b/i,
       /\b(action item)\b/i,
-      /\b(schedule|appointment|book)\b.*\b(for|at|on|with)\b/i,
+      /\b(schedule|appointment)\b.*\b(for|at|on|with)\b/i,
+      /\b(book)\b\s+\b(a|an|the)\b\s+\b(meeting|appointment|session|call|flight|reservation|hotel|room|table)\b/i,
     ];
 
     for (const pattern of taskPatterns) {
