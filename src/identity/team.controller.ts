@@ -46,7 +46,7 @@ export class TeamController {
   @Get()
   @ApiOperation({ summary: 'List all teams' })
   async list() {
-    return this.teamService.listAll();
+    return this.teamService.listTeams();
   }
 
   @Get(':id')

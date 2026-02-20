@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { DelegationContractService } from './delegation-contract.service';
-import { CreateContractBodyDto, CompleteContractBodyDto } from './dto/delegation-contract.dto';
+import { CreateDelegationContractDto, CompleteContractRequestDto } from './dto/delegation-contract.dto';
 
 @ApiTags('delegation-contracts')
 @UseGuards(ApiKeyOrJwtGuard)
@@ -22,7 +22,7 @@ export class DelegationContractController {
   @Post()
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a delegation contract' })
-  async create(@Body() dto: CreateContractBodyDto) {
+  async create(@Body() dto: CreateDelegationContractDto) {
     return this.contractService.create(dto);
   }
 
@@ -45,7 +45,7 @@ export class DelegationContractController {
   @ApiParam({ name: 'id', description: 'Contract ID' })
   async updateStatus(
     @Param('id') id: string,
-    @Body() dto: CompleteContractBodyDto,
+    @Body() dto: CompleteContractRequestDto,
   ) {
     return this.contractService.complete(id, dto);
   }

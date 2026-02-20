@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import {
   CloudSyncController,
   SyncIngestController,
-  ReconciliationController,
 } from './cloud-sync.controller';
 import { CloudSyncService } from './cloud-sync.service';
 import { SyncReconciliationService } from './sync-reconciliation.service';

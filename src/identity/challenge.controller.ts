@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { ChallengeService } from './challenge.service';
-import { CreateChallengeBodyDto, ResolveChallengeBodyDto } from './dto/challenge.dto';
+import { CreateChallengeRequestDto, ResolveChallengeRequestDto } from './dto/challenge.dto';
 
 @ApiTags('challenges')
 @UseGuards(ApiKeyOrJwtGuard)
@@ -22,7 +22,7 @@ export class ChallengeController {
   @Post()
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a challenge' })
-  async create(@Body() dto: CreateChallengeBodyDto) {
+  async create(@Body() dto: CreateChallengeRequestDto) {
     return this.challengeService.create(dto);
   }
 
@@ -46,7 +46,7 @@ export class ChallengeController {
   @ApiParam({ name: 'id', description: 'Challenge ID' })
   async resolve(
     @Param('id') id: string,
-    @Body() dto: ResolveChallengeBodyDto,
+    @Body() dto: ResolveChallengeRequestDto,
   ) {
     return this.challengeService.resolve(id, dto);
   }
@@ -67,7 +67,7 @@ export class MemoryChallengeController {
   @ApiParam({ name: 'id', description: 'Memory ID' })
   async challengeMemory(
     @Param('id') memoryId: string,
-    @Body() dto: CreateChallengeBodyDto,
+    @Body() dto: CreateChallengeRequestDto,
   ) {
     return this.challengeService.create({
       ...dto,
