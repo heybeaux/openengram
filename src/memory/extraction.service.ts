@@ -524,6 +524,34 @@ export class ExtractionService {
   classifyLayer(raw: string, extracted?: ExtractionResult): MemoryLayer {
     const lowered = raw.toLowerCase();
 
+    // TASK patterns - actionable items, reminders, todos
+    // Check memoryType from LLM extraction first (most reliable)
+    if (extracted?.memoryType === 'TASK') {
+      console.log(
+        '[classifyLayer] LLM-extracted memoryType is TASK → TASK layer',
+      );
+      return MemoryLayer.TASK;
+    }
+
+    const taskPatterns = [
+      /\b(remind me|reminder|todo|to-do|to do list)\b/i,
+      /\b(remember to)\b/i,
+      /\b(don't forget|do not forget)\b/i,
+      /\b(follow up|follow-up|followup)\b/i,
+      /\b(action item)\b/i,
+      /\b(schedule|appointment|book)\b.*\b(for|at|on|with)\b/i,
+    ];
+
+    for (const pattern of taskPatterns) {
+      if (pattern.test(raw)) {
+        console.log(
+          '[classifyLayer] Matched TASK pattern:',
+          pattern.toString(),
+        );
+        return MemoryLayer.TASK;
+      }
+    }
+
     // IDENTITY patterns - persistent facts about the user
     const identityPatterns = [
       /\b(prefer|prefers|always|never|favorite|hate|hates|love|loves)\b/i,

@@ -30,7 +30,6 @@ import {
   ModelId,
   ModelConfig,
   MODEL_CONFIGS,
-  ALL_MODELS,
   ModelSearchResult,
   FusedResult,
   EmbeddingResult,
@@ -746,7 +745,7 @@ export class EnsembleService implements OnModuleInit {
 
     const models: ModelInfo[] = [];
 
-    for (const modelId of ALL_MODELS) {
+    for (const modelId of this.config.models) {
       const config = MODEL_CONFIGS[modelId];
       const dbConfig = modelConfigs.find((m) => m.modelId === modelId);
 

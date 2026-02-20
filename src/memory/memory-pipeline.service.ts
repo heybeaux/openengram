@@ -121,15 +121,28 @@ export class MemoryPipelineService {
       confidence: extracted.confidence,
     });
 
-    // Update memory record with type and priority
+    // Update memory record with type, priority, and layer promotion
     if (extracted.memoryType) {
       const priority = this.extraction.getPriorityForType(extracted.memoryType);
+
+      // HEY-193: Promote layer to TASK when LLM classifies memoryType as TASK
+      // The initial layer classification (heuristic-based) may have missed it,
+      // but the LLM extraction is more reliable for task detection.
+      const layerUpdate =
+        extracted.memoryType === 'TASK'
+          ? { layer: 'TASK' as const }
+          : extracted.memoryType === 'LESSON' ||
+              extracted.memoryType === 'CONSTRAINT'
+            ? { layer: 'IDENTITY' as const }
+            : {};
+
       await this.prisma.memory.update({
         where: { id: memoryId },
         data: {
           memoryType: extracted.memoryType,
           typeConfidence: extracted.typeConfidence,
           priority,
+          ...layerUpdate,
         },
       });
       console.log('[Memory] Memory Intelligence updated:', {
