@@ -82,6 +82,7 @@ export class MemoryQueryService {
     const queryEmbedding = await this.embedding.generate(searchQuery);
 
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+    const visibilityFilter = this.buildVisibilityFilter(dto);
     const limit = dto.limit ?? 10;
 
     let scoredMemories: MemoryWithScore[];
@@ -98,6 +99,7 @@ export class MemoryQueryService {
             lte: parsed.temporalFilter!.end,
           },
           ...subjectTypeFilter,
+          ...visibilityFilter,
         },
         include: { extraction: true },
         orderBy: { createdAt: 'desc' },
@@ -161,6 +163,7 @@ export class MemoryQueryService {
           deletedAt: null,
           supersededById: null,
           ...subjectTypeFilter,
+          ...visibilityFilter,
         },
         include: { extraction: true },
       });
@@ -367,6 +370,7 @@ export class MemoryQueryService {
 
     const memoryIds = multiQueryResult.results.map((r) => r.memoryId);
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
+    const visibilityFilterMQ = this.buildVisibilityFilter(dto);
 
     const memories = await this.prisma.memory.findMany({
       where: {
@@ -374,6 +378,7 @@ export class MemoryQueryService {
         deletedAt: null,
         supersededById: null,
         ...subjectTypeFilter,
+        ...visibilityFilterMQ,
       },
       include: { extraction: true },
     });
@@ -663,6 +668,22 @@ export class MemoryQueryService {
   /**
    * Build subject type filter for queries
    */
+  /**
+   * HEY-174: Build visibility filter for cross-agent memory sharing.
+   * When visibility filter is provided, applies scoping rules:
+   * - PRIVATE: only the querying user's own memories
+   * - TEAM: memories visible to the team (same account)
+   * - PUBLIC: memories visible to everyone
+   * When no filter is provided, defaults to showing own private + team + public.
+   */
+  buildVisibilityFilter(dto: QueryMemoryDto): Record<string, any> {
+    if (dto.visibility && dto.visibility.length > 0) {
+      return { visibility: { in: dto.visibility } };
+    }
+    // Default: no filter (backward compatible — all memories for the queried userId)
+    return {};
+  }
+
   buildSubjectTypeFilter(dto: QueryMemoryDto): Record<string, any> {
     const filter: Record<string, any> = {};
 

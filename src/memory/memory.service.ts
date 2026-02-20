@@ -208,6 +208,7 @@ export class MemoryService {
         subjectId,
         agentId: dto.agentId,
         createdBySession: dto.agentSessionKey ?? undefined,
+        visibility: dto.visibility ?? 'PRIVATE',
         contentHash,
       },
     });

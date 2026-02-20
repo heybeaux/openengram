@@ -199,6 +199,9 @@ model Memory {
   lastDreamCycleAt DateTime? @map("last_dream_cycle_at")
   patternSourceIds String[]  @default([]) @map("pattern_source_ids")
 
+  // HEY-174: Scoped memory visibility for cross-agent sharing
+  visibility       MemoryVisibility @default(PRIVATE)
+
   // Extensible metadata (used by Awareness/Waking Cycle for insight metadata,
   // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
   metadata         Json?     @map("metadata")
@@ -229,6 +232,7 @@ model Memory {
   @@index([userId, memoryType, userHidden]) // Memory Intelligence: type filtering
   @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
   @@index([contentHash])
+  @@index([visibility])
   @@map("memories")
 }
 
@@ -576,6 +580,13 @@ enum MemoryAccessType {
   SUPERSEDED
 }
 
+/// Visibility scope for cross-agent memory sharing (HEY-174)
+enum MemoryVisibility {
+  PRIVATE  // Only the owning agent can see (default)
+  TEAM     // Agents in the same account can see
+  PUBLIC   // Any agent can see
+}
+
 /// Memory layer enum
 enum MemoryLayer {
   IDENTITY
@@ -593,6 +604,8 @@ enum MemoryType {
   TASK // Priority 2: Actionable items (reminders, todos)
   EVENT // Priority 4: Conversational moments (recent events)
   LESSON // Priority 1: Mistakes, corrections, and learnings
+  TASK_OUTCOME // Priority 3: Structured task completion records
+  SELF_ASSESSMENT // Priority 3: Agent self-evaluation records
 }
 
 /// Subject type - who/what is this memory about?
@@ -1189,6 +1202,62 @@ model MemoryCluster {
 // AWARENESS / WAKING CYCLE
 // ============================================================================
 
+// ============================================================================
+// IDENTITY PROFILES (HEY-177, HEY-179, HEY-180, HEY-181)
+// ============================================================================
+
+/// Persistent capability profile for an agent — a living document updated with each task outcome
+model AgentCapabilityProfile {
+  id        String   @id @default(cuid())
+  agentId   String   @map("agent_id")
+  userId    String   @map("user_id")
+
+  /// Capability name (e.g., "code_review", "data_analysis", "writing")
+  capability    String
+  /// Confidence level 0.0-1.0 based on aggregated evidence
+  confidence    Float    @default(0.5)
+  /// Number of task outcomes that contributed evidence
+  evidenceCount Int      @default(0) @map("evidence_count")
+  /// Success rate for tasks using this capability (0.0-1.0)
+  successRate   Float    @default(0.0) @map("success_rate")
+  /// Average duration for tasks using this capability (ms)
+  avgDurationMs Float?   @map("avg_duration_ms")
+  /// Last observed usage
+  lastUsedAt    DateTime? @map("last_used_at")
+  /// Freeform notes aggregated from lessons learned
+  notes         String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([agentId, userId, capability])
+  @@index([agentId, userId])
+  @@map("agent_capability_profiles")
+}
+
+/// Tracks agent work style patterns extracted from behavioral data
+model AgentWorkStyle {
+  id      String @id @default(cuid())
+  agentId String @map("agent_id")
+  userId  String @map("user_id")
+
+  /// Style dimension (e.g., "response_time", "verbosity", "tool_usage", "collaboration_style")
+  dimension   String
+  /// Current observed value (JSON-encoded for flexibility)
+  value       Json
+  /// Number of observations
+  sampleCount Int      @default(0) @map("sample_count")
+  /// Trend direction: improving, stable, declining
+  trend       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([agentId, userId, dimension])
+  @@index([agentId, userId])
+  @@map("agent_work_styles")
+}
+
 /// Tracks observation state for each signal source in the Waking Cycle
 model AwarenessState {
   id            String   @id @default(cuid())
@@ -1234,6 +1303,29 @@ model DreamCycleReport {
 
   @@index([userId, createdAt])
   @@map("dream_cycle_reports")
+}
+
+/// HEY-176: Identity snapshots produced by Dream Cycle identity consolidation
+model IdentitySnapshot {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  agentId   String?  @map("agent_id")
+
+  /// Structured identity data
+  capabilities    Json     @default("[]")  // Array of { name, confidence, lastSeen }
+  preferences     Json     @default("{}")  // Key-value preference summary
+  trustScores     Json     @default("{}")  // { source: score } trends
+  behavioralTraits Json    @default("[]")  @map("behavioral_traits") // Array of { trait, strength, evidence }
+
+  /// Source tracking
+  sourceMemoryIds String[] @default([]) @map("source_memory_ids")
+  dreamReportId   String?  @map("dream_report_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([agentId, createdAt])
+  @@map("identity_snapshots")
 }
 
 /// Tracks Dream Cycle execution runs for mutex / concurrency control
@@ -1407,6 +1499,86 @@ model CloudInstance {
   @@unique([accountId, instanceId])
   @@index([accountId])
   @@map("cloud_instances")
+}
+
+// ============================================================================
+// IDENTITY SIGNALS (HEY-170, HEY-172, HEY-173)
+// ============================================================================
+
+/// Trust signals extracted from agent behavior (HEY-170)
+model TrustSignal {
+  id         String          @id @default(cuid())
+  userId     String          @map("user_id")
+  agentId    String?         @map("agent_id")
+  signalType TrustSignalType @map("signal_type")
+  context    String          // Description of what happened
+  category   String?         // Task category (e.g., "deploy", "code-review")
+  weight     Float           @default(1.0) // Signal strength 0.0-2.0
+  sourceMemoryId String?     @map("source_memory_id")
+  metadata   Json?           @map("metadata")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([userId, category])
+  @@index([userId, signalType])
+  @@index([agentId, createdAt])
+  @@map("trust_signals")
+}
+
+enum TrustSignalType {
+  SUCCESS
+  FAILURE
+  CORRECTION
+}
+
+/// Trust score snapshots computed from accumulated signals (HEY-170)
+model TrustScore {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  agentId        String?  @map("agent_id")
+  category       String?  // null = overall score
+  score          Float    // 0.0-1.0
+  signalCount    Int      @default(0) @map("signal_count")
+  successCount   Int      @default(0) @map("success_count")
+  failureCount   Int      @default(0) @map("failure_count")
+  correctionCount Int     @default(0) @map("correction_count")
+  computedAt     DateTime @default(now()) @map("computed_at")
+
+  @@index([userId, category])
+  @@index([userId, computedAt])
+  @@index([agentId, category])
+  @@map("trust_scores")
+}
+
+/// Capability checkpoints for tracking agent growth (HEY-172)
+model CapabilityCheckpoint {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  agentId      String?  @map("agent_id")
+  capabilities Json     // Array of { name, evidenceCount, firstSeen, lastSeen }
+  checkpointAt DateTime @default(now()) @map("checkpoint_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId, checkpointAt])
+  @@index([agentId, checkpointAt])
+  @@map("capability_checkpoints")
+}
+
+/// Experience weight per task category for recall boosting (HEY-173)
+model ExperienceWeight {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  agentId        String?  @map("agent_id")
+  category       String   // Task category (e.g., "deploy", "code-review")
+  successCount   Int      @default(0) @map("success_count")
+  totalCount     Int      @default(0) @map("total_count")
+  weight         Float    @default(1.0) // Computed multiplier for recall
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, agentId, category])
+  @@index([userId, weight(sort: Desc)])
+  @@map("experience_weights")
 }
 
 /// Tracks sync events for history display

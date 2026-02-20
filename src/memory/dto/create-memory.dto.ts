@@ -15,6 +15,7 @@ import {
   ImportanceHint,
   MemoryLayer,
   MemorySource,
+  MemoryVisibility,
   SubjectType,
 } from '@prisma/client';
 
@@ -138,6 +139,11 @@ export class CreateMemoryDto {
   @IsOptional()
   @IsString()
   sourceMessageId?: string;
+
+  // HEY-174: Memory visibility scope
+  @IsOptional()
+  @IsEnum(MemoryVisibility)
+  visibility?: MemoryVisibility;
 
   // v0.7: Agent session attribution
   @IsOptional()
