@@ -563,12 +563,16 @@ describe('ApiKeyOrJwtGuard', () => {
       '192.168.255.255',
       '::ffff:10.0.0.1',
       '::ffff:192.168.1.1',
+      '172.16.0.1', // HEY-205: now correctly recognized as private (172.16-31.x.x)
+      '172.31.255.1',
+      '::ffff:172.20.0.1',
     ];
 
     const publicIps = [
       '203.0.113.1',
       '8.8.8.8',
-      '172.16.0.1', // Note: 172.16.x.x is private but not checked by isLocalIp
+      '172.15.0.1', // 172.15.x is NOT private
+      '172.32.0.1', // 172.32.x is NOT private
       '11.0.0.1',
     ];
 

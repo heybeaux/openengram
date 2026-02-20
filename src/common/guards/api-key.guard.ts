@@ -23,10 +23,12 @@ export class ApiKeyGuard implements CanActivate {
 
     // LAN bypass: IP-only check, no spoofable headers.
     // Disabled by default in production (TRUST_LOCAL_NETWORK=false).
+    // NEVER allowed when NODE_ENV=production.
+    const nodeEnv = this.config.get<string>('NODE_ENV', 'development');
     const trustLocal =
       this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
 
-    if (trustLocal && this.isLocalIp(request)) {
+    if (nodeEnv !== 'production' && trustLocal && this.isLocalIp(request)) {
       // LAN access — try to resolve agent context if key provided
       const localApiKey = request.headers['x-am-api-key'];
       const localUserId = request.headers['x-am-user-id'];
@@ -171,8 +173,16 @@ export class ApiKeyGuard implements CanActivate {
       ip.startsWith('10.') ||
       ip.startsWith('192.168.') ||
       ip.startsWith('::ffff:10.') ||
-      ip.startsWith('::ffff:192.168.')
+      ip.startsWith('::ffff:192.168.') ||
+      this.isIn172PrivateRange(ip)
     );
+  }
+
+  private isIn172PrivateRange(ip: string): boolean {
+    const raw = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    if (!raw.startsWith('172.')) return false;
+    const second = parseInt(raw.split('.')[1], 10);
+    return second >= 16 && second <= 31;
   }
 
   private hashApiKey(apiKey: string): string {
