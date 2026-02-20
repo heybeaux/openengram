@@ -462,8 +462,8 @@ export class MemoryQueryService {
       Math.floor(LAYER_BUDGETS.identity * 0.25),
     );
 
-    // 1. Load IDENTITY layer
-    const identityCandidates = await this.prisma.memory.findMany({
+    // Fire all independent layer queries in parallel for lower latency
+    const identityPromise = this.prisma.memory.findMany({
       where: {
         userId,
         layer: MemoryLayer.IDENTITY,
@@ -482,54 +482,28 @@ export class MemoryQueryService {
       take: 200,
     });
 
-    const { selected: identityMemories, evicted: identityEvicted } =
-      this.selectMemoriesForBudget(
-        identityCandidates,
-        LAYER_BUDGETS.identity,
-        CONSTRAINT_RESERVE,
-      );
-    memories.push(...identityMemories);
-    layers.identity = identityMemories.length;
-    evictions.push(
-      ...identityEvicted.map((m) => ({ id: m.id, reason: 'identity_budget' })),
-    );
+    const projectPromise = dto.projectId
+      ? this.prisma.memory.findMany({
+          where: {
+            userId,
+            projectId: dto.projectId,
+            layer: MemoryLayer.PROJECT,
+            deletedAt: null,
+            supersededById: null,
+            userHidden: false,
+          },
+          orderBy: [
+            { effectiveScore: 'desc' },
+            { confidence: 'desc' },
+            { priority: 'asc' },
+            { userPinned: 'desc' },
+            { createdAt: 'desc' },
+          ],
+          take: 100,
+        })
+      : Promise.resolve([]);
 
-    // 2. Load PROJECT layer
-    if (dto.projectId) {
-      const projectCandidates = await this.prisma.memory.findMany({
-        where: {
-          userId,
-          projectId: dto.projectId,
-          layer: MemoryLayer.PROJECT,
-          deletedAt: null,
-          supersededById: null,
-          userHidden: false,
-        },
-        orderBy: [
-          { effectiveScore: 'desc' },
-          { confidence: 'desc' },
-          { priority: 'asc' },
-          { userPinned: 'desc' },
-          { createdAt: 'desc' },
-        ],
-        take: 100,
-      });
-
-      const { selected: projectMemories, evicted: projectEvicted } =
-        this.selectMemoriesForBudget(
-          projectCandidates,
-          LAYER_BUDGETS.project,
-          0,
-        );
-      memories.push(...projectMemories);
-      layers.project = projectMemories.length;
-      evictions.push(
-        ...projectEvicted.map((m) => ({ id: m.id, reason: 'project_budget' })),
-      );
-    }
-
-    // 3. Load SESSION layer
-    const sessionCandidates = await this.prisma.memory.findMany({
+    const sessionPromise = this.prisma.memory.findMany({
       where: {
         userId,
         layer: MemoryLayer.SESSION,
@@ -547,6 +521,56 @@ export class MemoryQueryService {
       take: 100,
     });
 
+    const agentPromise = dto.agentId
+      ? this.prisma.memory.findMany({
+          where: {
+            agentId: dto.agentId,
+            subjectType: SubjectType.AGENT,
+            deletedAt: null,
+            supersededById: null,
+            userHidden: false,
+          },
+          orderBy: [
+            { effectiveScore: 'desc' },
+            { priority: 'asc' },
+            { createdAt: 'desc' },
+          ],
+          take: 20,
+        })
+      : Promise.resolve([]);
+
+    const [identityCandidates, projectCandidates, sessionCandidates, agentMemories] =
+      await Promise.all([identityPromise, projectPromise, sessionPromise, agentPromise]);
+
+    // 1. Process IDENTITY layer
+    const { selected: identityMemories, evicted: identityEvicted } =
+      this.selectMemoriesForBudget(
+        identityCandidates,
+        LAYER_BUDGETS.identity,
+        CONSTRAINT_RESERVE,
+      );
+    memories.push(...identityMemories);
+    layers.identity = identityMemories.length;
+    evictions.push(
+      ...identityEvicted.map((m) => ({ id: m.id, reason: 'identity_budget' })),
+    );
+
+    // 2. Process PROJECT layer
+    if (dto.projectId && projectCandidates.length > 0) {
+      const { selected: projectMemories, evicted: projectEvicted } =
+        this.selectMemoriesForBudget(
+          projectCandidates,
+          LAYER_BUDGETS.project,
+          0,
+        );
+      memories.push(...projectMemories);
+      layers.project = projectMemories.length;
+      evictions.push(
+        ...projectEvicted.map((m) => ({ id: m.id, reason: 'project_budget' })),
+      );
+    }
+
+    // 3. Process SESSION layer
     const { selected: sessionMemories, evicted: sessionEvicted } =
       this.selectMemoriesForBudget(sessionCandidates, LAYER_BUDGETS.session, 0);
     memories.push(...sessionMemories);
@@ -555,23 +579,8 @@ export class MemoryQueryService {
       ...sessionEvicted.map((m) => ({ id: m.id, reason: 'session_budget' })),
     );
 
-    // 4. Load agent self-memories
-    if (dto.agentId) {
-      const agentMemories = await this.prisma.memory.findMany({
-        where: {
-          agentId: dto.agentId,
-          subjectType: SubjectType.AGENT,
-          deletedAt: null,
-          supersededById: null,
-          userHidden: false,
-        },
-        orderBy: [
-          { effectiveScore: 'desc' },
-          { priority: 'asc' },
-          { createdAt: 'desc' },
-        ],
-        take: 20,
-      });
+    // 4. Process agent self-memories
+    if (agentMemories.length > 0) {
       memories.push(...agentMemories);
       layers.agent = agentMemories.length;
     }
