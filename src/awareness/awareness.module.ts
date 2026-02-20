@@ -7,6 +7,8 @@ import { GitHubSignalService } from './signals/github-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService } from './analysis/insight-generator.service';
 import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
+import { InsightFeedbackService } from './insight-feedback.service';
+import { ProactiveNotificationService } from './proactive-notification.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { LLMModule } from '../llm/llm.module';
 import { MemoryModule } from '../memory/memory.module';
@@ -21,18 +23,15 @@ const logger = new Logger('AwarenessModule');
  * Enabled via AWARENESS_ENABLED=true. When disabled, this module
  * registers no providers and has zero runtime cost.
  *
- * The module observes memory patterns, detects insights, and stores
- * them as INSIGHT layer memories that flow through the standard
- * recall pipeline.
+ * Features:
+ * - Waking Cycle: pattern detection + insight generation (HEY-136)
+ * - Insight Feedback: confidence adjustment from user feedback (HEY-151)
+ * - Proactive Notifications: webhook push for high-confidence insights (HEY-154)
  */
 @Module({
-  // NOTE: ScheduleModule.forRoot() is registered here as no other module uses it yet.
-  // If other modules need @Cron/@Interval, move .forRoot() to AppModule and import
-  // ScheduleModule (without .forRoot()) here instead.
   imports: AwarenessConfig.enabled
     ? [PrismaModule, LLMModule, MemoryModule, ScheduleModule.forRoot()]
     : [],
-  // Controller always registers — returns helpful errors when disabled
   controllers: [AwarenessController],
   providers: AwarenessConfig.enabled
     ? [
@@ -42,9 +41,13 @@ const logger = new Logger('AwarenessModule');
         PatternDetectorService,
         InsightGeneratorService,
         BehavioralConsistencyService,
+        InsightFeedbackService,
+        ProactiveNotificationService,
       ]
     : [],
-  exports: AwarenessConfig.enabled ? [WakingCycleService, BehavioralConsistencyService] : [],
+  exports: AwarenessConfig.enabled
+    ? [WakingCycleService, BehavioralConsistencyService, InsightFeedbackService, ProactiveNotificationService]
+    : [],
 })
 export class AwarenessModule {
   constructor() {

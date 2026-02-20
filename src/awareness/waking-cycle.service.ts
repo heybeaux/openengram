@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
@@ -8,6 +8,8 @@ import { GitHubSignalService } from './signals/github-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
 import { InsightGeneratorService, GeneratedInsight } from './analysis/insight-generator.service';
 import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
+import { ProactiveNotificationService } from './proactive-notification.service';
+import { InsightFeedbackService } from './insight-feedback.service';
 import { Observation } from './signals/signal.interface';
 import { ImportanceHint } from '@prisma/client';
 
@@ -19,6 +21,10 @@ import { ImportanceHint } from '@prisma/client';
  * 2. Detects patterns across observations + existing memories
  * 3. Generates insights (INSIGHT layer memories)
  * 4. Stores them via the standard memory pipeline
+ *
+ * HEY-136: Enhanced with full metadata storage for insights
+ * HEY-151: Integrates feedback loop for confidence adjustment
+ * HEY-154: Triggers proactive notifications for high-confidence insights
  *
  * Respects resource budgets and can be fully disabled via config.
  */
@@ -35,6 +41,8 @@ export class WakingCycleService {
     private readonly patternDetector: PatternDetectorService,
     private readonly insightGenerator: InsightGeneratorService,
     private readonly behavioralConsistency: BehavioralConsistencyService,
+    @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
+    @Optional() private readonly insightFeedback?: InsightFeedbackService,
   ) {}
 
   /**
@@ -103,15 +111,14 @@ export class WakingCycleService {
 
     const memoryResult = await this.memorySignal.collect(
       checkpoints.get('memory') || null,
-      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.6) }, // 60% budget to memory signal
+      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.6) },
     );
     allObservations.push(...memoryResult.observations);
     await this.saveCheckpoint('memory', memoryResult.checkpoint);
 
-    // GitHub signal (optional — collects if configured)
     const githubResult = await this.githubSignal.collect(
       checkpoints.get('github') || null,
-      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.3) }, // 30% budget to GitHub
+      { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.3) },
     );
     allObservations.push(...githubResult.observations);
     await this.saveCheckpoint('github', githubResult.checkpoint);
@@ -126,7 +133,6 @@ export class WakingCycleService {
     });
 
     // ── 5. Behavioral consistency check (HEY-175) ──────────────────
-    let consistencyInsights = 0;
     try {
       const user = await this.prisma.user.findFirst();
       if (user) {
@@ -144,7 +150,6 @@ export class WakingCycleService {
             signalSource: 'behavioral_consistency',
             actionable: inconsistency.severity !== 'low',
           });
-          consistencyInsights++;
         }
       }
     } catch (error) {
@@ -176,8 +181,6 @@ export class WakingCycleService {
     signalSource: string,
     checkpoint: Record<string, unknown>,
   ): Promise<void> {
-    // We need an accountId — for MVP, use the first account
-    // TODO: Make this multi-tenant aware
     const account = await this.prisma.account.findFirst();
     if (!account) {
       this.logger.warn('No account found — cannot save checkpoint');
@@ -205,18 +208,15 @@ export class WakingCycleService {
   }
 
   /**
-   * Store generated insights as INSIGHT layer memories via the standard
-   * memory pipeline (MemoryService.remember). This ensures insights get:
-   * - Full embedding generation (required for active surfacing in recall)
-   * - Entity extraction and knowledge graph integration
-   * - Three-tier dedup (replaces our manual exact-match check)
-   * - Event emission (memory.created)
+   * Store generated insights as INSIGHT layer memories.
+   *
+   * HEY-136: Stores full insight metadata (type, sources, actionable, etc.)
+   * HEY-151: Adjusts confidence based on feedback history for similar insight types
+   * HEY-154: Triggers proactive notifications for high-confidence actionable insights
    */
   private async storeInsights(insights: GeneratedInsight[]): Promise<void> {
     if (insights.length === 0) return;
 
-    // Find a default user for storing insights
-    // TODO: Make this configurable / multi-tenant
     const user = await this.prisma.user.findFirst();
     if (!user) {
       this.logger.warn('No user found — cannot store insights');
@@ -225,19 +225,67 @@ export class WakingCycleService {
 
     for (const insight of insights) {
       try {
-        await this.memoryService.remember(user.id, {
+        // HEY-151: Adjust confidence based on feedback history
+        let adjustedConfidence = insight.confidence;
+        if (this.insightFeedback) {
+          try {
+            const stats = await this.insightFeedback.getFeedbackStats(
+              user.id,
+              insight.insightType,
+            );
+            if (stats.totalFeedback > 0) {
+              adjustedConfidence = Math.max(0, Math.min(1,
+                insight.confidence + stats.avgConfidenceAdjustment,
+              ));
+            }
+          } catch (e) {
+            this.logger.debug(`Feedback stats lookup failed: ${e.message}`);
+          }
+        }
+
+        const stored = await this.memoryService.remember(user.id, {
           raw: insight.content,
           layer: 'INSIGHT',
-          importanceHint: insight.confidence > 0.7 ? ImportanceHint.HIGH : ImportanceHint.MEDIUM,
+          importanceHint: adjustedConfidence > 0.7 ? ImportanceHint.HIGH : ImportanceHint.MEDIUM,
           source: 'PATTERN_DETECTED',
-          // TODO: Pass patternSourceIds once metadata JSON column is available
         });
 
-        this.logger.log(`Stored insight: "${insight.content.slice(0, 80)}..." (confidence: ${insight.confidence})`);
+        // HEY-136: Store full insight metadata
+        await this.prisma.memory.update({
+          where: { id: stored.id },
+          data: {
+            confidence: adjustedConfidence,
+            metadata: {
+              insightType: insight.insightType,
+              confidence: adjustedConfidence,
+              sourceMemoryIds: insight.sourceMemoryIds,
+              signalSource: insight.signalSource,
+              actionable: insight.actionable,
+              acknowledged: false,
+              expiresAt: new Date(
+                Date.now() + AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000,
+              ).toISOString(),
+            },
+          },
+        });
+
+        this.logger.log(
+          `Stored insight: "${insight.content.slice(0, 80)}..." (confidence: ${adjustedConfidence.toFixed(2)})`,
+        );
       } catch (error) {
-        // Dedup rejections are expected — the pipeline's three-tier dedup
-        // handles exact matches, semantic matches, and reinforcement
         this.logger.debug(`Insight storage skipped/failed: ${error.message}`);
+      }
+    }
+
+    // HEY-154: Trigger proactive notifications
+    if (this.proactiveNotification) {
+      try {
+        const account = await this.prisma.account.findFirst();
+        if (account) {
+          await this.proactiveNotification.checkAndNotify(account.id);
+        }
+      } catch (error) {
+        this.logger.warn(`Proactive notification check failed: ${error.message}`);
       }
     }
   }
