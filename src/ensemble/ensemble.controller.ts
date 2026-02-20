@@ -179,8 +179,8 @@ export class EnsembleController {
     const result = await this.ensembleService.query({
       query: dto.query,
       userId: dto.userId,
-      limit: dto.limit,
-      k: dto.k,
+      limit: dto.limit ? Math.min(dto.limit, 1000) : undefined,
+      k: dto.k ? Math.min(dto.k, 1000) : undefined,
       models: dto.models,
       weights: dto.weights,
     });
@@ -396,7 +396,7 @@ export class EnsembleController {
     @Query('testId') testId?: string,
     @Query('limit') limit?: string,
   ): Promise<{ results: ABTestResult[]; count: number }> {
-    const limitNum = limit ? parseInt(limit, 10) : 100;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 100, 1000);
     const results = await this.ensembleService.getABTestResults(
       testId,
       limitNum,
@@ -573,7 +573,7 @@ export class EnsembleController {
     const snapshots = await this.prisma.driftSnapshot.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: limit ? parseInt(limit, 10) : 100,
+      take: Math.min(limit ? parseInt(limit, 10) : 100, 1000),
     });
 
     return { snapshots, count: snapshots.length };

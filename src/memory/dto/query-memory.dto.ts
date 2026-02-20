@@ -6,6 +6,8 @@ import {
   IsArray,
   IsEnum,
   ValidateNested,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -36,6 +38,8 @@ export class QueryMemoryDto {
   })
   @IsOptional()
   @IsNumber()
+  @Min(1)
+  @Max(1000)
   limit?: number = 10;
 
   @IsOptional()

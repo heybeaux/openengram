@@ -379,7 +379,6 @@ export class MemoryController {
     @Query() query: ExportQueryDto,
     @Res() res: Response,
   ): Promise<void> {
-    const memories = await this.memoryService.exportMemories(userId);
     const format = query.format || 'json';
     const date = new Date().toISOString().split('T')[0];
     const ext = format === 'ndjson' ? 'ndjson' : 'json';
@@ -389,16 +388,44 @@ export class MemoryController {
       `attachment; filename="engram-export-${date}.${ext}"`,
     );
 
+    // Stream in batches to avoid OOM on large exports (HEY-206)
+    const BATCH_SIZE = 500;
+    let cursor: string | undefined;
+    let isFirst = true;
+
     if (format === 'ndjson') {
       res.setHeader('Content-Type', 'application/x-ndjson');
-      for (const memory of memories) {
-        res.write(JSON.stringify(memory) + '\n');
-      }
-      res.end();
     } else {
       res.setHeader('Content-Type', 'application/json');
-      res.json(memories);
+      res.write('[');
     }
+
+    while (true) {
+      const batch = await this.memoryService.exportMemoriesBatch(
+        userId,
+        BATCH_SIZE,
+        cursor,
+      );
+      if (batch.length === 0) break;
+
+      for (const memory of batch) {
+        if (format === 'ndjson') {
+          res.write(JSON.stringify(memory) + '\n');
+        } else {
+          if (!isFirst) res.write(',');
+          res.write(JSON.stringify(memory));
+          isFirst = false;
+        }
+      }
+
+      if (batch.length < BATCH_SIZE) break;
+      cursor = batch[batch.length - 1].id;
+    }
+
+    if (format !== 'ndjson') {
+      res.write(']');
+    }
+    res.end();
   }
 
   /**
