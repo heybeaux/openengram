@@ -19,12 +19,14 @@ import { ImportanceHint } from '@prisma/client';
  * 3. Generates insights (INSIGHT layer memories)
  * 4. Stores them via the standard memory pipeline
  *
- * Respects resource budgets and can be fully disabled via config.
+ * Supports multi-tenant operation: cycles can be scoped per accountId.
+ * The scheduled entry point iterates all accounts automatically.
  */
 @Injectable()
 export class WakingCycleService {
   private readonly logger = new Logger(WakingCycleService.name);
   private running = false;
+  private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,19 +38,25 @@ export class WakingCycleService {
   ) {}
 
   /**
-   * Scheduled entry point. Decorating with @Cron here for discoverability,
-   * but the actual schedule is controlled via AwarenessConfig.
+   * Scheduled entry point. Runs a cycle for each account.
    */
   @Cron(AwarenessConfig.schedule)
   async runScheduled(): Promise<void> {
     if (!AwarenessConfig.enabled) return;
-    await this.runCycle();
+
+    // Multi-tenant: run a cycle for each account
+    const accounts = await this.prisma.account.findMany({ select: { id: true } });
+    for (const account of accounts) {
+      await this.runCycle(account.id);
+    }
   }
 
   /**
    * Run a single Waking Cycle. Can be called manually for testing.
+   * @param accountId — scope cycle to a specific account (multi-tenant).
+   *   If omitted, falls back to first account (legacy single-tenant).
    */
-  async runCycle(): Promise<{
+  async runCycle(accountId?: string): Promise<{
     observations: number;
     patterns: number;
     insights: number;
@@ -67,9 +75,10 @@ export class WakingCycleService {
 
       // Apply timeout
       const result = await Promise.race([
-        this._execute(),
+        this._execute(accountId),
         this.timeout(AwarenessConfig.cycleTimeoutMs),
       ]);
+      this.clearTimeout();
 
       const durationMs = Date.now() - startTime;
       this.logger.log(
@@ -80,6 +89,7 @@ export class WakingCycleService {
 
       return { ...result, durationMs };
     } catch (error) {
+      this.clearTimeout();
       this.logger.error(`Waking Cycle failed: ${error.message}`, error.stack);
       return { observations: 0, patterns: 0, insights: 0, durationMs: Date.now() - startTime };
     } finally {
@@ -87,14 +97,25 @@ export class WakingCycleService {
     }
   }
 
-  /** Execute the full cycle pipeline: collect → detect → generate → store. */
-  private async _execute(): Promise<{
+  /**
+   * Execute the full cycle pipeline: collect → detect → generate → store.
+   * @param accountId — if provided, scope to this account; otherwise use first account (legacy).
+   */
+  private async _execute(accountId?: string): Promise<{
     observations: number;
     patterns: number;
     insights: number;
   }> {
+    // ── 0. Resolve account ────────────────────────────────────────────
+    const resolvedAccountId = accountId
+      ?? (await this.prisma.account.findFirst())?.id;
+    if (!resolvedAccountId) {
+      this.logger.warn('No account found — cannot run waking cycle');
+      return { observations: 0, patterns: 0, insights: 0 };
+    }
+
     // ── 1. Load checkpoints ───────────────────────────────────────────
-    const checkpoints = await this.loadCheckpoints();
+    const checkpoints = await this.loadCheckpoints(resolvedAccountId);
 
     // ── 2. Collect signals ────────────────────────────────────────────
     const allObservations: Observation[] = [];
@@ -104,7 +125,7 @@ export class WakingCycleService {
       { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.6) }, // 60% budget to memory signal
     );
     allObservations.push(...memoryResult.observations);
-    await this.saveCheckpoint('memory', memoryResult.checkpoint);
+    await this.saveCheckpoint(resolvedAccountId, 'memory', memoryResult.checkpoint);
 
     // GitHub signal (optional — collects if configured)
     const githubResult = await this.githubSignal.collect(
@@ -112,7 +133,7 @@ export class WakingCycleService {
       { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.3) }, // 30% budget to GitHub
     );
     allObservations.push(...githubResult.observations);
-    await this.saveCheckpoint('github', githubResult.checkpoint);
+    await this.saveCheckpoint(resolvedAccountId, 'github', githubResult.checkpoint);
 
     // ── 3. Detect patterns ────────────────────────────────────────────
     const patterns = this.patternDetector.detect(allObservations);
@@ -124,7 +145,7 @@ export class WakingCycleService {
     });
 
     // ── 5. Store insights as INSIGHT layer memories ───────────────────
-    await this.storeInsights(insights);
+    await this.storeInsights(resolvedAccountId, insights);
 
     return {
       observations: allObservations.length,
@@ -133,9 +154,11 @@ export class WakingCycleService {
     };
   }
 
-  /** Load all signal source checkpoints from the database. */
-  private async loadCheckpoints(): Promise<Map<string, Record<string, unknown>>> {
-    const states = await this.prisma.awarenessState.findMany();
+  /** Load signal source checkpoints for a specific account. */
+  private async loadCheckpoints(accountId: string): Promise<Map<string, Record<string, unknown>>> {
+    const states = await this.prisma.awarenessState.findMany({
+      where: { accountId },
+    });
     const map = new Map<string, Record<string, unknown>>();
     for (const state of states) {
       map.set(state.signalSource, (state.checkpoint as Record<string, unknown>) || {});
@@ -143,23 +166,16 @@ export class WakingCycleService {
     return map;
   }
 
-  /** Persist a signal source checkpoint via upsert. */
+  /** Persist a signal source checkpoint via upsert, scoped to account. */
   private async saveCheckpoint(
+    accountId: string,
     signalSource: string,
     checkpoint: Record<string, unknown>,
   ): Promise<void> {
-    // We need an accountId — for MVP, use the first account
-    // TODO: Make this multi-tenant aware
-    const account = await this.prisma.account.findFirst();
-    if (!account) {
-      this.logger.warn('No account found — cannot save checkpoint');
-      return;
-    }
-
     await this.prisma.awarenessState.upsert({
       where: {
         accountId_signalSource: {
-          accountId: account.id,
+          accountId,
           signalSource,
         },
       },
@@ -168,7 +184,7 @@ export class WakingCycleService {
         checkpoint: checkpoint as any,
       },
       create: {
-        accountId: account.id,
+        accountId,
         signalSource,
         lastCheckedAt: new Date(),
         checkpoint: checkpoint as any,
@@ -184,14 +200,15 @@ export class WakingCycleService {
    * - Three-tier dedup (replaces our manual exact-match check)
    * - Event emission (memory.created)
    */
-  private async storeInsights(insights: GeneratedInsight[]): Promise<void> {
+  private async storeInsights(accountId: string, insights: GeneratedInsight[]): Promise<void> {
     if (insights.length === 0) return;
 
-    // Find a default user for storing insights
-    // TODO: Make this configurable / multi-tenant
-    const user = await this.prisma.user.findFirst();
+    // Find the first user belonging to this account
+    const user = await this.prisma.user.findFirst({
+      where: { accountId },
+    });
     if (!user) {
-      this.logger.warn('No user found — cannot store insights');
+      this.logger.warn(`No user found for account ${accountId} — cannot store insights`);
       return;
     }
 
@@ -202,7 +219,6 @@ export class WakingCycleService {
           layer: 'INSIGHT',
           importanceHint: insight.confidence > 0.7 ? ImportanceHint.HIGH : ImportanceHint.MEDIUM,
           source: 'PATTERN_DETECTED',
-          // TODO: Pass patternSourceIds once metadata JSON column is available
         });
 
         this.logger.log(`Stored insight: "${insight.content.slice(0, 80)}..." (confidence: ${insight.confidence})`);
@@ -216,8 +232,19 @@ export class WakingCycleService {
 
   /** Returns a promise that rejects after `ms` milliseconds (cycle timeout). */
   private timeout(ms: number): Promise<never> {
-    return new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Waking Cycle timed out after ${ms}ms`)), ms),
-    );
+    return new Promise((_, reject) => {
+      this.timeoutHandle = setTimeout(
+        () => reject(new Error(`Waking Cycle timed out after ${ms}ms`)),
+        ms,
+      );
+    });
+  }
+
+  /** Clear the cycle timeout to prevent timer leaks. */
+  private clearTimeout(): void {
+    if (this.timeoutHandle) {
+      clearTimeout(this.timeoutHandle);
+      this.timeoutHandle = null;
+    }
   }
 }

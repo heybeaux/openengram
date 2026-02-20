@@ -23,6 +23,7 @@ describe('WakingCycleService', () => {
       },
       account: {
         findFirst: jest.fn().mockResolvedValue({ id: 'acc-1' }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'acc-1' }]),
       },
       user: {
         findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
@@ -99,10 +100,10 @@ describe('WakingCycleService', () => {
       }));
     });
 
-    it('should skip storing if no user found', async () => {
+    it('should skip storing if no user found for account', async () => {
       (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const result = await service.runCycle();
+      const result = await service.runCycle('acc-1');
 
       expect(result.insights).toBe(1);
       expect(memoryService.remember).not.toHaveBeenCalled();
@@ -148,12 +149,34 @@ describe('WakingCycleService', () => {
       );
     });
 
-    it('should skip checkpoint save if no account found', async () => {
+    it('should skip cycle if no account found', async () => {
       (prisma.account.findFirst as jest.Mock).mockResolvedValue(null);
 
-      await service.runCycle();
+      const result = await service.runCycle();
 
+      expect(result.observations).toBe(0);
       expect(prisma.awarenessState.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should scope to a specific accountId when provided', async () => {
+      await service.runCycle('acc-42');
+
+      expect(prisma.awarenessState.findMany).toHaveBeenCalledWith({
+        where: { accountId: 'acc-42' },
+      });
+      expect(prisma.awarenessState.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            accountId_signalSource: {
+              accountId: 'acc-42',
+              signalSource: 'memory',
+            },
+          },
+        }),
+      );
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { accountId: 'acc-42' },
+      });
     });
 
     it('should handle insight dedup rejection gracefully', async () => {
