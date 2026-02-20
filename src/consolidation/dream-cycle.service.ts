@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DreamStartedEvent, DreamCompletedEvent } from '../events/event-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { TrustProfileService } from '../identity/trust-profile.service';
 import { GenerateContextService } from './generate-context.service';
 import { ClusteringService } from '../clustering/clustering.service';
 import { FogIndexService } from '../fog-index/fog-index.service';
@@ -72,6 +73,7 @@ export class DreamCycleService {
     @Optional() private generateContextService?: GenerateContextService,
     @Optional() private clusteringService?: ClusteringService,
     @Optional() private fogIndexService?: FogIndexService,
+    @Optional() private trustProfileService?: TrustProfileService,
     @Optional() private eventEmitter?: EventEmitter2,
   ) {
     this.maxLlmCalls = parseInt(
@@ -303,6 +305,20 @@ export class DreamCycleService {
           this.log('Stage 3.6 complete', driftResult);
         } catch (err) {
           const msg = `Drift stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.7: Trust profile recalculation
+      if (this.trustProfileService) {
+        this.log('Stage 3.7: Trust profile recalculation');
+        try {
+          const trustResult = await this.trustProfileService.recalculateAllProfiles();
+          stageDetails.trustUpdate = trustResult;
+          this.log('Stage 3.7 complete', trustResult);
+        } catch (err) {
+          const msg = `Trust update stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
           this.log(msg, undefined, 'error');
         }

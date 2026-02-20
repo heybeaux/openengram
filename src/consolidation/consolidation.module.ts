@@ -15,6 +15,7 @@ import { ClusteringModule } from '../clustering/clustering.module';
 import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
 import { FogIndexModule } from '../fog-index/fog-index.module';
 import { AccountModule } from '../account/account.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AccountModule } from '../account/account.module';
     LLMModule,
     ClusteringModule,
     FogIndexModule,
+    IdentityModule,
   ],
   controllers: [ConsolidationController],
   providers: [
