@@ -55,6 +55,13 @@ export class TeamProfileService {
   }
 
   /**
+   * List all teams
+   */
+  async listAll(): Promise<TeamProfile[]> {
+    return Array.from(this.teams.values());
+  }
+
+  /**
    * Get team by ID
    */
   async getTeam(teamId: string): Promise<TeamProfile> {
@@ -63,6 +70,67 @@ export class TeamProfileService {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
     return team;
+  }
+
+  /**
+   * Update team metadata
+   */
+  async updateTeam(teamId: string, dto: { name?: string; description?: string }): Promise<TeamProfile> {
+    const team = await this.getTeam(teamId);
+    if (dto.name) team.name = dto.name;
+    if (dto.description !== undefined) team.description = dto.description;
+    team.updatedAt = new Date();
+    return team;
+  }
+
+  /**
+   * Delete a team
+   */
+  async deleteTeam(teamId: string): Promise<void> {
+    if (!this.teams.has(teamId)) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+    this.teams.delete(teamId);
+  }
+
+  /**
+   * Add members to a team
+   */
+  async addMembers(teamId: string, agentIds: string[]): Promise<TeamProfile> {
+    const team = await this.getTeam(teamId);
+    const newIds = agentIds.filter((id) => !team.agentIds.includes(id));
+    team.agentIds.push(...newIds);
+    team.capabilities = await this.aggregateCapabilities(team.agentIds);
+    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.updatedAt = new Date();
+    return team;
+  }
+
+  /**
+   * Remove members from a team
+   */
+  async removeMembers(teamId: string, agentIds: string[]): Promise<TeamProfile> {
+    const team = await this.getTeam(teamId);
+    team.agentIds = team.agentIds.filter((id) => !agentIds.includes(id));
+    team.capabilities = await this.aggregateCapabilities(team.agentIds);
+    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.updatedAt = new Date();
+    return team;
+  }
+
+  /**
+   * Record a collaboration event between agents in a team
+   */
+  async recordCollaboration(
+    teamId: string,
+    dto: { agentA: string; agentB: string; taskDescription: string; success: boolean },
+  ): Promise<{ recorded: boolean; team: TeamProfile }> {
+    const team = await this.getTeam(teamId);
+    team.lastActive = new Date();
+    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.updatedAt = new Date();
+    this.logger.log(`Collaboration recorded in team ${teamId}: ${dto.agentA} <-> ${dto.agentB}`);
+    return { recorded: true, team };
   }
 
   /**

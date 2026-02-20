@@ -4,13 +4,16 @@ import {
   SyncIngestController,
 } from './cloud-sync.controller';
 import { CloudSyncService } from './cloud-sync.service';
+import { ReconciliationController } from './reconciliation.controller';
+import { ReconciliationService } from './reconciliation.service';
 import { CloudLinkModule } from '../cloud-link/cloud-link.module';
 import { AccountModule } from '../account/account.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [AccountModule, CloudLinkModule],
-  controllers: [CloudSyncController, SyncIngestController],
-  providers: [CloudSyncService],
-  exports: [CloudSyncService],
+  imports: [AccountModule, CloudLinkModule, PrismaModule],
+  controllers: [CloudSyncController, SyncIngestController, ReconciliationController],
+  providers: [CloudSyncService, ReconciliationService],
+  exports: [CloudSyncService, ReconciliationService],
 })
 export class CloudSyncModule {}

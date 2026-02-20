@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WakingCycleService } from './waking-cycle.service';
 import { AwarenessController } from './awareness.controller';
+import { AwarenessSourceController } from './awareness-source.controller';
+import { AwarenessSourceService } from './awareness-source.service';
 import { MemorySignalService } from './signals/memory-signal.service';
 import { GitHubSignalService } from './signals/github-signal.service';
 import { LinearSignalService } from './signals/linear-signal.service';
@@ -33,7 +35,7 @@ const logger = new Logger('AwarenessModule');
     ? [PrismaModule, LLMModule, MemoryModule, ScheduleModule.forRoot()]
     : [],
   // Controller always registers — returns helpful errors when disabled
-  controllers: [AwarenessController],
+  controllers: [AwarenessController, AwarenessSourceController],
   providers: AwarenessConfig.enabled
     ? [
         WakingCycleService,
@@ -42,9 +44,12 @@ const logger = new Logger('AwarenessModule');
         LinearSignalService,
         PatternDetectorService,
         InsightGeneratorService,
+        AwarenessSourceService,
       ]
-    : [],
-  exports: AwarenessConfig.enabled ? [WakingCycleService] : [],
+    : [AwarenessSourceService],
+  exports: AwarenessConfig.enabled
+    ? [WakingCycleService, AwarenessSourceService]
+    : [AwarenessSourceService],
 })
 export class AwarenessModule {
   constructor() {

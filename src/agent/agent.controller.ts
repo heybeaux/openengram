@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { MemoryLayer } from '@prisma/client';
 import { AgentService } from './agent.service';
+import { TrustHistoryService } from './trust-history.service';
 import { ReflectDto, ReflectionResultDto } from './dto/reflect.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
@@ -24,7 +25,10 @@ import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 @UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/agents')
 export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly trustHistoryService: TrustHistoryService,
+  ) {}
 
   /**
    * Trigger agent self-reflection
@@ -131,5 +135,30 @@ Use this when starting a session to include the agent's self-awareness.
       agentId,
       maxTokens ? parseInt(String(maxTokens), 10) : undefined,
     );
+  }
+
+  // === HEY-284: Trust History ===
+
+  @Get(':agentId/trust/history')
+  @ApiOperation({ summary: 'Get paginated trust score history for an agent' })
+  @ApiParam({ name: 'agentId', description: 'Agent identifier' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  async getTrustHistory(
+    @Param('agentId') agentId: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.trustHistoryService.getHistory(agentId, {
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
+  }
+
+  @Post('trust/bulk-recompute')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Bulk recompute trust scores for all agents' })
+  async bulkRecomputeTrust() {
+    return this.trustHistoryService.bulkRecompute();
   }
 }
