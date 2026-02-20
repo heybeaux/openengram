@@ -6,10 +6,11 @@ node_modules/
 dist/
 build/
 
-# Environment
+# Environment — never commit secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.docker
 
 # IDE
 .idea/
@@ -37,4 +38,4 @@ prisma/migrations/**/migration_lock.toml
 reports/
 node_modules
 worktrees/
-.env.cloud
+prisma/engram.db
