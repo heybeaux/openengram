@@ -11,7 +11,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MemoryLayer, MemoryVisibility, SubjectType } from '@prisma/client';
+import { MemoryLayer, SubjectType } from '@prisma/client';
+import { MemoryVisibilityEnum } from './create-memory.dto';
 import { MultiQueryOptionsDto } from '../../multi-query/dto/multi-query.dto';
 
 export class QueryMemoryDto {
@@ -76,8 +77,8 @@ export class QueryMemoryDto {
   // HEY-174: Visibility filter for cross-agent recall
   @IsOptional()
   @IsArray()
-  @IsEnum(MemoryVisibility, { each: true })
-  visibility?: MemoryVisibility[];
+  @IsEnum(MemoryVisibilityEnum, { each: true })
+  visibility?: MemoryVisibilityEnum[];
 
   // v0.7: Agent session attribution
   @IsOptional()

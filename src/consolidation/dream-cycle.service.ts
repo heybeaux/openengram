@@ -11,6 +11,7 @@ import {
   DreamCycleStalenessStage,
   DreamCyclePatternsStage,
   DreamCycleDriftStage,
+  DreamCycleIdentityStage,
 } from './stages';
 import * as os from 'os';
 
@@ -23,6 +24,7 @@ export type DreamCycleStage =
   | 'patterns'
   | 'clustering'
   | 'drift'
+  | 'identity'
   | 'report';
 
 export interface DreamCycleOptions {
@@ -54,6 +56,7 @@ const ALL_STAGES: DreamCycleStage[] = [
   'patterns',
   'clustering',
   'drift',
+  'identity',
   'report',
 ];
 
@@ -68,6 +71,7 @@ export class DreamCycleService {
     private stalenessStage: DreamCycleStalenessStage,
     private patternsStage: DreamCyclePatternsStage,
     private driftStage: DreamCycleDriftStage,
+    private identityStage: DreamCycleIdentityStage,
     @Optional() private generateContextService?: GenerateContextService,
     @Optional() private clusteringService?: ClusteringService,
     @Optional() private fogIndexService?: FogIndexService,
@@ -302,6 +306,26 @@ export class DreamCycleService {
           this.log('Stage 3.6 complete', driftResult);
         } catch (err) {
           const msg = `Drift stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.7: Identity consolidation (HEY-176)
+      if (stages.includes('identity') && llmCallsUsed < this.maxLlmCalls) {
+        this.log('Stage 3.7: Identity consolidation');
+        try {
+          const identityResult = await this.identityStage.run(
+            userId,
+            dryRun,
+            this.maxLlmCalls - llmCallsUsed,
+            report.id,
+          );
+          llmCallsUsed += identityResult.llmCalls;
+          stageDetails.identity = identityResult;
+          this.log('Stage 3.7 complete', identityResult);
+        } catch (err) {
+          const msg = `Identity stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
           this.log(msg, undefined, 'error');
         }

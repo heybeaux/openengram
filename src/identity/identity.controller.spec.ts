@@ -1,64 +1,147 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { IdentityController } from './identity.controller';
 import { IdentityService } from './identity.service';
 
 describe('IdentityController', () => {
   let controller: IdentityController;
-  let service: IdentityService;
+  let service: jest.Mocked<IdentityService>;
 
-  const mockProfile = {
+  const mockIdentityProfile = {
     agentId: 'agent-1',
-    name: 'TestAgent',
-    createdAt: '2024-12-01T00:00:00.000Z',
     capabilities: [
-      { capability: 'deployed the API to Railway', evidence: 'Successfully deployed...', confidence: 0.8, firstSeen: '2025-01-01T00:00:00.000Z', lastSeen: '2025-01-01T00:00:00.000Z', occurrences: 1 },
+      {
+        capability: 'deployment',
+        confidence: 0.8,
+        evidenceCount: 5,
+        successRate: 0.9,
+      },
     ],
-    preferences: [
-      { category: 'tooling', preference: 'using TypeScript over JavaScript', strength: 'strong' as const, source: 'I prefer using TypeScript' },
+    workStyle: [
+      { dimension: 'task_duration', value: { avg: 5000 }, sampleCount: 10 },
     ],
-    trustSignals: {
-      totalMemories: 5,
-      identityMemories: 5,
-      lessonMemories: 1,
-      constraintMemories: 1,
-      averageConfidence: 0.92,
-      oldestMemory: '2025-01-01T00:00:00.000Z',
-      newestMemory: '2025-02-01T00:00:00.000Z',
-    },
-    recentPatterns: [],
+    selfAssessments: [
+      {
+        id: 'sa-1',
+        area: 'coding',
+        selfRating: 8,
+        confidence: 0.9,
+        createdAt: new Date(),
+      },
+    ],
+    recentOutcomes: [
+      {
+        id: 'to-1',
+        taskDescription: 'deploy',
+        outcome: 'success' as const,
+        createdAt: new Date(),
+      },
+    ],
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [IdentityController],
-      providers: [
-        {
-          provide: IdentityService,
-          useValue: {
-            getIdentityProfile: jest.fn().mockResolvedValue(mockProfile),
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    service = {
+      getIdentityProfile: jest.fn().mockResolvedValue(mockIdentityProfile),
+      getCapabilities: jest.fn().mockResolvedValue({
+        agentId: 'agent-1',
+        capabilities: mockIdentityProfile.capabilities,
+        updatedAt: new Date(),
+      }),
+      recordTaskOutcome: jest.fn().mockResolvedValue({
+        id: 'to-1',
+        taskDescription: 'deploy',
+        outcome: 'success',
+        createdAt: new Date(),
+      }),
+      recordSelfAssessment: jest.fn().mockResolvedValue({
+        id: 'sa-1',
+        area: 'coding',
+        selfRating: 8,
+        confidence: 0.9,
+        createdAt: new Date(),
+      }),
+      taskOutcome: {
+        list: jest.fn().mockResolvedValue([]),
+      },
+      selfAssessment: {
+        list: jest.fn().mockResolvedValue([]),
+      },
+    } as any;
 
-    controller = module.get<IdentityController>(IdentityController);
-    service = module.get<IdentityService>(IdentityService);
+    controller = new IdentityController(service);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('getIdentity', () => {
-    it('should return identity profile', async () => {
-      const result = await controller.getIdentity('agent-1');
+  describe('GET /agents/:id/identity', () => {
+    it('should return full identity profile', async () => {
+      const result = await controller.getIdentityProfile('user-1', 'agent-1');
 
       expect(result.agentId).toBe('agent-1');
-      expect(result.name).toBe('TestAgent');
       expect(result.capabilities).toHaveLength(1);
-      expect(result.preferences).toHaveLength(1);
-      expect(result.trustSignals.totalMemories).toBe(5);
-      expect(service.getIdentityProfile).toHaveBeenCalledWith('agent-1');
+      expect(result.workStyle).toHaveLength(1);
+      expect(result.selfAssessments).toHaveLength(1);
+      expect(result.recentOutcomes).toHaveLength(1);
+      expect(service.getIdentityProfile).toHaveBeenCalledWith(
+        'agent-1',
+        'user-1',
+      );
+    });
+  });
+
+  describe('GET /agents/:id/capabilities', () => {
+    it('should return capability profile', async () => {
+      const result = await controller.getCapabilities('user-1', 'agent-1');
+
+      expect(result.agentId).toBe('agent-1');
+      expect(result.capabilities).toHaveLength(1);
+      expect(service.getCapabilities).toHaveBeenCalledWith(
+        'agent-1',
+        'user-1',
+      );
+    });
+  });
+
+  describe('POST /agents/:agentId/task-outcomes', () => {
+    it('should record a task outcome', async () => {
+      const result = await controller.recordTaskOutcome('user-1', 'agent-1', {
+        taskDescription: 'deploy',
+        outcome: 'success',
+      });
+
+      expect(result.id).toBe('to-1');
+      expect(service.recordTaskOutcome).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /agents/:agentId/self-assessments', () => {
+    it('should record a self-assessment', async () => {
+      const result = await controller.recordSelfAssessment(
+        'user-1',
+        'agent-1',
+        {
+          area: 'coding',
+          selfRating: 8,
+          confidence: 0.9,
+        },
+      );
+
+      expect(result.id).toBe('sa-1');
+      expect(service.recordSelfAssessment).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /agents/:agentId/task-outcomes', () => {
+    it('should list task outcomes', async () => {
+      const result = await controller.listTaskOutcomes('user-1', 'agent-1');
+      expect(service['taskOutcome'].list).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /agents/:agentId/self-assessments', () => {
+    it('should list self-assessments', async () => {
+      const result = await controller.listSelfAssessments('user-1', 'agent-1');
+      expect(service['selfAssessment'].list).toHaveBeenCalled();
     });
   });
 });

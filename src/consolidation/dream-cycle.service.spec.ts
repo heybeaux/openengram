@@ -11,6 +11,7 @@ import {
   DreamCycleStalenessStage,
   DreamCyclePatternsStage,
   DreamCycleDriftStage,
+  DreamCycleIdentityStage,
 } from './stages';
 
 const mockPrisma = {
@@ -79,6 +80,18 @@ const mockPatternsStage = {
     .fn()
     .mockResolvedValue({ patternsCreated: 0, clustersFound: 0, llmCalls: 0 }),
 };
+const mockIdentityStage = {
+  run: jest
+    .fn()
+    .mockResolvedValue({
+      snapshotId: null,
+      capabilitiesExtracted: 0,
+      preferencesExtracted: 0,
+      behavioralTraits: 0,
+      llmCalls: 0,
+    }),
+};
+
 const mockDriftStage = {
   run: jest
     .fn()
@@ -131,6 +144,7 @@ describe('DreamCycleService', () => {
         { provide: DreamCycleStalenessStage, useValue: mockStalenessStage },
         { provide: DreamCyclePatternsStage, useValue: mockPatternsStage },
         { provide: DreamCycleDriftStage, useValue: mockDriftStage },
+        { provide: DreamCycleIdentityStage, useValue: mockIdentityStage },
       ],
     }).compile();
 
