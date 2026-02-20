@@ -41,8 +41,8 @@ import { InstanceModule } from './instance/instance.module';
 import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
 import { AwarenessModule } from './awareness/awareness.module';
-import { MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { UsageTrackingInterceptor } from './common/interceptors/usage-tracking.interceptor';
 
 const EDITION = process.env.EDITION || 'local';
 
@@ -129,9 +129,11 @@ const cloudModules = [
 
 @Module({
   imports: [...coreModules, ...(EDITION === 'cloud' ? cloudModules : [])],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UsageTrackingInterceptor,
+    },
+  ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(UsageLimitMiddleware).forRoutes('v1/*path');
-  }
-}
+export class AppModule {}
