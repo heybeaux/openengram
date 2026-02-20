@@ -1,7 +1,4 @@
 import { IdentityController } from './identity.controller';
-import { TaskCompletionService } from './task-completion.service';
-import { DelegationTemplateService } from './delegation-template.service';
-import { TrustProfileService } from './trust-profile.service';
 import { TaskOutcome } from './dto/task-completion.dto';
 
 describe('IdentityController', () => {
@@ -11,6 +8,10 @@ describe('IdentityController', () => {
   let trustProfileService: any;
 
   beforeEach(() => {
+    const teamProfileService = { createTeam: jest.fn(), getTeam: jest.fn(), getTeamCapabilities: jest.fn() } as any;
+    const delegationRecallService = { recall: jest.fn() } as any;
+    const portableIdentityService = { exportIdentity: jest.fn(), importIdentity: jest.fn() } as any;
+
     taskCompletionService = {
       create: jest.fn().mockResolvedValue({ id: 'tc_1' }),
       query: jest.fn().mockResolvedValue([]),
@@ -30,9 +31,12 @@ describe('IdentityController', () => {
     };
 
     controller = new IdentityController(
-      taskCompletionService as TaskCompletionService,
-      delegationTemplateService as DelegationTemplateService,
-      trustProfileService as TrustProfileService,
+      teamProfileService,
+      delegationRecallService,
+      portableIdentityService,
+      taskCompletionService,
+      delegationTemplateService,
+      trustProfileService,
     );
   });
 
@@ -54,14 +58,10 @@ describe('IdentityController', () => {
 
   describe('GET /task-completions', () => {
     it('should query completions', async () => {
-      const result = await controller.queryTaskCompletions({
-        agentId: 'agent-a',
-      });
+      const result = await controller.queryTaskCompletions({ agentId: 'agent-a' });
 
       expect(result).toEqual([]);
-      expect(taskCompletionService.query).toHaveBeenCalledWith({
-        agentId: 'agent-a',
-      });
+      expect(taskCompletionService.query).toHaveBeenCalledWith({ agentId: 'agent-a' });
     });
   });
 
@@ -76,9 +76,7 @@ describe('IdentityController', () => {
     it('should return error when no taskDescription', async () => {
       const result = await controller.getDelegationTemplates('');
 
-      expect(result).toEqual({
-        error: 'taskDescription query parameter is required',
-      });
+      expect(result).toEqual({ error: 'taskDescription query parameter is required' });
     });
   });
 

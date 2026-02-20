@@ -35,7 +35,7 @@ export class TaskCompletionService {
 
     let embedding: number[] | undefined;
     try {
-      embedding = await this.embeddingService.embedSingle(dto.taskDescription);
+      embedding = await this.embeddingService.embedOne(dto.taskDescription);
     } catch (e) {
       this.logger.warn('Failed to generate embedding for task completion', e);
     }
@@ -99,7 +99,7 @@ export class TaskCompletionService {
   ): Promise<(TaskCompletion & { similarity: number })[]> {
     let embedding: number[];
     try {
-      embedding = await this.embeddingService.embedSingle(taskDescription);
+      embedding = await this.embeddingService.embedOne(taskDescription);
     } catch (e) {
       this.logger.warn('Embedding failed, falling back to text search');
       return this.fallbackTextSearch(taskDescription, limit);
