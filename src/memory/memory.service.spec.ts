@@ -13,6 +13,7 @@ import {
 import { MemoryQueryService } from './memory-query.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import { MemoryGraphService } from './memory-graph.service';
+import { MemoryExportService } from './memory-export.service';
 import { ImportanceHint, MemoryLayer, MemorySource } from '@prisma/client';
 
 describe('MemoryService', () => {
@@ -201,6 +202,16 @@ describe('MemoryService', () => {
         { provide: MemoryQueryService, useValue: mockQueryService },
         { provide: MemoryPipelineService, useValue: mockPipelineService },
         { provide: MemoryGraphService, useValue: mockGraphService },
+        {
+          provide: MemoryExportService,
+          useValue: {
+            exportMemories: jest.fn().mockResolvedValue([]),
+            exportMemoriesBatch: jest.fn().mockResolvedValue([]),
+            importMemories: jest
+              .fn()
+              .mockResolvedValue({ imported: 0, skipped: 0, errors: 0 }),
+          },
+        },
       ],
     }).compile();
 

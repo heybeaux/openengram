@@ -5,6 +5,7 @@ import { MemoryDedupService } from './memory-dedup.service';
 import { MemoryQueryService } from './memory-query.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import { MemoryGraphService } from './memory-graph.service';
+import { MemoryExportService } from './memory-export.service';
 import { ExtractionService } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { ImportanceService } from './importance.service';
@@ -36,6 +37,7 @@ import { AccountModule } from '../account/account.module';
     MemoryQueryService,
     MemoryPipelineService,
     MemoryGraphService,
+    MemoryExportService,
     ExtractionService,
     EmbeddingService,
     ImportanceService,
