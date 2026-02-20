@@ -1,0 +1,194 @@
+# Getting Started with Engram
+
+Memory infrastructure for AI agents that actually works.
+
+## Prerequisites
+
+- **Node.js** ≥ 20
+- **pnpm** ≥ 9 (`corepack enable && corepack prepare pnpm@9 --activate`)
+- **PostgreSQL** 16 with [pgvector](https://github.com/pgvector/pgvector) extension
+  - Easiest: use the `pgvector/pgvector:pg16` Docker image
+
+## Quick Start with Docker (Recommended)
+
+The fastest way to get running:
+
+```bash
+git clone https://github.com/openengram/engram.git
+cd engram
+docker compose up
+```
+
+This starts PostgreSQL (with pgvector) and the Engram API on `http://localhost:3001`. Embeddings run locally — no API keys needed.
+
+## Manual Installation
+
+```bash
+git clone https://github.com/openengram/engram.git
+cd engram
+pnpm install
+```
+
+### Configure Environment
+
+Copy the example config:
+
+```bash
+cp .env.example .env
+```
+
+Set your database URL:
+
+```env
+DATABASE_URL=postgresql://engram:engram@localhost:5432/engram
+DIRECT_URL=postgresql://engram:engram@localhost:5432/engram
+```
+
+Optionally set an API key to protect your instance:
+
+```env
+AM_API_KEY=your-secret-key-here
+```
+
+### Run Database Migrations
+
+```bash
+npx prisma generate
+pnpm run migrate:deploy
+```
+
+### Start the Server
+
+```bash
+pnpm start:dev    # Development (hot reload)
+pnpm start:prod   # Production (requires pnpm build first)
+```
+
+The API is available at `http://localhost:3001`. Interactive docs at `http://localhost:3001/api/docs`.
+
+## Create Your First Agent
+
+Agents are created implicitly when you store a memory with an `agentId`. Let's create one called `my-agent`:
+
+```bash
+curl -X POST http://localhost:3001/v1/memories \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -H "X-AM-User-ID: user-1" \
+  -H "X-AM-Agent-ID: my-agent" \
+  -d '{
+    "content": "The user prefers dark mode and uses vim keybindings."
+  }'
+```
+
+Engram automatically:
+- Extracts entities, topics, and memory type via LLM
+- Generates a vector embedding
+- Scores importance
+- Stores everything in PostgreSQL
+
+## Store Your First Memory
+
+```bash
+curl -X POST http://localhost:3001/v1/memories \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -H "X-AM-User-ID: user-1" \
+  -d '{
+    "content": "Project deadline is March 15th. The client wants the dashboard redesigned with a focus on mobile responsiveness.",
+    "agentId": "my-agent"
+  }'
+```
+
+The response includes the extracted metadata:
+
+```json
+{
+  "id": "clx...",
+  "content": "Project deadline is March 15th...",
+  "extraction": {
+    "entities": ["March 15th", "dashboard"],
+    "topics": ["project management", "design"],
+    "memoryType": "FACT"
+  },
+  "importance": 0.7
+}
+```
+
+## Your First Recall
+
+Retrieve relevant memories using semantic search:
+
+```bash
+curl -X POST http://localhost:3001/v1/recall \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -H "X-AM-User-ID: user-1" \
+  -d '{
+    "query": "What are the project deadlines?",
+    "limit": 5
+  }'
+```
+
+For richer context-aware recall:
+
+```bash
+curl -X POST http://localhost:3001/v1/recall/contextual \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -H "X-AM-User-ID: user-1" \
+  -d '{
+    "query": "What do I need to know about the project?",
+    "agentId": "my-agent",
+    "limit": 10
+  }'
+```
+
+## Generate Context for Prompts
+
+Get a formatted context block ready to inject into your LLM system prompt:
+
+```bash
+curl -X POST http://localhost:3001/v1/context \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -H "X-AM-User-ID: user-1" \
+  -d '{
+    "query": "Help with the dashboard project",
+    "maxTokens": 2000
+  }'
+```
+
+## Agent Self-Reflection
+
+After a conversation session, trigger agent self-reflection to build self-awareness:
+
+```bash
+curl -X POST http://localhost:3001/v1/agents/my-agent/reflect \
+  -H "Content-Type: application/json" \
+  -H "X-AM-API-Key: your-secret-key-here" \
+  -d '{
+    "userId": "user-1",
+    "conversationTurns": [
+      { "role": "user", "content": "Can you help me debug this?" },
+      { "role": "assistant", "content": "Sure, let me look at the error..." }
+    ]
+  }'
+```
+
+## Check Health
+
+```bash
+curl http://localhost:3001/v1/health
+```
+
+Returns database status, embedding service health, memory counts, and uptime.
+
+## Next Steps
+
+- **[Self-Hosting Guide](./self-hosting.md)** — Production deployment with Docker, backups, and monitoring
+- **[API Reference](../api/README.md)** — Complete endpoint documentation
+- **[Architecture](../architecture/README.md)** — System design and data flow diagrams
+- **Cloud Sync** — Connect your local instance to Engram Cloud for backup and multi-device sync
+- **Identity Framework** — Delegation contracts, trust profiles, and challenge protocols for multi-agent systems
+- **Awareness Module** — Proactive memory with GitHub, Linear, and memory signal integrations
