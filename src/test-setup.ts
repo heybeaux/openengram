@@ -34,3 +34,17 @@ afterEach(async () => {
     }
   }
 });
+
+// Safety net: ensure all modules are closed after the entire suite
+afterAll(async () => {
+  while (activeModules.length > 0) {
+    const module = activeModules.pop();
+    try {
+      await module?.close();
+    } catch {
+      // Module may already be closed
+    }
+  }
+  // Allow any pending microtasks/timers to flush
+  await new Promise((resolve) => setTimeout(resolve, 50));
+});
