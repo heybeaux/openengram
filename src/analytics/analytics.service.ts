@@ -22,6 +22,18 @@ export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Get all user IDs for an agent.
+   * Includes soft-deleted users so their memories are still counted in analytics.
+   */
+  private async getUserIdsForAgent(agentId: string): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: { agentId },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
+
+  /**
    * Get timeline of memories over time
    */
   async getTimeline(
@@ -36,12 +48,8 @@ export class AnalyticsService {
       ? new Date(dto.start)
       : this.getDefaultStartDate(granularity, end);
 
-    // Get all users for this agent
-    const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
-      select: { id: true },
-    });
-    const userIds = users.map((u) => u.id);
+    // Get all users for this agent (including soft-deleted)
+    const userIds = await this.getUserIdsForAgent(agentId);
 
     if (userIds.length === 0) {
       return {
@@ -116,11 +124,7 @@ export class AnalyticsService {
       ? new Date(dto.start)
       : this.getDefaultStartDate(granularity, end, 90);
 
-    const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
-      select: { id: true },
-    });
-    const userIds = users.map((u) => u.id);
+    const userIds = await this.getUserIdsForAgent(agentId);
 
     if (userIds.length === 0) {
       return {
@@ -240,11 +244,7 @@ export class AnalyticsService {
   ): Promise<LayerDistributionResponse> {
     const { includeTrend = true, granularity = 'week' } = dto;
 
-    const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
-      select: { id: true },
-    });
-    const userIds = users.map((u) => u.id);
+    const userIds = await this.getUserIdsForAgent(agentId);
 
     if (userIds.length === 0) {
       return {
@@ -267,7 +267,7 @@ export class AnalyticsService {
       GROUP BY layer
     `;
 
-    const allLayers: MemoryLayer[] = ['IDENTITY', 'PROJECT', 'SESSION', 'TASK'];
+    const allLayers: MemoryLayer[] = ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'];
     const layerMap = new Map<MemoryLayer, number>();
     let total = 0;
 
@@ -337,11 +337,7 @@ export class AnalyticsService {
    * Get summary stats for dashboard overview
    */
   async getSummary(agentId: string): Promise<AnalyticsSummaryResponse> {
-    const users = await this.prisma.user.findMany({
-      where: { agentId, deletedAt: null },
-      select: { id: true },
-    });
-    const userIds = users.map((u) => u.id);
+    const userIds = await this.getUserIdsForAgent(agentId);
 
     if (userIds.length === 0) {
       return {
