@@ -31,7 +31,17 @@ export class CloudLinkService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async linkCloud(accountId: string, apiKey: string): Promise<CloudStatus> {
+  async linkCloud(
+    accountId: string,
+    apiKey: string,
+    options?: {
+      localAgentId?: string;
+      cloudAgentId?: string;
+      localUserId?: string;
+      cloudUserId?: string;
+      userExternalId?: string;
+    },
+  ): Promise<CloudStatus & { reconciliationPreview?: any }> {
     // Validate the API key against cloud
     const cloudUser = await this.validateCloudApiKey(apiKey);
 
@@ -98,12 +108,135 @@ export class CloudLinkService {
       },
     });
 
+    // Create agent/user identity mappings if provided
+    if (options?.localAgentId && options?.cloudAgentId) {
+      await this.createAgentMapping(
+        instanceId,
+        options.localAgentId,
+        options.cloudAgentId,
+      );
+    }
+    if (options?.localUserId && options?.cloudUserId) {
+      await this.createUserMapping(
+        instanceId,
+        options.localUserId,
+        options.cloudUserId,
+        options.userExternalId || 'default',
+      );
+    }
+
+    // Detect if both sides have existing data
+    const localMemoryCount = await this.prisma.memory.count({
+      where: { deletedAt: null },
+    });
+
+    let reconciliationPreview: any = undefined;
+    if (localMemoryCount > 0) {
+      // Check cloud side for existing data
+      try {
+        const cloudCheckResponse = await fetch(
+          `${this.CLOUD_API_BASE}/v1/sync/pull?since=${new Date(0).toISOString()}&limit=1`,
+          {
+            headers: {
+              'X-AM-API-Key': apiKey,
+              'X-Instance-Id': instanceId,
+            },
+          },
+        );
+        if (cloudCheckResponse.ok) {
+          const cloudData = (await cloudCheckResponse.json()) as {
+            memories: any[];
+            hasMore: boolean;
+          };
+          const cloudHasData =
+            cloudData.memories.length > 0 || cloudData.hasMore;
+          if (cloudHasData) {
+            reconciliationPreview = {
+              bothSidesHaveData: true,
+              localMemoryCount,
+              message:
+                'Both local and cloud have existing memories. Use POST /v1/cloud/reconcile/preview to see what would be synced, then POST /v1/cloud/reconcile/execute to perform bidirectional sync.',
+            };
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Could not check cloud data during link: ${err.message}`,
+        );
+      }
+    }
+
     return {
       linked: true,
       plan: cloudUser.plan,
       email: cloudUser.email,
       lastVerified: new Date().toISOString(),
+      ...(reconciliationPreview ? { reconciliationPreview } : {}),
     };
+  }
+
+  /**
+   * Create a SyncAgentMap entry mapping local agent ID to cloud agent ID.
+   */
+  async createAgentMapping(
+    instanceId: string,
+    localAgentId: string,
+    cloudAgentId: string,
+  ): Promise<void> {
+    // Get agent name from the cloud agent
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: cloudAgentId },
+      select: { name: true },
+    });
+    const agentName = agent?.name || localAgentId;
+
+    await this.prisma.syncAgentMap.upsert({
+      where: {
+        instanceId_localAgentId: { instanceId, localAgentId },
+      },
+      create: {
+        instanceId,
+        localAgentId,
+        cloudAgentId,
+        agentName,
+      },
+      update: {
+        cloudAgentId,
+        agentName,
+      },
+    });
+    this.logger.log(
+      `Created agent mapping: ${localAgentId} → ${cloudAgentId} (${agentName})`,
+    );
+  }
+
+  /**
+   * Create a SyncUserMap entry mapping local user ID to cloud user ID.
+   */
+  async createUserMapping(
+    instanceId: string,
+    localUserId: string,
+    cloudUserId: string,
+    externalId: string,
+  ): Promise<void> {
+    await this.prisma.syncUserMap.upsert({
+      where: {
+        instanceId_localUserId: { instanceId, localUserId },
+      },
+      create: {
+        instanceId,
+        localUserId,
+        cloudUserId,
+        externalId,
+      },
+      update: {
+        cloudUserId,
+        externalId,
+      },
+    });
+    this.logger.log(
+      `Created user mapping: ${localUserId} → ${cloudUserId}`,
+    );
   }
 
   async unlinkCloud(accountId: string): Promise<void> {
