@@ -40,3 +40,5 @@ node_modules
 worktrees/
 .env.cloud
 prisma/engram.db
+backups/
+package-lock.json
