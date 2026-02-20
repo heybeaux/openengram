@@ -104,12 +104,19 @@ export class ApiKeyOrJwtGuard implements CanActivate {
 
     // LAN bypass: allow local requests without credentials when TRUST_LOCAL_NETWORK=true
     // Only enabled for local edition (not cloud/prod deployments)
+    // NEVER allowed in production (NODE_ENV=production) — HEY-205
+    const nodeEnv = this.config.get<string>('NODE_ENV', 'development');
     const edition = this.config.get<string>('EDITION', 'local');
     const lanBypassEnv = this.config.get<string>('LAN_BYPASS', '');
     const isLocalEdition = edition === 'local' || lanBypassEnv === 'true';
     const trustLocal =
       this.config.get<string>('TRUST_LOCAL_NETWORK', 'false') === 'true';
-    if (isLocalEdition && trustLocal && this.isLocalIp(request)) {
+    if (
+      nodeEnv !== 'production' &&
+      isLocalEdition &&
+      trustLocal &&
+      this.isLocalIp(request)
+    ) {
       // LAN bypass: use header if provided, otherwise default to first user
       const externalUserId = request.headers['x-am-user-id'];
       const internalUserId = request.headers['x-user-id'];
@@ -231,7 +238,15 @@ export class ApiKeyOrJwtGuard implements CanActivate {
       ip.startsWith('10.') ||
       ip.startsWith('192.168.') ||
       ip.startsWith('::ffff:10.') ||
-      ip.startsWith('::ffff:192.168.')
+      ip.startsWith('::ffff:192.168.') ||
+      this.isIn172PrivateRange(ip)
     );
+  }
+
+  private isIn172PrivateRange(ip: string): boolean {
+    const raw = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    if (!raw.startsWith('172.')) return false;
+    const second = parseInt(raw.split('.')[1], 10);
+    return second >= 16 && second <= 31;
   }
 }

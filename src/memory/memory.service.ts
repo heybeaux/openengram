@@ -859,6 +859,73 @@ export class MemoryService {
   }
 
   /**
+   * Export memories in batches using cursor-based pagination to avoid OOM (HEY-206).
+   */
+  async exportMemoriesBatch(
+    userId: string,
+    take: number,
+    cursor?: string,
+  ): Promise<ExportedMemory[]> {
+    const memories = await this.prisma.memory.findMany({
+      where: { userId, deletedAt: null },
+      include: { extraction: true },
+      orderBy: { createdAt: 'asc' },
+      take,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    });
+
+    const memoryIds = memories.map((m) => m.id);
+    const ensembleRows = memoryIds.length
+      ? await this.prisma.memoryEmbedding
+          .findMany({
+            where: { memoryId: { in: memoryIds } },
+            select: { memoryId: true, modelId: true },
+          })
+          .catch(() => [] as any[])
+      : [];
+
+    const ensembleMap = new Map<string, Record<string, number[]>>();
+    for (const row of ensembleRows) {
+      if (!ensembleMap.has(row.memoryId)) {
+        ensembleMap.set(row.memoryId, {});
+      }
+      (ensembleMap.get(row.memoryId)! as any)[row.modelId] = true;
+    }
+
+    return memories.map((m) => ({
+      id: m.id,
+      raw: m.raw,
+      layer: m.layer,
+      importance: m.importanceScore,
+      tags: m.extraction?.topics ?? [],
+      metadata: {
+        source: m.source,
+        confidence: m.confidence,
+        subjectType: m.subjectType,
+        subjectId: m.subjectId,
+        projectId: m.projectId,
+        sessionId: m.sessionId,
+        extraction: m.extraction
+          ? {
+              who: m.extraction.who,
+              what: m.extraction.what,
+              when: m.extraction.when,
+              where: m.extraction.whereCtx,
+              why: m.extraction.why,
+              how: m.extraction.how,
+              topics: m.extraction.topics,
+            }
+          : null,
+      },
+      createdAt: m.createdAt.toISOString(),
+      updatedAt: m.updatedAt.toISOString(),
+      ...(ensembleMap.has(m.id)
+        ? { ensembleEmbeddings: ensembleMap.get(m.id) }
+        : {}),
+    }));
+  }
+
+  /**
    * Import memories with dedup and plan limit enforcement.
    */
   async importMemories(
