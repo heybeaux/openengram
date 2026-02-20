@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto/webhook.dto';
+import { validateWebhookUrlSync } from './url-validator';
 
 @Injectable()
 export class WebhookService {
