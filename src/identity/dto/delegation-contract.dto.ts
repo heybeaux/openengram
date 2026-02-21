@@ -1,5 +1,6 @@
 import { IsString, IsArray, IsNumber, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { ContractStatus } from '../identity.types';
 
 export class CreateDelegationContractDto {
   @ApiProperty({ description: 'Task description' })
@@ -60,10 +61,10 @@ export class UpdateDelegationContractDto {
   @IsString({ each: true })
   constraints?: string[];
 
-  @ApiPropertyOptional({ description: 'Contract status' })
+  @ApiPropertyOptional({ description: 'Contract status', enum: ['pending', 'in_progress', 'completed', 'failed', 'timed_out'] })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsIn(['pending', 'in_progress', 'completed', 'failed', 'timed_out'])
+  status?: ContractStatus;
 }
 
 export class CompleteContractRequestDto {

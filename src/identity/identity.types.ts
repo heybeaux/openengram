@@ -39,7 +39,7 @@ export interface CompleteContractDto {
 // ── Challenge Protocol (HEY-186) ──
 
 export type ChallengeType = 'unsafe' | 'underspecified' | 'capability_mismatch' | 'resource_constraint';
-export type ChallengeResolution = 'accepted' | 'overridden' | 'modified';
+export type ChallengeResolution = 'accepted' | 'overridden' | 'modified' | 'dismissed';
 
 export interface Challenge {
   id: string;
