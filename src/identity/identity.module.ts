@@ -2,6 +2,7 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EmbeddingModule } from '../embedding/embedding.module';
 import { IdentityController } from './identity.controller';
+import { AgentsAliasController } from './agents-alias.controller';
 import { DelegationContractController } from './delegation-contract.controller';
 import { ChallengeController, MemoryChallengeController } from './challenge.controller';
 import { TeamController } from './team.controller';
@@ -22,6 +23,7 @@ import { TrustProfileService } from './trust-profile.service';
   ],
   controllers: [
     IdentityController,
+    AgentsAliasController,
     DelegationContractController,
     ChallengeController,
     MemoryChallengeController,

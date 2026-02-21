@@ -34,7 +34,7 @@ const logger = new Logger('AwarenessModule');
 @Module({
   imports: AwarenessConfig.enabled
     ? [PrismaModule, LLMModule, MemoryModule, ScheduleModule.forRoot()]
-    : [],
+    : [PrismaModule],
   // Controller always registers — returns helpful errors when disabled
   controllers: [AwarenessController, AwarenessSourceController],
   providers: AwarenessConfig.enabled

@@ -1,10 +1,11 @@
-import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards, HttpCode, Optional } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, Req, UseGuards, HttpCode, Optional } from '@nestjs/common';
 import { WakingCycleService } from './waking-cycle.service';
 import { InsightFeedbackService } from './insight-feedback.service';
 import { ProactiveNotificationService } from './proactive-notification.service';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { AwarenessConfig } from './config/awareness.config';
 import { InsightFeedbackDto } from './dto/insight-feedback.dto';
+import { PrismaService } from '../prisma/prisma.service';
 import { NotificationConfigDto } from './dto/notification-config.dto';
 
 /**
@@ -14,10 +15,56 @@ import { NotificationConfigDto } from './dto/notification-config.dto';
 @UseGuards(ApiKeyGuard)
 export class AwarenessController {
   constructor(
+    private readonly prisma: PrismaService,
     @Optional() private readonly wakingCycle?: WakingCycleService,
     @Optional() private readonly insightFeedback?: InsightFeedbackService,
     @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
   ) {}
+
+  @Get('insights')
+  @HttpCode(200)
+  async listInsights(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const take = limit ? Math.min(parseInt(limit, 10), 100) : 50;
+    const skip = offset ? parseInt(offset, 10) : 0;
+
+    const memories = await this.prisma.memory.findMany({
+      where: { layer: 'INSIGHT', deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take,
+      skip,
+      select: {
+        id: true,
+        raw: true,
+        metadata: true,
+        createdAt: true,
+      },
+    });
+
+    return memories.map((m) => {
+      const meta = (m.metadata as Record<string, any>) || {};
+      return {
+        id: m.id,
+        title: meta.title || null,
+        content: m.raw,
+        category: meta.insightType || meta.category || null,
+        confidence: meta.confidence ?? null,
+        createdAt: m.createdAt,
+      };
+    });
+  }
+
+  @Get('cycle/status')
+  @HttpCode(200)
+  async getCycleStatus() {
+    if (!this.wakingCycle) {
+      return { phase: 'disabled', lastRun: null, nextRun: null, insightsGenerated: 0 };
+    }
+    // Return basic cycle status
+    return { phase: 'idle', lastRun: null, nextRun: null, insightsGenerated: 0 };
+  }
 
   @Get('awareness/status')
   @HttpCode(200)
