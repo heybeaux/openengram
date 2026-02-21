@@ -30,6 +30,7 @@ import { TrustProfileService } from './trust-profile.service';
     TeamController,
   ],
   providers: [
+    IdentityController,
     DelegationContractService,
     ChallengeService,
     FailurePatternService,
