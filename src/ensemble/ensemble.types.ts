@@ -15,7 +15,8 @@ export type ModelId =
   | 'gte-base'
   | 'openai-small'
   | 'openai-large'
-  | 'cohere-v3';
+  | 'cohere-v3'
+  | 'kalm-v2';
 
 /**
  * Model status in the registry
@@ -117,6 +118,13 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
     queryPrefix: '',
     documentPrefix: '',
   },
+  'kalm-v2': {
+    id: 'kalm-v2',
+    dimensions: 896,
+    namespace: 'kalm-v2',
+    weight: 1.0,
+    maxTokens: 512,
+  },
 };
 
 /**
@@ -130,6 +138,7 @@ export const ALL_MODELS: ModelId[] = [
   'openai-small',
   'openai-large',
   'cohere-v3',
+  'kalm-v2',
 ];
 
 /**

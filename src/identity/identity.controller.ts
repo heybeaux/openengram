@@ -127,6 +127,71 @@ export class IdentityController {
     return { agents: enriched };
   }
 
+  // === Get single agent by ID ===
+
+  @Get('agents/:id')
+  @ApiOperation({ summary: 'Get a single agent with capability profiles and trust summary' })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getAgent(@Param('id') id: string, @Req() req: any) {
+    const accountId = req.accountId;
+    const agentFromReq = req.agent;
+
+    // Find the agent, scoped to account
+    const where: any = { id, deletedAt: null };
+    if (accountId) {
+      where.accountId = accountId;
+    } else if (agentFromReq && agentFromReq.id !== id) {
+      return { statusCode: 404, message: 'Agent not found' };
+    }
+
+    const agent = await this.prisma.agent.findFirst({
+      where,
+      select: {
+        id: true,
+        name: true,
+        apiKeyHint: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!agent) {
+      return { statusCode: 404, message: 'Agent not found' };
+    }
+
+    // Enrich with capabilities and trust summary
+    const capabilities = await this.prisma.agentCapabilityProfile
+      ?.findMany?.({
+        where: { agentId: agent.id },
+        orderBy: { confidence: 'desc' },
+        take: 10,
+        select: {
+          capability: true,
+          confidence: true,
+          evidenceCount: true,
+          lastUsedAt: true,
+        },
+      })
+      .catch(() => []);
+
+    let trustSummary: any = null;
+    try {
+      trustSummary = await this.trustProfileService.getProfile(agent.id);
+    } catch {
+      trustSummary = null;
+    }
+
+    return {
+      id: agent.id,
+      name: agent.name,
+      apiKeyHint: agent.apiKeyHint,
+      createdAt: agent.createdAt,
+      updatedAt: agent.updatedAt,
+      capabilities: (capabilities || []).map((c: any) => c.capability),
+      trustSummary,
+    };
+  }
+
   // === HEY-281: Delegation Contracts CRUD ===
 
   @Post('contracts')
