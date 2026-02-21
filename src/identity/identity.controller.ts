@@ -83,7 +83,7 @@ export class IdentityController {
         updatedAt: agentFromReq.updatedAt,
       }];
     } else {
-      return [];
+      return { agents: [] };
     }
 
     // Enrich each agent with capability profiles and trust summaries
@@ -124,7 +124,7 @@ export class IdentityController {
       }),
     );
 
-    return enriched;
+    return { agents: enriched };
   }
 
   // === HEY-281: Delegation Contracts CRUD ===
