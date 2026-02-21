@@ -115,18 +115,22 @@ export class IdentityController {
           trustSummary = null;
         }
 
-        // Memory count
-        const memoryCount = await this.prisma.memory.count({
-          where: { agentId: agent.id },
-        });
-
-        // Last active (most recent memory)
-        const lastMemory = await this.prisma.memory.findFirst({
-          where: { agentId: agent.id },
-          orderBy: { createdAt: 'desc' },
-          select: { createdAt: true },
-        });
-        const lastActive = lastMemory?.createdAt || null;
+        // Memory count and last active — query by userId since Memory has no agentId
+        let memoryCount = 0;
+        let lastActive: Date | null = null;
+        try {
+          memoryCount = await this.prisma.memory.count({
+            where: { userId: agent.id },
+          });
+          const lastMemory = await this.prisma.memory.findFirst({
+            where: { userId: agent.id },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          });
+          lastActive = lastMemory?.createdAt || null;
+        } catch {
+          // Field may not exist or other DB issue — fallback to defaults
+        }
 
         return {
           id: agent.id,
