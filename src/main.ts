@@ -117,8 +117,9 @@ async function bootstrap() {
   // Swagger / OpenAPI documentation
   const config = new DocumentBuilder()
     .setTitle('Engram API')
-    .setDescription('Memory infrastructure for AI agents that actually works.')
-    .setVersion('1.0.0')
+    .setDescription('Memory infrastructure for AI agents')
+    .setVersion('2.0')
+    .addBearerAuth()
     .addApiKey(
       { type: 'apiKey', name: 'X-AM-API-Key', in: 'header' },
       'api-key',
@@ -136,7 +137,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api-docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

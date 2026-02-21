@@ -1,0 +1,62 @@
+name: API Spec
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  api-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Save previous spec
+        run: |
+          if [ -f api-spec.json ]; then
+            cp api-spec.json api-spec.old.json
+          else
+            echo '{"paths":{}}' > api-spec.old.json
+          fi
+
+      - name: Build and generate API spec
+        run: pnpm api:spec
+        env:
+          NODE_ENV: test
+          EDITION: selfhosted
+
+      - name: Generate route constants
+        run: pnpm api:routes
+
+      - name: Check for breaking changes (removed routes)
+        run: |
+          OLD_ROUTES=$(jq -r '.paths | keys[]' api-spec.old.json | sort)
+          NEW_ROUTES=$(jq -r '.paths | keys[]' api-spec.json | sort)
+          REMOVED=$(comm -23 <(echo "$OLD_ROUTES") <(echo "$NEW_ROUTES"))
+          if [ -n "$REMOVED" ]; then
+            echo "::error::Breaking change: routes removed:"
+            echo "$REMOVED"
+            exit 1
+          fi
+          echo "No breaking changes detected."
+
+      - name: Commit updated spec if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add api-spec.json shared/api-routes.ts
+          if git diff --cached --quiet; then
+            echo "No spec changes."
+          else
+            git commit -m "chore: update API spec [skip ci]"
+            git push
+          fi
