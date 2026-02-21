@@ -115,27 +115,30 @@ export class IdentityController {
           trustSummary = null;
         }
 
-        // Memory count and last active — memories link to agents through users (User.agentId)
+        // Memory count and last active
+        // Memories link to users via userId; users link to agents via agentId
+        // First get all userIds for this agent, then count their memories
         let memoryCount = 0;
         let lastActive: Date | null = null;
         try {
-          memoryCount = await this.prisma.memory.count({
-            where: {
-              user: { agentId: agent.id },
-              deletedAt: null,
-            },
+          const agentUsers = await this.prisma.user.findMany({
+            where: { agentId: agent.id },
+            select: { id: true },
           });
-          const lastMemory = await this.prisma.memory.findFirst({
-            where: {
-              user: { agentId: agent.id },
-              deletedAt: null,
-            },
-            orderBy: { createdAt: 'desc' },
-            select: { createdAt: true },
-          });
-          lastActive = lastMemory?.createdAt || null;
+          const userIds = agentUsers.map((u) => u.id);
+          if (userIds.length > 0) {
+            memoryCount = await this.prisma.memory.count({
+              where: { userId: { in: userIds }, deletedAt: null },
+            });
+            const lastMemory = await this.prisma.memory.findFirst({
+              where: { userId: { in: userIds }, deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+              select: { createdAt: true },
+            });
+            lastActive = lastMemory?.createdAt || null;
+          }
         } catch {
-          // Field may not exist or other DB issue — fallback to defaults
+          // Fallback to defaults
         }
 
         return {

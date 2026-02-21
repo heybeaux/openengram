@@ -122,7 +122,7 @@ export const MODEL_CONFIGS: Record<ModelId, ModelConfig> = {
     id: 'kalm-v2',
     dimensions: 896,
     namespace: 'kalm-v2',
-    weight: 1.0,
+    weight: 0, // disabled — latency regression (2026-02-21)
     maxTokens: 512,
   },
 };
