@@ -28,6 +28,10 @@ describe('GET /v1/identity/agents', () => {
           },
         ]),
       },
+      memory: {
+        count: jest.fn().mockResolvedValue(42),
+        findFirst: jest.fn().mockResolvedValue({ createdAt: new Date('2025-01-02') }),
+      },
     };
 
     mockTrustProfileService = {
