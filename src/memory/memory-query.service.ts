@@ -205,13 +205,17 @@ export class MemoryQueryService {
 
     const resultIds = result.map((m) => m.id);
     if (resultIds.length > 0) {
-      await this.prisma.memory.updateMany({
-        where: { id: { in: resultIds } },
-        data: {
-          retrievalCount: { increment: 1 },
-          lastRetrievedAt: new Date(),
-        },
-      });
+      try {
+        await this.prisma.memory.updateMany({
+          where: { id: { in: resultIds } },
+          data: {
+            retrievalCount: { increment: 1 },
+            lastRetrievedAt: new Date(),
+          },
+        });
+      } catch (updateError) {
+        this.logger.warn('[Recall] Failed to update retrieval counts:', updateError?.message);
+      }
 
       if (dto.agentSessionKey && this.memoryAccessLogService) {
         this.memoryAccessLogService
@@ -330,7 +334,7 @@ export class MemoryQueryService {
       return merged;
     } catch (error) {
       // Never let insight surfacing break recall
-      this.logger.warn('[Recall] Insight surfacing failed, skipping:', error.message);
+      this.logger.warn('[Recall] Insight surfacing failed, skipping:', error?.message || error);
       return existingResults;
     }
   }
@@ -404,13 +408,17 @@ export class MemoryQueryService {
 
     const resultIds = result.map((m) => m.id);
     if (resultIds.length > 0) {
-      await this.prisma.memory.updateMany({
-        where: { id: { in: resultIds } },
-        data: {
-          retrievalCount: { increment: 1 },
-          lastRetrievedAt: new Date(),
-        },
-      });
+      try {
+        await this.prisma.memory.updateMany({
+          where: { id: { in: resultIds } },
+          data: {
+            retrievalCount: { increment: 1 },
+            lastRetrievedAt: new Date(),
+          },
+        });
+      } catch (updateError) {
+        this.logger.warn('[Recall] Failed to update retrieval counts:', updateError?.message);
+      }
 
       if (dto.agentSessionKey && this.memoryAccessLogService) {
         this.memoryAccessLogService
