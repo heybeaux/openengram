@@ -47,6 +47,7 @@ import { UsageTrackingInterceptor } from './common/interceptors/usage-tracking.i
 import { ChallengeModule } from './challenge/challenge.module';
 import { TeamsModule } from './teams/teams.module';
 import { DelegationModule } from './delegation/delegation.module';
+import { SessionIndexingModule } from './session-indexing/session-indexing.module';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 import { AuthModule } from './common/auth.module';
 
@@ -124,6 +125,7 @@ const coreModules = [
   ChallengeModule,
   TeamsModule,
   DelegationModule,
+  SessionIndexingModule,
 ];
 
 const cloudModules = [
