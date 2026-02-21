@@ -59,6 +59,7 @@ describe('IdentityController', () => {
     };
 
     controller = new IdentityController(
+      {} as any, // PrismaService
       teamProfileService,
       delegationRecallService,
       portableIdentityService,

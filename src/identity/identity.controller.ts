@@ -6,11 +6,13 @@ import {
   Param,
   Body,
   Query,
+  Req,
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
+import { PrismaService } from '../prisma/prisma.service';
 import { TeamProfileService } from './team-profile.service';
 import { DelegationRecallService } from './delegation-recall.service';
 import { PortableIdentityService } from './portable-identity.service';
@@ -39,6 +41,7 @@ import {
 @Controller('v1/identity')
 export class IdentityController {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly teamProfileService: TeamProfileService,
     private readonly delegationRecallService: DelegationRecallService,
     private readonly portableIdentityService: PortableIdentityService,
@@ -48,6 +51,81 @@ export class IdentityController {
     private readonly delegationContractService: DelegationContractService,
     private readonly challengeService: ChallengeService,
   ) {}
+
+  // === Agents list with capability & trust summaries ===
+
+  @Get('agents')
+  @ApiOperation({ summary: 'List all agents with capability profiles and trust summaries' })
+  async listAgents(@Req() req: any) {
+    const accountId = req.accountId;
+    const agentFromReq = req.agent;
+
+    // Find agents: scoped to account if available, otherwise just the authenticated agent
+    let agents: any[];
+    if (accountId) {
+      agents = await this.prisma.agent.findMany({
+        where: { accountId, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          apiKeyHint: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    } else if (agentFromReq) {
+      agents = [{
+        id: agentFromReq.id,
+        name: agentFromReq.name,
+        apiKeyHint: agentFromReq.apiKeyHint,
+        createdAt: agentFromReq.createdAt,
+        updatedAt: agentFromReq.updatedAt,
+      }];
+    } else {
+      return [];
+    }
+
+    // Enrich each agent with capability profiles and trust summaries
+    const enriched = await Promise.all(
+      agents.map(async (agent) => {
+        // Capability profiles
+        const capabilities = await this.prisma.agentCapabilityProfile
+          ?.findMany?.({
+            where: { agentId: agent.id },
+            orderBy: { confidence: 'desc' },
+            take: 10,
+            select: {
+              capability: true,
+              confidence: true,
+              evidenceCount: true,
+              lastUsedAt: true,
+            },
+          })
+          .catch(() => []);
+
+        // Trust summary from TrustProfileService
+        let trustSummary: any = null;
+        try {
+          trustSummary = await this.trustProfileService.getProfile(agent.id);
+        } catch {
+          trustSummary = null;
+        }
+
+        return {
+          id: agent.id,
+          name: agent.name,
+          apiKeyHint: agent.apiKeyHint,
+          createdAt: agent.createdAt,
+          updatedAt: agent.updatedAt,
+          capabilities: capabilities || [],
+          trustSummary,
+        };
+      }),
+    );
+
+    return enriched;
+  }
 
   // === HEY-281: Delegation Contracts CRUD ===
 

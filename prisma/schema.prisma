@@ -10,22 +10,22 @@ datasource db {
 
 /// Account represents a paying customer (SaaS layer)
 model Account {
-  id                  String       @id @default(cuid())
-  email               String       @unique
-  passwordHash        String       @map("password_hash")
+  id                  String            @id @default(cuid())
+  email               String            @unique
+  passwordHash        String            @map("password_hash")
   name                String?
-  stripeCustomerId    String?      @unique @map("stripe_customer_id")
-  isAdmin             Boolean      @default(false) @map("is_admin")
-  plan                Plan         @default(FREE)
-  planExpiresAt       DateTime?    @map("plan_expires_at")
-  memoriesUsed        Int          @default(0) @map("memories_used")
-  apiCallsToday       Int          @default(0) @map("api_calls_today")
-  apiCallsResetAt     DateTime?    @map("api_calls_reset_at")
-  resetToken          String?      @map("reset_token")
-  resetTokenExpiresAt DateTime?    @map("reset_token_expires_at")
-  accessCode          String?      @map("access_code")
-  createdAt           DateTime     @default(now()) @map("created_at")
-  updatedAt           DateTime     @updatedAt @map("updated_at")
+  stripeCustomerId    String?           @unique @map("stripe_customer_id")
+  isAdmin             Boolean           @default(false) @map("is_admin")
+  plan                Plan              @default(FREE)
+  planExpiresAt       DateTime?         @map("plan_expires_at")
+  memoriesUsed        Int               @default(0) @map("memories_used")
+  apiCallsToday       Int               @default(0) @map("api_calls_today")
+  apiCallsResetAt     DateTime?         @map("api_calls_reset_at")
+  resetToken          String?           @map("reset_token")
+  resetTokenExpiresAt DateTime?         @map("reset_token_expires_at")
+  accessCode          String?           @map("access_code")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
   agents              Agent[]
   uxFeedback          UxFeedback[]
   cloudLink           CloudLink?
@@ -45,19 +45,19 @@ enum Plan {
 
 /// Agent represents an API consumer (the AI agent application)
 model Agent {
-  id             String    @id @default(cuid())
+  id             String         @id @default(cuid())
   name           String
-  apiKeyHash     String    @unique @map("api_key_hash")
-  apiKeyHint     String    @map("api_key_hint")
-  memoriesLimit  Int?      @map("memories_limit")
-  requestsPerDay Int?      @map("requests_per_day")
-  accountId      String?   @map("account_id")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
+  apiKeyHash     String         @unique @map("api_key_hash")
+  apiKeyHint     String         @map("api_key_hint")
+  memoriesLimit  Int?           @map("memories_limit")
+  requestsPerDay Int?           @map("requests_per_day")
+  accountId      String?        @map("account_id")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
   users          User[]
   webhooks       Webhook[]
-  account        Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account        Account?       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   syncAgentMaps  SyncAgentMap[]
 
   @@map("agents")
@@ -65,18 +65,18 @@ model Agent {
 
 /// User represents an end-user whose memories are being stored
 model User {
-  id         String     @id @default(cuid())
+  id          String     @id @default(cuid())
   externalId  String     @map("external_id")
   displayName String?    @map("display_name")
   agentId     String     @map("agent_id")
   createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-  deletedAt  DateTime?  @map("deleted_at")
-  feedback   Feedback[]
-  memories   Memory[]
-  projects   Project[]
-  sessions   Session[]
-  agent      Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+  feedback    Feedback[]
+  memories    Memory[]
+  projects    Project[]
+  sessions    Session[]
+  agent       Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   // Semantic Memory Graph relations
   graphEntities      GraphEntity[]
@@ -200,11 +200,11 @@ model Memory {
   patternSourceIds String[]  @default([]) @map("pattern_source_ids")
 
   // HEY-174: Scoped memory visibility for cross-agent sharing
-  visibility       MemoryVisibility @default(PRIVATE)
+  visibility MemoryVisibility @default(PRIVATE)
 
   // Extensible metadata (used by Awareness/Waking Cycle for insight metadata,
   // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
-  metadata         Json?     @map("metadata")
+  metadata Json? @map("metadata")
 
   // Semantic Memory Graph relations
   graphMentions        GraphEntityMention[]
@@ -582,9 +582,9 @@ enum MemoryAccessType {
 
 /// Visibility scope for cross-agent memory sharing (HEY-174)
 enum MemoryVisibility {
-  PRIVATE  // Only the owning agent can see (default)
-  TEAM     // Agents in the same account can see
-  PUBLIC   // Any agent can see
+  PRIVATE // Only the owning agent can see (default)
+  TEAM // Agents in the same account can see
+  PUBLIC // Any agent can see
 }
 
 /// Memory layer enum
@@ -1208,20 +1208,20 @@ model MemoryCluster {
 
 /// Persistent capability profile for an agent — a living document updated with each task outcome
 model AgentCapabilityProfile {
-  id        String   @id @default(cuid())
-  agentId   String   @map("agent_id")
-  userId    String   @map("user_id")
+  id      String @id @default(cuid())
+  agentId String @map("agent_id")
+  userId  String @map("user_id")
 
   /// Capability name (e.g., "code_review", "data_analysis", "writing")
   capability    String
   /// Confidence level 0.0-1.0 based on aggregated evidence
-  confidence    Float    @default(0.5)
+  confidence    Float     @default(0.5)
   /// Number of task outcomes that contributed evidence
-  evidenceCount Int      @default(0) @map("evidence_count")
+  evidenceCount Int       @default(0) @map("evidence_count")
   /// Success rate for tasks using this capability (0.0-1.0)
-  successRate   Float    @default(0.0) @map("success_rate")
+  successRate   Float     @default(0.0) @map("success_rate")
   /// Average duration for tasks using this capability (ms)
-  avgDurationMs Float?   @map("avg_duration_ms")
+  avgDurationMs Float?    @map("avg_duration_ms")
   /// Last observed usage
   lastUsedAt    DateTime? @map("last_used_at")
   /// Freeform notes aggregated from lessons learned
@@ -1246,7 +1246,7 @@ model AgentWorkStyle {
   /// Current observed value (JSON-encoded for flexibility)
   value       Json
   /// Number of observations
-  sampleCount Int      @default(0) @map("sample_count")
+  sampleCount Int     @default(0) @map("sample_count")
   /// Trend direction: improving, stable, declining
   trend       String?
 
@@ -1264,7 +1264,7 @@ model AwarenessState {
   accountId     String   @map("account_id")
   signalSource  String   @map("signal_source") // "memory", "github", "linear"
   lastCheckedAt DateTime @map("last_checked_at")
-  checkpoint    Json?    // source-specific cursor/state (e.g., last memory ID processed)
+  checkpoint    Json? // source-specific cursor/state (e.g., last memory ID processed)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -1307,15 +1307,15 @@ model DreamCycleReport {
 
 /// HEY-176: Identity snapshots produced by Dream Cycle identity consolidation
 model IdentitySnapshot {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  agentId   String?  @map("agent_id")
+  id      String  @id @default(cuid())
+  userId  String  @map("user_id")
+  agentId String? @map("agent_id")
 
   /// Structured identity data
-  capabilities    Json     @default("[]")  // Array of { name, confidence, lastSeen }
-  preferences     Json     @default("{}")  // Key-value preference summary
-  trustScores     Json     @default("{}")  // { source: score } trends
-  behavioralTraits Json    @default("[]")  @map("behavioral_traits") // Array of { trait, strength, evidence }
+  capabilities     Json @default("[]") // Array of { name, confidence, lastSeen }
+  preferences      Json @default("{}") // Key-value preference summary
+  trustScores      Json @default("{}") // { source: score } trends
+  behavioralTraits Json @default("[]") @map("behavioral_traits") // Array of { trait, strength, evidence }
 
   /// Source tracking
   sourceMemoryIds String[] @default([]) @map("source_memory_ids")
@@ -1387,19 +1387,19 @@ model MonitoringSnapshot {
 
 /// Cloud link for self-hosted instances connecting to OpenEngram Cloud
 model CloudLink {
-  id              String   @id @default(cuid())
-  accountId       String   @unique @map("account_id")
-  instanceId      String?  @map("instance_id") // UUID identifying this self-hosted instance for dedup
-  cloudApiKey     String   @map("cloud_api_key") // encrypted instance API key for auth
-  cloudSyncKey    String?  @map("cloud_sync_key") // encrypted esync_ key for sync push
-  cloudAccountId  String?  @map("cloud_account_id")
-  cloudEmail      String?  @map("cloud_email")
-  cloudPlan       String?  @map("cloud_plan")
-  lastVerifiedAt  DateTime? @map("last_verified_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  accountId      String    @unique @map("account_id")
+  instanceId     String?   @map("instance_id") // UUID identifying this self-hosted instance for dedup
+  cloudApiKey    String    @map("cloud_api_key") // encrypted instance API key for auth
+  cloudSyncKey   String?   @map("cloud_sync_key") // encrypted esync_ key for sync push
+  cloudAccountId String?   @map("cloud_account_id")
+  cloudEmail     String?   @map("cloud_email")
+  cloudPlan      String?   @map("cloud_plan")
+  lastVerifiedAt DateTime? @map("last_verified_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  autoSync Boolean @default(false) @map("auto_sync")
+  autoSync     Boolean   @default(false) @map("auto_sync")
   lastPulledAt DateTime? @map("last_pulled_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1485,16 +1485,16 @@ model InstanceApiKey {
 
 /// Tracks connected local instances on the cloud side
 model CloudInstance {
-  id            String   @id @default(cuid())
-  accountId     String   @map("account_id")
-  instanceId    String   @map("instance_id") // The InstanceSyncKey ID or X-Instance-Id header
-  instanceName  String?  @map("instance_name")
+  id            String    @id @default(cuid())
+  accountId     String    @map("account_id")
+  instanceId    String    @map("instance_id") // The InstanceSyncKey ID or X-Instance-Id header
+  instanceName  String?   @map("instance_name")
   lastSyncAt    DateTime? @map("last_sync_at")
-  memoryCount   Int      @default(0) @map("memory_count")
-  lastPushCount Int      @default(0) @map("last_push_count")
-  status        String   @default("active") // active, stale, disconnected
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  memoryCount   Int       @default(0) @map("memory_count")
+  lastPushCount Int       @default(0) @map("last_push_count")
+  status        String    @default("active") // active, stale, disconnected
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@unique([accountId, instanceId])
   @@index([accountId])
@@ -1507,16 +1507,16 @@ model CloudInstance {
 
 /// Trust signals extracted from agent behavior (HEY-170)
 model TrustSignal {
-  id         String          @id @default(cuid())
-  userId     String          @map("user_id")
-  agentId    String?         @map("agent_id")
-  signalType TrustSignalType @map("signal_type")
-  context    String          // Description of what happened
-  category   String?         // Task category (e.g., "deploy", "code-review")
-  weight     Float           @default(1.0) // Signal strength 0.0-2.0
-  sourceMemoryId String?     @map("source_memory_id")
-  metadata   Json?           @map("metadata")
-  createdAt  DateTime        @default(now()) @map("created_at")
+  id             String          @id @default(cuid())
+  userId         String          @map("user_id")
+  agentId        String?         @map("agent_id")
+  signalType     TrustSignalType @map("signal_type")
+  context        String // Description of what happened
+  category       String? // Task category (e.g., "deploy", "code-review")
+  weight         Float           @default(1.0) // Signal strength 0.0-2.0
+  sourceMemoryId String?         @map("source_memory_id")
+  metadata       Json?           @map("metadata")
+  createdAt      DateTime        @default(now()) @map("created_at")
 
   @@index([userId, createdAt])
   @@index([userId, category])
@@ -1533,16 +1533,16 @@ enum TrustSignalType {
 
 /// Trust score snapshots computed from accumulated signals (HEY-170)
 model TrustScore {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  agentId        String?  @map("agent_id")
-  category       String?  // null = overall score
-  score          Float    // 0.0-1.0
-  signalCount    Int      @default(0) @map("signal_count")
-  successCount   Int      @default(0) @map("success_count")
-  failureCount   Int      @default(0) @map("failure_count")
-  correctionCount Int     @default(0) @map("correction_count")
-  computedAt     DateTime @default(now()) @map("computed_at")
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  agentId         String?  @map("agent_id")
+  category        String? // null = overall score
+  score           Float // 0.0-1.0
+  signalCount     Int      @default(0) @map("signal_count")
+  successCount    Int      @default(0) @map("success_count")
+  failureCount    Int      @default(0) @map("failure_count")
+  correctionCount Int      @default(0) @map("correction_count")
+  computedAt      DateTime @default(now()) @map("computed_at")
 
   @@index([userId, category])
   @@index([userId, computedAt])
@@ -1555,7 +1555,7 @@ model CapabilityCheckpoint {
   id           String   @id @default(cuid())
   userId       String   @map("user_id")
   agentId      String?  @map("agent_id")
-  capabilities Json     // Array of { name, evidenceCount, firstSeen, lastSeen }
+  capabilities Json // Array of { name, evidenceCount, firstSeen, lastSeen }
   checkpointAt DateTime @default(now()) @map("checkpoint_at")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -1566,15 +1566,15 @@ model CapabilityCheckpoint {
 
 /// Experience weight per task category for recall boosting (HEY-173)
 model ExperienceWeight {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  agentId        String?  @map("agent_id")
-  category       String   // Task category (e.g., "deploy", "code-review")
-  successCount   Int      @default(0) @map("success_count")
-  totalCount     Int      @default(0) @map("total_count")
-  weight         Float    @default(1.0) // Computed multiplier for recall
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  agentId      String?  @map("agent_id")
+  category     String // Task category (e.g., "deploy", "code-review")
+  successCount Int      @default(0) @map("success_count")
+  totalCount   Int      @default(0) @map("total_count")
+  weight       Float    @default(1.0) // Computed multiplier for recall
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@unique([userId, agentId, category])
   @@index([userId, weight(sort: Desc)])
@@ -1587,16 +1587,16 @@ model ExperienceWeight {
 
 /// Team of agents with shared context and collaboration history
 model AgentTeam {
-  id                  String               @id @default(cuid())
-  name                String
-  description         String?
-  userId              String               @map("user_id")
-  sharedCapabilities  String[]             @default([]) @map("shared_capabilities")
-  trustScore          Float                @default(0) @map("trust_score")
-  collaborationCount  Int                  @default(0) @map("collaboration_count")
-  createdAt           DateTime             @default(now()) @map("created_at")
-  updatedAt           DateTime             @updatedAt @map("updated_at")
-  deletedAt           DateTime?            @map("deleted_at")
+  id                 String    @id @default(cuid())
+  name               String
+  description        String?
+  userId             String    @map("user_id")
+  sharedCapabilities String[]  @default([]) @map("shared_capabilities")
+  trustScore         Float     @default(0) @map("trust_score")
+  collaborationCount Int       @default(0) @map("collaboration_count")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
 
   members        AgentTeamMember[]
   collaborations AgentTeamCollaboration[]
@@ -1638,18 +1638,18 @@ model AgentTeamCollaboration {
 
 /// Tracks sync events for history display
 model SyncEvent {
-  id          String   @id @default(cuid())
-  accountId   String   @map("account_id")
-  direction   String   @default("push") // push, pull
-  status      String   @default("completed") // completed, failed, cancelled
-  totalCount  Int      @default(0) @map("total_count")
-  newCount    Int      @default(0) @map("new_count")
-  updatedCount Int     @default(0) @map("updated_count")
-  skippedCount Int     @default(0) @map("skipped_count")
-  failedCount Int      @default(0) @map("failed_count")
-  error       String?
-  durationMs  Int?     @map("duration_ms")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  accountId    String   @map("account_id")
+  direction    String   @default("push") // push, pull
+  status       String   @default("completed") // completed, failed, cancelled
+  totalCount   Int      @default(0) @map("total_count")
+  newCount     Int      @default(0) @map("new_count")
+  updatedCount Int      @default(0) @map("updated_count")
+  skippedCount Int      @default(0) @map("skipped_count")
+  failedCount  Int      @default(0) @map("failed_count")
+  error        String?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([accountId, createdAt])
   @@map("sync_events")
@@ -1657,13 +1657,13 @@ model SyncEvent {
 
 /// Maps local memory IDs to cloud memory IDs for sync tracking
 model SyncIdMap {
-  id             String   @id @default(cuid())
-  localMemoryId  String   @map("local_memory_id")
-  cloudMemoryId  String   @map("cloud_memory_id")
-  instanceId     String   @map("instance_id")
-  contentHash    String?  @map("content_hash")
-  syncedAt       DateTime @default(now()) @map("synced_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  localMemoryId String   @map("local_memory_id")
+  cloudMemoryId String   @map("cloud_memory_id")
+  instanceId    String   @map("instance_id")
+  contentHash   String?  @map("content_hash")
+  syncedAt      DateTime @default(now()) @map("synced_at")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@unique([instanceId, localMemoryId])
   @@unique([instanceId, cloudMemoryId])
@@ -1673,19 +1673,19 @@ model SyncIdMap {
 
 /// Task completion records for identity framework delegation tracking
 model TaskCompletion {
-  id              String   @id @default(cuid())
-  taskId          String   @map("task_id")
-  delegatedTo     String   @map("delegated_to")
-  delegatedBy     String   @map("delegated_by")
-  taskDescription String   @map("task_description")
+  id              String                 @id @default(cuid())
+  taskId          String                 @map("task_id")
+  delegatedTo     String                 @map("delegated_to")
+  delegatedBy     String                 @map("delegated_by")
+  taskDescription String                 @map("task_description")
   domain          String?
-  outcome         String   // success, failure, partial
-  durationMs      Int      @map("duration_ms")
-  qualitySignals  Json     @default("{}") @map("quality_signals")
-  metadata        Json     @default("{}")
-  embeddingText   String?  @map("embedding_text")
+  outcome         String // success, failure, partial
+  durationMs      Int                    @map("duration_ms")
+  qualitySignals  Json                   @default("{}") @map("quality_signals")
+  metadata        Json                   @default("{}")
+  embeddingText   String?                @map("embedding_text")
   embedding       Unsupported("vector")?
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
 
   @@index([delegatedTo])
   @@index([delegatedBy])
@@ -1768,19 +1768,19 @@ enum ContractStatus {
 
 /// Formal delegation contract between agents (HEY-185)
 model DelegationContract {
-  id               String         @id @default(cuid())
-  userId           String         @map("user_id")
-  delegator        String
-  delegate         String
-  taskDescription  String         @map("task_description")
-  status           ContractStatus @default(PROPOSED)
-  terms            Json           // { deadline, qualityCriteria, escalationRules }
-  result           String?
-  verifiedAt       DateTime?      @map("verified_at")
-  completedAt      DateTime?      @map("completed_at")
-  metadata         Json?
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  id              String         @id @default(cuid())
+  userId          String         @map("user_id")
+  delegator       String
+  delegate        String
+  taskDescription String         @map("task_description")
+  status          ContractStatus @default(PROPOSED)
+  terms           Json // { deadline, qualityCriteria, escalationRules }
+  result          String?
+  verifiedAt      DateTime?      @map("verified_at")
+  completedAt     DateTime?      @map("completed_at")
+  metadata        Json?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   tasks DelegatedTask[]
 
