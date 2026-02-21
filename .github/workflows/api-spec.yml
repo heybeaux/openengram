@@ -7,6 +7,23 @@ on:
 jobs:
   api-spec:
     runs-on: ubuntu-latest
+    # Spec generation requires a live database connection (PrismaService.$connect).
+    # Don't block deploys if this fails — the spec is a nice-to-have CI artifact.
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: engram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,6 +36,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Push schema to test database
+        run: pnpm prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
 
       - name: Save previous spec
         run: |
@@ -33,6 +55,7 @@ jobs:
         env:
           NODE_ENV: test
           EDITION: selfhosted
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
 
       - name: Generate route constants
         run: pnpm api:routes
