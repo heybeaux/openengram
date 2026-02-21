@@ -78,6 +78,17 @@ export class DelegationContractService {
     return contract;
   }
 
+  update(id: string, dto: Partial<CreateContractDto> & { status?: ContractStatus }): DelegationContract {
+    const contract = this.getById(id);
+    if (dto.taskDescription !== undefined) contract.taskDescription = dto.taskDescription;
+    if (dto.expectedOutputs !== undefined) contract.expectedOutputs = dto.expectedOutputs;
+    if (dto.successCriteria !== undefined) contract.successCriteria = dto.successCriteria;
+    if (dto.constraints !== undefined) contract.constraints = dto.constraints;
+    if (dto.status !== undefined) contract.status = dto.status;
+    this.logger.log(`Contract ${id} updated`);
+    return contract;
+  }
+
   listAll(): DelegationContract[] {
     return Array.from(this.contracts.values());
   }

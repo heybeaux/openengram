@@ -64,6 +64,20 @@ export class AwarenessSourceService {
     return source;
   }
 
+  getStatus(id: string): { id: string; name: string; type: string; enabled: boolean; healthy: boolean; lastChecked: string; message: string } {
+    const source = this.getById(id);
+    // Basic health check — in production this would ping the actual integration
+    return {
+      id: source.id,
+      name: source.name,
+      type: source.type,
+      enabled: source.enabled,
+      healthy: source.enabled,
+      lastChecked: new Date().toISOString(),
+      message: source.enabled ? 'Source is configured and active' : 'Source is disabled',
+    };
+  }
+
   delete(id: string): { deleted: true } {
     const source = this.getById(id);
     this.sources.delete(id);

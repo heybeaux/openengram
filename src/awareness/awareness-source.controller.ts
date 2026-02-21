@@ -2,7 +2,7 @@ import {
   Controller,
   Post,
   Get,
-  Patch,
+  Put,
   Delete,
   Param,
   Body,
@@ -10,7 +10,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { AwarenessSourceService, SignalSourceConfig } from './awareness-source.service';
 
 class CreateSourceDto {
@@ -27,7 +27,7 @@ class UpdateSourceDto {
 }
 
 @ApiTags('awareness')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 @Controller('v1/awareness/sources')
 export class AwarenessSourceController {
   constructor(private readonly sourceService: AwarenessSourceService) {}
@@ -52,7 +52,14 @@ export class AwarenessSourceController {
     return this.sourceService.getById(id);
   }
 
-  @Patch(':id')
+  @Get(':id/status')
+  @ApiOperation({ summary: 'Check signal source health status' })
+  @ApiParam({ name: 'id', description: 'Source ID' })
+  async getStatus(@Param('id') id: string) {
+    return this.sourceService.getStatus(id);
+  }
+
+  @Put(':id')
   @HttpCode(200)
   @ApiOperation({ summary: 'Update a signal source' })
   @ApiParam({ name: 'id', description: 'Source ID' })

@@ -51,6 +51,7 @@ describe('IdentityController', () => {
 
     challengeService = {
       create: jest.fn().mockResolvedValue({ id: 'challenge_1', challengeType: 'unsafe' }),
+      getById: jest.fn().mockReturnValue({ id: 'challenge_1', challengeType: 'unsafe' }),
       listAll: jest.fn().mockReturnValue([
         { id: 'ch1', contractId: 'c1', resolution: null },
         { id: 'ch2', contractId: 'c2', resolution: 'accepted' },
@@ -88,21 +89,31 @@ describe('IdentityController', () => {
   });
 
   describe('GET /contracts', () => {
-    it('should list all contracts', async () => {
+    it('should list all contracts wrapped in { contracts }', async () => {
       const result = await controller.listContracts();
-      expect(result).toHaveLength(2);
+      expect(result.contracts).toHaveLength(2);
     });
 
     it('should filter by status', async () => {
       const result = await controller.listContracts('pending');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('c1');
+      expect(result.contracts).toHaveLength(1);
+      expect(result.contracts[0].id).toBe('c1');
     });
 
     it('should filter by agentId', async () => {
       const result = await controller.listContracts(undefined, 'agent-b');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('c2');
+      expect(result.contracts).toHaveLength(1);
+      expect(result.contracts[0].id).toBe('c2');
+    });
+
+    it('should filter by isTemplate', async () => {
+      delegationContractService.listAll.mockReturnValue([
+        { id: 'c1', status: 'pending', delegatedTo: 'agent-a', isTemplate: true },
+        { id: 'c2', status: 'completed', delegatedTo: 'agent-b', isTemplate: false },
+      ]);
+      const result = await controller.listContracts(undefined, undefined, 'true');
+      expect(result.contracts).toHaveLength(1);
+      expect(result.contracts[0].id).toBe('c1');
     });
   });
 
@@ -113,7 +124,16 @@ describe('IdentityController', () => {
     });
   });
 
-  describe('PATCH /contracts/:id/complete', () => {
+  describe('PUT /contracts/:id', () => {
+    it('should update a contract', async () => {
+      delegationContractService.update = jest.fn().mockReturnValue({ id: 'contract_1', taskDescription: 'Updated' });
+      const result = await controller.updateContract('contract_1', { taskDescription: 'Updated' });
+      expect(result.taskDescription).toBe('Updated');
+      expect(delegationContractService.update).toHaveBeenCalledWith('contract_1', { taskDescription: 'Updated' });
+    });
+  });
+
+  describe('POST /contracts/:id/complete', () => {
     it('should complete a contract', async () => {
       const result = await controller.completeContract('contract_1', {
         status: 'completed',
@@ -137,9 +157,9 @@ describe('IdentityController', () => {
   });
 
   describe('GET /challenges', () => {
-    it('should list all challenges', async () => {
+    it('should list all challenges wrapped in { challenges }', async () => {
       const result = await controller.listChallenges();
-      expect(result).toHaveLength(2);
+      expect(result.challenges).toHaveLength(2);
     });
 
     it('should filter by contractId', async () => {
@@ -152,18 +172,36 @@ describe('IdentityController', () => {
 
     it('should filter by resolved status', async () => {
       const result = await controller.listChallenges(undefined, 'resolved');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('ch2');
+      expect(result.challenges).toHaveLength(1);
+      expect(result.challenges[0].id).toBe('ch2');
     });
 
-    it('should filter by unresolved status', async () => {
-      const result = await controller.listChallenges(undefined, 'unresolved');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('ch1');
+    it('should filter by open status', async () => {
+      const result = await controller.listChallenges(undefined, 'open');
+      expect(result.challenges).toHaveLength(1);
+      expect(result.challenges[0].id).toBe('ch1');
+    });
+
+    it('should filter by type', async () => {
+      challengeService.listAll.mockReturnValue([
+        { id: 'ch1', challengeType: 'unsafe', resolution: null },
+        { id: 'ch2', challengeType: 'capability_mismatch', resolution: 'accepted' },
+      ]);
+      const result = await controller.listChallenges(undefined, undefined, 'unsafe');
+      expect(result.challenges).toHaveLength(1);
+      expect(result.challenges[0].id).toBe('ch1');
     });
   });
 
-  describe('PATCH /challenges/:id/resolve', () => {
+  describe('GET /challenges/:id', () => {
+    it('should get a challenge by ID', async () => {
+      challengeService.getById.mockReturnValue({ id: 'challenge_1', challengeType: 'unsafe' });
+      const result = await controller.getChallenge('challenge_1');
+      expect(result.id).toBe('challenge_1');
+    });
+  });
+
+  describe('POST /challenges/:id/resolve', () => {
     it('should resolve a challenge', async () => {
       const result = await controller.resolveChallenge('challenge_1', {
         resolution: 'accepted',
@@ -180,6 +218,14 @@ describe('IdentityController', () => {
       const result = await controller.listTeams();
       expect(result).toHaveLength(1);
       expect(teamProfileService.listTeams).toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /teams/:id', () => {
+    it('should delete a team', async () => {
+      teamProfileService.deleteTeam = jest.fn().mockResolvedValue(undefined);
+      await controller.deleteTeam('team_1');
+      expect(teamProfileService.deleteTeam).toHaveBeenCalledWith('team_1');
     });
   });
 

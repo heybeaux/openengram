@@ -36,6 +36,36 @@ export class CreateDelegationContractDto {
   accountId?: string;
 }
 
+export class UpdateDelegationContractDto {
+  @ApiPropertyOptional({ description: 'Task description' })
+  @IsOptional()
+  @IsString()
+  taskDescription?: string;
+
+  @ApiPropertyOptional({ description: 'Expected outputs', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  expectedOutputs?: string[];
+
+  @ApiPropertyOptional({ description: 'Success criteria', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  successCriteria?: string[];
+
+  @ApiPropertyOptional({ description: 'Constraints', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  constraints?: string[];
+
+  @ApiPropertyOptional({ description: 'Contract status' })
+  @IsOptional()
+  @IsString()
+  status?: string;
+}
+
 export class CompleteContractRequestDto {
   @ApiProperty({ description: 'Completion status', enum: ['completed', 'failed'] })
   @IsIn(['completed', 'failed'])

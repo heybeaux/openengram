@@ -34,7 +34,7 @@ describe('AwarenessSourceController (Sources CRUD)', () => {
     expect(fetched.id).toBe(created.id);
   });
 
-  it('should update a source', async () => {
+  it('should update a source via PUT', async () => {
     const created = await controller.create({
       name: 'Old',
       type: 'custom',
@@ -51,5 +51,28 @@ describe('AwarenessSourceController (Sources CRUD)', () => {
     });
     await controller.delete(created.id);
     expect(() => service.getById(created.id)).toThrow();
+  });
+
+  it('should get source status', async () => {
+    const created = await controller.create({
+      name: 'StatusTest',
+      type: 'github',
+    });
+    const status = await controller.getStatus(created.id);
+    expect(status.id).toBe(created.id);
+    expect(status.healthy).toBe(true);
+    expect(status.enabled).toBe(true);
+    expect(status.lastChecked).toBeDefined();
+  });
+
+  it('should report unhealthy for disabled source', async () => {
+    const created = await controller.create({
+      name: 'Disabled',
+      type: 'linear',
+      enabled: false,
+    });
+    const status = await controller.getStatus(created.id);
+    expect(status.healthy).toBe(false);
+    expect(status.enabled).toBe(false);
   });
 });

@@ -2,7 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -29,6 +31,7 @@ import {
 } from './dto/task-completion.dto';
 import {
   CreateDelegationContractDto,
+  UpdateDelegationContractDto,
   CompleteContractRequestDto,
 } from './dto/delegation-contract.dto';
 import {
@@ -205,9 +208,11 @@ export class IdentityController {
   @ApiOperation({ summary: 'List delegation contracts' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by status' })
   @ApiQuery({ name: 'agentId', required: false, description: 'Filter by delegated agent ID' })
+  @ApiQuery({ name: 'isTemplate', required: false, description: 'Filter by template flag' })
   async listContracts(
     @Query('status') status?: string,
     @Query('agentId') agentId?: string,
+    @Query('isTemplate') isTemplate?: string,
   ) {
     let contracts = this.delegationContractService.listAll();
     if (status) {
@@ -216,7 +221,11 @@ export class IdentityController {
     if (agentId) {
       contracts = contracts.filter((c) => c.delegatedTo === agentId);
     }
-    return contracts;
+    if (isTemplate !== undefined) {
+      const flag = isTemplate === 'true';
+      contracts = contracts.filter((c) => (c as any).isTemplate === flag);
+    }
+    return { contracts };
   }
 
   @Get('contracts/:id')
@@ -226,7 +235,17 @@ export class IdentityController {
     return this.delegationContractService.getById(id);
   }
 
-  @Patch('contracts/:id/complete')
+  @Put('contracts/:id')
+  @ApiOperation({ summary: 'Update a delegation contract' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  async updateContract(
+    @Param('id') id: string,
+    @Body() dto: UpdateDelegationContractDto,
+  ) {
+    return this.delegationContractService.update(id, dto);
+  }
+
+  @Post('contracts/:id/complete')
   @ApiOperation({ summary: 'Complete or fail a delegation contract' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
   async completeContract(
@@ -248,21 +267,35 @@ export class IdentityController {
   @Get('challenges')
   @ApiOperation({ summary: 'List challenges' })
   @ApiQuery({ name: 'contractId', required: false, description: 'Filter by contract ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by resolution status (resolved/unresolved)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by resolution status (open/resolved/dismissed)' })
+  @ApiQuery({ name: 'type', required: false, description: 'Filter by challenge type' })
   async listChallenges(
     @Query('contractId') contractId?: string,
     @Query('status') status?: string,
+    @Query('type') type?: string,
   ) {
     let challenges = this.challengeService.listAll({ contractId });
     if (status === 'resolved') {
       challenges = challenges.filter((c) => c.resolution != null);
-    } else if (status === 'unresolved') {
+    } else if (status === 'unresolved' || status === 'open') {
       challenges = challenges.filter((c) => c.resolution == null);
+    } else if (status === 'dismissed') {
+      challenges = challenges.filter((c) => c.resolution === 'dismissed');
     }
-    return challenges;
+    if (type) {
+      challenges = challenges.filter((c) => c.challengeType === type);
+    }
+    return { challenges };
   }
 
-  @Patch('challenges/:id/resolve')
+  @Get('challenges/:id')
+  @ApiOperation({ summary: 'Get a challenge by ID' })
+  @ApiParam({ name: 'id', description: 'Challenge ID' })
+  async getChallenge(@Param('id') id: string) {
+    return this.challengeService.getById(id);
+  }
+
+  @Post('challenges/:id/resolve')
   @ApiOperation({ summary: 'Resolve a challenge' })
   @ApiParam({ name: 'id', description: 'Challenge ID' })
   async resolveChallenge(
@@ -292,6 +325,14 @@ export class IdentityController {
   @ApiParam({ name: 'id', description: 'Team ID' })
   async getTeam(@Param('id') id: string) {
     return this.teamProfileService.getTeam(id);
+  }
+
+  @Delete('teams/:id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete a team' })
+  @ApiParam({ name: 'id', description: 'Team ID' })
+  async deleteTeam(@Param('id') id: string) {
+    await this.teamProfileService.deleteTeam(id);
   }
 
   @Get('teams/:id/capabilities')
@@ -344,6 +385,30 @@ export class IdentityController {
       return { error: 'taskDescription query parameter is required' };
     }
     return this.delegationTemplateService.suggest(taskDescription);
+  }
+
+  // === HEY-284: Trust History + Bulk Trust ===
+
+  @Get('agents/:id/trust-history')
+  @ApiOperation({ summary: 'Get trust score history for an agent over time' })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days of history (default 30)' })
+  async getTrustHistory(
+    @Param('id') agentId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.trustProfileService.getTrustHistory(
+      agentId,
+      days ? parseInt(days, 10) : 30,
+    );
+  }
+
+  @Get('trust/bulk')
+  @ApiOperation({ summary: 'Get trust profiles for multiple agents' })
+  @ApiQuery({ name: 'agentIds', required: true, description: 'Comma-separated agent IDs' })
+  async getBulkTrust(@Query('agentIds') agentIds: string) {
+    const ids = agentIds ? agentIds.split(',').map((id) => id.trim()).filter(Boolean) : [];
+    return this.trustProfileService.getBulkProfiles(ids);
   }
 
   // === HEY-184: Trust Profiles ===

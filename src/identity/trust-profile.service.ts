@@ -183,6 +183,75 @@ export class TrustProfileService {
     return { agentsUpdated: updated, errors };
   }
 
+  /**
+   * Get trust history for an agent over the specified number of days.
+   * Returns daily trust snapshots with overall score and per-domain scores.
+   */
+  async getTrustHistory(
+    agentId: string,
+    days: number = 30,
+  ): Promise<{ history: Array<{ date: string; overall: number; domains: Record<string, number> }> }> {
+    const completions =
+      await this.taskCompletionService.getCompletionsByAgent(agentId);
+
+    const now = new Date();
+    const history: Array<{ date: string; overall: number; domains: Record<string, number> }> = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const cutoff = date.getTime() + 24 * 60 * 60 * 1000;
+
+      // Filter completions up to this date
+      const relevant = completions.filter(
+        (c) => new Date(c.createdAt).getTime() < cutoff,
+      );
+
+      if (relevant.length === 0) {
+        history.push({ date: dateStr, overall: 0, domains: {} });
+        continue;
+      }
+
+      // Group by domain
+      const domainMap = new Map<string, typeof relevant>();
+      for (const c of relevant) {
+        const domain = c.domain || 'general';
+        const list = domainMap.get(domain) || [];
+        list.push(c);
+        domainMap.set(domain, list);
+      }
+
+      const domains: Record<string, number> = {};
+      let totalWeighted = 0;
+      let totalTasks = 0;
+
+      for (const [domain, tasks] of domainMap) {
+        const successCount = tasks.filter((t) => t.outcome === 'success').length;
+        const partialCount = tasks.filter((t) => t.outcome === 'partial').length;
+        const score = (successCount + partialCount * 0.5) / tasks.length;
+        domains[domain] = Math.round(score * 1000) / 1000;
+        totalWeighted += score * tasks.length;
+        totalTasks += tasks.length;
+      }
+
+      const overall = totalTasks > 0 ? Math.round((totalWeighted / totalTasks) * 1000) / 1000 : 0;
+      history.push({ date: dateStr, overall, domains });
+    }
+
+    return { history };
+  }
+
+  /**
+   * Get trust profiles for multiple agents at once.
+   */
+  async getBulkProfiles(agentIds: string[]): Promise<{ profiles: TrustProfile[] }> {
+    const profiles = await Promise.all(
+      agentIds.map((id) => this.getProfile(id)),
+    );
+    return { profiles };
+  }
+
   private async getDistinctAgents(): Promise<string[]> {
     try {
       const results = await this.taskCompletionService['prisma']
