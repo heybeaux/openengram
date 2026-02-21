@@ -57,13 +57,13 @@ describe('GET /v1/identity/agents', () => {
     const req = { accountId: 'acc-1', agent: null };
     const result = await controller.listAgents(req);
 
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('agent-1');
-    expect(result[0].name).toBe('TestAgent');
-    expect(result[0].capabilities).toHaveLength(1);
-    expect(result[0].capabilities[0].capability).toBe('code_review');
-    expect(result[0].trustSummary.overallTrust).toBe(0.9);
+    expect(result).toHaveProperty('agents');
+    expect(result.agents).toHaveLength(1);
+    expect(result.agents[0].id).toBe('agent-1');
+    expect(result.agents[0].name).toBe('TestAgent');
+    expect(result.agents[0].capabilities).toHaveLength(1);
+    expect(result.agents[0].capabilities[0].capability).toBe('code_review');
+    expect(result.agents[0].trustSummary.overallTrust).toBe(0.9);
   });
 
   it('should return single agent when no accountId but agent is on request', async () => {
@@ -79,13 +79,13 @@ describe('GET /v1/identity/agents', () => {
     };
     const result = await controller.listAgents(req);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('agent-2');
+    expect(result.agents).toHaveLength(1);
+    expect(result.agents[0].id).toBe('agent-2');
   });
 
   it('should return empty array when no auth context', async () => {
     const req = { accountId: null, agent: null };
     const result = await controller.listAgents(req);
-    expect(result).toEqual([]);
+    expect(result).toEqual({ agents: [] });
   });
 });
