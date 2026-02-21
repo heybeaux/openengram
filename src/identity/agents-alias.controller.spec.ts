@@ -16,7 +16,7 @@ describe('AgentsAliasController', () => {
   describe('listAgents', () => {
     it('should delegate to IdentityController.listAgents', async () => {
       const mockReq = { accountId: 'acc1' };
-      const mockResult = { agents: [{ id: '1', name: 'test', apiKeyHint: 'abc', createdAt: new Date(), updatedAt: new Date(), capabilities: [], trustSummary: null }] };
+      const mockResult = { agents: [{ id: '1', name: 'test', apiKeyHint: 'abc', createdAt: new Date(), updatedAt: new Date(), memoryCount: 0, lastActive: null, capabilities: [], trustSummary: null }] };
       identityController.listAgents.mockResolvedValue(mockResult);
 
       const result = await controller.listAgents(mockReq);

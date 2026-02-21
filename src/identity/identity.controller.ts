@@ -115,12 +115,27 @@ export class IdentityController {
           trustSummary = null;
         }
 
+        // Memory count
+        const memoryCount = await this.prisma.memory.count({
+          where: { agentId: agent.id },
+        });
+
+        // Last active (most recent memory)
+        const lastMemory = await this.prisma.memory.findFirst({
+          where: { agentId: agent.id },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        });
+        const lastActive = lastMemory?.createdAt || null;
+
         return {
           id: agent.id,
           name: agent.name,
           apiKeyHint: agent.apiKeyHint,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
+          memoryCount,
+          lastActive,
           capabilities: capabilities || [],
           trustSummary,
         };
