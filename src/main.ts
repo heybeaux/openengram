@@ -59,6 +59,7 @@ async function bootstrap() {
             "'self'",
             'https://openengram.ai',
             'https://app.openengram.ai',
+            'https://staging.openengram.ai',
             'https://*.vercel.app',
           ],
         },
@@ -82,6 +83,7 @@ async function bootstrap() {
       'https://openengram.ai',
       'https://www.openengram.ai',
       'https://app.openengram.ai',
+      'https://staging.openengram.ai',
     ];
     const envOrigins = process.env.CORS_ORIGINS;
     if (envOrigins) {
