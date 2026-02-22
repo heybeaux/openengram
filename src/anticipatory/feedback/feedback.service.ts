@@ -31,10 +31,9 @@ export class FeedbackService implements OnModuleDestroy {
   private weightCache = new Map<string, Record<string, number>>();
 
   constructor(private readonly prisma: PrismaService) {
-    this.flushInterval = setInterval(
-      () => this.flush().catch((err) => this.logger.error('Flush failed:', err)),
-      AnticipatoryConfig.eventFlushIntervalMs,
-    );
+    this.flushInterval = setInterval(() => {
+      void this.flush().catch((err) => this.logger.error('Flush failed:', err));
+    }, AnticipatoryConfig.eventFlushIntervalMs);
   }
 
   onModuleDestroy(): void {
@@ -93,9 +92,14 @@ export class FeedbackService implements OnModuleDestroy {
         where: { userId },
       });
 
-      if (weights.length === 0) return { ...AnticipatoryConfig.defaultWeights };
+      if (weights.length === 0)
+        return {
+          ...AnticipatoryConfig.defaultWeights,
+        };
 
-      const result: Record<string, number> = { ...AnticipatoryConfig.defaultWeights };
+      const result: Record<string, number> = {
+        ...AnticipatoryConfig.defaultWeights,
+      };
       for (const w of weights) {
         if (w.total >= AnticipatoryConfig.minSamplesForLearning) {
           result[w.strategy] = w.weight;
@@ -134,7 +138,9 @@ export class FeedbackService implements OnModuleDestroy {
       this.logger.debug(`Flushed ${batch.length} anticipatory events`);
       return batch.length;
     } catch (err) {
-      this.logger.error(`Failed to flush ${batch.length} events: ${(err as Error).message}`);
+      this.logger.error(
+        `Failed to flush ${batch.length} events: ${(err as Error).message}`,
+      );
       // Re-buffer on failure (with a cap to prevent memory leaks)
       if (this.buffer.length < 1000) {
         this.buffer.push(...batch);
