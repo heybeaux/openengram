@@ -49,10 +49,15 @@ Use the managed version — no infrastructure to maintain.
 
 ### Setup
 
+Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai).
+
+In the meantime, self-host with full features (see above). When cloud launches, you can link your instance.
+
+<!--
 1. Go to [app.openengram.ai](https://app.openengram.ai)
-2. Sign up and choose a plan (Free, Starter, Pro, or Scale)
-3. Get your API key from the dashboard
-4. Start making API calls:
+2. Get your API key from the dashboard
+3. Start making API calls:
+-->
 
 ```bash
 curl -X POST https://api.openengram.ai/v1/memories \
@@ -78,7 +83,7 @@ Start self-hosted, then link to OpenEngram Cloud for premium features. Your data
 ### Setup
 
 1. Install and run Engram self-hosted (see above)
-2. Sign up at [app.openengram.ai](https://app.openengram.ai) and get a cloud API key
+2. Sign up at [openengram.ai](https://openengram.ai) and get a cloud API key (coming soon — join the waitlist)
 3. In the Engram dashboard, go to **Settings → Cloud Connection**
 4. Enter your cloud API key and save
 

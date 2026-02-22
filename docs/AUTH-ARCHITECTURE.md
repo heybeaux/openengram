@@ -128,7 +128,7 @@ See [RLS-IMPLEMENTATION.md](./RLS-IMPLEMENTATION.md) for full details.
 | PRO | 100,000 | 10,000 | 10 | 100 |
 | SCALE | 1,000,000 | 100,000 | ∞ | ∞ |
 
-Free tier is only available via self-hosting. Cloud registration requires STARTER+ or an access code.
+Self-hosting has no plan limits. Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai).
 
 ## Key Files
 

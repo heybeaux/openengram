@@ -9,7 +9,7 @@ Engram supports two deployment modes with fundamentally different architectures.
 | Aspect | Cloud (SaaS) | Self-Hosted |
 |--------|-------------|-------------|
 | **URL** | `api.openengram.ai` | `localhost:3000` |
-| **Cost** | $9-99/mo (plan-based) | Free |
+| **Cost** | Coming soon (join waitlist at openengram.ai) | Free |
 | **Auth** | Required (API key or JWT) | Optional (LAN bypass) |
 | **Accounts** | Full account system | Not needed |
 | **Embeddings** | OpenAI + Cohere (cloud API) | engram-embed (local Metal GPU) |
@@ -21,8 +21,8 @@ Engram supports two deployment modes with fundamentally different architectures.
 
 ### Authentication
 - All requests require either `X-AM-API-Key` + `X-AM-User-ID` headers or a JWT Bearer token
-- Accounts created via registration with plan selection or access code
-- Usage limits enforced per plan (see [AUTH-ARCHITECTURE.md](./AUTH-ARCHITECTURE.md))
+- Accounts created via registration
+- Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai)
 
 ### Embeddings
 - **Provider:** `cloud-ensemble` — OpenAI `text-embedding-3-small`, `text-embedding-3-large`, Cohere Embed v3

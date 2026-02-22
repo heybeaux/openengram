@@ -33,7 +33,7 @@ Engram is a memory layer for AI agents — store, recall, and evolve memories wi
 - 🌙 **Dream Cycle** — autonomous memory consolidation inspired by sleep neuroscience
 - 🕸️ **Knowledge graph extraction** — entities and relationships visualized with D3
 - 🔒 **Multi-tenant with API key auth** — cryptographic user isolation
-- 💳 **SaaS-ready** — Stripe billing, usage limits, and tiered pricing built in
+- 💳 **SaaS-ready** — usage tracking and cloud features built in
 - 🐳 **Docker Compose** for easy self-hosting — up and running in 3 commands
 - 🔗 **Hybrid mode** — self-hosted + cloud link for backup, sync, and cloud ensemble models
 - 🏠 **Self-hosted setup wizard** — first-run detection, guided setup, zero config
@@ -58,7 +58,7 @@ On first run, the **setup wizard** walks you through creating an admin account a
 
 ### Cloud
 
-Sign up at **[app.openengram.ai](https://app.openengram.ai)**, choose a plan, get your API key, and start building in minutes.
+Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai).
 
 ### Hybrid Mode
 
@@ -86,18 +86,11 @@ curl -X POST https://api.openengram.ai/v1/memories/search \
   -d '{"query": "What are the user preferences?", "limit": 5}'
 ```
 
-## Pricing
+## Cloud
 
-| | Free | Starter | Pro | Scale |
-|---|---|---|---|---|
-| **Price** | $0 | $9/mo | $39/mo | $99/mo |
-| **Memories** | 1,000 | 10,000 | 100,000 | 1,000,000 |
-| **API calls** | 100/day | 1,000/day | 10,000/day | Unlimited |
-| **Knowledge graph** | — | — | ✅ | ✅ |
-| **Dream Cycle** | — | ✅ | ✅ | ✅ |
-| **Priority support** | — | — | — | ✅ |
+Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai).
 
-[Sign up at openengram.ai →](https://openengram.ai/signup)
+Self-hosting is fully supported today with no feature limits.
 
 ## Documentation
 
