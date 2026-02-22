@@ -68,24 +68,9 @@ Features that require infrastructure, operational overhead, or ongoing investmen
 
 ## Pricing
 
-| Tier | Price | Agents | Memories | Support |
-|------|-------|--------|----------|---------|
-| **Free (Self-Hosted)** | $0 | Unlimited | Unlimited | Community (GitHub) |
-| **Cloud Starter** | $29/mo | 1 | 10,000 | Email (24h) |
-| **Cloud Pro** | $99/mo | 5 | 100,000 | Priority (4h) |
-| **Cloud Team** | $249/mo | 20 | 500,000 | Priority + Slack |
-| **Enterprise** | Custom | Unlimited | Unlimited | Dedicated engineer |
+Hosted cloud coming soon — join the waitlist at [openengram.ai](https://openengram.ai).
 
-**Overage:** $5 per additional 10,000 memories/month.
-
-**Annual discount:** 20% off monthly pricing (2 months free).
-
-### Why This Pricing
-
-- **Starter at $29** — Low enough for indie developers and hobbyists building personal agents. One agent, plenty of headroom.
-- **Pro at $99** — Sweet spot for startups and small teams with multiple agents. 100k memories covers most production use cases for months.
-- **Team at $249** — For companies building agent platforms. 20 agents, half a million memories, Slack support.
-- **Enterprise is custom** — Healthcare, finance, legal — they need compliance, dedicated infra, and custom contracts.
+Self-hosting is free and unlimited. Cloud pricing will be announced at launch.
 
 ### Competitor Comparison
 
