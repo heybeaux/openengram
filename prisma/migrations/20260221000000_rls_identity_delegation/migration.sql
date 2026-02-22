@@ -124,23 +124,30 @@ CREATE POLICY account_isolation ON task_completions FOR ALL USING (
 );
 
 -- ============================================================================
--- GRANTS: Ensure the `app` role can access these tables
+-- GRANTS: Ensure the `engram_app` role can access these tables
+-- Only apply if the role exists (production has it; CI/dev may not)
 -- ============================================================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON trust_signals TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON trust_scores TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON capability_checkpoints TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON experience_weights TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON agent_capability_profiles TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON agent_work_styles TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON identity_snapshots TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON agent_teams TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON agent_team_members TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON agent_team_collaborations TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON delegated_tasks TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON delegation_templates TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON delegation_contracts TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON task_completions TO engram_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON awareness_states TO engram_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'engram_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON trust_signals TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON trust_scores TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON capability_checkpoints TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON experience_weights TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON agent_capability_profiles TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON agent_work_styles TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON identity_snapshots TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON agent_teams TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON agent_team_members TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON agent_team_collaborations TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON delegated_tasks TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON delegation_templates TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON delegation_contracts TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON task_completions TO engram_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON awareness_states TO engram_app;
+  END IF;
+END
+$$;
 
 -- ============================================================================
 -- ROLLBACK SQL (run manually if needed — Prisma does not auto-rollback)
@@ -175,4 +182,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON awareness_states TO engram_app;
 -- ALTER TABLE task_completions DISABLE ROW LEVEL SECURITY;
 -- DROP POLICY IF EXISTS account_isolation ON awareness_states;
 -- ALTER TABLE awareness_states DISABLE ROW LEVEL SECURITY;
--- REVOKE SELECT, INSERT, UPDATE, DELETE ON trust_signals, trust_scores, capability_checkpoints, experience_weights, agent_capability_profiles, agent_work_styles, identity_snapshots, agent_teams, agent_team_members, agent_team_collaborations, delegated_tasks, delegation_templates, delegation_contracts, task_completions, awareness_states FROM engram_app;
+-- REVOKE SELECT, INSERT, UPDATE, DELETE ON trust_signals, trust_scores, capability_checkpoints, experience_weights, agent_capability_profiles, agent_work_styles, identity_snapshots, agent_teams, agent_team_members, agent_team_collaborations, delegated_tasks, delegation_templates, delegation_contracts, task_completions, awareness_states FROM engram_app;  -- only if role exists
