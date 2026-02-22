@@ -12,6 +12,14 @@ describe('AwarenessController', () => {
     wakingCycle = {
       runCycle: jest.fn(),
       runScheduled: jest.fn(),
+      getLastCycleRun: jest.fn().mockResolvedValue({
+        phase: 'idle',
+        lastRunAt: '2026-01-15T10:00:00.000Z',
+        insightsGenerated: 3,
+        duration: 1500,
+        observations: 10,
+        patterns: 5,
+      }),
     } as any;
     prisma = {
       memory: {
@@ -122,6 +130,23 @@ describe('AwarenessController', () => {
         lastRun: null,
         nextRun: null,
         insightsGenerated: 0,
+      });
+    });
+
+    it('should return persisted cycle status from DB (HEY-335)', async () => {
+      controller = new AwarenessController(prisma, wakingCycle);
+
+      const result = await controller.getCycleStatus();
+
+      expect(wakingCycle.getLastCycleRun).toHaveBeenCalled();
+      expect(result).toEqual({
+        phase: 'idle',
+        lastRun: '2026-01-15T10:00:00.000Z',
+        nextRun: null,
+        insightsGenerated: 3,
+        duration: 1500,
+        observations: 10,
+        patterns: 5,
       });
     });
   });

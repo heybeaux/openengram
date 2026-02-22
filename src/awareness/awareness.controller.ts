@@ -62,8 +62,17 @@ export class AwarenessController {
     if (!this.wakingCycle) {
       return { phase: 'disabled', lastRun: null, nextRun: null, insightsGenerated: 0 };
     }
-    // Return basic cycle status
-    return { phase: 'idle', lastRun: null, nextRun: null, insightsGenerated: 0 };
+    // HEY-335: Query persisted cycle run history
+    const status = await this.wakingCycle.getLastCycleRun();
+    return {
+      phase: status.phase,
+      lastRun: status.lastRunAt,
+      nextRun: null, // TODO: compute from cron schedule
+      insightsGenerated: status.insightsGenerated,
+      duration: status.duration,
+      observations: status.observations,
+      patterns: status.patterns,
+    };
   }
 
   @Get('awareness/status')

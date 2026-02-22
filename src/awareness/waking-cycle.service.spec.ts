@@ -8,6 +8,7 @@ import { InsightGeneratorService } from './analysis/insight-generator.service';
 import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
 import { ProactiveNotificationService } from './proactive-notification.service';
 import { InsightFeedbackService } from './insight-feedback.service';
+import { EmbeddingService } from '../memory/embedding.service';
 
 describe('WakingCycleService', () => {
   let service: WakingCycleService;
@@ -21,6 +22,7 @@ describe('WakingCycleService', () => {
   let linearSignal: any;
   let proactiveNotification: any;
   let insightFeedback: any;
+  let embeddingService: any;
 
   beforeEach(() => {
     prisma = {
@@ -37,6 +39,12 @@ describe('WakingCycleService', () => {
       },
       memory: {
         update: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue({ createdAt: new Date(), deletedAt: null }),
+      },
+      dreamCycleRun: {
+        create: jest.fn().mockResolvedValue({ id: 'run-1' }),
+        update: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
 
@@ -111,6 +119,11 @@ describe('WakingCycleService', () => {
       }),
     } as any;
 
+    embeddingService = {
+      generate: jest.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+      search: jest.fn().mockResolvedValue([]),
+    };
+
     service = new WakingCycleService(
       prisma,
       memoryService,
@@ -122,6 +135,7 @@ describe('WakingCycleService', () => {
       behavioralConsistency,
       proactiveNotification,
       insightFeedback,
+      embeddingService,
     );
   });
 
@@ -295,6 +309,118 @@ describe('WakingCycleService', () => {
 
       const result = await minimalService.runCycle();
       expect(result.insights).toBe(1);
+    });
+
+    it('should persist cycle run in DreamCycleRun table (HEY-335)', async () => {
+      await service.runCycle();
+
+      expect(prisma.dreamCycleRun.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          status: 'RUNNING',
+          instanceId: expect.any(String),
+        }),
+      });
+
+      expect(prisma.dreamCycleRun.update).toHaveBeenCalledWith({
+        where: { id: 'run-1' },
+        data: expect.objectContaining({
+          status: 'COMPLETED',
+          endedAt: expect.any(Date),
+          error: expect.stringContaining('"insights":1'),
+        }),
+      });
+    });
+
+    it('should record failed cycle run in DB (HEY-335)', async () => {
+      memorySignal.collect.mockRejectedValue(new Error('DB connection lost'));
+
+      await service.runCycle();
+
+      expect(prisma.dreamCycleRun.update).toHaveBeenCalledWith({
+        where: { id: 'run-1' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          error: 'DB connection lost',
+        }),
+      });
+    });
+
+    it('should skip duplicate insights based on embedding similarity (HEY-336)', async () => {
+      embeddingService.search.mockResolvedValue([
+        { id: 'existing-insight-1', score: 0.95 },
+      ]);
+
+      await service.runCycle();
+
+      // Insight should be skipped due to dedup
+      expect(memoryService.remember).not.toHaveBeenCalled();
+    });
+
+    it('should store insight when no similar exists (HEY-336)', async () => {
+      embeddingService.search.mockResolvedValue([
+        { id: 'existing-insight-1', score: 0.5 },
+      ]);
+
+      await service.runCycle();
+
+      expect(memoryService.remember).toHaveBeenCalledTimes(1);
+    });
+
+    it('should store insight when similar one is older than 7 days (HEY-336)', async () => {
+      embeddingService.search.mockResolvedValue([
+        { id: 'old-insight', score: 0.95 },
+      ]);
+      prisma.memory.findUnique.mockResolvedValue({
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        deletedAt: null,
+      });
+
+      await service.runCycle();
+
+      expect(memoryService.remember).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getLastCycleRun (HEY-335)', () => {
+    it('should return idle with nulls when no runs exist', async () => {
+      prisma.dreamCycleRun.findFirst.mockResolvedValue(null);
+
+      const status = await service.getLastCycleRun();
+
+      expect(status.phase).toBe('idle');
+      expect(status.lastRunAt).toBeNull();
+      expect(status.insightsGenerated).toBe(0);
+    });
+
+    it('should return completed run stats from DB', async () => {
+      prisma.dreamCycleRun.findFirst.mockResolvedValue({
+        id: 'run-1',
+        status: 'COMPLETED',
+        startedAt: new Date('2026-01-15T10:00:00Z'),
+        endedAt: new Date('2026-01-15T10:00:02Z'),
+        error: JSON.stringify({ observations: 10, patterns: 5, insights: 3, durationMs: 2000 }),
+      });
+
+      const status = await service.getLastCycleRun();
+
+      expect(status.phase).toBe('idle');
+      expect(status.lastRunAt).toBe('2026-01-15T10:00:02.000Z');
+      expect(status.insightsGenerated).toBe(3);
+      expect(status.duration).toBe(2000);
+    });
+
+    it('should return running phase when cycle is in progress', async () => {
+      prisma.dreamCycleRun.findFirst.mockResolvedValue({
+        id: 'run-2',
+        status: 'RUNNING',
+        startedAt: new Date('2026-01-15T10:00:00Z'),
+        endedAt: null,
+        error: null,
+      });
+
+      const status = await service.getLastCycleRun();
+
+      expect(status.phase).toBe('running');
     });
   });
 });

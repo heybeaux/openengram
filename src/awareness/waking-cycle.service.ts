@@ -12,7 +12,10 @@ import { BehavioralConsistencyService } from './analysis/behavioral-consistency.
 import { ProactiveNotificationService } from './proactive-notification.service';
 import { InsightFeedbackService } from './insight-feedback.service';
 import { Observation } from './signals/signal.interface';
+import { EmbeddingService } from '../memory/embedding.service';
 import { ImportanceHint } from '@prisma/client';
+
+const INSIGHT_DEDUP_THRESHOLD = 0.92;
 
 /**
  * Waking Cycle — the core orchestrator for the Awareness module.
@@ -49,6 +52,7 @@ export class WakingCycleService {
     private readonly behavioralConsistency: BehavioralConsistencyService,
     @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
     @Optional() private readonly insightFeedback?: InsightFeedbackService,
+    @Optional() private readonly embeddingService?: EmbeddingService,
   ) {}
 
   /**
@@ -83,6 +87,12 @@ export class WakingCycleService {
 
     this.running = true;
     const startTime = Date.now();
+    const instanceId = process.env.HOSTNAME || process.env.RAILWAY_REPLICA_ID || 'local';
+
+    // HEY-335: Persist cycle run in DB
+    const cycleRun = await this.prisma.dreamCycleRun.create({
+      data: { status: 'RUNNING', instanceId },
+    });
 
     try {
       this.logger.log('Waking Cycle starting...');
@@ -101,10 +111,36 @@ export class WakingCycleService {
         `(${durationMs}ms)`,
       );
 
+      // HEY-335: Update cycle run with results
+      await this.prisma.dreamCycleRun.update({
+        where: { id: cycleRun.id },
+        data: {
+          status: 'COMPLETED',
+          endedAt: new Date(),
+          error: JSON.stringify({
+            observations: result.observations,
+            patterns: result.patterns,
+            insights: result.insights,
+            durationMs,
+          }),
+        },
+      });
+
       return { ...result, durationMs };
     } catch (error) {
       this.clearTimeout();
       this.logger.error(`Waking Cycle failed: ${error.message}`, error.stack);
+
+      // HEY-335: Record failure
+      await this.prisma.dreamCycleRun.update({
+        where: { id: cycleRun.id },
+        data: {
+          status: 'FAILED',
+          endedAt: new Date(),
+          error: error.message,
+        },
+      }).catch(() => {});
+
       return { observations: 0, patterns: 0, insights: 0, durationMs: Date.now() - startTime };
     } finally {
       this.running = false;
@@ -258,6 +294,19 @@ export class WakingCycleService {
 
     for (const insight of insights) {
       try {
+        // HEY-336: Deduplicate insights using cosine similarity
+        if (this.embeddingService) {
+          try {
+            const isDuplicate = await this.isDuplicateInsight(user.id, insight.content);
+            if (isDuplicate) {
+              this.logger.log(`Skipping duplicate insight: "${insight.content.slice(0, 60)}..."`);
+              continue;
+            }
+          } catch (e) {
+            this.logger.debug(`Dedup check failed, proceeding: ${e.message}`);
+          }
+        }
+
         // HEY-151: Adjust confidence based on feedback history
         let adjustedConfidence = insight.confidence;
         if (this.insightFeedback) {
@@ -321,6 +370,79 @@ export class WakingCycleService {
         this.logger.warn(`Proactive notification check failed: ${error.message}`);
       }
     }
+  }
+
+  /**
+   * HEY-336: Check if a similar insight already exists (cosine similarity > threshold).
+   * Compares against INSIGHT layer memories from the last 7 days.
+   */
+  private async isDuplicateInsight(userId: string, content: string): Promise<boolean> {
+    if (!this.embeddingService) return false;
+
+    const queryEmbedding = await this.embeddingService.generate(content);
+    const results = await this.embeddingService.search(
+      userId,
+      queryEmbedding,
+      5,
+      ['INSIGHT' as any],
+    );
+
+    // Check if any recent insight exceeds the dedup threshold
+    for (const result of results) {
+      if (result.score >= INSIGHT_DEDUP_THRESHOLD) {
+        // Verify it's from the last 7 days
+        const memory = await this.prisma.memory.findUnique({
+          where: { id: result.id },
+          select: { createdAt: true, deletedAt: true },
+        });
+        if (memory && !memory.deletedAt) {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          if (memory.createdAt >= sevenDaysAgo) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * HEY-335: Get the last cycle run from DB for the status endpoint.
+   */
+  async getLastCycleRun(): Promise<{
+    phase: string;
+    lastRunAt: string | null;
+    insightsGenerated: number;
+    duration: number;
+    observations: number;
+    patterns: number;
+  }> {
+    const lastRun = await this.prisma.dreamCycleRun.findFirst({
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!lastRun) {
+      return { phase: 'idle', lastRunAt: null, insightsGenerated: 0, duration: 0, observations: 0, patterns: 0 };
+    }
+
+    let stats = { observations: 0, patterns: 0, insights: 0, durationMs: 0 };
+    if (lastRun.status === 'COMPLETED' && lastRun.error) {
+      try {
+        stats = JSON.parse(lastRun.error);
+      } catch {}
+    }
+
+    // Check if there's a currently running cycle
+    const runningCycle = lastRun.status === 'RUNNING' ? lastRun : null;
+
+    return {
+      phase: runningCycle ? 'running' : lastRun.status === 'COMPLETED' ? 'idle' : 'failed',
+      lastRunAt: lastRun.status === 'COMPLETED' ? lastRun.endedAt?.toISOString() ?? lastRun.startedAt.toISOString() : lastRun.startedAt.toISOString(),
+      insightsGenerated: stats.insights || 0,
+      duration: stats.durationMs || 0,
+      observations: stats.observations || 0,
+      patterns: stats.patterns || 0,
+    };
   }
 
   /** Returns a promise that rejects after `ms` milliseconds (cycle timeout). */
