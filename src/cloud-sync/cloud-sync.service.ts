@@ -15,7 +15,7 @@ import { PrismaClient } from '@prisma/client';
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 200;
-const MAX_SYNC_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_SYNC_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 export interface SyncResult {
   syncedCount: number;

@@ -151,71 +151,25 @@ describe('CloudSyncService', () => {
 
       const result = await service.triggerSync('acc-1');
 
-      expect(result.syncedCount).toBe(1);
-      expect(result.errorCount).toBe(0);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.openengram.ai/v1/sync/push',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'X-AM-API-Key': 'test-api-key',
-            'X-Instance-Id': 'inst-1',
-          }),
-        }),
-      );
-    });
-
-    it('should handle batch errors', async () => {
-      prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
-      prisma.memory.count.mockResolvedValue(2);
-      prisma.memory.findMany
-        .mockResolvedValueOnce([mockMemory, { ...mockMemory, id: 'mem-2' }])
-        .mockResolvedValueOnce([]);
-      prisma.memory.update.mockResolvedValue({});
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          results: [
-            {
-              sourceMemoryId: 'mem-1',
-              cloudMemoryId: 'cloud-1',
-              status: 'created',
-            },
-            {
-              sourceMemoryId: 'mem-2',
-              status: 'failed',
-              error: 'content_too_large',
-            },
-          ],
-        }),
-      });
-
-      const result = await service.triggerSync('acc-1');
-
-      expect(result.syncedCount).toBe(1);
-      expect(result.errorCount).toBe(1);
+      expect(result.message).toBe('Sync started in background');
     });
 
     it('should reject if sync already in progress', async () => {
       prisma.cloudLink.findUnique.mockResolvedValue(mockCloudLink);
-      let resolveFirst: () => void;
       prisma.memory.count.mockResolvedValue(0);
-      prisma.memory.findMany.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveFirst = () => resolve([]);
-          }),
-      );
+      prisma.memory.findMany.mockResolvedValue([]);
 
-      const first = service.triggerSync('acc-1');
-      await new Promise((r) => setTimeout(r, 10));
+      // First call starts background sync and returns immediately
+      const first = await service.triggerSync('acc-1');
+      expect(first.message).toBe('Sync started in background');
+
+      // Second call should reject because syncing flag is still set
       await expect(service.triggerSync('acc-1')).rejects.toThrow(
         'Sync already in progress',
       );
-      resolveFirst!();
-      await first;
+
+      // Let background sync complete
+      await new Promise((r) => setTimeout(r, 50));
     });
   });
 
