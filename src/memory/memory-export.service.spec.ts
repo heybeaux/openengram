@@ -29,7 +29,7 @@ describe('MemoryExportService', () => {
       $executeRawUnsafe: jest.fn(),
     };
     extraction = {
-      classifyLayer: jest.fn().mockReturnValue(MemoryLayer.EPISODIC),
+      classifyLayer: jest.fn().mockReturnValue(MemoryLayer.SESSION),
     };
     importance = {
       calculate: jest.fn().mockReturnValue(0.5),
@@ -67,7 +67,7 @@ describe('MemoryExportService', () => {
       const mockMemory = {
         id: 'mem-1',
         raw: 'test memory',
-        layer: MemoryLayer.EPISODIC,
+        layer: MemoryLayer.SESSION,
         source: MemorySource.EXPLICIT_STATEMENT,
         importanceScore: 0.7,
         confidence: 1.0,
@@ -93,7 +93,7 @@ describe('MemoryExportService', () => {
       const mockMemory = {
         id: 'mem-1',
         raw: 'test',
-        layer: MemoryLayer.EPISODIC,
+        layer: MemoryLayer.SESSION,
         source: MemorySource.EXPLICIT_STATEMENT,
         importanceScore: 0.5,
         confidence: 1.0,
@@ -140,7 +140,7 @@ describe('MemoryExportService', () => {
 
     beforeEach(() => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.memory.create.mockResolvedValue({ id: 'new-mem-1', layer: MemoryLayer.EPISODIC });
+      prisma.memory.create.mockResolvedValue({ id: 'new-mem-1', layer: MemoryLayer.SESSION });
     });
 
     it('should import a single memory', async () => {

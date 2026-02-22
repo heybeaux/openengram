@@ -22,9 +22,9 @@ describe('DeduplicationController', () => {
       manualMerge: jest.fn().mockResolvedValue({ mergeEventId: 'merge-1', survivorId: 'mem-1' }),
       rollback: jest.fn().mockResolvedValue({ success: true }),
       findSimilar: jest.fn().mockResolvedValue([]),
-      getConfig: jest.fn().mockResolvedValue({ enabled: true }),
-      updateConfig: jest.fn().mockResolvedValue({ enabled: true }),
-      getStats: jest.fn().mockResolvedValue({ totalMerges: 10 }),
+      getConfig: jest.fn().mockResolvedValue({ autoMergeThreshold: 0.9, reviewSuggestThreshold: 0.7, defaultStrategy: 'APPEND', protectedTypes: [], protectedKeywords: [] }),
+      updateConfig: jest.fn().mockResolvedValue({ autoMergeThreshold: 0.9 }),
+      getStats: jest.fn().mockResolvedValue({ totalMemories: 100, potentialDuplicates: 5, clustersIdentified: 3, autoMergedToday: 2, pendingReview: 1 }),
       isEnabled: jest.fn().mockReturnValue(true),
     };
     reviewService = {
@@ -133,7 +133,7 @@ describe('DeduplicationController', () => {
 
     it('should throw NOT_FOUND when candidate not found', async () => {
       reviewService.reject.mockRejectedValue(new Error('not found'));
-      await expect(controller.reject('missing', {})).rejects.toThrow(HttpException);
+      await expect(controller.reject('missing', { reason: 'test' })).rejects.toThrow(HttpException);
     });
   });
 
@@ -153,14 +153,14 @@ describe('DeduplicationController', () => {
   // === Merge ===
   describe('merge', () => {
     it('should perform manual merge', async () => {
-      const result = await controller.merge('user-1', { memoryIds: ['a', 'b'] }, 'approver-1');
-      expect(dedupService.manualMerge).toHaveBeenCalledWith({ memoryIds: ['a', 'b'] }, 'user-1', 'approver-1');
+      const result = await controller.merge('user-1', { memoryIds: ['a', 'b'], strategy: 'APPEND' as any }, 'approver-1');
+      expect(dedupService.manualMerge).toHaveBeenCalledWith({ memoryIds: ['a', 'b'], strategy: 'APPEND' }, 'user-1', 'approver-1');
       expect(result.mergeEventId).toBe('merge-1');
     });
 
     it('should throw BAD_REQUEST on error', async () => {
       dedupService.manualMerge.mockRejectedValue(new Error('Cannot merge'));
-      await expect(controller.merge('user-1', { memoryIds: [] })).rejects.toThrow(HttpException);
+      await expect(controller.merge('user-1', { memoryIds: [], strategy: 'APPEND' as any })).rejects.toThrow(HttpException);
     });
   });
 
@@ -218,14 +218,14 @@ describe('DeduplicationController', () => {
   describe('getConfig', () => {
     it('should return config', async () => {
       const result = await controller.getConfig('user-1');
-      expect(result.enabled).toBe(true);
+      expect(result.autoMergeThreshold).toBe(0.9);
     });
   });
 
   describe('updateConfig', () => {
     it('should update config', async () => {
-      await controller.updateConfig('user-1', { enabled: false });
-      expect(dedupService.updateConfig).toHaveBeenCalledWith('user-1', { enabled: false });
+      await controller.updateConfig('user-1', { autoMergeThreshold: 0.8 });
+      expect(dedupService.updateConfig).toHaveBeenCalledWith('user-1', { autoMergeThreshold: 0.8 });
     });
   });
 
@@ -233,7 +233,7 @@ describe('DeduplicationController', () => {
   describe('getStats', () => {
     it('should return stats', async () => {
       const result = await controller.getStats('user-1');
-      expect(result.totalMerges).toBe(10);
+      expect(result.totalMemories).toBe(100);
     });
   });
 

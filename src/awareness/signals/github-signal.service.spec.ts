@@ -104,7 +104,7 @@ describe('GitHubSignalService', () => {
       const prObs = result.observations.find(o => o.metadata?.type === 'open_prs');
       expect(prObs).toBeDefined();
       expect(prObs!.content).toContain('1 stale >3d');
-      expect(prObs!.metadata.staleCount).toBe(1);
+      expect(prObs!.metadata!.staleCount).toBe(1);
     });
 
     it('should filter PRs from issues endpoint', async () => {
@@ -122,7 +122,7 @@ describe('GitHubSignalService', () => {
       const result = await service.collect(null, { maxQueries: 10 });
       const issueObs = result.observations.find(o => o.metadata?.type === 'closed_issues');
       expect(issueObs).toBeDefined();
-      expect(issueObs!.metadata.count).toBe(1); // PR filtered out
+      expect(issueObs!.metadata!.count).toBe(1); // PR filtered out
     });
 
     it('should respect budget.maxQueries', async () => {
