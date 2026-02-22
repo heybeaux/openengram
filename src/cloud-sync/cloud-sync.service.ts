@@ -72,52 +72,59 @@ export class CloudSyncService {
     const startTime = Date.now();
 
     // Use setImmediate to escape the RLS transaction context
-    setImmediate(async () => {
-      try {
-        const result = await this.performSyncWithClient(
-          rawPrisma,
-          syncKey,
-          instanceId,
-          this.syncAbortController!.signal,
-        );
-        // Store sync event
-        await rawPrisma.syncEvent.create({
-          data: {
-            accountId,
-            direction: 'push',
-            status: 'completed',
-            totalCount: result.syncedCount,
-            newCount: result.newCount,
-            updatedCount: result.updatedCount,
-            skippedCount: result.skippedCount,
-            failedCount: result.errorCount,
-            durationMs: result.durationMs,
-          },
-        });
-        this.logger.log(`Sync completed: ${result.syncedCount} synced, ${result.errorCount} errors, ${result.durationMs}ms`);
-      } catch (error: any) {
-        this.logger.error(`Sync failed: ${error.message}`);
-        const durationMs = Date.now() - startTime;
-        await rawPrisma.syncEvent.create({
-          data: {
-            accountId,
-            direction: 'push',
-            status: 'failed',
-            totalCount: 0,
-            newCount: 0,
-            updatedCount: 0,
-            skippedCount: 0,
-            failedCount: 0,
-            error: error.message,
-            durationMs,
-          },
-        }).catch(() => {});
-      } finally {
-        this.syncing = false;
-        this.syncAbortController = null;
-        await rawPrisma.$disconnect();
-      }
-    });
+    setImmediate(
+      () =>
+        void (async () => {
+          try {
+            const result = await this.performSyncWithClient(
+              rawPrisma,
+              syncKey,
+              instanceId,
+              this.syncAbortController!.signal,
+            );
+            // Store sync event
+            await rawPrisma.syncEvent.create({
+              data: {
+                accountId,
+                direction: 'push',
+                status: 'completed',
+                totalCount: result.syncedCount,
+                newCount: result.newCount,
+                updatedCount: result.updatedCount,
+                skippedCount: result.skippedCount,
+                failedCount: result.errorCount,
+                durationMs: result.durationMs,
+              },
+            });
+            this.logger.log(
+              `Sync completed: ${result.syncedCount} synced, ${result.errorCount} errors, ${result.durationMs}ms`,
+            );
+          } catch (error: any) {
+            this.logger.error(`Sync failed: ${error.message}`);
+            const durationMs = Date.now() - startTime;
+            await rawPrisma.syncEvent
+              .create({
+                data: {
+                  accountId,
+                  direction: 'push',
+                  status: 'failed',
+                  totalCount: 0,
+                  newCount: 0,
+                  updatedCount: 0,
+                  skippedCount: 0,
+                  failedCount: 0,
+                  error: error.message,
+                  durationMs,
+                },
+              })
+              .catch(() => {});
+          } finally {
+            this.syncing = false;
+            this.syncAbortController = null;
+            await rawPrisma.$disconnect();
+          }
+        })(),
+    );
 
     return { message: 'Sync started in background' };
   }
@@ -756,13 +763,15 @@ export class CloudSyncService {
               data: { cloudSyncedAt: new Date() },
             });
           } catch (e: any) {
-            this.logger.error(`Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`);
+            this.logger.error(
+              `Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`,
+            );
           }
           synced++;
-        if (item.status === 'created') newCount++;
-        else if (item.status === 'updated') updatedCount++;
-        else skippedCount++;
-      } else {
+          if (item.status === 'created') newCount++;
+          else if (item.status === 'updated') updatedCount++;
+          else skippedCount++;
+        } else {
           errors++;
         }
       }
@@ -805,14 +814,16 @@ export class CloudSyncService {
           `SyncIdMap constraint conflict for local=${localMemoryId} cloud=${cloudMemoryId}, updating existing entry`,
         );
         // Try updating the existing entry that has this cloudMemoryId
-        await this.prisma.syncIdMap.updateMany({
-          where: { instanceId, cloudMemoryId },
-          data: {
-            localMemoryId,
-            contentHash: contentHash ?? undefined,
-            syncedAt: new Date(),
-          },
-        }).catch(() => {});
+        await this.prisma.syncIdMap
+          .updateMany({
+            where: { instanceId, cloudMemoryId },
+            data: {
+              localMemoryId,
+              contentHash: contentHash ?? undefined,
+              syncedAt: new Date(),
+            },
+          })
+          .catch(() => {});
       } else {
         throw e;
       }
