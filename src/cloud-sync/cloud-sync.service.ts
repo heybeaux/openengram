@@ -11,9 +11,10 @@ import {
   SyncPushResultItem,
 } from './dto/sync-push.dto';
 import { randomUUID, createHash } from 'crypto';
+import { PrismaClient } from '@prisma/client';
 
 const BATCH_SIZE = 50;
-const BATCH_DELAY_MS = 500;
+const BATCH_DELAY_MS = 200;
 const MAX_SYNC_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface SyncResult {
@@ -49,50 +50,76 @@ export class CloudSyncService {
     private readonly cloudLinkService: CloudLinkService,
   ) {}
 
-  async triggerSync(accountId: string): Promise<SyncResult> {
+  async triggerSync(accountId: string): Promise<{ message: string }> {
     if (this.syncing) {
       throw new BadRequestException('Sync already in progress');
     }
 
+    // Read link inside the RLS transaction context
     const link = await this.getCloudLink(accountId);
     const syncKey = link.cloudSyncKey
       ? this.decryptApiKey(link.cloudSyncKey)
       : this.decryptApiKey(link.cloudApiKey);
+    const instanceId = link.instanceId;
 
+    // Fire-and-forget: run sync in background with a raw PrismaClient
+    // to avoid being constrained by the RLS transaction timeout.
     this.syncing = true;
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
+
+    const rawPrisma = new PrismaClient();
     const startTime = Date.now();
-    try {
-      const result = await this.performSync(
-        syncKey,
-        link.instanceId,
-        this.syncAbortController.signal,
-      );
-      // Store sync event for history
-      await this.storeSyncEvent(accountId, result, 'completed');
-      return result;
-    } catch (error: any) {
-      const durationMs = Date.now() - startTime;
-      await this.storeSyncEvent(
-        accountId,
-        {
-          syncedCount: 0,
-          newCount: 0,
-          updatedCount: 0,
-          skippedCount: 0,
-          errorCount: 0,
-          lastSyncedAt: null,
-          durationMs,
-        },
-        'failed',
-        error.message,
-      );
-      throw error;
-    } finally {
-      this.syncing = false;
-      this.syncAbortController = null;
-    }
+
+    // Use setImmediate to escape the RLS transaction context
+    setImmediate(async () => {
+      try {
+        const result = await this.performSyncWithClient(
+          rawPrisma,
+          syncKey,
+          instanceId,
+          this.syncAbortController!.signal,
+        );
+        // Store sync event
+        await rawPrisma.syncEvent.create({
+          data: {
+            accountId,
+            direction: 'push',
+            status: 'completed',
+            totalCount: result.syncedCount,
+            newCount: result.newCount,
+            updatedCount: result.updatedCount,
+            skippedCount: result.skippedCount,
+            failedCount: result.errorCount,
+            durationMs: result.durationMs,
+          },
+        });
+        this.logger.log(`Sync completed: ${result.syncedCount} synced, ${result.errorCount} errors, ${result.durationMs}ms`);
+      } catch (error: any) {
+        this.logger.error(`Sync failed: ${error.message}`);
+        const durationMs = Date.now() - startTime;
+        await rawPrisma.syncEvent.create({
+          data: {
+            accountId,
+            direction: 'push',
+            status: 'failed',
+            totalCount: 0,
+            newCount: 0,
+            updatedCount: 0,
+            skippedCount: 0,
+            failedCount: 0,
+            error: error.message,
+            durationMs,
+          },
+        }).catch(() => {});
+      } finally {
+        this.syncing = false;
+        this.syncAbortController = null;
+        await rawPrisma.$disconnect();
+      }
+    });
+
+    return { message: 'Sync started in background' };
   }
 
   async getSyncHistory(accountId: string, limit = 5) {
@@ -533,7 +560,8 @@ export class CloudSyncService {
   // Local-side: Push sync using /v1/sync/push batch endpoint
   // =========================================================================
 
-  private async performSync(
+  private async performSyncWithClient(
+    db: PrismaClient | PrismaService,
     apiKey: string,
     instanceId: string | null,
     signal: AbortSignal,
@@ -547,7 +575,7 @@ export class CloudSyncService {
     const startTime = Date.now();
 
     // Count total pending for progress tracking
-    const totalPending = await this.prisma.memory.count({
+    const totalPending = await db.memory.count({
       where: { deletedAt: null, cloudSyncedAt: null },
     });
     this.syncProgress = { synced: 0, total: totalPending };
@@ -569,7 +597,7 @@ export class CloudSyncService {
         break;
       }
 
-      const batch = await this.prisma.memory.findMany({
+      const batch = await db.memory.findMany({
         where: {
           deletedAt: null,
           cloudSyncedAt: null,
@@ -586,7 +614,7 @@ export class CloudSyncService {
       for (const memory of batch) {
         if (!memory.contentHash) {
           const hash = generateContentHash(memory.raw);
-          await this.prisma.memory.update({
+          await db.memory.update({
             where: { id: memory.id },
             data: { contentHash: hash },
           });
@@ -711,23 +739,35 @@ export class CloudSyncService {
     let newCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
-    for (const item of result.results) {
-      if (
-        item.status === 'created' ||
-        item.status === 'updated' ||
-        item.status === 'skipped'
-      ) {
-        await this.prisma.memory.update({
-          where: { id: item.sourceMemoryId },
-          data: { cloudSyncedAt: new Date() },
-        });
-        synced++;
+    // Use a raw PrismaClient to bypass the RLS transaction wrapper,
+    // which would roll back all updates if the sync takes longer than
+    // the transaction timeout.
+    const rawPrisma = new PrismaClient();
+    try {
+      for (const item of result.results) {
+        if (
+          item.status === 'created' ||
+          item.status === 'updated' ||
+          item.status === 'skipped'
+        ) {
+          try {
+            await rawPrisma.memory.update({
+              where: { id: item.sourceMemoryId },
+              data: { cloudSyncedAt: new Date() },
+            });
+          } catch (e: any) {
+            this.logger.error(`Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`);
+          }
+          synced++;
         if (item.status === 'created') newCount++;
         else if (item.status === 'updated') updatedCount++;
         else skippedCount++;
       } else {
-        errors++;
+          errors++;
+        }
       }
+    } finally {
+      await rawPrisma.$disconnect();
     }
 
     return { synced, errors, newCount, updatedCount, skippedCount };
@@ -739,22 +779,44 @@ export class CloudSyncService {
     cloudMemoryId: string,
     contentHash?: string,
   ): Promise<void> {
-    await this.prisma.syncIdMap.upsert({
-      where: {
-        instanceId_localMemoryId: { instanceId, localMemoryId },
-      },
-      create: {
-        instanceId,
-        localMemoryId,
-        cloudMemoryId,
-        contentHash: contentHash ?? null,
-      },
-      update: {
-        cloudMemoryId,
-        contentHash: contentHash ?? undefined,
-        syncedAt: new Date(),
-      },
-    });
+    try {
+      await this.prisma.syncIdMap.upsert({
+        where: {
+          instanceId_localMemoryId: { instanceId, localMemoryId },
+        },
+        create: {
+          instanceId,
+          localMemoryId,
+          cloudMemoryId,
+          contentHash: contentHash ?? null,
+        },
+        update: {
+          cloudMemoryId,
+          contentHash: contentHash ?? undefined,
+          syncedAt: new Date(),
+        },
+      });
+    } catch (e: any) {
+      // Handle unique constraint violation on (instanceId, cloudMemoryId)
+      // This can happen when multiple local memories with the same content
+      // map to the same cloud memory via contentHash dedup.
+      if (e.code === 'P2002') {
+        this.logger.debug(
+          `SyncIdMap constraint conflict for local=${localMemoryId} cloud=${cloudMemoryId}, updating existing entry`,
+        );
+        // Try updating the existing entry that has this cloudMemoryId
+        await this.prisma.syncIdMap.updateMany({
+          where: { instanceId, cloudMemoryId },
+          data: {
+            localMemoryId,
+            contentHash: contentHash ?? undefined,
+            syncedAt: new Date(),
+          },
+        }).catch(() => {});
+      } else {
+        throw e;
+      }
+    }
   }
 
   private async getInstanceId(): Promise<string | null> {

@@ -54,7 +54,9 @@ export class SyncReconciliationService {
    */
   async reconcile(accountId: string): Promise<ReconciliationPlan> {
     const link = await this.getCloudLink(accountId);
-    const apiKey = this.decryptApiKey(link.cloudApiKey);
+    const apiKey = link.cloudSyncKey
+      ? this.decryptApiKey(link.cloudSyncKey)
+      : this.decryptApiKey(link.cloudApiKey);
 
     // 1. Gather local content hashes (backfill any missing ones first)
     await this.ensureLocalContentHashes();
@@ -294,7 +296,9 @@ export class SyncReconciliationService {
         `${this.CLOUD_API_BASE}/v1/sync/pull?since=${encodeURIComponent(since)}&limit=500`,
         {
           headers: {
-            'X-AM-API-Key': apiKey,
+            ...(apiKey.startsWith('esync_')
+              ? { 'X-Sync-Key': apiKey }
+              : { 'X-AM-API-Key': apiKey }),
             'X-Instance-Id': 'reconciliation',
           },
         },
