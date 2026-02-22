@@ -429,7 +429,7 @@ export class WakingCycleService {
     if (lastRun.status === 'COMPLETED' && lastRun.error) {
       try {
         stats = JSON.parse(lastRun.error);
-      } catch {}
+      } catch { /* ignore parse errors */ }
     }
 
     // Check if there's a currently running cycle
