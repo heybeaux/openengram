@@ -14,6 +14,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MemoryLayer, SubjectType } from '@prisma/client';
 import { MemoryVisibilityEnum } from './create-memory.dto';
 import { MultiQueryOptionsDto } from '../../multi-query/dto/multi-query.dto';
+import { AnticipatoryOptionsDto } from '../../anticipatory/dto/anticipatory.dto';
 
 export class QueryMemoryDto {
   @ApiProperty({
@@ -90,6 +91,16 @@ export class QueryMemoryDto {
   @IsArray()
   @IsString({ each: true })
   poolIds?: string[];
+
+  // v1.6: Anticipatory Recall Engine options
+  @ApiPropertyOptional({
+    description: 'Anticipatory recall options — surfaces adjacent memories and insights',
+    type: AnticipatoryOptionsDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AnticipatoryOptionsDto)
+  anticipatory?: AnticipatoryOptionsDto;
 }
 
 export class LoadContextDto {

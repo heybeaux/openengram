@@ -41,6 +41,7 @@ import { InstanceModule } from './instance/instance.module';
 import { CloudLinkModule } from './cloud-link/cloud-link.module';
 import { CloudSyncModule } from './cloud-sync/cloud-sync.module';
 import { AwarenessModule } from './awareness/awareness.module';
+import { AnticipatoryModule } from './anticipatory/anticipatory.module';
 import { IdentityModule } from './identity/identity.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { UsageTrackingInterceptor } from './common/interceptors/usage-tracking.interceptor';
@@ -121,6 +122,7 @@ const coreModules = [
   CloudLinkModule,
   CloudSyncModule,
   AwarenessModule,
+  AnticipatoryModule,
   IdentityModule,
   ChallengeModule,
   TeamsModule,

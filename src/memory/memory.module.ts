@@ -21,6 +21,7 @@ import { ContextualRecallService } from './contextual-recall.service';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { AccountModule } from '../account/account.module';
+import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AccountModule } from '../account/account.module';
     forwardRef(() => HierarchyModule),
     MemoryPoolModule,
     MemoryAccessLogModule,
+    AnticipatoryModule,
   ],
   controllers: [MemoryController],
   providers: [

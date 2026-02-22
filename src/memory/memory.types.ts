@@ -3,6 +3,7 @@ import {
   MultiQueryMetadataDto,
   ResultExplanationDto,
 } from '../multi-query/dto/multi-query.dto';
+import { AnticipatoryMeta } from '../anticipatory/dto/anticipatory.dto';
 
 export interface MemoryWithExtraction extends Memory {
   extraction?: {
@@ -19,6 +20,16 @@ export interface MemoryWithExtraction extends Memory {
 
 export interface MemoryWithScore extends MemoryWithExtraction {
   score?: number;
+  /** Present when this memory was surfaced by the Anticipatory Recall Engine. */
+  recallSource?: 'standard' | 'anticipatory';
+  /** Anticipatory metadata (strategy, reason, salience). Only present when recallSource='anticipatory'. */
+  anticipatory?: {
+    strategy: string;
+    reason: string;
+    salience: number;
+    entityPath?: string[];
+    insightType?: string;
+  };
 }
 
 export interface QueryResult {
@@ -27,6 +38,8 @@ export interface QueryResult {
   latencyMs: number;
   multiQuery?: MultiQueryMetadataDto;
   explanations?: Record<string, ResultExplanationDto>;
+  /** Anticipatory Recall Engine metadata. Present when anticipatory.enabled=true. */
+  anticipatoryMeta?: AnticipatoryMeta;
 }
 
 export interface ContextResult {

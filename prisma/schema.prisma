@@ -1203,6 +1203,42 @@ model MemoryCluster {
 // ============================================================================
 
 // ============================================================================
+// ANTICIPATORY RECALL ENGINE (ARE)
+// ============================================================================
+
+/// Tracks anticipatory recall events and their outcomes for feedback learning
+model AnticipatoryEvent {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  recallId  String   @map("recall_id")
+  strategy  String
+  memoryId  String?  @map("memory_id")
+  salience  Float
+  wasUseful Boolean? @map("was_useful")
+  latencyMs Int      @map("latency_ms")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([strategy, wasUseful])
+  @@index([recallId])
+  @@map("anticipatory_events")
+}
+
+/// Learned per-user per-strategy weights for anticipatory recall
+model AnticipatoryWeight {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  strategy   String
+  weight     Float    @default(1.0)
+  successful Int      @default(0)
+  total      Int      @default(0)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, strategy])
+  @@map("anticipatory_weights")
+}
+
+// ============================================================================
 // IDENTITY PROFILES (HEY-177, HEY-179, HEY-180, HEY-181)
 // ============================================================================
 

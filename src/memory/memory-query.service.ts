@@ -6,6 +6,7 @@ import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
+import { AnticipatoryService, AnticipatoryRunResult } from '../anticipatory/anticipatory.service';
 import {
   MultiQueryMetadataDto,
   ResultExplanationDto,
@@ -28,6 +29,7 @@ export class MemoryQueryService {
     @Optional() private multiQueryService?: MultiQueryService,
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
+    @Optional() private anticipatoryService?: AnticipatoryService,
   ) {}
 
   /**
@@ -224,10 +226,31 @@ export class MemoryQueryService {
       }
     }
 
+    // v1.6: Anticipatory Recall — run in parallel-ish (after standard recall)
+    let anticipatoryMeta: import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta | undefined;
+    if (dto.anticipatory?.enabled && this.anticipatoryService) {
+      try {
+        const excludeIds = new Set(result.map((m) => m.id));
+        const areResult = await this.anticipatoryService.run(
+          dto.query,
+          singleUserId,
+          excludeIds,
+          dto.anticipatory,
+        );
+        if (areResult.memories.length > 0) {
+          result.push(...areResult.memories);
+        }
+        anticipatoryMeta = areResult.meta;
+      } catch (err) {
+        this.logger.warn(`Anticipatory recall failed: ${(err as Error).message}`);
+      }
+    }
+
     return {
       memories: result,
       queryTokens: dto.query.split(/\s+/).length,
       latencyMs: Date.now() - startTime,
+      ...(anticipatoryMeta ? { anticipatoryMeta } : {}),
     };
   }
 
@@ -440,12 +463,33 @@ export class MemoryQueryService {
       );
     }
 
+    // v1.6: Anticipatory Recall — also runs on multi-query path
+    let anticipatoryMeta2: import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta | undefined;
+    if (dto.anticipatory?.enabled && this.anticipatoryService) {
+      try {
+        const excludeIds = new Set(result.map((m) => m.id));
+        const areResult = await this.anticipatoryService.run(
+          dto.query,
+          Array.isArray(userId) ? userId[0] : userId,
+          excludeIds,
+          dto.anticipatory,
+        );
+        if (areResult.memories.length > 0) {
+          result.push(...areResult.memories);
+        }
+        anticipatoryMeta2 = areResult.meta;
+      } catch (err) {
+        this.logger.warn(`Anticipatory recall failed: ${(err as Error).message}`);
+      }
+    }
+
     return {
       memories: result,
       queryTokens: dto.query.split(/\s+/).length,
       latencyMs: Date.now() - startTime,
       multiQuery: multiQueryMetadata,
       explanations,
+      ...(anticipatoryMeta2 ? { anticipatoryMeta: anticipatoryMeta2 } : {}),
     };
   }
 
