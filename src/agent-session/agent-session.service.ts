@@ -130,14 +130,14 @@ export class AgentSessionService {
     const session = await this.getByKey(sessionKey);
     const updated = await this.prisma.agentSession.update({
       where: { id: session.id },
-      data: {
+      data: ({
         ...dto,
         endedAt:
           dto.status === AgentSessionStatus.COMPLETED ||
           dto.status === AgentSessionStatus.TERMINATED
             ? new Date()
             : undefined,
-      },
+      } as any),
     });
 
     // On COMPLETED: promote high-scoring memories from task pool to global pool

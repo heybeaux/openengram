@@ -37,7 +37,23 @@
       },
       "get": {
         "operationId": "DashboardController_listMemories",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "layer",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IDENTITY",
+                "PROJECT",
+                "SESSION",
+                "TASK",
+                "INSIGHT"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -183,6 +199,44 @@
             "schema": {
               "default": 10,
               "type": "number"
+            }
+          },
+          {
+            "name": "subjectType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "AGENT",
+                "ENTITY"
+              ]
+            }
+          },
+          {
+            "name": "visibility",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PRIVATE",
+                  "TEAM",
+                  "PUBLIC"
+                ]
+              }
+            }
+          },
+          {
+            "name": "anticipatory",
+            "required": false,
+            "in": "query",
+            "description": "Anticipatory recall options — surfaces adjacent memories and insights",
+            "schema": {
+              "$ref": "#/components/schemas/AnticipatoryOptionsDto"
             }
           },
           {
@@ -1574,349 +1628,29 @@
         ]
       }
     },
-    "/v1/observe": {
+    "/anticipatory/feedback": {
       "post": {
-        "operationId": "AutoController_observe",
+        "description": "Tell the system whether an anticipatory memory was useful. This feedback improves future anticipatory results by adjusting per-strategy weights for the user.",
+        "operationId": "FeedbackController_submitFeedback",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ObserveDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Auto"
-        ]
-      }
-    },
-    "/v1/observe/analyze": {
-      "post": {
-        "operationId": "AutoController_analyze",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ObserveDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Auto"
-        ]
-      }
-    },
-    "/v1/summarize": {
-      "post": {
-        "operationId": "SummarizationController_summarize",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SummarizeDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Summarization"
-        ]
-      }
-    },
-    "/v1/summarize/session/{sessionId}": {
-      "post": {
-        "operationId": "SummarizationController_summarizeSession",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Summarization"
-        ]
-      }
-    },
-    "/v1/stats": {
-      "get": {
-        "operationId": "DashboardController_getStats",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      }
-    },
-    "/v1/users/{id}": {
-      "get": {
-        "operationId": "DashboardController_getUserDetail",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      },
-      "delete": {
-        "operationId": "DashboardController_deleteUser",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "deleteMemories",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/reflect": {
-      "post": {
-        "description": "\nAnalyzes recent conversation turns to extract self-knowledge for the agent.\nCreates memories with subjectType=AGENT that the agent can recall about itself.\n\n**Categories of self-knowledge extracted:**\n- **Identity**: Agent's name, role, capabilities, personality\n- **Lessons Learned**: Mistakes made, corrections received, better approaches\n- **User Preferences**: What the agent learned about the user's working style\n- **Working Style**: Patterns in how the agent operates effectively\n\n**Example use case (OpenClaw integration):**\nCall this endpoint at the end of significant sessions to help the agent\nbuild self-awareness and learn from interactions.\n    ",
-        "operationId": "AgentController_reflect",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier (e.g., \"rook\", \"openclaw-agent\")",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReflectDto"
+                "$ref": "#/components/schemas/AnticipatoryFeedbackDto"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Reflection complete",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReflectionResultDto"
-                }
-              }
-            }
+            "description": "Feedback recorded"
           }
         },
-        "summary": "Trigger agent self-reflection",
+        "summary": "Submit feedback on anticipatory recall results",
         "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/memories": {
-      "get": {
-        "description": "Retrieves all memories the agent has about itself.",
-        "operationId": "AgentController_getMemories",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "layer",
-            "required": false,
-            "in": "query",
-            "description": "Filter by memory layer",
-            "schema": {
-              "enum": [
-                "IDENTITY",
-                "PROJECT",
-                "SESSION",
-                "TASK",
-                "INSIGHT"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "Maximum number of memories to return",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get agent self-memories",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/context": {
-      "get": {
-        "description": "\nReturns agent self-knowledge formatted for system prompt injection.\nUse this when starting a session to include the agent's self-awareness.\n    ",
-        "operationId": "AgentController_getContext",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "maxTokens",
-            "required": false,
-            "in": "query",
-            "description": "Maximum tokens for context (default: 2000)",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get agent context for prompt injection",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/trust/history": {
-      "get": {
-        "operationId": "AgentController_getTrustHistory",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get paginated trust score history for an agent",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/trust/bulk-recompute": {
-      "post": {
-        "operationId": "AgentController_bulkRecomputeTrust",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Bulk recompute trust scores for all agents",
-        "tags": [
-          "agents"
+          "anticipatory"
         ]
       }
     },
@@ -2448,6 +2182,351 @@
         ]
       }
     },
+    "/v1/observe": {
+      "post": {
+        "operationId": "AutoController_observe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObserveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auto"
+        ]
+      }
+    },
+    "/v1/observe/analyze": {
+      "post": {
+        "operationId": "AutoController_analyze",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObserveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auto"
+        ]
+      }
+    },
+    "/v1/summarize": {
+      "post": {
+        "operationId": "SummarizationController_summarize",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummarizeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Summarization"
+        ]
+      }
+    },
+    "/v1/summarize/session/{sessionId}": {
+      "post": {
+        "operationId": "SummarizationController_summarizeSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Summarization"
+        ]
+      }
+    },
+    "/v1/stats": {
+      "get": {
+        "operationId": "DashboardController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/v1/users/{id}": {
+      "get": {
+        "operationId": "DashboardController_getUserDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      },
+      "delete": {
+        "operationId": "DashboardController_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deleteMemories",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/reflect": {
+      "post": {
+        "description": "\nAnalyzes recent conversation turns to extract self-knowledge for the agent.\nCreates memories with subjectType=AGENT that the agent can recall about itself.\n\n**Categories of self-knowledge extracted:**\n- **Identity**: Agent's name, role, capabilities, personality\n- **Lessons Learned**: Mistakes made, corrections received, better approaches\n- **User Preferences**: What the agent learned about the user's working style\n- **Working Style**: Patterns in how the agent operates effectively\n\n**Example use case (OpenClaw integration):**\nCall this endpoint at the end of significant sessions to help the agent\nbuild self-awareness and learn from interactions.\n    ",
+        "operationId": "AgentController_reflect",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier (e.g., \"rook\", \"openclaw-agent\")",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReflectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reflection complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReflectionResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Trigger agent self-reflection",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/memories": {
+      "get": {
+        "description": "Retrieves all memories the agent has about itself.",
+        "operationId": "AgentController_getMemories",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "required": false,
+            "in": "query",
+            "description": "Filter by memory layer",
+            "schema": {
+              "enum": [
+                "IDENTITY",
+                "PROJECT",
+                "SESSION",
+                "TASK"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of memories to return",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get agent self-memories",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/context": {
+      "get": {
+        "description": "\nReturns agent self-knowledge formatted for system prompt injection.\nUse this when starting a session to include the agent's self-awareness.\n    ",
+        "operationId": "AgentController_getContext",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxTokens",
+            "required": false,
+            "in": "query",
+            "description": "Maximum tokens for context (default: 2000)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get agent context for prompt injection",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/trust/history": {
+      "get": {
+        "operationId": "AgentController_getTrustHistory",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get paginated trust score history for an agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/trust/bulk-recompute": {
+      "post": {
+        "operationId": "AgentController_bulkRecomputeTrust",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bulk recompute trust scores for all agents",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/v1/multi-query/enabled": {
       "get": {
         "operationId": "MultiQueryController_isEnabled",
@@ -2623,7 +2702,13 @@
             "in": "query",
             "description": "Filter by status",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "SKIPPED"
+              ]
             }
           },
           {
@@ -5304,7 +5389,7 @@
             "bearer": []
           }
         ],
-        "summary": "Preview sync reconciliation — show conflicts without resolving",
+        "summary": "Preview reconciliation — compare local vs cloud memories",
         "tags": [
           "cloud"
         ]
@@ -5314,16 +5399,6 @@
       "post": {
         "operationId": "ReconciliationController_execute",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReconcileRequestDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": ""
@@ -5334,7 +5409,7 @@
             "bearer": []
           }
         ],
-        "summary": "Execute sync reconciliation — resolve conflicts",
+        "summary": "Execute reconciliation — push local-only, pull cloud-only",
         "tags": [
           "cloud"
         ]
@@ -6072,12 +6147,40 @@
           },
           "layer": {
             "type": "string",
-            "description": "Memory layer",
             "enum": [
               "SESSION",
               "PROJECT",
               "IDENTITY",
               "TASK"
+            ],
+            "description": "Memory layer"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AGENT",
+              "ENTITY"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "EXPLICIT_STATEMENT",
+              "AGENT_OBSERVATION",
+              "AGENT_REFLECTION",
+              "CORRECTION",
+              "PATTERN_DETECTED",
+              "SYSTEM",
+              "GIT_HISTORY"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "PUBLIC"
             ]
           }
         }
@@ -6085,6 +6188,33 @@
       "CreateMemoryBatchDto": {
         "type": "object",
         "properties": {}
+      },
+      "AnticipatoryOptionsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable anticipatory recall for this query",
+            "default": false
+          },
+          "maxResults": {
+            "type": "number",
+            "description": "Maximum anticipatory results to return",
+            "default": 3
+          },
+          "strategies": {
+            "description": "Override strategy selection (e.g., [\"entity_radiation\", \"insight_injection\"])",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minSalience": {
+            "type": "number",
+            "description": "Minimum salience score to include anticipatory results (0-1)",
+            "default": 0.3
+          }
+        }
       },
       "QueryMemoryDto": {
         "type": "object",
@@ -6096,7 +6226,6 @@
           },
           "layers": {
             "type": "array",
-            "description": "Filter by memory layers",
             "items": {
               "type": "string",
               "enum": [
@@ -6105,12 +6234,40 @@
                 "IDENTITY",
                 "TASK"
               ]
-            }
+            },
+            "description": "Filter by memory layers"
           },
           "limit": {
             "type": "number",
             "description": "Maximum number of results",
             "default": 10
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AGENT",
+              "ENTITY"
+            ]
+          },
+          "visibility": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PRIVATE",
+                "TEAM",
+                "PUBLIC"
+              ]
+            }
+          },
+          "anticipatory": {
+            "description": "Anticipatory recall options — surfaces adjacent memories and insights",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnticipatoryOptionsDto"
+              }
+            ]
           }
         },
         "required": [
@@ -6127,7 +6284,27 @@
       },
       "UpdateMemoryDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "layer": {
+            "type": "string",
+            "enum": [
+              "IDENTITY",
+              "PROJECT",
+              "SESSION",
+              "TASK",
+              "INSIGHT"
+            ]
+          },
+          "importanceHint": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          }
+        }
       },
       "LoadContextDto": {
         "type": "object",
@@ -6247,15 +6424,150 @@
       },
       "CreateMemoryPoolDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GLOBAL",
+              "SHARED",
+              "PRIVATE"
+            ]
+          }
+        }
       },
       "GrantPoolAccessDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "READ",
+              "WRITE",
+              "ADMIN"
+            ]
+          }
+        }
       },
       "AddMemoryToPoolDto": {
         "type": "object",
         "properties": {}
+      },
+      "AnticipatoryFeedbackDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateEntityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERSON",
+              "PLACE",
+              "ORGANIZATION",
+              "CONCEPT",
+              "EVENT",
+              "OBJECT",
+              "TIME",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "UpdateEntityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERSON",
+              "PLACE",
+              "ORGANIZATION",
+              "CONCEPT",
+              "EVENT",
+              "OBJECT",
+              "TIME",
+              "UNKNOWN"
+            ]
+          }
+        }
+      },
+      "CreateRelationshipDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "SPOUSE_OF",
+              "PARENT_OF",
+              "CHILD_OF",
+              "SIBLING_OF",
+              "FRIEND_OF",
+              "COLLEAGUE_OF",
+              "LIVES_IN",
+              "WORKS_AT",
+              "LOCATED_IN",
+              "BORN_IN",
+              "OWNS",
+              "MEMBER_OF",
+              "PART_OF",
+              "INSTANCE_OF",
+              "HAPPENED_BEFORE",
+              "HAPPENED_AFTER",
+              "HAPPENED_DURING",
+              "HAS_ATTRIBUTE",
+              "CAUSED_BY",
+              "RESULTS_IN",
+              "RELATED_TO",
+              "CUSTOM"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "UpdateRelationshipDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TraverseGraphDto": {
+        "type": "object",
+        "properties": {
+          "relationshipTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SPOUSE_OF",
+                "PARENT_OF",
+                "CHILD_OF",
+                "SIBLING_OF",
+                "FRIEND_OF",
+                "COLLEAGUE_OF",
+                "LIVES_IN",
+                "WORKS_AT",
+                "LOCATED_IN",
+                "BORN_IN",
+                "OWNS",
+                "MEMBER_OF",
+                "PART_OF",
+                "INSTANCE_OF",
+                "HAPPENED_BEFORE",
+                "HAPPENED_AFTER",
+                "HAPPENED_DURING",
+                "HAS_ATTRIBUTE",
+                "CAUSED_BY",
+                "RESULTS_IN",
+                "RELATED_TO",
+                "CUSTOM"
+              ]
+            }
+          }
+        }
       },
       "ObserveDto": {
         "type": "object",
@@ -6343,26 +6655,6 @@
           "categories"
         ]
       },
-      "CreateEntityDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateEntityDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "CreateRelationshipDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateRelationshipDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "TraverseGraphDto": {
-        "type": "object",
-        "properties": {}
-      },
       "ExpandQueryDto": {
         "type": "object",
         "properties": {
@@ -6372,12 +6664,12 @@
           },
           "strategy": {
             "type": "string",
-            "description": "Expansion strategy",
             "enum": [
               "rules",
               "llm",
               "hybrid"
-            ]
+            ],
+            "description": "Expansion strategy"
           },
           "maxVariants": {
             "type": "number",
@@ -6630,6 +6922,13 @@
         "properties": {
           "strategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Override suggested merge strategy"
           },
           "survivorId": {
@@ -6711,6 +7010,13 @@
           },
           "strategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Merge strategy to use"
           },
           "survivorId": {
@@ -6941,6 +7247,13 @@
           },
           "defaultStrategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Default merge strategy"
           },
           "protectedTypes": {
@@ -7191,7 +7504,8 @@
         "properties": {
           "identity": {
             "type": "object",
-            "description": "The portable identity JSON export"
+            "description": "The portable identity JSON export",
+            "additionalProperties": true
           },
           "targetAgentId": {
             "type": "string",
@@ -7224,7 +7538,16 @@
       },
       "UpdateAgentSessionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "COMPLETED",
+              "TERMINATED"
+            ]
+          }
+        }
       },
       "ScopedContextRequestDto": {
         "type": "object",
@@ -7369,10 +7692,6 @@
         "required": [
           "memories"
         ]
-      },
-      "ReconcileRequestDto": {
-        "type": "object",
-        "properties": {}
       },
       "InsightFeedbackDto": {
         "type": "object",

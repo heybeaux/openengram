@@ -141,6 +141,28 @@ export class InsightGeneratorService {
       .map(p => `- [${p.type}] ${p.description}`)
       .join('\n');
 
+    // Fetch existing insights to avoid duplicates
+    const allMemoryUserIds = [...new Set(memories.map(m => m.agentId).filter(Boolean))];
+    let existingInsightsSummary = '';
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const existingInsights = await this.prisma.memory.findMany({
+        where: {
+          layer: 'INSIGHT',
+          deletedAt: null,
+          createdAt: { gte: sevenDaysAgo },
+        },
+        select: { raw: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+      if (existingInsights.length > 0) {
+        existingInsightsSummary = `\n\nEXISTING INSIGHTS (do NOT repeat or rephrase these):\n${existingInsights.map(i => `- ${i.raw.slice(0, 150)}`).join('\n')}`;
+      }
+    } catch {
+      // Non-critical, proceed without
+    }
+
     const response = await this.llmService.chat(
       [
         {
@@ -177,6 +199,8 @@ Respond in JSON:
   ]
 }
 
+CRITICAL: Do NOT rephrase or restate observations that already exist in the EXISTING INSIGHTS section of the user message. If an insight covers the same ground as an existing one (even with different wording), skip it. Return an empty array rather than duplicating.
+
 Return at most 3 insights. If nothing genuinely surprising stands out, return an empty array. An empty array is better than generic observations.`,
         },
         {
@@ -187,9 +211,9 @@ ${patternSummary}
 
 And here are the actual memories referenced:
 
-${memoryContext}
+${memoryContext}${existingInsightsSummary}
 
-What non-obvious insights do you see?`,
+What non-obvious insights do you see? Only return insights that are genuinely NEW — not covered by existing insights above.`,
         },
       ],
       {

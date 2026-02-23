@@ -3,17 +3,29 @@
  * Requires `pnpm build` first.
  * Usage: node scripts/generate-api-spec.mjs
  */
-import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const { AppModule } = await import('../dist/src/app.module.js');
+// SWC outputs to dist/ (flat), tsc outputs to dist/src/ (nested)
+let AppModule;
+try {
+  ({ AppModule } = await import('../dist/src/app.module.js'));
+} catch {
+  ({ AppModule } = await import('../dist/app.module.js'));
+}
 
-const app = await NestFactory.create(AppModule, { logger: false });
+// Create app WITHOUT triggering lifecycle hooks (onModuleInit)
+// This avoids database connections which aren't needed for spec generation
+const app = await NestFactory.create(AppModule, {
+  logger: false,
+  abortOnError: false,
+  preview: true,
+});
 
 const config = new DocumentBuilder()
   .setTitle('Engram API')

@@ -83,9 +83,10 @@ export class CreateMemoryDto {
     enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'],
   })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
   @IsEnum(MemoryLayer)
   @Transform(({ value, obj }) => value ?? mapMemoryType(obj.memoryType))
-  layer?: MemoryLayer;
+  layer?: string;
 
   // Legacy alias: memoryType -> layer
   @IsOptional()
@@ -120,8 +121,9 @@ export class CreateMemoryDto {
 
   // Subject fields: who/what is this memory ABOUT?
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['USER', 'AGENT', 'ENTITY'], type: String })
   @IsEnum(SubjectType)
-  subjectType?: SubjectType;
+  subjectType?: string;
 
   @IsOptional()
   @IsString()
@@ -134,8 +136,9 @@ export class CreateMemoryDto {
 
   // Memory source type (defaults to EXPLICIT_STATEMENT)
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['EXPLICIT_STATEMENT', 'AGENT_OBSERVATION', 'AGENT_REFLECTION', 'CORRECTION', 'PATTERN_DETECTED', 'SYSTEM', 'GIT_HISTORY'], type: String })
   @IsEnum(MemorySource)
-  source?: MemorySource;
+  source?: string;
 
   // Source attribution fields (for tracking where memories came from)
   @IsOptional()
@@ -152,8 +155,9 @@ export class CreateMemoryDto {
 
   // HEY-174: Memory visibility scope
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['PRIVATE', 'TEAM', 'PUBLIC'], type: String })
   @IsEnum(MemoryVisibilityEnum)
-  visibility?: MemoryVisibilityEnum;
+  visibility?: string;
 
   // v0.7: Agent session attribution
   @IsOptional()
@@ -170,7 +174,7 @@ export class CreateMemoryBatchDto {
   memories: Array<{
     raw: string;
     ts?: string; // ISO timestamp
-    layer?: MemoryLayer;
+    layer?: string;
     importanceHint?: ImportanceHint;
   }>;
 

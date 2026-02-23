@@ -119,7 +119,7 @@ export class MemoryQueryService {
         userId,
         queryEmbedding,
         200,
-        dto.layers,
+        dto.layers as any,
         undefined,
         poolIds,
       );
@@ -152,7 +152,7 @@ export class MemoryQueryService {
         userId,
         queryEmbedding,
         limit,
-        dto.layers,
+        dto.layers as any,
         undefined,
         poolIds,
       );
@@ -388,7 +388,7 @@ export class MemoryQueryService {
       userId,
       {
         topK: dto.limit ?? 10,
-        layers: dto.layers,
+        layers: dto.layers as any,
         projectId: dto.projectId,
         multiQuery: dto.multiQuery,
         poolIds,

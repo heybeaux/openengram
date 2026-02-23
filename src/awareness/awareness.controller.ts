@@ -2,7 +2,7 @@ import { Controller, Post, Get, Patch, Body, Param, Query, Req, UseGuards, HttpC
 import { WakingCycleService } from './waking-cycle.service';
 import { InsightFeedbackService } from './insight-feedback.service';
 import { ProactiveNotificationService } from './proactive-notification.service';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { AwarenessConfig } from './config/awareness.config';
 import { InsightFeedbackDto } from './dto/insight-feedback.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,7 +12,7 @@ import { NotificationConfigDto } from './dto/notification-config.dto';
  * Awareness API — on-demand Waking Cycle trigger.
  */
 @Controller('v1/awareness')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyOrJwtGuard)
 export class AwarenessController {
   constructor(
     private readonly prisma: PrismaService,

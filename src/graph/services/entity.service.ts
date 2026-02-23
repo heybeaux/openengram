@@ -30,7 +30,7 @@ export class EntityService {
       data: {
         userId: dto.userId,
         name: dto.name,
-        type: dto.type,
+        type: dto.type as any,
         aliases: dto.aliases || [],
         description: dto.description,
         metadata: dto.metadata || {},
@@ -134,7 +134,7 @@ export class EntityService {
     };
 
     if (dto.type) {
-      where.type = dto.type;
+      where.type = dto.type as any;
     }
 
     if (dto.search) {
@@ -231,7 +231,7 @@ export class EntityService {
     const data: Prisma.GraphEntityUpdateInput = {};
 
     if (dto.name !== undefined) data.name = dto.name;
-    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.type !== undefined) data.type = dto.type as any;
     if (dto.aliases !== undefined) data.aliases = dto.aliases;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.metadata !== undefined) data.metadata = dto.metadata;

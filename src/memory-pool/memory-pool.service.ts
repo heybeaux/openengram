@@ -15,7 +15,7 @@ export class MemoryPoolService {
       data: {
         name: dto.name,
         userId: dto.userId,
-        visibility: dto.visibility ?? 'GLOBAL',
+        visibility: (dto.visibility ?? 'GLOBAL') as any,
         description: dto.description,
         createdBy: dto.createdBy,
       },
@@ -80,13 +80,13 @@ export class MemoryPoolService {
         poolId_agentSessionId: { poolId, agentSessionId: dto.agentSessionId },
       },
       update: {
-        permission: dto.permission ?? 'READ',
+        permission: (dto.permission ?? 'READ') as any,
         grantedBy: dto.grantedBy,
       },
       create: {
         poolId,
         agentSessionId: dto.agentSessionId,
-        permission: dto.permission ?? 'READ',
+        permission: (dto.permission ?? 'READ') as any,
         grantedBy: dto.grantedBy,
       },
     });
