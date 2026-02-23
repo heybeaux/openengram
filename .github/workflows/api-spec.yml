@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Build and generate API spec
-        run: pnpm api:spec
+        run: pnpm build && node scripts/generate-api-spec.mjs 2>&1
         env:
           NODE_ENV: test
           EDITION: selfhosted
