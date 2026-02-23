@@ -102,7 +102,7 @@ export class PgVectorProvider implements VectorProvider {
 
     if (options.filter?.layers && options.filter.layers.length > 0) {
       const layerPlaceholders = options.filter.layers
-        .map((_, i) => `$${paramIndex + i}`)
+        .map((_, i) => `$${paramIndex + i}::"MemoryLayer"`)
         .join(', ');
       memoryWhereClause += ` AND m.layer IN (${layerPlaceholders})`;
       params.push(...options.filter.layers);

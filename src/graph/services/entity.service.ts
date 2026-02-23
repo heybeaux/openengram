@@ -145,15 +145,15 @@ export class EntityService {
       ];
     }
 
-    const [entities, total] = await Promise.all([
-      this.prisma.graphEntity.findMany({
-        where,
-        orderBy: [{ mentionCount: 'desc' }, { name: 'asc' }],
-        take: dto.limit || 50,
-        skip: dto.offset || 0,
-      }),
-      this.prisma.graphEntity.count({ where }),
-    ]);
+    // Sequential queries to avoid Prisma batch transaction issues
+    // when called concurrently from the recall pipeline
+    const entities = await this.prisma.graphEntity.findMany({
+      where,
+      orderBy: [{ mentionCount: 'desc' }, { name: 'asc' }],
+      take: dto.limit || 50,
+      skip: dto.offset || 0,
+    });
+    const total = await this.prisma.graphEntity.count({ where });
 
     return { entities, total };
   }

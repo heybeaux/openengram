@@ -106,6 +106,7 @@ export class ContextSignalService {
         expiresAt: Date.now() + ContextSignalService.CACHE_TTL_MS,
       });
 
+      this.logger.log(`Loaded ${names.size} entity names for user ${userId}`);
       return names;
     } catch (err) {
       this.logger.warn(`Failed to load entity names for user ${userId}: ${(err as Error).message}`);
