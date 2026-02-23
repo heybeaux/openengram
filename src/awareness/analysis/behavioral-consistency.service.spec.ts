@@ -130,7 +130,8 @@ describe('HEY-175: Behavioral Consistency Detection', () => {
 
       mockPrisma.memory.findMany
         .mockResolvedValueOnce(makeMemories('recent', 10, 0))
-        .mockResolvedValueOnce(makeMemories('hist', 20, 7));
+        .mockResolvedValueOnce(makeMemories('hist', 20, 7))
+        .mockResolvedValueOnce([]); // existing insights for dedup
 
       mockLlm.chat.mockResolvedValue({
         content: JSON.stringify({

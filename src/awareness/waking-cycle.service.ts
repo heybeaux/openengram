@@ -15,7 +15,7 @@ import { Observation } from './signals/signal.interface';
 import { EmbeddingService } from '../memory/embedding.service';
 import { ImportanceHint } from '@prisma/client';
 
-const INSIGHT_DEDUP_THRESHOLD = 0.92;
+const INSIGHT_DEDUP_THRESHOLD = 0.85;
 
 /**
  * Waking Cycle — the core orchestrator for the Awareness module.
@@ -390,14 +390,14 @@ export class WakingCycleService {
     // Check if any recent insight exceeds the dedup threshold
     for (const result of results) {
       if (result.score >= INSIGHT_DEDUP_THRESHOLD) {
-        // Verify it's from the last 7 days
+        // Verify it's from the last 14 days (matches insightTtlDays)
         const memory = await this.prisma.memory.findUnique({
           where: { id: result.id },
           select: { createdAt: true, deletedAt: true },
         });
         if (memory && !memory.deletedAt) {
-          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-          if (memory.createdAt >= sevenDaysAgo) {
+          const cutoff = new Date(Date.now() - AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000);
+          if (memory.createdAt >= cutoff) {
             return true;
           }
         }
