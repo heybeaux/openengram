@@ -55,10 +55,29 @@ export class PatternDetectorService {
         });
       }
 
-      // Recurring entity detection
+      // Recurring entity detection — skip obvious/useless entities
       if (obs.id.startsWith('hot-entities-')) {
         const entities = (obs.metadata?.entities as any[]) || [];
-        for (const entity of entities.filter(e => e.mentionCount >= 10)) {
+        // Filter out: user names, dates, common words, very high-frequency noise
+        const SKIP_PATTERNS = [
+          /^\d{4}-\d{2}-\d{2}/, // dates
+          /^\d+$/, // pure numbers
+          /^(the|a|an|is|was|has|been|this|that|with|for|from|are|not|but|have|will|can|all|just|more|also|very|much|many|some|any|each|every|both|few|most|own|other|same|such|only|than|too|now|then|here|there|where|when|how|what|which|who|whom|why)$/i,
+        ];
+        const skipNames = new Set(
+          ((obs.metadata?.skipNames as string[]) || []).map(n => n.toLowerCase()),
+        );
+        // Also skip the user's own name and agent names — they're always frequent
+        for (const entity of entities.filter(e => {
+          if (e.mentionCount < 20) return false; // raise threshold
+          const name = (e.name || '').trim();
+          if (name.length < 3) return false;
+          if (skipNames.has(name.toLowerCase())) return false;
+          if (SKIP_PATTERNS.some(p => p.test(name))) return false;
+          // Skip if entity type is a person/user — their name appearing a lot is obvious
+          if (e.type === 'person' || e.type === 'user' || e.type === 'agent') return false;
+          return true;
+        })) {
           patterns.push({
             type: 'recurring_pattern',
             description: `"${entity.name}" has been mentioned ${entity.mentionCount} times — this is a recurring theme.`,
