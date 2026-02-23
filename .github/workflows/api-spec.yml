@@ -56,8 +56,17 @@ jobs:
             echo '{"paths":{}}' > api-spec.old.json
           fi
 
-      - name: Build and generate API spec
-        run: pnpm build && node scripts/generate-api-spec.mjs 2>&1
+      - name: Build project
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
+
+      - name: List dist structure
+        run: ls -la dist/ | head -20
+
+      - name: Generate API spec
+        run: node scripts/generate-api-spec.mjs 2>&1 || { echo "FAILED with exit $?"; cat /tmp/engram-spec-error.log 2>/dev/null; exit 1; }
         env:
           NODE_ENV: test
           EDITION: selfhosted
