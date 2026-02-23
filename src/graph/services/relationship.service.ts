@@ -61,7 +61,7 @@ export class RelationshipService {
         userId: dto.userId,
         sourceEntityId: dto.sourceEntityId,
         targetEntityId: dto.targetEntityId,
-        type: dto.type,
+        type: dto.type as any,
         label: dto.label,
         weight: dto.weight ?? 1.0,
         properties: dto.properties || {},
@@ -71,7 +71,7 @@ export class RelationshipService {
     });
 
     // Create inverse relationship for symmetric types
-    if (this.isSymmetric(dto.type)) {
+    if (this.isSymmetric(dto.type as any)) {
       await this.createInverse(relationship);
     }
 
@@ -98,7 +98,7 @@ export class RelationshipService {
           userId: dto.userId,
           sourceEntityId: dto.sourceEntityId,
           targetEntityId: dto.targetEntityId,
-          type: dto.type,
+          type: dto.type as any,
         },
       },
     });
@@ -214,7 +214,7 @@ export class RelationshipService {
     }
 
     if (dto.type) {
-      where.type = dto.type;
+      where.type = dto.type as any;
     }
 
     return this.prisma.graphRelationship.findMany({

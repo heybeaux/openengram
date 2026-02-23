@@ -61,19 +61,21 @@ export class MultiQueryOptionsDto {
 
   @ApiPropertyOptional({
     description: 'Fusion strategy for combining results',
-    enum: FusionStrategy,
+    enum: ['rrf', 'frequency', 'weighted', 'max'],
   })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['rrf', 'frequency', 'weighted', 'max'], type: String })
   @IsEnum(FusionStrategy)
-  fusionStrategy?: FusionStrategy;
+  fusionStrategy?: string;
 
   @ApiPropertyOptional({
     description: 'Expansion strategy for generating variants',
-    enum: ExpansionStrategy,
+    enum: ['rules', 'llm', 'hybrid'],
   })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['rules', 'llm', 'hybrid'], type: String })
   @IsEnum(ExpansionStrategy)
-  expansionStrategy?: ExpansionStrategy;
+  expansionStrategy?: string;
 
   @ApiPropertyOptional({ description: 'Include expanded variants in response' })
   @IsOptional()
@@ -114,11 +116,12 @@ export class ExpandQueryDto {
 
   @ApiPropertyOptional({
     description: 'Expansion strategy',
-    enum: ExpansionStrategy,
+    enum: ['rules', 'llm', 'hybrid'],
   })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['rules', 'llm', 'hybrid'], type: String })
   @IsEnum(ExpansionStrategy)
-  strategy?: ExpansionStrategy;
+  strategy?: string;
 
   @ApiPropertyOptional({ description: 'Maximum number of variants' })
   @IsOptional()

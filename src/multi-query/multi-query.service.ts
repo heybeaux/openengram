@@ -265,7 +265,7 @@ export class MultiQueryService {
     const fusionStart = Date.now();
     const fusedResults = this.fusion.fuse(
       searchResults,
-      options.multiQuery?.fusionStrategy ?? config.fusion.strategy,
+      options.multiQuery?.fusionStrategy as any ?? config.fusion.strategy,
       expansion,
     );
     metrics.fusionMs = Date.now() - fusionStart;
@@ -410,10 +410,10 @@ export class MultiQueryService {
         config.expansion.maxVariants = options.maxVariants;
       }
       if (options.fusionStrategy !== undefined) {
-        config.fusion.strategy = options.fusionStrategy;
+        config.fusion.strategy = options.fusionStrategy as any;
       }
       if (options.expansionStrategy !== undefined) {
-        config.expansion.strategy = options.expansionStrategy;
+        config.expansion.strategy = options.expansionStrategy as any;
       }
       if (options.targetLatencyMs !== undefined) {
         config.latency.targetMs = options.targetLatencyMs;

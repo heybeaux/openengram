@@ -312,7 +312,7 @@ export class ReviewService {
 
     const mergeResult = await this.mergeService.merge(
       candidate.memoryIds,
-      strategy,
+      strategy as any,
       {
         survivorId,
         customContent: request.customContent,

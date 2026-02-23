@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { PoolVisibility, PoolPermission } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateMemoryPoolDto {
   @IsString()
@@ -8,9 +9,10 @@ export class CreateMemoryPoolDto {
   @IsString()
   userId: string;
 
+  @ApiPropertyOptional({ enum: ['GLOBAL', 'SHARED', 'PRIVATE'], type: String })
   @IsEnum(PoolVisibility)
   @IsOptional()
-  visibility?: PoolVisibility;
+  visibility?: string;
 
   @IsString()
   @IsOptional()
@@ -24,9 +26,10 @@ export class GrantPoolAccessDto {
   @IsString()
   agentSessionId: string; // AgentSession.id
 
+  @ApiPropertyOptional({ enum: ['READ', 'WRITE', 'ADMIN'], type: String })
   @IsEnum(PoolPermission)
   @IsOptional()
-  permission?: PoolPermission;
+  permission?: string;
 
   @IsString()
   grantedBy: string; // session key of grantor

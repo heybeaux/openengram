@@ -37,7 +37,23 @@
       },
       "get": {
         "operationId": "DashboardController_listMemories",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "layer",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IDENTITY",
+                "PROJECT",
+                "SESSION",
+                "TASK",
+                "INSIGHT"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -183,6 +199,44 @@
             "schema": {
               "default": 10,
               "type": "number"
+            }
+          },
+          {
+            "name": "subjectType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "AGENT",
+                "ENTITY"
+              ]
+            }
+          },
+          {
+            "name": "visibility",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PRIVATE",
+                  "TEAM",
+                  "PUBLIC"
+                ]
+              }
+            }
+          },
+          {
+            "name": "anticipatory",
+            "required": false,
+            "in": "query",
+            "description": "Anticipatory recall options — surfaces adjacent memories and insights",
+            "schema": {
+              "$ref": "#/components/schemas/AnticipatoryOptionsDto"
             }
           },
           {
@@ -1574,349 +1628,29 @@
         ]
       }
     },
-    "/v1/observe": {
+    "/anticipatory/feedback": {
       "post": {
-        "operationId": "AutoController_observe",
+        "description": "Tell the system whether an anticipatory memory was useful. This feedback improves future anticipatory results by adjusting per-strategy weights for the user.",
+        "operationId": "FeedbackController_submitFeedback",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ObserveDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Auto"
-        ]
-      }
-    },
-    "/v1/observe/analyze": {
-      "post": {
-        "operationId": "AutoController_analyze",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ObserveDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Auto"
-        ]
-      }
-    },
-    "/v1/summarize": {
-      "post": {
-        "operationId": "SummarizationController_summarize",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SummarizeDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Summarization"
-        ]
-      }
-    },
-    "/v1/summarize/session/{sessionId}": {
-      "post": {
-        "operationId": "SummarizationController_summarizeSession",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Summarization"
-        ]
-      }
-    },
-    "/v1/stats": {
-      "get": {
-        "operationId": "DashboardController_getStats",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      }
-    },
-    "/v1/users/{id}": {
-      "get": {
-        "operationId": "DashboardController_getUserDetail",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      },
-      "delete": {
-        "operationId": "DashboardController_deleteUser",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "deleteMemories",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Dashboard"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/reflect": {
-      "post": {
-        "description": "\nAnalyzes recent conversation turns to extract self-knowledge for the agent.\nCreates memories with subjectType=AGENT that the agent can recall about itself.\n\n**Categories of self-knowledge extracted:**\n- **Identity**: Agent's name, role, capabilities, personality\n- **Lessons Learned**: Mistakes made, corrections received, better approaches\n- **User Preferences**: What the agent learned about the user's working style\n- **Working Style**: Patterns in how the agent operates effectively\n\n**Example use case (OpenClaw integration):**\nCall this endpoint at the end of significant sessions to help the agent\nbuild self-awareness and learn from interactions.\n    ",
-        "operationId": "AgentController_reflect",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier (e.g., \"rook\", \"openclaw-agent\")",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReflectDto"
+                "$ref": "#/components/schemas/AnticipatoryFeedbackDto"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Reflection complete",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReflectionResultDto"
-                }
-              }
-            }
+            "description": "Feedback recorded"
           }
         },
-        "summary": "Trigger agent self-reflection",
+        "summary": "Submit feedback on anticipatory recall results",
         "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/memories": {
-      "get": {
-        "description": "Retrieves all memories the agent has about itself.",
-        "operationId": "AgentController_getMemories",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "layer",
-            "required": false,
-            "in": "query",
-            "description": "Filter by memory layer",
-            "schema": {
-              "enum": [
-                "IDENTITY",
-                "PROJECT",
-                "SESSION",
-                "TASK",
-                "INSIGHT"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "Maximum number of memories to return",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get agent self-memories",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/context": {
-      "get": {
-        "description": "\nReturns agent self-knowledge formatted for system prompt injection.\nUse this when starting a session to include the agent's self-awareness.\n    ",
-        "operationId": "AgentController_getContext",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "maxTokens",
-            "required": false,
-            "in": "query",
-            "description": "Maximum tokens for context (default: 2000)",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get agent context for prompt injection",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/{agentId}/trust/history": {
-      "get": {
-        "operationId": "AgentController_getTrustHistory",
-        "parameters": [
-          {
-            "name": "agentId",
-            "required": true,
-            "in": "path",
-            "description": "Agent identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get paginated trust score history for an agent",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/v1/agents/trust/bulk-recompute": {
-      "post": {
-        "operationId": "AgentController_bulkRecomputeTrust",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Bulk recompute trust scores for all agents",
-        "tags": [
-          "agents"
+          "anticipatory"
         ]
       }
     },
@@ -2448,6 +2182,351 @@
         ]
       }
     },
+    "/v1/observe": {
+      "post": {
+        "operationId": "AutoController_observe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObserveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auto"
+        ]
+      }
+    },
+    "/v1/observe/analyze": {
+      "post": {
+        "operationId": "AutoController_analyze",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObserveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auto"
+        ]
+      }
+    },
+    "/v1/summarize": {
+      "post": {
+        "operationId": "SummarizationController_summarize",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummarizeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Summarization"
+        ]
+      }
+    },
+    "/v1/summarize/session/{sessionId}": {
+      "post": {
+        "operationId": "SummarizationController_summarizeSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Summarization"
+        ]
+      }
+    },
+    "/v1/stats": {
+      "get": {
+        "operationId": "DashboardController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/v1/users/{id}": {
+      "get": {
+        "operationId": "DashboardController_getUserDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      },
+      "delete": {
+        "operationId": "DashboardController_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deleteMemories",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/reflect": {
+      "post": {
+        "description": "\nAnalyzes recent conversation turns to extract self-knowledge for the agent.\nCreates memories with subjectType=AGENT that the agent can recall about itself.\n\n**Categories of self-knowledge extracted:**\n- **Identity**: Agent's name, role, capabilities, personality\n- **Lessons Learned**: Mistakes made, corrections received, better approaches\n- **User Preferences**: What the agent learned about the user's working style\n- **Working Style**: Patterns in how the agent operates effectively\n\n**Example use case (OpenClaw integration):**\nCall this endpoint at the end of significant sessions to help the agent\nbuild self-awareness and learn from interactions.\n    ",
+        "operationId": "AgentController_reflect",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier (e.g., \"rook\", \"openclaw-agent\")",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReflectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reflection complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReflectionResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Trigger agent self-reflection",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/memories": {
+      "get": {
+        "description": "Retrieves all memories the agent has about itself.",
+        "operationId": "AgentController_getMemories",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "required": false,
+            "in": "query",
+            "description": "Filter by memory layer",
+            "schema": {
+              "enum": [
+                "IDENTITY",
+                "PROJECT",
+                "SESSION",
+                "TASK"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of memories to return",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get agent self-memories",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/context": {
+      "get": {
+        "description": "\nReturns agent self-knowledge formatted for system prompt injection.\nUse this when starting a session to include the agent's self-awareness.\n    ",
+        "operationId": "AgentController_getContext",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxTokens",
+            "required": false,
+            "in": "query",
+            "description": "Maximum tokens for context (default: 2000)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get agent context for prompt injection",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agentId}/trust/history": {
+      "get": {
+        "operationId": "AgentController_getTrustHistory",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get paginated trust score history for an agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/trust/bulk-recompute": {
+      "post": {
+        "operationId": "AgentController_bulkRecomputeTrust",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bulk recompute trust scores for all agents",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/v1/multi-query/enabled": {
       "get": {
         "operationId": "MultiQueryController_isEnabled",
@@ -2623,7 +2702,13 @@
             "in": "query",
             "description": "Filter by status",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "SKIPPED"
+              ]
             }
           },
           {
@@ -5304,7 +5389,7 @@
             "bearer": []
           }
         ],
-        "summary": "Preview sync reconciliation — show conflicts without resolving",
+        "summary": "Preview reconciliation — compare local vs cloud memories",
         "tags": [
           "cloud"
         ]
@@ -5314,16 +5399,6 @@
       "post": {
         "operationId": "ReconciliationController_execute",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReconcileRequestDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": ""
@@ -5334,7 +5409,7 @@
             "bearer": []
           }
         ],
-        "summary": "Execute sync reconciliation — resolve conflicts",
+        "summary": "Execute reconciliation — push local-only, pull cloud-only",
         "tags": [
           "cloud"
         ]
@@ -6029,6 +6104,961 @@
           "flush"
         ]
       }
+    },
+    "/v1/reembedding/run": {
+      "post": {
+        "operationId": "ReembeddingController_triggerReembedding",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerReembeddingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReembeddingJobDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Re-embedding disabled or job already running"
+          }
+        },
+        "summary": "Trigger batch re-embedding",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/status": {
+      "get": {
+        "operationId": "ReembeddingController_getCurrentStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReembeddingJobDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active job"
+          }
+        },
+        "summary": "Get current job status",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/status/{jobId}": {
+      "get": {
+        "operationId": "ReembeddingController_getJobStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReembeddingJobDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "summary": "Get job status by ID",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/jobs": {
+      "get": {
+        "operationId": "ReembeddingController_listJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReembeddingJobDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List all re-embedding jobs",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/preview/{memoryId}": {
+      "get": {
+        "operationId": "ReembeddingController_previewEnrichment",
+        "parameters": [
+          {
+            "name": "memoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMemoryPreviewDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Memory not found"
+          }
+        },
+        "summary": "Preview enrichment for a memory",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/memory/{memoryId}": {
+      "post": {
+        "operationId": "ReembeddingController_reembedMemory",
+        "parameters": [
+          {
+            "name": "memoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dryRun",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichedMemoryPreviewDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Re-embedding disabled"
+          },
+          "404": {
+            "description": "Memory not found"
+          }
+        },
+        "summary": "Re-embed a single memory",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/reembedding/enabled": {
+      "get": {
+        "operationId": "ReembeddingController_isEnabled",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Check if re-embedding is enabled",
+        "tags": [
+          "reembedding"
+        ]
+      }
+    },
+    "/v1/ensemble/status": {
+      "get": {
+        "operationId": "EnsembleController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Ensemble status"
+          }
+        },
+        "summary": "Get ensemble retrieval status",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/query": {
+      "post": {
+        "operationId": "EnsembleController_query",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnsembleQueryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fused query results"
+          }
+        },
+        "summary": "Query memories with multi-model ensemble",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/upsert": {
+      "post": {
+        "operationId": "EnsembleController_upsert",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnsembleUpsertDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Memory upserted"
+          }
+        },
+        "summary": "Upsert memory with ensemble embeddings",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/compare": {
+      "post": {
+        "operationId": "EnsembleController_compare",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareQueryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comparison results"
+          }
+        },
+        "summary": "Compare ensemble vs single-model retrieval",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/embed": {
+      "post": {
+        "operationId": "EnsembleController_embed",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Embeddings from all models"
+          }
+        },
+        "summary": "Generate embeddings for text",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/models": {
+      "get": {
+        "operationId": "EnsembleController_getModels",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of models with their configuration"
+          }
+        },
+        "summary": "List all registered ensemble models",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/coverage": {
+      "get": {
+        "operationId": "EnsembleController_getCoverage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Coverage stats per model"
+          }
+        },
+        "summary": "Get embedding coverage statistics",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/memories/{id}/embeddings": {
+      "get": {
+        "operationId": "EnsembleController_getMemoryEmbeddings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Embedding status per model for the memory"
+          }
+        },
+        "summary": "Get embedding status for a specific memory",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/ab-results": {
+      "get": {
+        "operationId": "EnsembleController_getABTestResults",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by test ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max results to return",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A/B test results"
+          }
+        },
+        "summary": "Get A/B test results",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/reembed": {
+      "post": {
+        "operationId": "EnsembleController_triggerReembed",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReembedDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Re-embed job started"
+          }
+        },
+        "summary": "Trigger batch re-embedding for models",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/reembed/status": {
+      "get": {
+        "operationId": "EnsembleController_getReembedStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job status or null if no active job"
+          }
+        },
+        "summary": "Get active re-embed job status",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/reembed/targeted": {
+      "post": {
+        "operationId": "EnsembleController_targetedReembed",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Targeted re-embed job started"
+          }
+        },
+        "summary": "Re-embed specific memories with specific models",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/drift": {
+      "get": {
+        "operationId": "EnsembleController_getLatestDrift",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Latest drift per model"
+          }
+        },
+        "summary": "Get latest drift snapshot per model",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/drift/history": {
+      "get": {
+        "operationId": "EnsembleController_getDriftHistory",
+        "parameters": [
+          {
+            "name": "modelId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by model",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max snapshots to return",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "required": false,
+            "in": "query",
+            "description": "ISO date to filter from",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Drift snapshots over time"
+          }
+        },
+        "summary": "Get drift history for charting",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/ensemble/drift/analyze": {
+      "post": {
+        "operationId": "EnsembleController_analyzeDrift",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Drift analysis results"
+          }
+        },
+        "summary": "Trigger drift analysis and persist results",
+        "tags": [
+          "ensemble"
+        ]
+      }
+    },
+    "/v1/analytics/timeline": {
+      "get": {
+        "operationId": "AnalyticsController_getTimeline",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/v1/analytics/breakdown/type": {
+      "get": {
+        "operationId": "AnalyticsController_getTypeBreakdown",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/v1/analytics/breakdown/layer": {
+      "get": {
+        "operationId": "AnalyticsController_getLayerBreakdown",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/v1/analytics/summary": {
+      "get": {
+        "operationId": "AnalyticsController_getSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/v1/monitoring/status": {
+      "get": {
+        "operationId": "MonitoringController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Monitoring"
+        ]
+      }
+    },
+    "/v1/monitoring/alerts": {
+      "get": {
+        "operationId": "MonitoringController_getAlerts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Monitoring"
+        ]
+      }
+    },
+    "/v1/eval/run": {
+      "post": {
+        "operationId": "EvalController_runEval",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Eval"
+        ]
+      }
+    },
+    "/v1/eval/history": {
+      "get": {
+        "operationId": "EvalController_getHistory",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Eval"
+        ]
+      }
+    },
+    "/v1/eval/regression": {
+      "get": {
+        "operationId": "EvalController_detectRegression",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Eval"
+        ]
+      }
+    },
+    "/v1/webhooks": {
+      "post": {
+        "operationId": "WebhookController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      },
+      "get": {
+        "operationId": "WebhookController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      }
+    },
+    "/v1/webhooks/{id}": {
+      "get": {
+        "operationId": "WebhookController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      },
+      "patch": {
+        "operationId": "WebhookController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      },
+      "delete": {
+        "operationId": "WebhookController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      }
+    },
+    "/v1/webhooks/{id}/test": {
+      "post": {
+        "operationId": "WebhookController_test",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      }
+    },
+    "/v1/webhooks/{id}/deliveries": {
+      "get": {
+        "operationId": "WebhookController_deliveries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Webhook"
+        ]
+      }
+    },
+    "/v1/billing/checkout": {
+      "post": {
+        "operationId": "StripeController_createCheckout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Stripe"
+        ]
+      }
+    },
+    "/v1/billing/portal": {
+      "get": {
+        "operationId": "StripeController_createPortal",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Stripe"
+        ]
+      }
+    },
+    "/v1/billing/webhooks": {
+      "post": {
+        "operationId": "StripeWebhookController_handleWebhook",
+        "parameters": [
+          {
+            "name": "stripe-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "StripeWebhook"
+        ]
+      }
+    },
+    "/v1/feedback": {
+      "post": {
+        "operationId": "FeedbackController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/v1/instance/info": {
+      "get": {
+        "description": "Returns deployment mode and feature flags. No authentication required.",
+        "operationId": "InstanceController_getInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Instance information."
+          }
+        },
+        "summary": "Instance info",
+        "tags": [
+          "instance"
+        ]
+      }
+    },
+    "/v1/instance/info/detailed": {
+      "get": {
+        "description": "Returns deployment mode, version, and feature flags. Requires authentication.",
+        "operationId": "InstanceController_getDetailedInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Detailed instance information."
+          }
+        },
+        "summary": "Detailed instance info",
+        "tags": [
+          "instance"
+        ]
+      }
     }
   },
   "info": {
@@ -6072,12 +7102,40 @@
           },
           "layer": {
             "type": "string",
-            "description": "Memory layer",
             "enum": [
               "SESSION",
               "PROJECT",
               "IDENTITY",
               "TASK"
+            ],
+            "description": "Memory layer"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AGENT",
+              "ENTITY"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "EXPLICIT_STATEMENT",
+              "AGENT_OBSERVATION",
+              "AGENT_REFLECTION",
+              "CORRECTION",
+              "PATTERN_DETECTED",
+              "SYSTEM",
+              "GIT_HISTORY"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "PUBLIC"
             ]
           }
         }
@@ -6085,6 +7143,33 @@
       "CreateMemoryBatchDto": {
         "type": "object",
         "properties": {}
+      },
+      "AnticipatoryOptionsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable anticipatory recall for this query",
+            "default": false
+          },
+          "maxResults": {
+            "type": "number",
+            "description": "Maximum anticipatory results to return",
+            "default": 3
+          },
+          "strategies": {
+            "description": "Override strategy selection (e.g., [\"entity_radiation\", \"insight_injection\"])",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minSalience": {
+            "type": "number",
+            "description": "Minimum salience score to include anticipatory results (0-1)",
+            "default": 0.3
+          }
+        }
       },
       "QueryMemoryDto": {
         "type": "object",
@@ -6096,7 +7181,6 @@
           },
           "layers": {
             "type": "array",
-            "description": "Filter by memory layers",
             "items": {
               "type": "string",
               "enum": [
@@ -6105,12 +7189,40 @@
                 "IDENTITY",
                 "TASK"
               ]
-            }
+            },
+            "description": "Filter by memory layers"
           },
           "limit": {
             "type": "number",
             "description": "Maximum number of results",
             "default": 10
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AGENT",
+              "ENTITY"
+            ]
+          },
+          "visibility": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PRIVATE",
+                "TEAM",
+                "PUBLIC"
+              ]
+            }
+          },
+          "anticipatory": {
+            "description": "Anticipatory recall options — surfaces adjacent memories and insights",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnticipatoryOptionsDto"
+              }
+            ]
           }
         },
         "required": [
@@ -6127,7 +7239,27 @@
       },
       "UpdateMemoryDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "layer": {
+            "type": "string",
+            "enum": [
+              "IDENTITY",
+              "PROJECT",
+              "SESSION",
+              "TASK",
+              "INSIGHT"
+            ]
+          },
+          "importanceHint": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          }
+        }
       },
       "LoadContextDto": {
         "type": "object",
@@ -6247,15 +7379,150 @@
       },
       "CreateMemoryPoolDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GLOBAL",
+              "SHARED",
+              "PRIVATE"
+            ]
+          }
+        }
       },
       "GrantPoolAccessDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "READ",
+              "WRITE",
+              "ADMIN"
+            ]
+          }
+        }
       },
       "AddMemoryToPoolDto": {
         "type": "object",
         "properties": {}
+      },
+      "AnticipatoryFeedbackDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateEntityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERSON",
+              "PLACE",
+              "ORGANIZATION",
+              "CONCEPT",
+              "EVENT",
+              "OBJECT",
+              "TIME",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "UpdateEntityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERSON",
+              "PLACE",
+              "ORGANIZATION",
+              "CONCEPT",
+              "EVENT",
+              "OBJECT",
+              "TIME",
+              "UNKNOWN"
+            ]
+          }
+        }
+      },
+      "CreateRelationshipDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "SPOUSE_OF",
+              "PARENT_OF",
+              "CHILD_OF",
+              "SIBLING_OF",
+              "FRIEND_OF",
+              "COLLEAGUE_OF",
+              "LIVES_IN",
+              "WORKS_AT",
+              "LOCATED_IN",
+              "BORN_IN",
+              "OWNS",
+              "MEMBER_OF",
+              "PART_OF",
+              "INSTANCE_OF",
+              "HAPPENED_BEFORE",
+              "HAPPENED_AFTER",
+              "HAPPENED_DURING",
+              "HAS_ATTRIBUTE",
+              "CAUSED_BY",
+              "RESULTS_IN",
+              "RELATED_TO",
+              "CUSTOM"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "UpdateRelationshipDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TraverseGraphDto": {
+        "type": "object",
+        "properties": {
+          "relationshipTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SPOUSE_OF",
+                "PARENT_OF",
+                "CHILD_OF",
+                "SIBLING_OF",
+                "FRIEND_OF",
+                "COLLEAGUE_OF",
+                "LIVES_IN",
+                "WORKS_AT",
+                "LOCATED_IN",
+                "BORN_IN",
+                "OWNS",
+                "MEMBER_OF",
+                "PART_OF",
+                "INSTANCE_OF",
+                "HAPPENED_BEFORE",
+                "HAPPENED_AFTER",
+                "HAPPENED_DURING",
+                "HAS_ATTRIBUTE",
+                "CAUSED_BY",
+                "RESULTS_IN",
+                "RELATED_TO",
+                "CUSTOM"
+              ]
+            }
+          }
+        }
       },
       "ObserveDto": {
         "type": "object",
@@ -6343,26 +7610,6 @@
           "categories"
         ]
       },
-      "CreateEntityDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateEntityDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "CreateRelationshipDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateRelationshipDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "TraverseGraphDto": {
-        "type": "object",
-        "properties": {}
-      },
       "ExpandQueryDto": {
         "type": "object",
         "properties": {
@@ -6372,12 +7619,12 @@
           },
           "strategy": {
             "type": "string",
-            "description": "Expansion strategy",
             "enum": [
               "rules",
               "llm",
               "hybrid"
-            ]
+            ],
+            "description": "Expansion strategy"
           },
           "maxVariants": {
             "type": "number",
@@ -6630,6 +7877,13 @@
         "properties": {
           "strategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Override suggested merge strategy"
           },
           "survivorId": {
@@ -6711,6 +7965,13 @@
           },
           "strategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Merge strategy to use"
           },
           "survivorId": {
@@ -6941,6 +8202,13 @@
           },
           "defaultStrategy": {
             "type": "string",
+            "enum": [
+              "KEEP_NEWEST",
+              "KEEP_OLDEST",
+              "KEEP_DETAILED",
+              "KEEP_IMPORTANCE",
+              "COMBINE_METADATA"
+            ],
             "description": "Default merge strategy"
           },
           "protectedTypes": {
@@ -7191,7 +8459,8 @@
         "properties": {
           "identity": {
             "type": "object",
-            "description": "The portable identity JSON export"
+            "description": "The portable identity JSON export",
+            "additionalProperties": true
           },
           "targetAgentId": {
             "type": "string",
@@ -7224,7 +8493,16 @@
       },
       "UpdateAgentSessionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "COMPLETED",
+              "TERMINATED"
+            ]
+          }
+        }
       },
       "ScopedContextRequestDto": {
         "type": "object",
@@ -7370,10 +8648,6 @@
           "memories"
         ]
       },
-      "ReconcileRequestDto": {
-        "type": "object",
-        "properties": {}
-      },
       "InsightFeedbackDto": {
         "type": "object",
         "properties": {}
@@ -7433,6 +8707,183 @@
       "FlushMemoriesDto": {
         "type": "object",
         "properties": {}
+      },
+      "TriggerReembeddingDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Limit number of memories to process"
+          },
+          "staleDays": {
+            "type": "number",
+            "description": "Only re-embed memories older than this many days"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Filter to specific user ID"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Dry run - compute enriched text but do not update"
+          }
+        }
+      },
+      "ReembeddingJobDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "Job ID"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "totalMemories": {
+            "type": "number",
+            "description": "Total memories to process"
+          },
+          "processedCount": {
+            "type": "number",
+            "description": "Memories processed so far"
+          },
+          "successCount": {
+            "type": "number",
+            "description": "Successful re-embeddings"
+          },
+          "failureCount": {
+            "type": "number",
+            "description": "Failed re-embeddings"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Job start time"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Job completion time"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if failed"
+          }
+        },
+        "required": [
+          "jobId",
+          "status",
+          "totalMemories",
+          "processedCount",
+          "successCount",
+          "failureCount"
+        ]
+      },
+      "EnrichedMemoryPreviewDto": {
+        "type": "object",
+        "properties": {
+          "memoryId": {
+            "type": "string",
+            "description": "Memory ID"
+          },
+          "originalContent": {
+            "type": "string",
+            "description": "Original content"
+          },
+          "enrichedContent": {
+            "type": "string",
+            "description": "Enriched content with context"
+          },
+          "temporalContext": {
+            "type": "string",
+            "description": "Temporal context added"
+          },
+          "entityContext": {
+            "type": "string",
+            "description": "Entity context added"
+          },
+          "importanceContext": {
+            "type": "string",
+            "description": "Importance context added"
+          },
+          "currentVersion": {
+            "type": "number",
+            "description": "Current embedding version"
+          },
+          "newVersion": {
+            "type": "number",
+            "description": "New embedding version after re-embed"
+          }
+        },
+        "required": [
+          "memoryId",
+          "originalContent",
+          "enrichedContent",
+          "temporalContext",
+          "entityContext",
+          "importanceContext",
+          "currentVersion",
+          "newVersion"
+        ]
+      },
+      "EnsembleQueryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "EnsembleUpsertDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CompareQueryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReembedDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateWebhookDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateWebhookDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "text": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "feature",
+              "general",
+              "nps"
+            ]
+          },
+          "page": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rating",
+          "category"
+        ]
       }
     }
   }

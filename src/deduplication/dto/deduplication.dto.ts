@@ -103,8 +103,9 @@ export class TriggerScanDto {
 export class ApproveRequestDto {
   @ApiPropertyOptional({ description: 'Override suggested merge strategy' })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
   @IsEnum(MergeStrategy)
-  strategy?: MergeStrategy;
+  strategy?: string;
 
   @ApiPropertyOptional({ description: 'Override suggested survivor ID' })
   @IsOptional()
@@ -141,8 +142,9 @@ export class ManualMergeDto {
   memoryIds: string[];
 
   @ApiProperty({ description: 'Merge strategy to use' })
+  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
   @IsEnum(MergeStrategy)
-  strategy: MergeStrategy;
+  strategy: string;
 
   @ApiPropertyOptional({ description: 'Which memory should survive' })
   @IsOptional()
@@ -166,8 +168,9 @@ export class ListCandidatesQueryDto {
 
   @ApiPropertyOptional({ description: 'Filter by status' })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['PENDING', 'APPROVED', 'REJECTED', 'SKIPPED'], type: String })
   @IsEnum(CandidateStatus)
-  status?: CandidateStatus;
+  status?: string;
 
   @ApiPropertyOptional({ description: 'Minimum similarity filter' })
   @IsOptional()
@@ -213,8 +216,9 @@ export class UpdateConfigDto {
 
   @ApiPropertyOptional({ description: 'Default merge strategy' })
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
   @IsEnum(MergeStrategy)
-  defaultStrategy?: MergeStrategy;
+  defaultStrategy?: string;
 
   @ApiPropertyOptional({ description: 'Protected memory types' })
   @IsOptional()
@@ -259,8 +263,8 @@ export class UpdateConfigDto {
  * Safety reason attached to a memory/candidate
  */
 export class SafetyReasonDto {
-  @ApiProperty({ enum: SafetyReasonType })
-  type: SafetyReasonType;
+  @ApiProperty({ enum: ['protected_type', 'protected_keyword', 'high_importance', 'requires_review', 'recently_accessed', 'manually_edited'] })
+  type: string;
 
   @ApiPropertyOptional()
   memoryType?: string;
@@ -286,7 +290,7 @@ export class MemorySummaryDto {
   content: string;
 
   @ApiPropertyOptional()
-  memoryType?: MemoryType;
+  memoryType?: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -308,8 +312,8 @@ export class MergeCandidateDto {
   @ApiProperty()
   similarity: number;
 
-  @ApiProperty({ enum: MergeStrategy })
-  suggestedStrategy: MergeStrategy;
+  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  suggestedStrategy: string;
 
   @ApiProperty()
   suggestedSurvivorId: string;
@@ -317,8 +321,8 @@ export class MergeCandidateDto {
   @ApiProperty({ type: [SafetyReasonDto] })
   safetyFlags: SafetyReasonDto[];
 
-  @ApiProperty({ enum: CandidateStatus })
-  status: CandidateStatus;
+  @ApiProperty({ enum: ['PENDING', 'APPROVED', 'REJECTED', 'SKIPPED'] })
+  status: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -373,8 +377,8 @@ export class ScanResponseDto {
   @ApiProperty()
   scanId: string;
 
-  @ApiProperty({ enum: BatchJobStatus })
-  status: BatchJobStatus;
+  @ApiProperty({ enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'] })
+  status: string;
 
   @ApiProperty()
   memoriesProcessed: number;
@@ -436,8 +440,8 @@ export class ConfigResponseDto {
   @ApiProperty()
   reviewSuggestThreshold: number;
 
-  @ApiProperty({ enum: MergeStrategy })
-  defaultStrategy: MergeStrategy;
+  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  defaultStrategy: string;
 
   @ApiProperty({ type: [String] })
   protectedTypes: string[];
@@ -504,7 +508,7 @@ export class SimilarMemoryDto {
   content: string;
 
   @ApiPropertyOptional()
-  memoryType?: MemoryType;
+  memoryType?: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -543,8 +547,8 @@ export class MergeEventDto {
   @ApiProperty({ type: [String] })
   absorbedMemoryIds: string[];
 
-  @ApiProperty({ enum: MergeStrategy })
-  strategy: MergeStrategy;
+  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  strategy: string;
 
   @ApiProperty()
   similarity: number;

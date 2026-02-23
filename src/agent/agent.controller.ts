@@ -97,11 +97,11 @@ build self-awareness and learn from interactions.
   })
   async getMemories(
     @Param('agentId') agentId: string,
-    @Query('layer') layer?: MemoryLayer,
+    @Query('layer') layer?: string,
     @Query('limit') limit?: number,
   ) {
     return this.agentService.getAgentMemories(agentId, {
-      layer,
+      layer: layer as any,
       limit: limit ? parseInt(String(limit), 10) : undefined,
     });
   }

@@ -533,7 +533,7 @@ export class DeduplicationService {
       throw new Error('Deduplication is disabled');
     }
 
-    const result = await this.merge.merge(dto.memoryIds, dto.strategy, {
+    const result = await this.merge.merge(dto.memoryIds, dto.strategy as any, {
       survivorId: dto.survivorId,
       customContent: dto.customContent,
     });

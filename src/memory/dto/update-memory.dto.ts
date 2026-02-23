@@ -8,6 +8,7 @@ import {
   Max,
 } from 'class-validator';
 import { ImportanceHint, MemoryLayer } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO for updating an existing memory (P5-001)
@@ -30,13 +31,15 @@ export class UpdateMemoryDto {
    * Change the memory layer (IDENTITY, PROJECT, SESSION, TASK)
    */
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
   @IsEnum(MemoryLayer)
-  layer?: MemoryLayer;
+  layer?: string;
 
   /**
    * Adjust importance hint
    */
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], type: String })
   @IsEnum(ImportanceHint)
   importanceHint?: ImportanceHint;
 
@@ -96,14 +99,16 @@ export class CorrectMemoryDto {
    * Defaults to the same layer as the original.
    */
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
   @IsEnum(MemoryLayer)
-  layer?: MemoryLayer;
+  layer?: string;
 
   /**
    * Override the importance for the correction.
    * Defaults to same as original or slightly higher.
    */
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], type: String })
   @IsEnum(ImportanceHint)
   importanceHint?: ImportanceHint;
 }

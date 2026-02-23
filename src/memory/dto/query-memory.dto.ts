@@ -31,8 +31,9 @@ export class QueryMemoryDto {
   })
   @IsOptional()
   @IsArray()
+  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], isArray: true, type: String })
   @IsEnum(MemoryLayer, { each: true })
-  layers?: MemoryLayer[];
+  layers?: string[];
 
   @ApiPropertyOptional({
     description: 'Maximum number of results',
@@ -62,8 +63,9 @@ export class QueryMemoryDto {
   includeAgentMemories?: boolean = true;
 
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['USER', 'AGENT', 'ENTITY'], type: String })
   @IsEnum(SubjectType)
-  subjectType?: SubjectType;
+  subjectType?: string;
 
   @IsOptional()
   @IsString()
@@ -78,8 +80,9 @@ export class QueryMemoryDto {
   // HEY-174: Visibility filter for cross-agent recall
   @IsOptional()
   @IsArray()
+  @ApiPropertyOptional({ enum: ['PRIVATE', 'TEAM', 'PUBLIC'], isArray: true, type: String })
   @IsEnum(MemoryVisibilityEnum, { each: true })
-  visibility?: MemoryVisibilityEnum[];
+  visibility?: string[];
 
   // v0.7: Agent session attribution
   @IsOptional()

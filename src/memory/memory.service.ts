@@ -151,7 +151,7 @@ export class MemoryService {
         await this.dedupService.autoMergeMemory(
           dedupResult.existingMemory.id,
           rawContent,
-          source,
+          source as any,
         );
       } else if (dedupResult.action === 'reinforced') {
         await this.dedupService.reinforceMemory(
@@ -167,7 +167,7 @@ export class MemoryService {
     // 4. Calculate initial importance score
     const importanceScore = this.importance.calculate({
       hint: dto.importanceHint,
-      layer: dto.layer,
+      layer: dto.layer as any,
     });
 
     // 5. Set confidence based on source type
@@ -201,18 +201,18 @@ export class MemoryService {
       data: {
         userId,
         raw: rawContent,
-        layer,
-        source,
+        layer: layer as any,
+        source: source as any,
         importanceHint: dto.importanceHint,
         importanceScore,
         confidence,
         projectId: dto.context?.projectId,
         sessionId,
-        subjectType,
+        subjectType: subjectType as any,
         subjectId,
         agentId: dto.agentId,
         createdBySession: dto.agentSessionKey ?? undefined,
-        visibility: dto.visibility ?? 'PRIVATE',
+        visibility: (dto.visibility ?? 'PRIVATE') as any,
         contentHash,
       },
     });
@@ -519,7 +519,7 @@ export class MemoryService {
     if (dto.importanceHint && dto.importanceScore === undefined) {
       updateData.importanceScore = this.importance.calculate({
         hint: dto.importanceHint,
-        layer: dto.layer ?? memory.layer,
+        layer: (dto.layer ?? memory.layer) as any,
       });
     }
 
@@ -682,7 +682,7 @@ export class MemoryService {
     const correctionImportance = dto.importanceHint
       ? this.importance.calculate({
           hint: dto.importanceHint,
-          layer: dto.layer ?? original.layer,
+          layer: (dto.layer ?? original.layer) as any,
         })
       : Math.min(1.0, original.importanceScore + 0.1);
 
@@ -690,7 +690,7 @@ export class MemoryService {
       data: {
         userId,
         raw: dto.correctedContent,
-        layer: dto.layer ?? original.layer,
+        layer: (dto.layer ?? original.layer) as any,
         source: MemorySource.CORRECTION,
         importanceHint:
           dto.importanceHint ?? original.importanceHint ?? undefined,
