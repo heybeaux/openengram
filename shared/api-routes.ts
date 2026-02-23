@@ -1,7 +1,8 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-21T20:02:40.605Z
+// Generated at 2026-02-23T17:44:57.161Z
 
 export const API_ROUTES = {
+  ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
   HEALTH: '/health',
   V1_ACCOUNT: '/v1/account',
   V1_ACCOUNT_AGENTS: '/v1/account/agents',
