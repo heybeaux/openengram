@@ -86,7 +86,7 @@ build self-awareness and learn from interactions.
   @ApiQuery({
     name: 'layer',
     required: false,
-    enum: MemoryLayer,
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK'],
     description: 'Filter by memory layer',
   })
   @ApiQuery({
