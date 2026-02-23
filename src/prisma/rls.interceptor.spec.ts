@@ -134,6 +134,50 @@ describe('RlsInterceptor', () => {
     });
   });
 
+  it('should use long timeout for dedup/scan endpoint', (done) => {
+    const mockTx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    };
+
+    prisma.$transaction = jest.fn().mockImplementation(async (fn, opts) => {
+      expect(opts.timeout).toBe(300_000); // 5 min for dedup scan
+      return fn(mockTx);
+    });
+
+    const ctx = createMockContext({
+      accountId: 'acc-123',
+      url: '/v1/dedup/scan',
+    });
+    const handler = createMockCallHandler('dedup-result');
+
+    interceptor.intercept(ctx, handler).subscribe({
+      next: () => done(),
+      error: done,
+    });
+  });
+
+  it('should use default 30s timeout for non-long-running endpoints', (done) => {
+    const mockTx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    };
+
+    prisma.$transaction = jest.fn().mockImplementation(async (fn, opts) => {
+      expect(opts.timeout).toBe(30_000); // 30s default
+      return fn(mockTx);
+    });
+
+    const ctx = createMockContext({
+      accountId: 'acc-123',
+      url: '/v1/memories',
+    });
+    const handler = createMockCallHandler('default-result');
+
+    interceptor.intercept(ctx, handler).subscribe({
+      next: () => done(),
+      error: done,
+    });
+  });
+
   it('should use long timeout for sync endpoints', (done) => {
     const mockTx = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),

@@ -229,28 +229,33 @@ export class SimilarityService {
     const pairs: PairwiseSimilarity[] = [];
     const seenPairs = new Set<string>();
 
-    // For each memory, find its similar neighbors
-    for (const memory of memories) {
-      const embedding = await this.embedding.generate(memory.raw);
-      const results = await this.embedding.search(
-        userId,
-        embedding,
-        50, // Check top 50 neighbors
-      );
+    // Process in batches to avoid transaction timeouts with large memory sets
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < memories.length; i += BATCH_SIZE) {
+      const batch = memories.slice(i, i + BATCH_SIZE);
 
-      for (const match of results) {
-        if (match.id !== memory.id && match.score >= minSimilarity) {
-          // Avoid duplicate pairs (A-B and B-A)
-          const [first, second] = [memory.id, match.id].sort();
-          const pairKey = `${first}:${second}`;
+      for (const memory of batch) {
+        const embedding = await this.embedding.generate(memory.raw);
+        const results = await this.embedding.search(
+          userId,
+          embedding,
+          50, // Check top 50 neighbors
+        );
 
-          if (!seenPairs.has(pairKey)) {
-            seenPairs.add(pairKey);
-            pairs.push({
-              memoryIdA: first,
-              memoryIdB: second,
-              similarity: match.score,
-            });
+        for (const match of results) {
+          if (match.id !== memory.id && match.score >= minSimilarity) {
+            // Avoid duplicate pairs (A-B and B-A)
+            const [first, second] = [memory.id, match.id].sort();
+            const pairKey = `${first}:${second}`;
+
+            if (!seenPairs.has(pairKey)) {
+              seenPairs.add(pairKey);
+              pairs.push({
+                memoryIdA: first,
+                memoryIdB: second,
+                similarity: match.score,
+              });
+            }
           }
         }
       }
