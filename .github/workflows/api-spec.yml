@@ -66,7 +66,9 @@ jobs:
         run: ls -la dist/ | head -20
 
       - name: Generate API spec
-        run: node --trace-warnings --trace-uncaught scripts/generate-api-spec.mjs 2>&1; echo "EXIT CODE: $?"
+        run: |
+          node --trace-warnings --trace-uncaught scripts/generate-api-spec.mjs 2>&1
+          echo "EXIT CODE: $?"
         env:
           NODE_ENV: test
           EDITION: selfhosted
