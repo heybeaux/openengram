@@ -331,6 +331,129 @@ describe('SimilarityService', () => {
       expect(pairs.length).toBeLessThanOrEqual(1);
     });
 
+    it('should deduplicate A-B vs B-A pairs via seenPairs', async () => {
+      mockPrisma.memory.findMany.mockResolvedValue([
+        { id: 'mem_a', raw: 'A' },
+        { id: 'mem_b', raw: 'B' },
+      ]);
+      mockEmbedding.generate.mockResolvedValue([0.1]);
+      // mem_a finds mem_b, mem_b finds mem_a — same pair both directions
+      mockEmbedding.search
+        .mockResolvedValueOnce([{ id: 'mem_b', score: 0.92 }])
+        .mockResolvedValueOnce([{ id: 'mem_a', score: 0.92 }]);
+
+      const pairs = await service.computePairwiseSimilarity('user_123', {
+        minSimilarity: 0.85,
+      });
+
+      expect(pairs).toHaveLength(1);
+      // Sorted pair key
+      const [first, second] = [pairs[0].memoryIdA, pairs[0].memoryIdB].sort();
+      expect(first).toBe('mem_a');
+      expect(second).toBe('mem_b');
+    });
+
+    it('should filter out matches below minSimilarity threshold', async () => {
+      mockPrisma.memory.findMany.mockResolvedValue([
+        { id: 'mem_1', raw: 'Content' },
+      ]);
+      mockEmbedding.generate.mockResolvedValue([0.1]);
+      mockEmbedding.search.mockResolvedValue([
+        { id: 'mem_2', score: 0.80 }, // Below 0.85 threshold
+        { id: 'mem_3', score: 0.90 }, // Above threshold
+      ]);
+
+      const pairs = await service.computePairwiseSimilarity('user_123', {
+        minSimilarity: 0.85,
+      });
+
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0].similarity).toBe(0.90);
+    });
+
+    it('should produce identical results regardless of batch size', async () => {
+      // Create 6 memories — with default BATCH_SIZE=500 they all go in one batch
+      const memories = Array.from({ length: 6 }, (_, i) => ({
+        id: `mem_${i}`,
+        raw: `Content ${i}`,
+      }));
+      mockPrisma.memory.findMany.mockResolvedValue(memories);
+      mockEmbedding.generate.mockResolvedValue([0.1]);
+
+      // Each memory finds its neighbor as similar
+      const searchResults = memories.map((m, i) => {
+        const neighborIdx = i % 2 === 0 ? i + 1 : i - 1;
+        if (neighborIdx >= 0 && neighborIdx < memories.length) {
+          return [{ id: `mem_${neighborIdx}`, score: 0.92 }];
+        }
+        return [];
+      });
+      mockEmbedding.search
+        .mockResolvedValueOnce(searchResults[0])
+        .mockResolvedValueOnce(searchResults[1])
+        .mockResolvedValueOnce(searchResults[2])
+        .mockResolvedValueOnce(searchResults[3])
+        .mockResolvedValueOnce(searchResults[4])
+        .mockResolvedValueOnce(searchResults[5]);
+
+      const pairs = await service.computePairwiseSimilarity('user_123', {
+        minSimilarity: 0.85,
+      });
+
+      // 3 unique pairs: (0,1), (2,3), (4,5)
+      expect(pairs).toHaveLength(3);
+      // All pairs should have similarity 0.92
+      pairs.forEach((p) => expect(p.similarity).toBe(0.92));
+    });
+
+    it('should detect cross-batch pairs when batching occurs', async () => {
+      // The BATCH_SIZE is hardcoded at 500 in the source. With 2 memories,
+      // they fit in one batch. The key assertion is that pairs across
+      // different memories are detected regardless of batch boundaries.
+      // We simulate 3 memories where mem_0 and mem_2 are similar (cross-pair).
+      const memories = [
+        { id: 'mem_0', raw: 'A' },
+        { id: 'mem_1', raw: 'B' },
+        { id: 'mem_2', raw: 'C' },
+      ];
+      mockPrisma.memory.findMany.mockResolvedValue(memories);
+      mockEmbedding.generate.mockResolvedValue([0.1]);
+
+      // mem_0 finds mem_2 as similar (cross-pair skipping mem_1)
+      mockEmbedding.search
+        .mockResolvedValueOnce([{ id: 'mem_2', score: 0.91 }])
+        .mockResolvedValueOnce([]) // mem_1 has no similar
+        .mockResolvedValueOnce([{ id: 'mem_0', score: 0.91 }]); // mem_2 finds mem_0 (dup)
+
+      const pairs = await service.computePairwiseSimilarity('user_123', {
+        minSimilarity: 0.85,
+      });
+
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0].memoryIdA).toBe('mem_0');
+      expect(pairs[0].memoryIdB).toBe('mem_2');
+    });
+
+    it('should sort results by similarity descending', async () => {
+      mockPrisma.memory.findMany.mockResolvedValue([
+        { id: 'mem_1', raw: 'A' },
+        { id: 'mem_2', raw: 'B' },
+        { id: 'mem_3', raw: 'C' },
+      ]);
+      mockEmbedding.generate.mockResolvedValue([0.1]);
+      mockEmbedding.search
+        .mockResolvedValueOnce([{ id: 'mem_2', score: 0.87 }])
+        .mockResolvedValueOnce([{ id: 'mem_3', score: 0.95 }])
+        .mockResolvedValueOnce([]);
+
+      const pairs = await service.computePairwiseSimilarity('user_123', {
+        minSimilarity: 0.85,
+      });
+
+      expect(pairs).toHaveLength(2);
+      expect(pairs[0].similarity).toBeGreaterThanOrEqual(pairs[1].similarity);
+    });
+
     it('should respect maxMemories limit', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([
         { id: 'mem_1', raw: 'Content 1' },

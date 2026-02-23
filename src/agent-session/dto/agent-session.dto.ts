@@ -7,6 +7,7 @@ import {
   Max,
 } from 'class-validator';
 import { AgentSessionStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAgentSessionDto {
   @IsString()
@@ -36,9 +37,10 @@ export class CreateAgentSessionDto {
 }
 
 export class UpdateAgentSessionDto {
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'COMPLETED', 'TERMINATED'], type: String })
   @IsEnum(AgentSessionStatus)
   @IsOptional()
-  status?: AgentSessionStatus;
+  status?: string;
 
   @IsString()
   @IsOptional()

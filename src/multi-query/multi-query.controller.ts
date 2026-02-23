@@ -67,7 +67,7 @@ export class MultiQueryController {
 
     try {
       const result = await this.expansionService.expand(dto.query, {
-        strategy: dto.strategy ?? ExpansionStrategy.HYBRID,
+        strategy: (dto.strategy ?? ExpansionStrategy.HYBRID) as any,
         maxVariants: dto.maxVariants ?? 7,
       });
 

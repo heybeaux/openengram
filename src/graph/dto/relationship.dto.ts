@@ -10,6 +10,7 @@ import {
   Max,
 } from 'class-validator';
 import { GraphRelationshipType } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO for creating a new relationship
@@ -24,8 +25,9 @@ export class CreateRelationshipDto {
   @IsString()
   targetEntityId: string;
 
+  @ApiProperty({ enum: ['SPOUSE_OF', 'PARENT_OF', 'CHILD_OF', 'SIBLING_OF', 'FRIEND_OF', 'COLLEAGUE_OF', 'LIVES_IN', 'WORKS_AT', 'LOCATED_IN', 'BORN_IN', 'OWNS', 'MEMBER_OF', 'PART_OF', 'INSTANCE_OF', 'HAPPENED_BEFORE', 'HAPPENED_AFTER', 'HAPPENED_DURING', 'HAS_ATTRIBUTE', 'CAUSED_BY', 'RESULTS_IN', 'RELATED_TO', 'CUSTOM'], type: String })
   @IsEnum(GraphRelationshipType)
-  type: GraphRelationshipType;
+  type: string;
 
   @IsOptional()
   @IsString()
@@ -82,8 +84,9 @@ export class ListRelationshipsDto {
   entityId?: string;
 
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['SPOUSE_OF', 'PARENT_OF', 'CHILD_OF', 'SIBLING_OF', 'FRIEND_OF', 'COLLEAGUE_OF', 'LIVES_IN', 'WORKS_AT', 'LOCATED_IN', 'BORN_IN', 'OWNS', 'MEMBER_OF', 'PART_OF', 'INSTANCE_OF', 'HAPPENED_BEFORE', 'HAPPENED_AFTER', 'HAPPENED_DURING', 'HAS_ATTRIBUTE', 'CAUSED_BY', 'RESULTS_IN', 'RELATED_TO', 'CUSTOM'], type: String })
   @IsEnum(GraphRelationshipType)
-  type?: GraphRelationshipType;
+  type?: string;
 
   @IsOptional()
   @IsString()
@@ -114,8 +117,9 @@ export class TraverseGraphDto {
 
   @IsOptional()
   @IsArray()
+  @ApiPropertyOptional({ enum: ['SPOUSE_OF', 'PARENT_OF', 'CHILD_OF', 'SIBLING_OF', 'FRIEND_OF', 'COLLEAGUE_OF', 'LIVES_IN', 'WORKS_AT', 'LOCATED_IN', 'BORN_IN', 'OWNS', 'MEMBER_OF', 'PART_OF', 'INSTANCE_OF', 'HAPPENED_BEFORE', 'HAPPENED_AFTER', 'HAPPENED_DURING', 'HAS_ATTRIBUTE', 'CAUSED_BY', 'RESULTS_IN', 'RELATED_TO', 'CUSTOM'], isArray: true, type: String })
   @IsEnum(GraphRelationshipType, { each: true })
-  relationshipTypes?: GraphRelationshipType[];
+  relationshipTypes?: string[];
 
   @IsOptional()
   @IsBoolean()

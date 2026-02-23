@@ -9,6 +9,7 @@ import {
   Max,
 } from 'class-validator';
 import { GraphEntityType } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO for creating a new graph entity
@@ -20,8 +21,9 @@ export class CreateEntityDto {
   @IsString()
   name: string;
 
+  @ApiProperty({ enum: ['PERSON', 'PLACE', 'ORGANIZATION', 'CONCEPT', 'EVENT', 'OBJECT', 'TIME', 'UNKNOWN'], type: String })
   @IsEnum(GraphEntityType)
-  type: GraphEntityType;
+  type: string;
 
   @IsOptional()
   @IsArray()
@@ -50,8 +52,9 @@ export class UpdateEntityDto {
   name?: string;
 
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['PERSON', 'PLACE', 'ORGANIZATION', 'CONCEPT', 'EVENT', 'OBJECT', 'TIME', 'UNKNOWN'], type: String })
   @IsEnum(GraphEntityType)
-  type?: GraphEntityType;
+  type?: string;
 
   @IsOptional()
   @IsArray()
@@ -78,8 +81,9 @@ export class SearchEntitiesDto {
   query: string;
 
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['PERSON', 'PLACE', 'ORGANIZATION', 'CONCEPT', 'EVENT', 'OBJECT', 'TIME', 'UNKNOWN'], type: String })
   @IsEnum(GraphEntityType)
-  type?: GraphEntityType;
+  type?: string;
 
   @IsOptional()
   @IsNumber()
@@ -96,8 +100,9 @@ export class ListEntitiesDto {
   userId: string;
 
   @IsOptional()
+  @ApiPropertyOptional({ enum: ['PERSON', 'PLACE', 'ORGANIZATION', 'CONCEPT', 'EVENT', 'OBJECT', 'TIME', 'UNKNOWN'], type: String })
   @IsEnum(GraphEntityType)
-  type?: GraphEntityType;
+  type?: string;
 
   @IsOptional()
   @IsString()

@@ -58,8 +58,8 @@ export class ReembeddingJobDto {
   @ApiProperty({ description: 'Job ID' })
   jobId: string;
 
-  @ApiProperty({ enum: ReembeddingJobStatus })
-  status: ReembeddingJobStatus;
+  @ApiProperty({ enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'] })
+  status: string;
 
   @ApiProperty({ description: 'Total memories to process' })
   totalMemories: number;

@@ -42,7 +42,7 @@ export interface CollaborationPattern {
 }
 
 export class ImportIdentityDto {
-  @ApiProperty({ description: 'The portable identity JSON export' })
+  @ApiProperty({ description: 'The portable identity JSON export', type: 'object', additionalProperties: true })
   @IsObject()
   identity: PortableIdentityExport;
 

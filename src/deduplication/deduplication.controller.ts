@@ -139,7 +139,7 @@ export class DeduplicationController {
     @Query() query: ListCandidatesQueryDto,
   ): Promise<ListCandidatesResponseDto> {
     return this.reviewService.getCandidates(query.userId || userId, {
-      status: query.status,
+      status: query.status as any,
       minSimilarity: query.minSimilarity,
       limit: query.limit,
       offset: query.offset,

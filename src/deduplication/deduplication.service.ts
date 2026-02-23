@@ -89,9 +89,9 @@ export class DeduplicationService {
     @Optional() private eventEmitter?: EventEmitter2,
   ) {
     this.config = {
-      autoMergeThreshold: 0.95,
-      reviewSuggestThreshold: 0.85,
-      autoResolveThreshold: 0.92,
+      autoMergeThreshold: 0.88,
+      reviewSuggestThreshold: 0.80,
+      autoResolveThreshold: 0.84,
       defaultStrategy: MergeStrategy.KEEP_DETAILED,
       batchEnabled: true,
       incrementalEnabled: true,
@@ -207,8 +207,8 @@ export class DeduplicationService {
         };
       }
 
-      // Auto-merge if above threshold
-      if (topMatch.similarity >= this.config.autoMergeThreshold) {
+      // Auto-merge if above auto-resolve threshold (covers both high and medium confidence)
+      if (topMatch.similarity >= this.config.autoResolveThreshold) {
         const result = await this.executeMerge(
           userId,
           [memoryId, topMatch.memoryId],
@@ -227,17 +227,23 @@ export class DeduplicationService {
         };
       }
 
-      // Queue for review if above suggest threshold
+      // Below auto-resolve but above suggest threshold — still auto-merge, pick best candidate
       if (topMatch.similarity >= this.config.reviewSuggestThreshold) {
-        await this.review.queuePairForReview(
+        const result = await this.executeMerge(
           userId,
-          memoryId,
-          topMatch.memoryId,
+          [memoryId, topMatch.memoryId],
+          this.config.defaultStrategy,
+          'auto',
           topMatch.similarity,
         );
+
         return {
-          action: 'queued_for_review',
-          details: { similarity: topMatch.similarity },
+          action: 'auto_merged',
+          details: {
+            survivorId: result.survivorId,
+            absorbedIds: result.absorbedIds,
+            similarity: topMatch.similarity,
+          },
         };
       }
 
@@ -451,7 +457,8 @@ export class DeduplicationService {
     } else if (
       this.config.autoResolveThreshold > 0 &&
       cluster.minSimilarity >= this.config.autoResolveThreshold &&
-      safetyResults.every((r) => r.reasons.length === 0)
+      !hasProtected &&
+      safetyResults.every((r) => !r.requiresReview)
     ) {
       // Auto-resolve: high confidence, no safety flags at all
       // Queue then immediately approve (creates audit trail)
@@ -461,8 +468,21 @@ export class DeduplicationService {
       );
       await this.review.approve(candidate.id, {}, 'auto-resolve');
       job.autoMerged++;
+    } else if (
+      !hasProtected &&
+      cluster.minSimilarity >= this.config.reviewSuggestThreshold
+    ) {
+      // Auto-merge medium-confidence clusters that aren't protected
+      await this.executeMerge(
+        userId,
+        cluster.memoryIds,
+        this.config.defaultStrategy,
+        'batch',
+        cluster.avgSimilarity,
+      );
+      job.autoMerged++;
     } else {
-      // Queue for review
+      // Only queue for review if protected or very low similarity
       await this.review.queueClusterForReview(userId, cluster);
       job.queuedForReview++;
     }
@@ -513,7 +533,7 @@ export class DeduplicationService {
       throw new Error('Deduplication is disabled');
     }
 
-    const result = await this.merge.merge(dto.memoryIds, dto.strategy, {
+    const result = await this.merge.merge(dto.memoryIds, dto.strategy as any, {
       survivorId: dto.survivorId,
       customContent: dto.customContent,
     });
