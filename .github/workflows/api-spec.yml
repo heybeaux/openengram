@@ -12,7 +12,7 @@ jobs:
     continue-on-error: true
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -36,6 +36,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Enable pgvector extension
+        run: psql -h localhost -U test -d engram_test -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+        env:
+          PGPASSWORD: test
 
       - name: Push schema to test database
         run: pnpm prisma db push --skip-generate
