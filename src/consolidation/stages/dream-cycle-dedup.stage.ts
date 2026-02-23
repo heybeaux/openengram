@@ -102,7 +102,7 @@ export class DreamCycleDedupStage {
 
       const isProtected =
         memory.memoryType === 'CONSTRAINT' || memory.memoryType === 'LESSON';
-      const autoMergeThreshold = isProtected ? 0.98 : 0.95;
+      const autoMergeThreshold = isProtected ? 0.95 : 0.88;
 
       for (const match of matches) {
         if (merged >= this.maxMergesPerRun) break;

@@ -148,9 +148,11 @@ export class BehavioralConsistencyService {
 
     if (maxLlmCalls > 0) {
       try {
+        const existingInsights = await this.getExistingInsights(userId);
         const llmAnalysis = await this.runLlmAnalysis(
           recentMemories,
           historicalMemories,
+          existingInsights,
         );
         llmResults = llmAnalysis.inconsistencies;
         llmCallsUsed = 1;
@@ -248,11 +250,31 @@ export class BehavioralConsistencyService {
   }
 
   /**
+   * Fetch recent existing INSIGHT memories to provide as context for dedup.
+   */
+  private async getExistingInsights(userId: string): Promise<string[]> {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const existing = await this.prisma.memory.findMany({
+      where: {
+        userId,
+        layer: 'INSIGHT',
+        deletedAt: null,
+        createdAt: { gte: sevenDaysAgo },
+      },
+      select: { raw: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return existing.map(m => m.raw);
+  }
+
+  /**
    * LLM-based deep analysis for semantic inconsistencies.
    */
   private async runLlmAnalysis(
-    recent: Array<{ id: string; raw: string; layer: string; createdAt: Date }>,
+    recent: Array<{ id: string; raw: string; layer: string; createdAt: Date; userId?: string }>,
     historical: Array<{ id: string; raw: string; layer: string; createdAt: Date }>,
+    existingInsights: string[] = [],
   ): Promise<{ inconsistencies: BehavioralInconsistency[] }> {
     const recentSummary = recent
       .slice(0, 20)
@@ -283,7 +305,11 @@ Look for:
 4. PREFERENCE_DRIFT: Gradual shift in what the agent values or prioritizes
 5. PATTERN_BREAK: Departure from established behavioral patterns
 
-Only flag genuinely concerning shifts, not normal variation. Be specific about evidence.
+CRITICAL RULES:
+- Only flag genuinely concerning shifts, not normal variation. Be specific about evidence.
+- Do NOT repeat or rephrase observations that already exist in the EXISTING INSIGHTS section below. If a similar insight already exists, skip it entirely.
+- Each insight must describe a DIFFERENT phenomenon. If you'd describe it the same way as an existing insight (even with different words), it's a duplicate — skip it.
+- Return empty array rather than restating known observations.
 
 Respond in JSON:
 {
@@ -298,11 +324,15 @@ Respond in JSON:
   ]
 }
 
-Return empty array if no meaningful inconsistencies detected. Quality over quantity.`,
+Return empty array if no meaningful inconsistencies detected OR if all observations duplicate existing insights. Quality over quantity.`,
         },
         {
           role: 'user',
-          content: `HISTORICAL BASELINE (established patterns):\n${historicalSummary}\n\nRECENT BEHAVIOR:\n${recentSummary}\n\nAre there meaningful behavioral inconsistencies?`,
+          content: `HISTORICAL BASELINE (established patterns):\n${historicalSummary}\n\nRECENT BEHAVIOR:\n${recentSummary}` +
+            (existingInsights.length > 0
+              ? `\n\nEXISTING INSIGHTS (do NOT repeat these — skip any observation that overlaps):\n${existingInsights.map(i => `- ${i.slice(0, 150)}`).join('\n')}`
+              : '') +
+            `\n\nAre there meaningful behavioral inconsistencies that are NOT already captured above?`,
         },
       ],
       {

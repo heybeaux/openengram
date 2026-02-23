@@ -98,14 +98,14 @@ describe('SafetyService', () => {
 
       const result = await service.checkMemorySafety('mem_1');
 
-      expect(result.requiresReview).toBe(true);
-      expect(result.canAutoMerge).toBe(false);
+      expect(result.requiresReview).toBe(false);
+      expect(result.canAutoMerge).toBe(true);
       expect(
         result.reasons.some((r) => r.type === SafetyReasonType.HIGH_IMPORTANCE),
       ).toBe(true);
     });
 
-    it('should flag LESSON type for review', async () => {
+    it('should not flag LESSON type for review (auto-merge allowed)', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue({
         id: 'mem_1',
         raw: 'I learned that...',
@@ -117,10 +117,8 @@ describe('SafetyService', () => {
 
       const result = await service.checkMemorySafety('mem_1');
 
-      expect(result.requiresReview).toBe(true);
-      expect(
-        result.reasons.some((r) => r.type === SafetyReasonType.REQUIRES_REVIEW),
-      ).toBe(true);
+      expect(result.requiresReview).toBe(false);
+      expect(result.canAutoMerge).toBe(true);
     });
 
     it('should flag recently accessed memories', async () => {
@@ -305,8 +303,8 @@ describe('SafetyService', () => {
   });
 
   describe('requiresReviewType', () => {
-    it('should return true for LESSON', () => {
-      expect(service.requiresReviewType(MemoryType.LESSON)).toBe(true);
+    it('should return false for LESSON (no longer requires review)', () => {
+      expect(service.requiresReviewType(MemoryType.LESSON)).toBe(false);
     });
 
     it('should return true for CONSTRAINT', () => {

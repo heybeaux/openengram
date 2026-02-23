@@ -366,12 +366,12 @@ describe('WakingCycleService', () => {
       expect(memoryService.remember).toHaveBeenCalledTimes(1);
     });
 
-    it('should store insight when similar one is older than 7 days (HEY-336)', async () => {
+    it('should store insight when similar one is older than insightTtlDays (HEY-336)', async () => {
       embeddingService.search.mockResolvedValue([
         { id: 'old-insight', score: 0.95 },
       ]);
       prisma.memory.findUnique.mockResolvedValue({
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         deletedAt: null,
       });
 
