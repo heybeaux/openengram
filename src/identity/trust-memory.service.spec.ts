@@ -37,7 +37,7 @@ describe('TrustMemoryService', () => {
       signalCount: 10,
       successCount: 8,
       failureCount: 1,
-      correctionCount: 1,
+      correctionCount: 1, category: null, computedAt: new Date(),
     };
 
     it('should create memory on first computation (no previous score)', async () => {
@@ -79,14 +79,14 @@ describe('TrustMemoryService', () => {
         signalCount: 5,
         successCount: 3,
         failureCount: 2,
-        correctionCount: 0,
+        correctionCount: 0, category: null, computedAt: new Date(),
       };
       const current: TrustScoreResult = {
         score: 0.8,
         signalCount: 10,
         successCount: 8,
         failureCount: 2,
-        correctionCount: 0,
+        correctionCount: 0, category: null, computedAt: new Date(),
       };
       mockTrustSignal.getLatestScore.mockResolvedValue(previous);
       mockTrustSignal.computeScore.mockResolvedValue(current);
@@ -101,8 +101,8 @@ describe('TrustMemoryService', () => {
     });
 
     it('should create memory for trust decrease', async () => {
-      const previous: TrustScoreResult = { score: 0.8, signalCount: 10, successCount: 8, failureCount: 1, correctionCount: 1 };
-      const current: TrustScoreResult = { score: 0.6, signalCount: 12, successCount: 8, failureCount: 3, correctionCount: 1 };
+      const previous: TrustScoreResult = { score: 0.8, signalCount: 10, successCount: 8, failureCount: 1, correctionCount: 1, category: null, computedAt: new Date() };
+      const current: TrustScoreResult = { score: 0.6, signalCount: 12, successCount: 8, failureCount: 3, correctionCount: 1, category: null, computedAt: new Date() };
       mockTrustSignal.getLatestScore.mockResolvedValue(previous);
       mockTrustSignal.computeScore.mockResolvedValue(current);
       mockPrisma.memory.create.mockResolvedValue({ id: 'mem-3' });
@@ -144,8 +144,8 @@ describe('TrustMemoryService', () => {
     });
 
     it('should compute high importance for large delta (>0.2)', async () => {
-      const previous: TrustScoreResult = { score: 0.3, signalCount: 5, successCount: 2, failureCount: 3, correctionCount: 0 };
-      const current: TrustScoreResult = { score: 0.8, signalCount: 15, successCount: 12, failureCount: 3, correctionCount: 0 };
+      const previous: TrustScoreResult = { score: 0.3, signalCount: 5, successCount: 2, failureCount: 3, correctionCount: 0, category: null, computedAt: new Date() };
+      const current: TrustScoreResult = { score: 0.8, signalCount: 15, successCount: 12, failureCount: 3, correctionCount: 0, category: null, computedAt: new Date() };
       mockTrustSignal.getLatestScore.mockResolvedValue(previous);
       mockTrustSignal.computeScore.mockResolvedValue(current);
       mockPrisma.memory.create.mockResolvedValue({ id: 'mem-6' });
@@ -161,7 +161,7 @@ describe('TrustMemoryService', () => {
 
     it('should set confidence based on signal count', async () => {
       mockTrustSignal.getLatestScore.mockResolvedValue(null);
-      const lowSignalScore: TrustScoreResult = { score: 0.5, signalCount: 3, successCount: 2, failureCount: 1, correctionCount: 0 };
+      const lowSignalScore: TrustScoreResult = { score: 0.5, signalCount: 3, successCount: 2, failureCount: 1, correctionCount: 0, category: null, computedAt: new Date() };
       mockTrustSignal.computeScore.mockResolvedValue(lowSignalScore);
       mockPrisma.memory.create.mockResolvedValue({ id: 'mem-7' });
 
@@ -176,7 +176,7 @@ describe('TrustMemoryService', () => {
 
     it('should cap confidence at 1.0', async () => {
       mockTrustSignal.getLatestScore.mockResolvedValue(null);
-      const highSignalScore: TrustScoreResult = { score: 0.9, signalCount: 50, successCount: 45, failureCount: 5, correctionCount: 0 };
+      const highSignalScore: TrustScoreResult = { score: 0.9, signalCount: 50, successCount: 45, failureCount: 5, correctionCount: 0, category: null, computedAt: new Date() };
       mockTrustSignal.computeScore.mockResolvedValue(highSignalScore);
       mockPrisma.memory.create.mockResolvedValue({ id: 'mem-8' });
 
@@ -191,7 +191,7 @@ describe('TrustMemoryService', () => {
 
     it('should set confidence to 0.5 when score is 0', async () => {
       mockTrustSignal.getLatestScore.mockResolvedValue(null);
-      const zeroScore: TrustScoreResult = { score: 0, signalCount: 5, successCount: 0, failureCount: 5, correctionCount: 0 };
+      const zeroScore: TrustScoreResult = { score: 0, signalCount: 5, successCount: 0, failureCount: 5, correctionCount: 0, category: null, computedAt: new Date() };
       mockTrustSignal.computeScore.mockResolvedValue(zeroScore);
       mockPrisma.memory.create.mockResolvedValue({ id: 'mem-9' });
 
