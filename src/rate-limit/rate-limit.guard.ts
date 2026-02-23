@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_KEY, SKIP_RATE_LIMIT_KEY } from './rate-limit.decorator';
@@ -15,12 +16,21 @@ export class RateLimitGuard implements CanActivate {
   private static readonly DEFAULT_LIMIT = 100;
   private static readonly WINDOW_MS = 60_000;
 
+  private readonly isLocalEdition: boolean;
+
   constructor(
     private readonly rateLimitService: RateLimitService,
     private readonly reflector: Reflector,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.isLocalEdition =
+      this.configService.get<string>('EDITION', 'cloud') === 'local';
+  }
 
   canActivate(context: ExecutionContext): boolean {
+    // Local edition: skip all rate limiting (single-user, no abuse risk)
+    if (this.isLocalEdition) return true;
+
     // Check for skip decorator
     const skip = this.reflector.getAllAndOverride<boolean>(
       SKIP_RATE_LIMIT_KEY,
