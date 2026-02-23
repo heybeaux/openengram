@@ -11,7 +11,13 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const { AppModule } = await import('../dist/src/app.module.js');
+// SWC outputs to dist/ (flat), tsc outputs to dist/src/ (nested)
+let AppModule;
+try {
+  ({ AppModule } = await import('../dist/src/app.module.js'));
+} catch {
+  ({ AppModule } = await import('../dist/app.module.js'));
+}
 
 const app = await NestFactory.create(AppModule, { logger: false });
 
