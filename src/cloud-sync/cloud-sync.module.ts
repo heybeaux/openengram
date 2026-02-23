@@ -4,6 +4,9 @@ import {
   SyncIngestController,
 } from './cloud-sync.controller';
 import { CloudSyncService } from './cloud-sync.service';
+import { CloudSyncPushService } from './cloud-sync-push.service';
+import { CloudSyncPullService } from './cloud-sync-pull.service';
+import { CloudSyncIngestService } from './cloud-sync-ingest.service';
 import { SyncReconciliationService } from './sync-reconciliation.service';
 import { ReconciliationController } from './reconciliation.controller';
 import { CloudLinkModule } from '../cloud-link/cloud-link.module';
@@ -13,7 +16,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [AccountModule, CloudLinkModule, PrismaModule],
   controllers: [CloudSyncController, SyncIngestController, ReconciliationController],
-  providers: [CloudSyncService, SyncReconciliationService],
+  providers: [
+    CloudSyncService,
+    CloudSyncPushService,
+    CloudSyncPullService,
+    CloudSyncIngestService,
+    SyncReconciliationService,
+  ],
   exports: [CloudSyncService, SyncReconciliationService],
 })
 export class CloudSyncModule {}

@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CloudSyncService } from './cloud-sync.service';
+import { CloudSyncPushService } from './cloud-sync-push.service';
+import { CloudSyncPullService } from './cloud-sync-pull.service';
+import { CloudSyncIngestService } from './cloud-sync-ingest.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { BadRequestException } from '@nestjs/common';
@@ -57,6 +60,7 @@ describe('CloudSyncService', () => {
       syncIdMap: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       syncAgentMap: {
         findUnique: jest.fn(),
@@ -69,6 +73,9 @@ describe('CloudSyncService', () => {
       instanceSyncKey: {
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      cloudInstance: {
+        upsert: jest.fn().mockResolvedValue({}),
       },
       agent: {
         create: jest.fn(),
@@ -84,6 +91,9 @@ describe('CloudSyncService', () => {
         CloudSyncService,
         { provide: PrismaService, useValue: prisma },
         { provide: CloudLinkService, useValue: {} },
+        { provide: CloudSyncPushService, useValue: { performSyncWithClient: jest.fn(), syncBatchToCloud: jest.fn() } },
+        { provide: CloudSyncPullService, useValue: { triggerPull: jest.fn(), handleSyncPull: jest.fn() } },
+        { provide: CloudSyncIngestService, useValue: { handleSyncPush: jest.fn(), updateCloudInstance: jest.fn(), getInstances: jest.fn() } },
       ],
     }).compile();
 
@@ -174,12 +184,23 @@ describe('CloudSyncService', () => {
   });
 
   describe('handleSyncPush (cloud-side)', () => {
+    let ingestService: CloudSyncIngestService;
+
+    beforeEach(async () => {
+      // Create a real ingest service with the mock prisma for these tests
+      const ingestModule = await Test.createTestingModule({
+        providers: [
+          CloudSyncIngestService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      ingestService = ingestModule.get(CloudSyncIngestService);
+    });
+
     const setupAgentUserMocks = () => {
-      // resolveCloudAgent: no existing mapping, create new agent
       prisma.syncAgentMap.findUnique.mockResolvedValue(null);
       prisma.agent.create.mockResolvedValue({ id: 'cloud-agent-1' });
       prisma.syncAgentMap.create.mockResolvedValue({});
-      // resolveCloudUser: no existing mapping, no existing user, create new
       prisma.syncUserMap.findUnique.mockResolvedValue(null);
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ id: 'cloud-user-1' });
@@ -188,12 +209,12 @@ describe('CloudSyncService', () => {
 
     it('should create memory and SyncIdMap entry', async () => {
       setupAgentUserMocks();
-      prisma.memory.findFirst.mockResolvedValue(null); // no existing by hash
-      prisma.syncIdMap.findUnique.mockResolvedValue(null); // no existing map
+      prisma.memory.findFirst.mockResolvedValue(null);
+      prisma.syncIdMap.findUnique.mockResolvedValue(null);
       prisma.memory.create.mockResolvedValue({ id: 'cloud-mem-1' });
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
-      const result = await service.handleSyncPush('acc-1', 'inst-1', {
+      const result = await ingestService.handleSyncPush('acc-1', 'inst-1', {
         memories: [
           {
             raw: 'hello world',
@@ -221,7 +242,7 @@ describe('CloudSyncService', () => {
       prisma.memory.findFirst.mockResolvedValue({ id: 'existing-1' });
       prisma.syncIdMap.upsert.mockResolvedValue({});
 
-      const result = await service.handleSyncPush('acc-1', 'inst-1', {
+      const result = await ingestService.handleSyncPush('acc-1', 'inst-1', {
         memories: [
           {
             raw: 'hello world',
