@@ -176,18 +176,26 @@ export class GraphExtractionService {
         },
       );
 
-      const jsonMatch = response.content.match(/\[[\s\S]*\]/);
+      // Strip thinking tags (qwen3, deepseek-r1, etc.)
+      const cleaned = response.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         this.logger.warn('No JSON array found in entity extraction response');
         return [];
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
-        name: string;
-        type: string;
-        aliases?: string[];
-        role?: string;
-      }>;
+      // Try parsing; if it fails, attempt to fix common LLM JSON issues
+      let parsed: Array<{ name: string; type: string; aliases?: string[]; role?: string }>;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Try fixing trailing commas, single quotes, etc.
+        const fixedJson = jsonMatch[0]
+          .replace(/,\s*([}\]])/g, '$1')       // trailing commas
+          .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":') // unquoted keys
+          .replace(/:\s*'([^']*)'/g, ': "$1"'); // single-quoted values
+        parsed = JSON.parse(fixedJson);
+      }
 
       return parsed.map((e) => ({
         name: e.name,
@@ -225,7 +233,9 @@ export class GraphExtractionService {
         },
       );
 
-      const jsonMatch = response.content.match(/\[[\s\S]*\]/);
+      // Strip thinking tags (qwen3, deepseek-r1, etc.)
+      const cleaned = response.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         this.logger.warn(
           'No JSON array found in relationship extraction response',
@@ -233,13 +243,22 @@ export class GraphExtractionService {
         return [];
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      let parsed: Array<{
         source: string;
         target: string;
         type: string;
         confidence?: number;
         properties?: Record<string, any>;
       }>;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        const fixedJson = jsonMatch[0]
+          .replace(/,\s*([}\]])/g, '$1')
+          .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":')
+          .replace(/:\s*'([^']*)'/g, ': "$1"');
+        parsed = JSON.parse(fixedJson);
+      }
 
       // Validate that source and target exist in entities
       const entityNames = new Set(entities.map((e) => e.name.toLowerCase()));
