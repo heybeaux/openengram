@@ -54,7 +54,7 @@ export const DEFAULT_SAFETY_CONFIG: SafetyConfig = {
     'social security',
   ],
   protectedImportanceThreshold: 0.9,
-  alwaysReviewTypes: [MemoryType.LESSON, MemoryType.CONSTRAINT],
+  alwaysReviewTypes: [MemoryType.CONSTRAINT],
 };
 
 /**
@@ -179,7 +179,6 @@ export class SafetyService {
     const requiresReview = reasons.some(
       (r) =>
         r.type === SafetyReasonType.REQUIRES_REVIEW ||
-        r.type === SafetyReasonType.HIGH_IMPORTANCE ||
         r.type === SafetyReasonType.MANUALLY_EDITED,
     );
 

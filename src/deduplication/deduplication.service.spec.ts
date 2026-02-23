@@ -168,12 +168,12 @@ describe('DeduplicationService', () => {
       expect(result.action).toBe('none');
     });
 
-    it('should queue for review when similarity is between thresholds', async () => {
+    it('should auto-merge when similarity is between thresholds (medium confidence)', async () => {
       mockConfig.get.mockReturnValue('true');
       mockSimilarity.findSimilarForContent.mockResolvedValue([
         {
           memoryId: 'mem_existing',
-          similarity: 0.9,
+          similarity: 0.82,
           content: 'Similar content',
         },
       ]);
@@ -182,14 +182,19 @@ describe('DeduplicationService', () => {
         canAutoMerge: true,
         reasons: [],
       });
+      mockMerge.merge.mockResolvedValue({
+        survivorId: 'mem_existing',
+        absorbedIds: [memoryId],
+        mergedContent: 'Similar content',
+      });
+      mockLineage.recordMerge.mockResolvedValue({ id: 'merge_1' });
 
       const result = await service.checkForDuplicates(
         memoryId,
         userId,
         content,
       );
-      expect(result.action).toBe('queued_for_review');
-      expect(mockReview.queuePairForReview).toHaveBeenCalled();
+      expect(result.action).toBe('auto_merged');
     });
 
     it('should auto-merge when similarity exceeds auto-merge threshold', async () => {
@@ -551,7 +556,7 @@ describe('DeduplicationService', () => {
 
       const result = await service.getConfig('user_123');
 
-      expect(result.autoMergeThreshold).toBe(0.95);
+      expect(result.autoMergeThreshold).toBe(0.88);
       expect(result.batchEnabled).toBe(true);
     });
   });

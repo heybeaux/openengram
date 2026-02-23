@@ -102,7 +102,7 @@ describe('DreamCycleDedupStage', () => {
     expect(result.llmCalls).toBe(1);
   });
 
-  it('should use LLM for borderline similarity and merge if approved', async () => {
+  it('should auto-merge at 0.90 without LLM (below old threshold, above new)', async () => {
     const memories = [
       { id: '1', raw: 'likes coffee', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
       { id: '2', raw: 'enjoys coffee', importanceScore: 3, effectiveScore: 3, memoryType: 'FACT', createdAt: new Date() },
@@ -110,16 +110,15 @@ describe('DreamCycleDedupStage', () => {
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1]' }]);
     mockEmbedding.search.mockResolvedValue([
-      { id: '2', score: 0.90 }, // between 0.85 and 0.95
+      { id: '2', score: 0.90 }, // above 0.88 auto-merge threshold
     ]);
-    mockLlm.json.mockResolvedValue({ shouldMerge: true, reason: 'same fact' });
     mockPrisma.memory.findUnique.mockResolvedValue({ userId: 'user1' });
     mockPrisma.memoryMergeEvent.create.mockResolvedValue({});
     mockPrisma.memory.update.mockResolvedValue({});
 
     const result = await stage.run('user1', false);
     expect(result.merged).toBe(1);
-    expect(result.llmCalls).toBe(1);
+    expect(result.llmCalls).toBe(0); // No LLM needed, auto-merged directly
   });
 
   it('should respect dryRun mode', async () => {
@@ -154,7 +153,7 @@ describe('DreamCycleDedupStage', () => {
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1]' }]);
-    mockEmbedding.search.mockResolvedValue([{ id: '2', score: 0.90 }]);
+    mockEmbedding.search.mockResolvedValue([{ id: '2', score: 0.86 }]);
     mockLlm.json.mockRejectedValue(new Error('LLM timeout'));
     mockPrisma.mergeCandidate.create.mockResolvedValue({});
 
