@@ -3,32 +3,51 @@
  * Requires `pnpm build` first.
  * Usage: node scripts/generate-api-spec.mjs
  */
-import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
 
-// SWC outputs to dist/ (flat), tsc outputs to dist/src/ (nested)
-let AppModule;
-try {
-  ({ AppModule } = await import('../dist/src/app.module.js'));
-} catch (e1) {
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION:', err);
+  process.exit(1);
+});
+
+console.log('Starting API spec generation...');
+
+import('fs').then(async (fsModule) => {
+  const fs = fsModule.default;
+  const path = (await import('path')).default;
+  const { fileURLToPath } = await import('url');
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+  console.log('Importing NestJS modules...');
+  const { NestFactory } = await import('@nestjs/core');
+  const { SwaggerModule, DocumentBuilder } = await import('@nestjs/swagger');
+
+  console.log('Importing AppModule...');
+  let AppModule;
   try {
-    ({ AppModule } = await import('../dist/app.module.js'));
-  } catch (e2) {
-    console.error('Failed to import AppModule from dist/src/ or dist/:');
-    console.error('  dist/src/ error:', e1.message);
-    console.error('  dist/ error:', e2.message);
-    process.exit(1);
+    ({ AppModule } = await import('../dist/src/app.module.js'));
+    console.log('Loaded from dist/src/');
+  } catch (e1) {
+    try {
+      ({ AppModule } = await import('../dist/app.module.js'));
+      console.log('Loaded from dist/');
+    } catch (e2) {
+      console.error('Failed to import AppModule:');
+      console.error('  dist/src/ error:', e1.message);
+      console.error('  dist/ error:', e2.message);
+      process.exit(1);
+    }
   }
-}
 
-try {
+  console.log('Creating NestJS app...');
   const app = await NestFactory.create(AppModule, { logger: false });
 
+  console.log('Generating Swagger document...');
   const config = new DocumentBuilder()
     .setTitle('Engram API')
     .setDescription('Memory infrastructure for AI agents')
@@ -45,8 +64,8 @@ try {
 
   await app.close();
   process.exit(0);
-} catch (err) {
-  console.error('Failed to generate API spec:', err.message);
+}).catch((err) => {
+  console.error('FATAL:', err.message);
   console.error(err.stack);
   process.exit(1);
-}
+});
