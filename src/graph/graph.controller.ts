@@ -371,7 +371,7 @@ export class GraphController {
     @Req() req: any,
     @Body() body: { userId?: string; limit?: number },
   ) {
-    const limit = Math.min(Math.max(body.limit ?? 50, 1), 500);
+    const limit = Math.min(Math.max(body.limit ?? 50, 1), 5000);
 
     // If userId provided, backfill just that user
     if (body.userId) {

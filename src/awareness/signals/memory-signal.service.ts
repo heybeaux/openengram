@@ -102,6 +102,8 @@ export class MemorySignalService implements SignalSource {
     }
 
     // ── 3. Recurring entities (knowledge graph hot spots) ───────────────
+    // Use a stable observation ID (not timestamp-based) so the pattern
+    // detector can dedup across cycles.
     if (queriesUsed < budget.maxQueries) {
       const hotEntities = await this.prisma.graphEntity.findMany({
         where: {
@@ -119,8 +121,11 @@ export class MemorySignalService implements SignalSource {
       queriesUsed++;
 
       if (hotEntities.length > 0) {
+        // Stable ID: hash of sorted entity IDs so identical entity sets
+        // produce the same observation ID across cycles
+        const entityHash = hotEntities.map(e => e.id).sort().join(',');
         observations.push({
-          id: `hot-entities-${new Date().toISOString()}`,
+          id: `hot-entities-${entityHash.slice(0, 32)}`,
           source: this.name,
           content: `Top recurring entities: ${hotEntities.map(e => `${e.name} (${e.type}, ${e.mentionCount} mentions)`).join(', ')}`,
           observedAt: new Date(),
