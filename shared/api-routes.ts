@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-23T17:44:57.161Z
+// Generated at 2026-02-23T18:28:47.196Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
