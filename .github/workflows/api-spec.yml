@@ -63,6 +63,7 @@ jobs:
           EDITION: selfhosted
           DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
           DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Generate route constants
         run: pnpm api:routes
