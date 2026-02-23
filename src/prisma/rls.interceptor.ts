@@ -48,7 +48,8 @@ export class RlsInterceptor implements NestInterceptor {
     const isLongRunning =
       url.includes('/sync') ||
       url.includes('/cloud/sync') ||
-      url.includes('/admin/');
+      url.includes('/admin/') ||
+      url.includes('/dedup/scan');
     const txTimeout = isLongRunning ? 300_000 : 30_000; // 5 min for sync/admin, 30s default
 
     // Wrap the request handler in an interactive transaction with SET LOCAL
