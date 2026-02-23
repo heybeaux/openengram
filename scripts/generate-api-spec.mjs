@@ -15,25 +15,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let AppModule;
 try {
   ({ AppModule } = await import('../dist/src/app.module.js'));
-} catch {
-  ({ AppModule } = await import('../dist/app.module.js'));
+} catch (e1) {
+  try {
+    ({ AppModule } = await import('../dist/app.module.js'));
+  } catch (e2) {
+    console.error('Failed to import AppModule from dist/src/ or dist/:');
+    console.error('  dist/src/ error:', e1.message);
+    console.error('  dist/ error:', e2.message);
+    process.exit(1);
+  }
 }
 
-const app = await NestFactory.create(AppModule, { logger: false });
+try {
+  const app = await NestFactory.create(AppModule, { logger: false });
 
-const config = new DocumentBuilder()
-  .setTitle('Engram API')
-  .setDescription('Memory infrastructure for AI agents')
-  .setVersion('2.0')
-  .addBearerAuth()
-  .addApiKey({ type: 'apiKey', name: 'X-AM-API-Key', in: 'header' }, 'api-key')
-  .addApiKey({ type: 'apiKey', name: 'X-AM-User-ID', in: 'header' }, 'user-id')
-  .build();
+  const config = new DocumentBuilder()
+    .setTitle('Engram API')
+    .setDescription('Memory infrastructure for AI agents')
+    .setVersion('2.0')
+    .addBearerAuth()
+    .addApiKey({ type: 'apiKey', name: 'X-AM-API-Key', in: 'header' }, 'api-key')
+    .addApiKey({ type: 'apiKey', name: 'X-AM-User-ID', in: 'header' }, 'user-id')
+    .build();
 
-const document = SwaggerModule.createDocument(app, config);
-const outPath = path.join(__dirname, '..', 'api-spec.json');
-fs.writeFileSync(outPath, JSON.stringify(document, null, 2) + '\n');
-console.log(`OpenAPI spec written to ${outPath}`);
+  const document = SwaggerModule.createDocument(app, config);
+  const outPath = path.join(__dirname, '..', 'api-spec.json');
+  fs.writeFileSync(outPath, JSON.stringify(document, null, 2) + '\n');
+  console.log(`OpenAPI spec written to ${outPath}`);
 
-await app.close();
-process.exit(0);
+  await app.close();
+  process.exit(0);
+} catch (err) {
+  console.error('Failed to generate API spec:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+}
