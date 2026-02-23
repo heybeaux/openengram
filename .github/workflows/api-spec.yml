@@ -41,6 +41,7 @@ jobs:
         run: pnpm prisma db push --skip-generate
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
 
       - name: Save previous spec
         run: |
@@ -56,6 +57,7 @@ jobs:
           NODE_ENV: test
           EDITION: selfhosted
           DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
 
       - name: Generate route constants
         run: pnpm api:routes
