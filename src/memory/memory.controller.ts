@@ -17,6 +17,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import * as crypto from 'crypto';
 import {
   MemoryService,
   MemoryWithExtraction,
@@ -54,6 +55,7 @@ import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor
 import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
+import { MemoryJobQueueService } from './memory-job-queue.service';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -67,6 +69,7 @@ export class MemoryController {
     private readonly contextualRecallService: ContextualRecallService,
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
+    private readonly memoryJobQueue: MemoryJobQueueService,
   ) {}
 
   /**
@@ -157,15 +160,13 @@ export class MemoryController {
     @UserId() userId: string,
     @Body() dto: CreateMemoryBatchDto,
   ): Promise<{ jobId: string; count: number; status: string }> {
-    const items = dto.memories.map((m) => ({ ...m }));
-    const jobId = this.queueService.enqueue(
-      'memory.batch',
-      items,
-      async (item) => {
-        await this.memoryService.remember(userId, item);
-      },
-    );
-    return { jobId, count: items.length, status: 'processing' };
+    const memories = dto.memories.map((m) => ({
+      memoryId: m.id || crypto.randomUUID(),
+      raw: m.raw || m.content || '',
+      extractionContext: m.extractionContext,
+    }));
+    const jobId = this.memoryJobQueue.createBatch(userId, memories);
+    return { jobId, count: memories.length, status: 'processing' };
   }
 
   /**
@@ -180,27 +181,20 @@ export class MemoryController {
   async getBatchJobStatus(
     @Param('jobId') jobId: string,
   ): Promise<{
-    id: string;
+    jobId: string;
     status: string;
-    progress: number;
     total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    errors: Array<{ memoryId: string; error: string }>;
     createdAt: Date;
-    completedAt: Date | null;
-    error: string | null;
   }> {
-    const status = this.queueService.getStatus(jobId);
+    const status = this.memoryJobQueue.getBatchStatus(jobId);
     if (!status) {
       throw new NotFoundException(`Job ${jobId} not found`);
     }
-    return {
-      id: status.id,
-      status: status.status,
-      progress: status.progress,
-      total: status.total,
-      createdAt: status.createdAt,
-      completedAt: status.completedAt,
-      error: status.error,
-    };
+    return status;
   }
 
   /**

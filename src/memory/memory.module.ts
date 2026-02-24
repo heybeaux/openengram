@@ -18,6 +18,8 @@ import { MultiQueryService } from '../multi-query/multi-query.service';
 import { QueryExpansionService } from '../multi-query/query-expansion.service';
 import { ResultFusionService } from '../multi-query/result-fusion.service';
 import { ContextualRecallService } from './contextual-recall.service';
+import { MemoryJobQueueService } from './memory-job-queue.service';
+import { MemoryJobProcessorService } from './memory-job-processor.service';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { AccountModule } from '../account/account.module';
@@ -54,6 +56,8 @@ import { QueueModule } from '../queue/queue.module';
     QueryExpansionService,
     ResultFusionService,
     ContextualRecallService,
+    MemoryJobQueueService,
+    MemoryJobProcessorService,
   ],
   exports: [
     MemoryService,

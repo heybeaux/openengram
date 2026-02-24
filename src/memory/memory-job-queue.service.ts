@@ -1,5 +1,7 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable, Logger, OnModuleDestroy, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+
+export const MAX_BATCH_SIZE = 10_000;
 
 /**
  * Job status for individual memory processing jobs.
@@ -64,6 +66,7 @@ export class MemoryJobQueueService implements OnModuleDestroy {
 
   constructor() {
     this.cleanupInterval = setInterval(() => this.cleanupOldBatches(), this.BATCH_TTL_MS);
+    this.cleanupInterval.unref();
   }
 
   onModuleDestroy() {
@@ -87,12 +90,17 @@ export class MemoryJobQueueService implements OnModuleDestroy {
     userId: string,
     memories: Array<{ memoryId: string; raw: string; extractionContext?: any }>,
   ): string {
-    const batchId = uuidv4();
+    if (memories.length > MAX_BATCH_SIZE) {
+      throw new BadRequestException(
+        `Batch size ${memories.length} exceeds maximum of ${MAX_BATCH_SIZE}`,
+      );
+    }
+    const batchId = randomUUID();
     const jobs = new Map<string, MemoryJob>();
 
     for (const mem of memories) {
       const job: MemoryJob = {
-        id: uuidv4(),
+        id: randomUUID(),
         memoryId: mem.memoryId,
         userId,
         raw: mem.raw,
@@ -133,7 +141,7 @@ export class MemoryJobQueueService implements OnModuleDestroy {
     extractionContext?: any,
   ): string {
     const job: MemoryJob = {
-      id: uuidv4(),
+      id: randomUUID(),
       memoryId,
       userId,
       raw,
@@ -224,7 +232,10 @@ export class MemoryJobQueueService implements OnModuleDestroy {
         // Exponential backoff: 1s, 4s, 9s...
         const delayMs = job.attempts * job.attempts * 1000;
         this.logger.log(`[Queue] Retrying job ${job.id} in ${delayMs}ms`);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => {
+          const timer = setTimeout(resolve, delayMs);
+          timer.unref();
+        });
         if (!this.shutdownRequested) {
           this.pendingJobs.push(job);
         }
