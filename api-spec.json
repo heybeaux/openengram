@@ -2938,6 +2938,64 @@
         ]
       }
     },
+    "/v1/dedup/candidates/bulk-resolve": {
+      "post": {
+        "operationId": "DeduplicationController_bulkResolve",
+        "parameters": [
+          {
+            "name": "x-approver-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bulk resolve merge candidates",
+        "tags": [
+          "deduplication"
+        ]
+      }
+    },
+    "/v1/dedup/candidates/expire-stale": {
+      "post": {
+        "operationId": "DeduplicationController_expireStale",
+        "parameters": [
+          {
+            "name": "ttlDays",
+            "required": false,
+            "in": "query",
+            "description": "TTL in days (default 14)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "x-am-user-id",
+            "in": "header",
+            "description": "User ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Auto-resolve PENDING candidates older than TTL",
+        "tags": [
+          "deduplication"
+        ]
+      }
+    },
     "/v1/dedup/merge": {
       "post": {
         "operationId": "DeduplicationController_merge",

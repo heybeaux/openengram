@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-23T22:02:06.737Z
+// Generated at 2026-02-24T05:59:54.107Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
@@ -66,6 +66,8 @@ export const API_ROUTES = {
   V1_CONTEXT: '/v1/context',
   V1_CONTEXT_SCOPED: '/v1/context/scoped',
   V1_DEDUP_CANDIDATES: '/v1/dedup/candidates',
+  V1_DEDUP_CANDIDATES_BULK_RESOLVE: '/v1/dedup/candidates/bulk-resolve',
+  V1_DEDUP_CANDIDATES_EXPIRE_STALE: '/v1/dedup/candidates/expire-stale',
   V1_DEDUP_CANDIDATES_CANDIDATEID: '/v1/dedup/candidates/{candidateId}',
   V1_DEDUP_CONFIG: '/v1/dedup/config',
   V1_DEDUP_ENABLED: '/v1/dedup/enabled',
