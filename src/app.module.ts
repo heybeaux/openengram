@@ -51,6 +51,7 @@ import { DelegationModule } from './delegation/delegation.module';
 import { SessionIndexingModule } from './session-indexing/session-indexing.module';
 import { UsageLimitMiddleware } from './common/middleware/usage-limit.middleware';
 import { AuthModule } from './common/auth.module';
+import { PersistenceModule } from './common/persistence/persistence.module';
 
 const EDITION = process.env.EDITION || 'local';
 
@@ -59,6 +60,7 @@ const coreModules = [
     isGlobal: true,
   }),
   AuthModule,
+  PersistenceModule,
   ScheduleModule.forRoot(),
   LoggerModule.forRoot({
     pinoHttp: {
