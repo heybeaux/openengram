@@ -93,21 +93,43 @@ export class ConsolidationService {
       details: [],
     };
 
-    // 1. Fetch all SESSION memories for the user
-    const sessionMemories = await this.prisma.memory.findMany({
-      where: {
-        userId,
-        layer: MemoryLayer.SESSION,
-        deletedAt: null,
-        consolidatedInto: null, // Not already consolidated
-      },
-      include: {
-        extraction: {
-          select: { what: true },
+    // 1. Fetch SESSION memories in batches (HEY-355: avoid OOM on large datasets)
+    const BATCH_SIZE = 500;
+    const sessionMemories: Array<any> = [];
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.prisma.memory.findMany({
+        where: {
+          userId,
+          layer: MemoryLayer.SESSION,
+          deletedAt: null,
+          consolidatedInto: null, // Not already consolidated
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        include: {
+          extraction: {
+            select: { what: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: BATCH_SIZE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+
+      if (batch.length === 0) break;
+      sessionMemories.push(...batch);
+      cursor = batch[batch.length - 1].id;
+
+      // Safety cap: don't load more than 5000 memories into memory at once
+      if (sessionMemories.length >= 5000) {
+        this.logger.warn(
+          `[Consolidation] Hit 5000 memory cap (${sessionMemories.length} loaded), processing subset`,
+        );
+        break;
+      }
+
+      if (batch.length < BATCH_SIZE) break; // last page
+    }
 
     this.logger.log(
       '[Consolidation] Found SESSION memories:',
