@@ -45,6 +45,26 @@ export class CloudSyncService {
     private readonly ingestService: CloudSyncIngestService,
   ) {}
 
+  /**
+   * Acquire a PostgreSQL advisory lock for cloud sync.
+   * Returns true if the lock was acquired, false if another instance holds it.
+   */
+  private async acquireAdvisoryLock(): Promise<boolean> {
+    const result = await this.prisma.$queryRaw<[{ pg_try_advisory_lock: boolean }]>`
+      SELECT pg_try_advisory_lock(hashtext('cloud_sync'))
+    `;
+    return result[0]?.pg_try_advisory_lock === true;
+  }
+
+  /**
+   * Release the PostgreSQL advisory lock for cloud sync.
+   */
+  private async releaseAdvisoryLock(): Promise<void> {
+    await this.prisma.$queryRaw`
+      SELECT pg_advisory_unlock(hashtext('cloud_sync'))
+    `;
+  }
+
   async triggerSync(accountId: string): Promise<{ message: string }> {
     if (this.syncing) {
       throw new BadRequestException('Sync already in progress');
@@ -55,6 +75,13 @@ export class CloudSyncService {
       ? this.decryptApiKey(link.cloudSyncKey)
       : this.decryptApiKey(link.cloudApiKey);
     const instanceId = link.instanceId;
+
+    // Acquire distributed lock — if another instance is syncing, bail out
+    const lockAcquired = await this.acquireAdvisoryLock();
+    if (!lockAcquired) {
+      this.logger.log('Another instance is already syncing (advisory lock held)');
+      throw new BadRequestException('Sync already in progress on another instance');
+    }
 
     this.syncing = true;
     this.syncAbortController = new AbortController();
@@ -111,6 +138,9 @@ export class CloudSyncService {
           } finally {
             this.syncing = false;
             this.syncAbortController = null;
+            await this.releaseAdvisoryLock().catch((err) =>
+              this.logger.warn(`Failed to release advisory lock: ${err.message}`),
+            );
           }
         })(),
     );
