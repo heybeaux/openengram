@@ -108,8 +108,16 @@ export class MemoryGraphService {
     for (const [entityId, memIds] of entityToMemories.entries()) {
       if (memIds.length < 2) continue;
       const entityName = entityMap.get(entityId)?.name || entityId;
-      // Connect pairs (limit fan-out: max 10 pairs per entity to avoid O(n²) explosion)
-      const cappedMemIds = memIds.slice(0, 10);
+      // HEY-364: Sort by recency + importance before capping, not insertion order
+      const sortedMemIds = [...memIds].sort((a, b) => {
+        const ma = memories.find((m) => m.id === a);
+        const mb = memories.find((m) => m.id === b);
+        // Primary: importance (desc), secondary: recency (desc)
+        const scoreA = (ma?.importanceScore ?? 0) + (ma ? ma.createdAt.getTime() / 1e15 : 0);
+        const scoreB = (mb?.importanceScore ?? 0) + (mb ? mb.createdAt.getTime() / 1e15 : 0);
+        return scoreB - scoreA;
+      });
+      const cappedMemIds = sortedMemIds.slice(0, 10);
       for (let i = 0; i < cappedMemIds.length; i++) {
         for (let j = i + 1; j < cappedMemIds.length; j++) {
           const [a, b] = [cappedMemIds[i], cappedMemIds[j]].sort();
