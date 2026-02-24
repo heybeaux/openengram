@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChallengeController } from './challenge.controller';
 import { ChallengeService } from './challenge.service';
+import { FileStoreService } from '../common/persistence/file-store.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
+
+const mockFileStore = {
+  load: jest.fn().mockReturnValue(new Map()),
+  save: jest.fn().mockResolvedValue(undefined),
+  onModuleInit: jest.fn(),
+};
 
 describe('ChallengeController', () => {
   let controller: ChallengeController;
@@ -9,7 +16,7 @@ describe('ChallengeController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ChallengeController],
-      providers: [ChallengeService],
+      providers: [ChallengeService, { provide: FileStoreService, useValue: mockFileStore }],
     })
       .overrideGuard(ApiKeyOrJwtGuard)
       .useValue({ canActivate: () => true })

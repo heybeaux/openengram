@@ -554,6 +554,7 @@ export class MemoryController {
     }
 
     res.json(result);
+  }
 
   /**
    * POST /v1/memories/import/async

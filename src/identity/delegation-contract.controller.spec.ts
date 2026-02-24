@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DelegationContractController } from './delegation-contract.controller';
 import { DelegationContractService } from './delegation-contract.service';
+import { FileStoreService } from '../common/persistence/file-store.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
+
+const mockFileStore = {
+  load: jest.fn().mockReturnValue(new Map()),
+  save: jest.fn().mockResolvedValue(undefined),
+  onModuleInit: jest.fn(),
+};
 
 describe('DelegationContractController', () => {
   let controller: DelegationContractController;
@@ -9,7 +16,7 @@ describe('DelegationContractController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DelegationContractController],
-      providers: [DelegationContractService],
+      providers: [DelegationContractService, { provide: FileStoreService, useValue: mockFileStore }],
     })
       .overrideGuard(ApiKeyOrJwtGuard)
       .useValue({ canActivate: () => true })
