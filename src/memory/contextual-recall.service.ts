@@ -20,6 +20,11 @@ interface SessionState {
 export class ContextualRecallService {
   private readonly logger = new Logger(ContextualRecallService.name);
   private sessions = new Map<string, SessionState>();
+  private lastSweep = Date.now();
+
+  // HEY-361: Session TTL — evict sessions idle for more than 1 hour
+  private readonly SESSION_TTL_MS = 60 * 60 * 1000;
+  private readonly SWEEP_INTERVAL_MS = 5 * 60 * 1000; // sweep every 5 min
 
   // Cosine distance threshold for topic shift detection
   private readonly TOPIC_SHIFT_THRESHOLD = 0.4;
@@ -248,6 +253,9 @@ export class ContextualRecallService {
   }
 
   private getOrCreateSession(sessionKey: string): SessionState {
+    // HEY-361: Periodic sweep of stale sessions
+    this.sweepStaleSessions();
+
     let session = this.sessions.get(sessionKey);
     if (!session) {
       session = {
@@ -258,7 +266,30 @@ export class ContextualRecallService {
       };
       this.sessions.set(sessionKey, session);
     }
+    // Track last access for TTL eviction
+    session.lastRecallAt = Date.now();
     return session;
+  }
+
+  /**
+   * HEY-361: Evict sessions that haven't been accessed within TTL.
+   * Runs at most once per SWEEP_INTERVAL_MS to avoid perf overhead.
+   */
+  private sweepStaleSessions(): void {
+    const now = Date.now();
+    if (now - this.lastSweep < this.SWEEP_INTERVAL_MS) return;
+    this.lastSweep = now;
+
+    let evicted = 0;
+    for (const [key, session] of this.sessions) {
+      if (now - session.lastRecallAt > this.SESSION_TTL_MS) {
+        this.sessions.delete(key);
+        evicted++;
+      }
+    }
+    if (evicted > 0) {
+      this.logger.debug(`[SessionTTL] Evicted ${evicted} stale sessions, ${this.sessions.size} remaining`);
+    }
   }
 
   /**

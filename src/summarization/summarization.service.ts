@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLMService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
@@ -40,13 +40,15 @@ interface LLMSummarizationResponse {
 }
 
 @Injectable()
-export class SummarizationService {
+export class SummarizationService implements OnModuleDestroy {
   private readonly logger = new Logger(SummarizationService.name);
   private enabled: boolean;
   private batchSize: number;
 
   // In-memory turn buffers keyed by sessionId
   private turnBuffers: Map<string, MessageTurnDto[]> = new Map();
+  // HEY-362: Track userId per session for flush-on-shutdown
+  private sessionUserIds: Map<string, string> = new Map();
 
   constructor(
     private config: ConfigService,
@@ -181,6 +183,7 @@ export class SummarizationService {
     const buffer = this.turnBuffers.get(sessionId) || [];
     buffer.push(...turns);
     this.turnBuffers.set(sessionId, buffer);
+    this.sessionUserIds.set(sessionId, userId);
 
     if (buffer.length >= this.batchSize) {
       const batch = buffer.splice(0, this.batchSize);
@@ -220,6 +223,36 @@ export class SummarizationService {
    */
   getBufferSize(sessionId: string): number {
     return this.turnBuffers.get(sessionId)?.length || 0;
+  }
+
+  /**
+   * HEY-362: Flush all non-empty turn buffers on module destroy (graceful shutdown).
+   * Best-effort — errors are logged but don't prevent shutdown.
+   */
+  async onModuleDestroy(): Promise<void> {
+    const nonEmpty = [...this.turnBuffers.entries()].filter(
+      ([, turns]) => turns.length > 0,
+    );
+    if (nonEmpty.length === 0) return;
+
+    this.logger.log(
+      `[Shutdown] Flushing ${nonEmpty.length} non-empty summarization buffers`,
+    );
+
+    const results = await Promise.allSettled(
+      nonEmpty.map(([sessionId]) => {
+        const userId = this.sessionUserIds.get(sessionId);
+        if (!userId) {
+          this.logger.warn(`[Shutdown] No userId for session ${sessionId}, skipping flush`);
+          return Promise.resolve(null);
+        }
+        return this.flushBuffer(userId, sessionId);
+      }),
+    );
+
+    const flushed = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    this.logger.log(`[Shutdown] Summarization flush complete: ${flushed} flushed, ${failed} failed`);
   }
 
   private normalizeCategory(category: string): SummaryFact['category'] {
