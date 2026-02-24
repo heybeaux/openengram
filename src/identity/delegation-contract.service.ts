@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   DelegationContract,
@@ -19,9 +19,10 @@ import { ChallengeService } from './challenge.service';
  * DelegationContract Prisma model is recommended (see migration notes).
  */
 @Injectable()
-export class DelegationContractService {
+export class DelegationContractService implements OnModuleDestroy {
   private readonly logger = new Logger(DelegationContractService.name);
   private readonly contracts = new Map<string, DelegationContract>();
+  private readonly timers = new Map<string, NodeJS.Timeout>();
 
   /** Callback to create a memory when a contract completes */
   private createMemoryFn?: (
@@ -62,7 +63,9 @@ export class DelegationContractService {
     this.logger.log(`Contract ${contract.id} created for agent ${contract.delegatedTo}`);
 
     // Schedule timeout
-    setTimeout(() => this.handleTimeout(contract.id), contract.timeout);
+    const timer = setTimeout(() => this.handleTimeout(contract.id), contract.timeout);
+    timer.unref();
+    this.timers.set(contract.id, timer);
 
     // Auto-challenge check via ChallengeService
     if (this.challengeService) {
@@ -102,6 +105,9 @@ export class DelegationContractService {
     contract.status = dto.status;
     contract.result = dto.result;
     contract.completedAt = new Date();
+
+    // Clear the timeout timer
+    this.clearTimer(id);
 
     this.logger.log(`Contract ${id} completed with status: ${dto.status}`);
 
@@ -144,6 +150,7 @@ export class DelegationContractService {
   }
 
   private handleTimeout(id: string): void {
+    this.timers.delete(id);
     const contract = this.contracts.get(id);
     if (!contract || contract.status !== 'pending' && contract.status !== 'in_progress') return;
 
@@ -154,6 +161,21 @@ export class DelegationContractService {
     this.createTaskCompletionMemory(contract).catch((err) =>
       this.logger.error(`Failed to create timeout memory: ${err}`),
     );
+  }
+
+  onModuleDestroy(): void {
+    for (const [id, timer] of this.timers) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
+
+  private clearTimer(id: string): void {
+    const timer = this.timers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(id);
+    }
   }
 
   /** Get all contracts for a specific agent (for failure pattern analysis) */
