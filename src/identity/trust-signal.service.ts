@@ -198,23 +198,37 @@ export class TrustSignalService {
       memory.source === 'AGENT_REFLECTION' ||
       memory.source === 'AGENT_OBSERVATION'
     ) {
-      const isSuccess = this.looksLikeSuccess(memory.raw);
-      await this.recordSignal({
-        userId: memory.userId,
-        agentId: memory.agentId ?? undefined,
-        signalType: isSuccess ? 'SUCCESS' : 'SUCCESS', // Observations default to success
-        context: memory.raw.substring(0, 500),
-        category,
-        weight: 0.5, // Lower weight for implicit signals
-        sourceMemoryId: memory.id,
-      });
+      const successState = this.classifyOutcome(memory.raw);
+      // HEY-357: Only record signal when outcome is clear, skip ambiguous
+      if (successState !== null) {
+        await this.recordSignal({
+          userId: memory.userId,
+          agentId: memory.agentId ?? undefined,
+          signalType: successState ? 'SUCCESS' : 'FAILURE',
+          context: memory.raw.substring(0, 500),
+          category,
+          weight: 0.5, // Lower weight for implicit signals
+          sourceMemoryId: memory.id,
+        });
+      }
     }
   }
 
   /**
    * Simple heuristic to detect success language in memory content.
    */
+  /**
+   * @deprecated Use classifyOutcome instead
+   */
   private looksLikeSuccess(text: string): boolean {
+    return this.classifyOutcome(text) ?? false;
+  }
+
+  /**
+   * HEY-357: Classify outcome as true (success), false (failure), or null (ambiguous/neutral).
+   * Returns null when text has mixed signals or neither success nor failure patterns.
+   */
+  private classifyOutcome(text: string): boolean | null {
     const successPatterns =
       /\b(completed|succeeded|deployed|fixed|resolved|passed|shipped|merged|approved)\b/i;
     const failurePatterns =
@@ -225,6 +239,6 @@ export class TrustSignalService {
 
     if (hasSuccess && !hasFailure) return true;
     if (hasFailure && !hasSuccess) return false;
-    return true; // Default to success when ambiguous
+    return null; // HEY-357: Default to neutral when ambiguous
   }
 }
