@@ -202,23 +202,39 @@ export class WakingCycleService {
     });
 
     // ── 5. Behavioral consistency check (HEY-175) ──────────────────
+    // FIX: Skip if a consistency:pattern_break insight was stored in the last 24h
     try {
       const user = await this.prisma.user.findFirst();
       if (user) {
-        const consistencyResult = await this.behavioralConsistency.check(
-          user.id,
-          { maxLlmCalls: Math.max(0, AwarenessConfig.maxLlmCalls - 1) },
-        );
-        for (const inconsistency of consistencyResult.inconsistencies) {
-          insights.push({
-            content: `[Behavioral Consistency] ${inconsistency.description}` +
-              (inconsistency.suggestion ? ` — Suggestion: ${inconsistency.suggestion}` : ''),
-            insightType: `consistency:${inconsistency.type}`,
-            confidence: inconsistency.confidence,
-            sourceMemoryIds: inconsistency.evidenceMemoryIds,
-            signalSource: 'behavioral_consistency',
-            actionable: inconsistency.severity !== 'low',
-          });
+        const recentConsistencyInsight = await this.prisma.memory.findFirst({
+          where: {
+            userId: user.id,
+            layer: 'INSIGHT',
+            deletedAt: null,
+            raw: { startsWith: '[Behavioral Consistency]' },
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          },
+          select: { id: true },
+        });
+
+        if (recentConsistencyInsight) {
+          this.logger.debug('[Awareness] Skipping behavioral consistency — recent insight exists (24h cooldown)');
+        } else {
+          const consistencyResult = await this.behavioralConsistency.check(
+            user.id,
+            { maxLlmCalls: Math.max(0, AwarenessConfig.maxLlmCalls - 1) },
+          );
+          for (const inconsistency of consistencyResult.inconsistencies) {
+            insights.push({
+              content: `[Behavioral Consistency] ${inconsistency.description}` +
+                (inconsistency.suggestion ? ` — Suggestion: ${inconsistency.suggestion}` : ''),
+              insightType: `consistency:${inconsistency.type}`,
+              confidence: inconsistency.confidence,
+              sourceMemoryIds: inconsistency.evidenceMemoryIds,
+              signalSource: 'behavioral_consistency',
+              actionable: inconsistency.severity !== 'low',
+            });
+          }
         }
       }
     } catch (error) {
