@@ -255,6 +255,41 @@ export class DeduplicationController {
     }
   }
 
+  /**
+   * HEY-347: Bulk resolve candidates
+   */
+  @Post('candidates/bulk-resolve')
+  @ApiOperation({ summary: 'Bulk resolve merge candidates' })
+  @ApiResponse({ status: 200 })
+  async bulkResolve(
+    @Body() dto: { candidateIds: string[]; action: 'approve' | 'reject' },
+    @Headers('x-approver-id') approverId?: string,
+  ): Promise<{ resolved: number; errors: number }> {
+    if (!dto.candidateIds?.length) {
+      throw new HttpException('candidateIds required', HttpStatus.BAD_REQUEST);
+    }
+    return this.reviewService.bulkResolve(
+      dto.candidateIds,
+      dto.action ?? 'approve',
+      approverId ?? 'bulk-resolve',
+    );
+  }
+
+  /**
+   * HEY-347: Auto-resolve stale PENDING candidates past TTL
+   */
+  @Post('candidates/expire-stale')
+  @ApiOperation({ summary: 'Auto-resolve PENDING candidates older than TTL' })
+  @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
+  @ApiQuery({ name: 'ttlDays', required: false, type: Number, description: 'TTL in days (default 14)' })
+  @ApiResponse({ status: 200 })
+  async expireStale(
+    @UserId() userId: string,
+    @Query('ttlDays') ttlDays?: number,
+  ): Promise<{ resolved: number; errors: number }> {
+    return this.reviewService.expireStale(userId, ttlDays ? Number(ttlDays) : 14);
+  }
+
   // ==========================================================================
   // Manual Merge Operations
   // ==========================================================================
