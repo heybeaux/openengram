@@ -62,6 +62,9 @@ describe('CloudSyncService', () => {
         upsert: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
+      syncEvent: {
+        create: jest.fn().mockResolvedValue({}),
+      },
       syncAgentMap: {
         findUnique: jest.fn(),
         create: jest.fn(),

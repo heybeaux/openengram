@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-// PrismaClient import kept for performSyncWithClient signature compatibility
 import { generateContentHash } from '../common/content-hash.util';
 import { SyncPushDto, SyncPushResponse } from './dto/sync-push.dto';
 
@@ -22,9 +22,17 @@ export interface SyncResult {
 @Injectable()
 export class CloudSyncPushService {
   private readonly logger = new Logger(CloudSyncPushService.name);
-  private readonly CLOUD_API_BASE = 'https://api.openengram.ai';
+  private readonly CLOUD_API_BASE: string;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    this.CLOUD_API_BASE = this.configService.get<string>(
+      'CLOUD_API_URL',
+      'https://api.openengram.ai',
+    );
+  }
 
   async performSyncWithClient(
     db: PrismaClient | PrismaService,
