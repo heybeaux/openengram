@@ -56,6 +56,7 @@ import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
 import { MemoryJobQueueService } from './memory-job-queue.service';
+import { MemoryPipelineService } from './memory-pipeline.service';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -70,6 +71,7 @@ export class MemoryController {
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
     private readonly memoryJobQueue: MemoryJobQueueService,
+    private readonly memoryPipeline: MemoryPipelineService,
   ) {}
 
   /**
@@ -161,9 +163,8 @@ export class MemoryController {
     @Body() dto: CreateMemoryBatchDto,
   ): Promise<{ jobId: string; count: number; status: string }> {
     const memories = dto.memories.map((m) => ({
-      memoryId: m.id || crypto.randomUUID(),
-      raw: m.raw || m.content || '',
-      extractionContext: m.extractionContext,
+      memoryId: crypto.randomUUID(),
+      raw: m.raw,
     }));
     const jobId = this.memoryJobQueue.createBatch(userId, memories);
     return { jobId, count: memories.length, status: 'processing' };
@@ -553,6 +554,73 @@ export class MemoryController {
     }
 
     res.json(result);
+
+  /**
+   * POST /v1/memories/import/async
+   * HEY-353: Async import — accepts the same format as /import but processes
+   * in background via the job queue. Returns 202 with a jobId.
+   */
+  @Post('memories/import/async')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Import memories asynchronously',
+    description:
+      'Import memories in background via the job queue. Returns immediately with a job ID for status polling.',
+  })
+  @ApiResponse({ status: 202, description: 'Import enqueued for background processing.' })
+  async importMemoriesAsync(
+    @UserId() userId: string,
+    @Body() dto: ImportMemoriesDto,
+  ): Promise<{ jobId: string; count: number; status: string }> {
+    const memories = dto.memories.map((m) => ({
+      memoryId: m.id || crypto.randomUUID(),
+      raw: m.raw,
+      extractionContext: m.metadata?.extractionContext,
+    }));
+    const jobId = this.memoryJobQueue.createBatch(userId, memories);
+    return { jobId, count: memories.length, status: 'processing' };
+  }
+
+  // =========================================================================
+  // EMBEDDING STATUS (HEY-345)
+  // =========================================================================
+
+  /**
+   * GET /v1/memories/embedding-status
+   * Show count of memories with/without embeddings and retry queue status.
+   */
+  @Get('memories/embedding-status')
+  @ApiOperation({
+    summary: 'Embedding status',
+    description: 'Show counts of memories with and without embeddings, plus retry queue status.',
+  })
+  async getEmbeddingStatus(
+    @UserId() userId: string,
+  ): Promise<{
+    withEmbedding: number;
+    withoutEmbedding: number;
+    retryQueueSize: number;
+    exhaustedRetries: number;
+  }> {
+    return this.memoryPipeline.getEmbeddingStatus(userId);
+  }
+
+  /**
+   * POST /v1/memories/embedding-retry
+   * Manually trigger retry of failed embeddings.
+   */
+  @Post('memories/embedding-retry')
+  @ApiOperation({
+    summary: 'Retry failed embeddings',
+    description: 'Retry generating embeddings for memories that previously failed.',
+  })
+  async retryFailedEmbeddings(): Promise<{
+    retried: number;
+    succeeded: number;
+    failed: number;
+    discovered: number;
+  }> {
+    return this.memoryPipeline.retryFailedEmbeddings();
   }
 
   /**

@@ -54,6 +54,8 @@ describe('MemoryController', () => {
       contextualRecallService,
       prismaService,
       { enqueue: jest.fn().mockReturnValue('job-123'), getStatus: jest.fn() } as any,
+      { createBatch: jest.fn().mockReturnValue('batch-123'), getBatchStatus: jest.fn() } as any,
+      { getEmbeddingStatus: jest.fn().mockResolvedValue({ withEmbedding: 10, withoutEmbedding: 2, retryQueueSize: 1, exhaustedRetries: 0 }), retryFailedEmbeddings: jest.fn().mockResolvedValue({ retried: 2, succeeded: 1, failed: 1, discovered: 0 }) } as any,
     );
   });
 
