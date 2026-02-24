@@ -1,4 +1,4 @@
-import { Injectable, Optional, Logger } from '@nestjs/common';
+import { Injectable, Optional, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -71,7 +71,7 @@ interface BatchJob {
  * Coordinates incremental and batch deduplication.
  */
 @Injectable()
-export class DeduplicationService {
+export class DeduplicationService implements OnModuleDestroy {
   private readonly logger = new Logger(DeduplicationService.name);
   private config: DedupConfig;
   private safetyConfig: SafetyConfig;
@@ -98,6 +98,17 @@ export class DeduplicationService {
       incrementalAutoMerge: true,
     };
     this.safetyConfig = { ...DEFAULT_SAFETY_CONFIG };
+  }
+
+  onModuleDestroy(): void {
+    const runningJobs = Array.from(this.jobs.values()).filter(
+      (j) => j.status === BatchJobStatus.RUNNING,
+    );
+    if (runningJobs.length > 0) {
+      this.logger.warn(
+        `Shutting down with ${runningJobs.length} deduplication job(s) still in progress: ${runningJobs.map((j) => j.id).join(', ')}`,
+      );
+    }
   }
 
   /**

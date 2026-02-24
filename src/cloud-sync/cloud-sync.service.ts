@@ -33,7 +33,6 @@ export interface SyncStatus {
 @Injectable()
 export class CloudSyncService {
   private readonly logger = new Logger(CloudSyncService.name);
-  private syncing = false;
   private syncAbortController: AbortController | null = null;
   private syncProgress = { synced: 0, total: 0 };
 

@@ -46,6 +46,7 @@ export class SummarizationService implements OnModuleDestroy {
   private batchSize: number;
 
   // In-memory turn buffers keyed by sessionId
+  // ⚠️ Ephemeral — lost on restart. DB persistence planned in M-7 (Kit's ticket). (HEY-346 triage)
   private turnBuffers: Map<string, MessageTurnDto[]> = new Map();
   // HEY-362: Track userId per session for flush-on-shutdown
   private sessionUserIds: Map<string, string> = new Map();

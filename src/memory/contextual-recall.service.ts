@@ -19,6 +19,7 @@ interface SessionState {
 @Injectable()
 export class ContextualRecallService {
   private readonly logger = new Logger(ContextualRecallService.name);
+  // ⚠️ Ephemeral session state — resets on restart. Flagged for DB persistence in M-6. (HEY-346 triage)
   private sessions = new Map<string, SessionState>();
   private lastSweep = Date.now();
 
