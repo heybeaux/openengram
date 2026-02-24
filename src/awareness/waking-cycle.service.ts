@@ -310,7 +310,24 @@ export class WakingCycleService {
 
     for (const insight of insights) {
       try {
-        // HEY-336: Deduplicate insights using cosine similarity
+        // Global 7-day dedup: check if an INSIGHT with same insightType exists recently
+        const recentSameType = await this.prisma.memory.findFirst({
+          where: {
+            userId: user.id,
+            layer: 'INSIGHT',
+            deletedAt: null,
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+            metadata: { path: ['insightType'], equals: insight.insightType },
+          },
+          select: { id: true },
+        });
+
+        if (recentSameType) {
+          this.logger.debug(`Skipping insight (7-day type dedup): "${insight.content.slice(0, 60)}..." [${insight.insightType}]`);
+          continue;
+        }
+
+        // HEY-336: Deduplicate insights using cosine similarity (fallback)
         if (this.embeddingService) {
           try {
             const isDuplicate = await this.isDuplicateInsight(user.id, insight.content);
