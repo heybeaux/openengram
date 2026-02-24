@@ -386,7 +386,7 @@ describe('GraphController', () => {
       );
       expect(mockGraphService.backfill).toHaveBeenCalledTimes(2);
       expect(result.processed).toBe(6);
-      expect(result.users).toBe(2);
+      expect((result as any).users).toBe(2);
     });
 
     it('should clamp limit to valid range', async () => {

@@ -38,6 +38,7 @@ describe('CloudSyncIngestService', () => {
     },
     cloudInstance: {
       upsert: jest.fn(),
+      findMany: jest.fn(),
     },
   };
 
