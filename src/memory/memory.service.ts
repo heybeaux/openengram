@@ -628,6 +628,18 @@ export class MemoryService {
               },
             });
           }
+
+          // HEY-363: Re-extract entities when content changes
+          if (extracted.entities?.length > 0) {
+            await this.pipelineService.storeEntities(
+              userId,
+              memoryId,
+              extracted.entities,
+            );
+            this.logger.log(
+              `[Memory] Re-extracted ${extracted.entities.length} entities for ${memoryId}`,
+            );
+          }
         })
         .catch((err) => {
           this.logger.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
