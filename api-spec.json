@@ -90,6 +90,57 @@
         ]
       }
     },
+    "/v1/memories/batch/async": {
+      "post": {
+        "description": "Enqueue multiple memories for background processing. Returns immediately with a job ID for status polling.",
+        "operationId": "MemoryController_rememberAllAsync",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMemoryBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Batch enqueued for processing."
+          }
+        },
+        "summary": "Create memories in batch (async)",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/batch/{jobId}/status": {
+      "get": {
+        "description": "Poll for the status of an async batch memory creation job.",
+        "operationId": "MemoryController_getBatchJobStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get async batch job status",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
     "/v1/memories/query": {
       "post": {
         "description": "Semantic search across memories using natural language queries.",
@@ -409,6 +460,64 @@
           }
         },
         "summary": "Stream import memories (NDJSON)",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/import/async": {
+      "post": {
+        "description": "Import memories in background via the job queue. Returns immediately with a job ID for status polling.",
+        "operationId": "MemoryController_importMemoriesAsync",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMemoriesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Import enqueued for background processing."
+          }
+        },
+        "summary": "Import memories asynchronously",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/embedding-status": {
+      "get": {
+        "description": "Show counts of memories with and without embeddings, plus retry queue status.",
+        "operationId": "MemoryController_getEmbeddingStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Embedding status",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/embedding-retry": {
+      "post": {
+        "description": "Retry generating embeddings for memories that previously failed.",
+        "operationId": "MemoryController_retryFailedEmbeddings",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Retry failed embeddings",
         "tags": [
           "memories"
         ]

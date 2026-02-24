@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-24T12:54:27.784Z
+// Generated at 2026-02-24T19:05:13.542Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
@@ -137,10 +137,15 @@ export const API_ROUTES = {
   V1_MEMORIES_BACKFILL: '/v1/memories/backfill',
   V1_MEMORIES_BACKFILL_STATUS: '/v1/memories/backfill/status',
   V1_MEMORIES_BATCH: '/v1/memories/batch',
+  V1_MEMORIES_BATCH_ASYNC: '/v1/memories/batch/async',
+  V1_MEMORIES_BATCH_JOBID_STATUS: '/v1/memories/batch/{jobId}/status',
+  V1_MEMORIES_EMBEDDING_RETRY: '/v1/memories/embedding-retry',
+  V1_MEMORIES_EMBEDDING_STATUS: '/v1/memories/embedding-status',
   V1_MEMORIES_EXPORT: '/v1/memories/export',
   V1_MEMORIES_FLUSH: '/v1/memories/flush',
   V1_MEMORIES_GRAPH: '/v1/memories/graph',
   V1_MEMORIES_IMPORT: '/v1/memories/import',
+  V1_MEMORIES_IMPORT_ASYNC: '/v1/memories/import/async',
   V1_MEMORIES_IMPORT_STREAM: '/v1/memories/import/stream',
   V1_MEMORIES_QUERY: '/v1/memories/query',
   V1_MEMORIES_SEARCH: '/v1/memories/search',
