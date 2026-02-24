@@ -212,13 +212,13 @@ export class WakingCycleService {
             layer: 'INSIGHT',
             deletedAt: null,
             raw: { startsWith: '[Behavioral Consistency]' },
-            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
           },
           select: { id: true },
         });
 
         if (recentConsistencyInsight) {
-          this.logger.debug('[Awareness] Skipping behavioral consistency — recent insight exists (24h cooldown)');
+          this.logger.debug('[Awareness] Skipping behavioral consistency — recent insight exists (7-day cooldown)');
         } else {
           const consistencyResult = await this.behavioralConsistency.check(
             user.id,
