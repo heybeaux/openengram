@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AwarenessConfig } from './config/awareness.config';
 import * as crypto from 'crypto';
@@ -26,7 +26,7 @@ export interface NotificationResult {
  * webhook delivery system.
  */
 @Injectable()
-export class ProactiveNotificationService {
+export class ProactiveNotificationService implements OnModuleDestroy {
   private readonly logger = new Logger(ProactiveNotificationService.name);
 
   /**
@@ -37,6 +37,14 @@ export class ProactiveNotificationService {
   private readonly configs = new Map<string, NotificationConfig>();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  onModuleDestroy(): void {
+    if (this.configs.size > 0) {
+      this.logger.warn(
+        `Shutting down with ${this.configs.size} notification config(s) in memory`,
+      );
+    }
+  }
 
   /**
    * Configure notification settings for an account.

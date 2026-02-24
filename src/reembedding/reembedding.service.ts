@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
@@ -43,7 +43,7 @@ interface ReembeddingJob {
  * - Dry run support for previewing changes
  */
 @Injectable()
-export class ReembeddingService {
+export class ReembeddingService implements OnModuleDestroy {
   private readonly logger = new Logger(ReembeddingService.name);
   // In-memory job storage (MVP - would use DB/Redis in production)
   private jobs: Map<string, ReembeddingJob> = new Map();
@@ -56,6 +56,17 @@ export class ReembeddingService {
     private enricher: ContextEnricherService,
     private embeddingProvider: EmbeddingProviderService,
   ) {}
+
+  onModuleDestroy(): void {
+    const runningJobs = Array.from(this.jobs.values()).filter(
+      (j) => j.status === ReembeddingJobStatus.RUNNING,
+    );
+    if (runningJobs.length > 0) {
+      this.logger.warn(
+        `Shutting down with ${runningJobs.length} re-embedding job(s) still in progress: ${runningJobs.map((j) => j.id).join(', ')}`,
+      );
+    }
+  }
 
   /**
    * Check if re-embedding is enabled via feature flag

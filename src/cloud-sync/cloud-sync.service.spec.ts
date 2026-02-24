@@ -62,6 +62,9 @@ describe('CloudSyncService', () => {
         upsert: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
+      syncEvent: {
+        create: jest.fn().mockResolvedValue({}),
+      },
       syncAgentMap: {
         findUnique: jest.fn(),
         create: jest.fn(),
@@ -84,6 +87,7 @@ describe('CloudSyncService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([{ pg_try_advisory_lock: true }]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -169,11 +173,14 @@ describe('CloudSyncService', () => {
       prisma.memory.count.mockResolvedValue(0);
       prisma.memory.findMany.mockResolvedValue([]);
 
-      // First call starts background sync and returns immediately
+      // First call acquires advisory lock and starts background sync
       const first = await service.triggerSync('acc-1');
       expect(first.message).toBe('Sync started in background');
 
-      // Second call should reject because syncing flag is still set
+      // Simulate advisory lock held by another instance on second call
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([{ pg_try_advisory_lock: false }]);
+
+      // Second call should reject because advisory lock is held
       await expect(service.triggerSync('acc-1')).rejects.toThrow(
         'Sync already in progress',
       );

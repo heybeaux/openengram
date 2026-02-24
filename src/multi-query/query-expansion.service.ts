@@ -72,7 +72,7 @@ const DEFAULT_CONFIG: ExpansionConfig = {
 @Injectable()
 export class QueryExpansionService {
   private readonly logger = new Logger(QueryExpansionService.name);
-  // Person-specific expansions (can be populated dynamically)
+  // ⚠️ Pure cache — OK to lose on restart. Not persisted. (HEY-346 triage)
   private personExpansions: Map<string, string[]> = new Map();
 
   constructor(

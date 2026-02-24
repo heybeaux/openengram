@@ -27,7 +27,7 @@ export class FeedbackService implements OnModuleDestroy {
   private buffer: BufferedEvent[] = [];
   private flushInterval: ReturnType<typeof setInterval> | null = null;
 
-  /** In-memory weight cache per user. */
+  /** In-memory weight cache per user. ⚠️ Pure cache — OK to lose on restart. (HEY-346 triage) */
   private weightCache = new Map<string, Record<string, number>>();
 
   constructor(private readonly prisma: PrismaService) {

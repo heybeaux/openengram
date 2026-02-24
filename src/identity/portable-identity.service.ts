@@ -13,6 +13,23 @@ import * as crypto from 'crypto';
 const SCHEMA_VERSION = '1.0.0';
 
 /**
+ * Deterministic JSON serialization with recursive key sorting.
+ * Ensures identical objects always produce the same string regardless of key order.
+ */
+function deterministicStringify(value: any): string {
+  if (value === null || value === undefined) return JSON.stringify(value);
+  if (typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return '[' + value.map((item) => deterministicStringify(item)).join(',') + ']';
+  }
+  const keys = Object.keys(value).sort();
+  const pairs = keys.map(
+    (key) => JSON.stringify(key) + ':' + deterministicStringify(value[key]),
+  );
+  return '{' + pairs.join(',') + '}';
+}
+
+/**
  * HEY-190: Portable Agent Identity
  *
  * Export and import agent identity profiles for cross-platform portability.
@@ -341,10 +358,11 @@ export class PortableIdentityService {
   }
 
   /**
-   * Compute SHA-256 hash for integrity verification
+   * Compute SHA-256 hash for integrity verification.
+   * Uses deterministic JSON serialization with recursive key sorting.
    */
   computeHash(data: any): string {
-    const json = JSON.stringify(data, Object.keys(data).sort());
+    const json = deterministicStringify(data);
     return crypto.createHash('sha256').update(json).digest('hex');
   }
 

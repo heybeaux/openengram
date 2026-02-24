@@ -27,7 +27,7 @@ interface ScoredMemory {
   tokens: number;
 }
 
-// In-memory cache for task embeddings (sessionKey -> embedding)
+// ⚠️ Pure cache — OK to lose on restart. Not persisted. (HEY-346 triage)
 const taskEmbeddingCache = new Map<
   string,
   { embedding: number[]; taskDesc: string }

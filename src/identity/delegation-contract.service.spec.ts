@@ -2,6 +2,11 @@ import { DelegationContractService } from './delegation-contract.service';
 import { ChallengeService } from './challenge.service';
 import { CreateContractDto } from './identity.types';
 
+const mockFileStore = {
+  load: jest.fn().mockReturnValue(new Map()),
+  save: jest.fn().mockResolvedValue(undefined),
+} as any;
+
 describe('DelegationContractService', () => {
   let service: DelegationContractService;
   let challengeService: ChallengeService;
@@ -17,8 +22,8 @@ describe('DelegationContractService', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
-    service = new DelegationContractService();
-    challengeService = new ChallengeService();
+    service = new DelegationContractService(mockFileStore);
+    challengeService = new ChallengeService(mockFileStore);
     service.setChallengeService(challengeService);
     createMemoryFn = jest.fn().mockResolvedValue({ id: 'mem-1' });
     service.setCreateMemoryFn(createMemoryFn);

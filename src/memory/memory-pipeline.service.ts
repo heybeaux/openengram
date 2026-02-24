@@ -14,9 +14,23 @@ import {
   DEDUP_SIMILARITY_THRESHOLD,
 } from './memory-dedup.service';
 
+/** Entry in the in-memory embedding retry queue */
+interface EmbeddingRetryEntry {
+  memoryId: string;
+  userId: string;
+  raw: string;
+  attempts: number;
+  lastAttempt: Date;
+}
+
 @Injectable()
 export class MemoryPipelineService {
   private readonly logger = new Logger(MemoryPipelineService.name);
+
+  /** In-memory retry queue for failed embeddings (HEY-345) */
+  private readonly embeddingRetryQueue = new Map<string, EmbeddingRetryEntry>();
+  private static readonly MAX_RETRY_ATTEMPTS = 5;
+
   constructor(
     private prisma: PrismaService,
     private extraction: ExtractionService,
@@ -215,31 +229,8 @@ export class MemoryPipelineService {
       this.logger.log('[Memory] No entities to store for:', memoryId);
     }
 
-    // 5. Store embedding (already generated in parallel with extraction)
-    if (embeddingResult.ok) {
-      try {
-        const embeddingId = await this.embedding.store(memoryId, embeddingResult.embedding);
-        this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
-
-        await this.prisma.memory.update({
-          where: { id: memoryId },
-          data: { embeddingId },
-        });
-
-        // 7. Link to related memories
-        await this.linkRelatedMemories(memoryId, embeddingResult.embedding, userId);
-      } catch (storeError) {
-        this.logger.warn(
-          `[Memory] Embedding store failed for ${memoryId}:`,
-          storeError instanceof Error ? storeError.message : storeError,
-        );
-      }
-    } else {
-      this.logger.warn(
-        `[Memory] Embedding generation failed for ${memoryId} — memory saved without embedding, will retry later:`,
-        embeddingResult.error instanceof Error ? embeddingResult.error.message : embeddingResult.error,
-      );
-    }
+    // 5. Generate and store embedding (Phase 2 — resilient, HEY-345)
+    await this.generateAndStoreEmbedding(memoryId, raw, userId);
 
     this.logger.log('[Memory] extractAndEmbed complete:', memoryId);
 
@@ -278,6 +269,147 @@ export class MemoryPipelineService {
           );
         });
     }
+  }
+
+  /**
+   * Phase 2: Generate embedding with retry queue on failure (HEY-345).
+   * If embedding fails, the memory is added to an in-memory retry queue.
+   */
+  async generateAndStoreEmbedding(
+    memoryId: string,
+    raw: string,
+    userId: string,
+  ): Promise<boolean> {
+    try {
+      const embedding = await this.embedding.generate(raw);
+      const embeddingId = await this.embedding.store(memoryId, embedding);
+      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+
+      await this.prisma.memory.update({
+        where: { id: memoryId },
+        data: { embeddingId },
+      });
+
+      // Link to related memories
+      await this.linkRelatedMemories(memoryId, embedding, userId);
+
+      // Remove from retry queue if it was there
+      this.embeddingRetryQueue.delete(memoryId);
+      return true;
+    } catch (embedError) {
+      this.logger.warn(
+        `[Memory] Embedding failed for ${memoryId} — queued for retry:`,
+        embedError instanceof Error ? embedError.message : embedError,
+      );
+
+      // Add to retry queue
+      const existing = this.embeddingRetryQueue.get(memoryId);
+      this.embeddingRetryQueue.set(memoryId, {
+        memoryId,
+        userId,
+        raw,
+        attempts: (existing?.attempts ?? 0) + 1,
+        lastAttempt: new Date(),
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Retry all failed embeddings in the queue (HEY-345).
+   * Also discovers memories in DB that have no embedding.
+   * Can be called manually or via cron.
+   */
+  async retryFailedEmbeddings(): Promise<{
+    retried: number;
+    succeeded: number;
+    failed: number;
+    discovered: number;
+  }> {
+    // 1. Discover memories without embeddings from DB (up to 100)
+    const unembedded = await this.prisma.memory.findMany({
+      where: {
+        embeddingId: null,
+        deletedAt: null,
+      },
+      select: { id: true, userId: true, raw: true },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let discovered = 0;
+    for (const mem of unembedded) {
+      if (!this.embeddingRetryQueue.has(mem.id)) {
+        this.embeddingRetryQueue.set(mem.id, {
+          memoryId: mem.id,
+          userId: mem.userId,
+          raw: mem.raw,
+          attempts: 0,
+          lastAttempt: new Date(0),
+        });
+        discovered++;
+      }
+    }
+
+    let retried = 0;
+    let succeeded = 0;
+    let failed = 0;
+
+    const entries = Array.from(this.embeddingRetryQueue.values());
+    for (const entry of entries) {
+      if (entry.attempts >= MemoryPipelineService.MAX_RETRY_ATTEMPTS) {
+        continue; // Skip exhausted entries
+      }
+
+      retried++;
+      const ok = await this.generateAndStoreEmbedding(
+        entry.memoryId,
+        entry.raw,
+        entry.userId,
+      );
+      if (ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
+    }
+
+    this.logger.log(
+      `[Retry] Embedding retry complete: ${succeeded}/${retried} succeeded, ${discovered} discovered from DB`,
+    );
+    return { retried, succeeded, failed, discovered };
+  }
+
+  /**
+   * Get embedding status counts (HEY-345).
+   */
+  async getEmbeddingStatus(userId?: string): Promise<{
+    withEmbedding: number;
+    withoutEmbedding: number;
+    retryQueueSize: number;
+    exhaustedRetries: number;
+  }> {
+    const baseWhere: any = { deletedAt: null };
+    if (userId) baseWhere.userId = userId;
+
+    const [withEmbedding, withoutEmbedding] = await Promise.all([
+      this.prisma.memory.count({
+        where: { ...baseWhere, embeddingId: { not: null } },
+      }),
+      this.prisma.memory.count({
+        where: { ...baseWhere, embeddingId: null },
+      }),
+    ]);
+
+    const retryQueueSize = this.embeddingRetryQueue.size;
+    let exhaustedRetries = 0;
+    for (const entry of this.embeddingRetryQueue.values()) {
+      if (entry.attempts >= MemoryPipelineService.MAX_RETRY_ATTEMPTS) {
+        exhaustedRetries++;
+      }
+    }
+
+    return { withEmbedding, withoutEmbedding, retryQueueSize, exhaustedRetries };
   }
 
   /**

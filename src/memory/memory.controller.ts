@@ -12,10 +12,12 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import * as crypto from 'crypto';
 import {
   MemoryService,
   MemoryWithExtraction,
@@ -52,6 +54,9 @@ import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueService } from '../queue/queue.service';
+import { MemoryJobQueueService } from './memory-job-queue.service';
+import { MemoryPipelineService } from './memory-pipeline.service';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -64,6 +69,9 @@ export class MemoryController {
     private readonly consolidationService: ConsolidationService,
     private readonly contextualRecallService: ContextualRecallService,
     private readonly prisma: PrismaService,
+    private readonly queueService: QueueService,
+    private readonly memoryJobQueue: MemoryJobQueueService,
+    private readonly memoryPipeline: MemoryPipelineService,
   ) {}
 
   /**
@@ -136,6 +144,58 @@ export class MemoryController {
     @Body() dto: CreateMemoryBatchDto,
   ): Promise<{ created: number; failed: number }> {
     return this.memoryService.rememberAll(userId, dto);
+  }
+
+  /**
+   * POST /v1/memories/batch/async
+   * Enqueue memories for async background processing
+   */
+  @Post('memories/batch/async')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Create memories in batch (async)',
+    description:
+      'Enqueue multiple memories for background processing. Returns immediately with a job ID for status polling.',
+  })
+  @ApiResponse({ status: 202, description: 'Batch enqueued for processing.' })
+  async rememberAllAsync(
+    @UserId() userId: string,
+    @Body() dto: CreateMemoryBatchDto,
+  ): Promise<{ jobId: string; count: number; status: string }> {
+    const memories = dto.memories.map((m) => ({
+      memoryId: crypto.randomUUID(),
+      raw: m.raw,
+    }));
+    const jobId = this.memoryJobQueue.createBatch(userId, memories);
+    return { jobId, count: memories.length, status: 'processing' };
+  }
+
+  /**
+   * GET /v1/memories/batch/:jobId/status
+   * Get async batch job status
+   */
+  @Get('memories/batch/:jobId/status')
+  @ApiOperation({
+    summary: 'Get async batch job status',
+    description: 'Poll for the status of an async batch memory creation job.',
+  })
+  async getBatchJobStatus(
+    @Param('jobId') jobId: string,
+  ): Promise<{
+    jobId: string;
+    status: string;
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    errors: Array<{ memoryId: string; error: string }>;
+    createdAt: Date;
+  }> {
+    const status = this.memoryJobQueue.getBatchStatus(jobId);
+    if (!status) {
+      throw new NotFoundException(`Job ${jobId} not found`);
+    }
+    return status;
   }
 
   /**
@@ -494,6 +554,74 @@ export class MemoryController {
     }
 
     res.json(result);
+  }
+
+  /**
+   * POST /v1/memories/import/async
+   * HEY-353: Async import — accepts the same format as /import but processes
+   * in background via the job queue. Returns 202 with a jobId.
+   */
+  @Post('memories/import/async')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Import memories asynchronously',
+    description:
+      'Import memories in background via the job queue. Returns immediately with a job ID for status polling.',
+  })
+  @ApiResponse({ status: 202, description: 'Import enqueued for background processing.' })
+  async importMemoriesAsync(
+    @UserId() userId: string,
+    @Body() dto: ImportMemoriesDto,
+  ): Promise<{ jobId: string; count: number; status: string }> {
+    const memories = dto.memories.map((m) => ({
+      memoryId: m.id || crypto.randomUUID(),
+      raw: m.raw,
+      extractionContext: m.metadata?.extractionContext,
+    }));
+    const jobId = this.memoryJobQueue.createBatch(userId, memories);
+    return { jobId, count: memories.length, status: 'processing' };
+  }
+
+  // =========================================================================
+  // EMBEDDING STATUS (HEY-345)
+  // =========================================================================
+
+  /**
+   * GET /v1/memories/embedding-status
+   * Show count of memories with/without embeddings and retry queue status.
+   */
+  @Get('memories/embedding-status')
+  @ApiOperation({
+    summary: 'Embedding status',
+    description: 'Show counts of memories with and without embeddings, plus retry queue status.',
+  })
+  async getEmbeddingStatus(
+    @UserId() userId: string,
+  ): Promise<{
+    withEmbedding: number;
+    withoutEmbedding: number;
+    retryQueueSize: number;
+    exhaustedRetries: number;
+  }> {
+    return this.memoryPipeline.getEmbeddingStatus(userId);
+  }
+
+  /**
+   * POST /v1/memories/embedding-retry
+   * Manually trigger retry of failed embeddings.
+   */
+  @Post('memories/embedding-retry')
+  @ApiOperation({
+    summary: 'Retry failed embeddings',
+    description: 'Retry generating embeddings for memories that previously failed.',
+  })
+  async retryFailedEmbeddings(): Promise<{
+    retried: number;
+    succeeded: number;
+    failed: number;
+    discovered: number;
+  }> {
+    return this.memoryPipeline.retryFailedEmbeddings();
   }
 
   /**

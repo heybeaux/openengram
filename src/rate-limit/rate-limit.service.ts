@@ -1,4 +1,19 @@
-import { Injectable } from '@nestjs/common';
+/**
+ * ============================================================================
+ * ⚠️  SINGLE-INSTANCE RATE LIMITER — PER-PROCESS ONLY (HEY-352)
+ * ============================================================================
+ *
+ * This rate limiter stores all state in process memory. It is NOT suitable
+ * for multi-instance deployments behind a load balancer — each process
+ * maintains independent counters, effectively multiplying the allowed rate
+ * by the number of instances.
+ *
+ * For the current single-instance deployment this is fine. When scaling
+ * horizontally, replace with a shared-storage implementation (Redis, PG, etc).
+ * ============================================================================
+ */
+
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 
 interface RateLimitBucket {
   tokens: number;
@@ -22,8 +37,9 @@ interface RateLimitBucket {
  *
  * For single-instance deployments (current prod) this is fine.
  */
+// TODO: HEY-352 - Migrate to Redis when available for multi-instance support
 @Injectable()
-export class RateLimitService {
+export class RateLimitService implements OnModuleDestroy {
   private buckets = new Map<string, RateLimitBucket>();
 
   // Clean up old buckets every 5 minutes (lazy-initialized to avoid leaking in tests)
@@ -39,6 +55,10 @@ export class RateLimitService {
           }
         }
       }, 300_000);
+      // Unref so the interval doesn't prevent Node.js from exiting
+      if (typeof this.cleanupInterval === 'object' && 'unref' in this.cleanupInterval) {
+        this.cleanupInterval.unref();
+      }
     }
   }
 
@@ -93,5 +113,6 @@ export class RateLimitService {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
+    this.buckets.clear();
   }
 }

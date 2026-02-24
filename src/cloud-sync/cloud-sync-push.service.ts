@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateContentHash } from '../common/content-hash.util';
@@ -21,9 +22,17 @@ export interface SyncResult {
 @Injectable()
 export class CloudSyncPushService {
   private readonly logger = new Logger(CloudSyncPushService.name);
-  private readonly CLOUD_API_BASE = 'https://api.openengram.ai';
+  private readonly CLOUD_API_BASE: string;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    this.CLOUD_API_BASE = this.configService.get<string>(
+      'CLOUD_API_URL',
+      'https://api.openengram.ai',
+    );
+  }
 
   async performSyncWithClient(
     db: PrismaClient | PrismaService,
@@ -206,34 +215,29 @@ export class CloudSyncPushService {
     let newCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
-    const rawPrisma = new PrismaClient();
-    try {
-      for (const item of result.results) {
-        if (
-          item.status === 'created' ||
-          item.status === 'updated' ||
-          item.status === 'skipped'
-        ) {
-          try {
-            await rawPrisma.memory.update({
-              where: { id: item.sourceMemoryId },
-              data: { cloudSyncedAt: new Date() },
-            });
-          } catch (e: any) {
-            this.logger.error(
-              `Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`,
-            );
-          }
-          synced++;
-          if (item.status === 'created') newCount++;
-          else if (item.status === 'updated') updatedCount++;
-          else skippedCount++;
-        } else {
-          errors++;
+    for (const item of result.results) {
+      if (
+        item.status === 'created' ||
+        item.status === 'updated' ||
+        item.status === 'skipped'
+      ) {
+        try {
+          await this.prisma.memory.update({
+            where: { id: item.sourceMemoryId },
+            data: { cloudSyncedAt: new Date() },
+          });
+        } catch (e: any) {
+          this.logger.error(
+            `Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`,
+          );
         }
+        synced++;
+        if (item.status === 'created') newCount++;
+        else if (item.status === 'updated') updatedCount++;
+        else skippedCount++;
+      } else {
+        errors++;
       }
-    } finally {
-      await rawPrisma.$disconnect();
     }
 
     return { synced, errors, newCount, updatedCount, skippedCount };

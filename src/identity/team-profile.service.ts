@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTeamDto,
@@ -7,6 +7,9 @@ import {
   CollaborationPair,
 } from './dto/team.dto';
 import { SubjectType, MemorySource } from '@prisma/client';
+import { FileStoreService } from '../common/persistence/file-store.service';
+
+const TEAMS_FILE = 'teams.json';
 
 /**
  * HEY-188: Multi-Agent Team Profiles
@@ -14,18 +17,45 @@ import { SubjectType, MemorySource } from '@prisma/client';
  * Manages composite team identities by aggregating member capabilities,
  * tracking collaboration history, and computing team strengths.
  *
- * NOTE: Requires new `Team` table. See MIGRATION_NEEDED below.
- * Until migration is applied, teams are stored as JSON memories.
+ * Teams are persisted to disk via FileStoreService (HEY-346).
  */
 @Injectable()
-export class TeamProfileService {
+export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TeamProfileService.name);
 
-  // In-memory store until DB migration is applied
   private teams = new Map<string, TeamProfile>();
   private idCounter = 0;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly fileStore: FileStoreService,
+  ) {}
+
+  onModuleInit(): void {
+    this.teams = this.fileStore.load<string, TeamProfile>(TEAMS_FILE);
+    if (this.teams.size > 0) {
+      this.logger.log(`Loaded ${this.teams.size} teams from disk`);
+      // Restore idCounter from existing team IDs
+      for (const id of this.teams.keys()) {
+        const match = id.match(/^team_(\d+)_/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > this.idCounter) this.idCounter = num;
+        }
+      }
+    }
+  }
+
+  onModuleDestroy(): void {
+    this.persist();
+    this.logger.log('TeamProfileService: persisted teams on shutdown');
+  }
+
+  private persist(): void {
+    this.fileStore.save(TEAMS_FILE, this.teams).catch((err) =>
+      this.logger.warn(`Failed to persist teams: ${err.message}`),
+    );
+  }
 
   /**
    * Create a new team profile
@@ -50,6 +80,7 @@ export class TeamProfileService {
     };
 
     this.teams.set(id, team);
+    this.persist();
     this.logger.log(`Created team "${dto.name}" with ${dto.agentIds.length} agents`);
     return team;
   }
@@ -80,6 +111,7 @@ export class TeamProfileService {
     if (dto.name) team.name = dto.name;
     if (dto.description !== undefined) team.description = dto.description;
     team.updatedAt = new Date();
+    this.persist();
     return team;
   }
 
@@ -91,6 +123,7 @@ export class TeamProfileService {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
     this.teams.delete(teamId);
+    this.persist();
   }
 
   /**
@@ -103,6 +136,7 @@ export class TeamProfileService {
     team.capabilities = await this.aggregateCapabilities(team.agentIds);
     team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
     team.updatedAt = new Date();
+    this.persist();
     return team;
   }
 
@@ -115,6 +149,7 @@ export class TeamProfileService {
     team.capabilities = await this.aggregateCapabilities(team.agentIds);
     team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
     team.updatedAt = new Date();
+    this.persist();
     return team;
   }
 
@@ -129,6 +164,7 @@ export class TeamProfileService {
     team.lastActive = new Date();
     team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
     team.updatedAt = new Date();
+    this.persist();
     this.logger.log(`Collaboration recorded in team ${teamId}: ${dto.agentA} <-> ${dto.agentB}`);
     return { recorded: true, team };
   }
