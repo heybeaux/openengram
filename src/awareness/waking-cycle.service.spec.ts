@@ -40,6 +40,7 @@ describe('WakingCycleService', () => {
       memory: {
         update: jest.fn().mockResolvedValue({}),
         findUnique: jest.fn().mockResolvedValue({ createdAt: new Date(), deletedAt: null }),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
       dreamCycleRun: {
         create: jest.fn().mockResolvedValue({ id: 'run-1' }),
@@ -343,6 +344,14 @@ describe('WakingCycleService', () => {
           error: 'DB connection lost',
         }),
       });
+    });
+
+    it('should skip insight when same insightType exists within 7 days', async () => {
+      prisma.memory.findFirst.mockResolvedValue({ id: 'recent-same-type' });
+
+      await service.runCycle();
+
+      expect(memoryService.remember).not.toHaveBeenCalled();
     });
 
     it('should skip duplicate insights based on embedding similarity (HEY-336)', async () => {
