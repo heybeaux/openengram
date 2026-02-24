@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+// PrismaClient import kept for performSyncWithClient signature compatibility
 import { generateContentHash } from '../common/content-hash.util';
 import { SyncPushDto, SyncPushResponse } from './dto/sync-push.dto';
 
@@ -206,34 +207,29 @@ export class CloudSyncPushService {
     let newCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
-    const rawPrisma = new PrismaClient();
-    try {
-      for (const item of result.results) {
-        if (
-          item.status === 'created' ||
-          item.status === 'updated' ||
-          item.status === 'skipped'
-        ) {
-          try {
-            await rawPrisma.memory.update({
-              where: { id: item.sourceMemoryId },
-              data: { cloudSyncedAt: new Date() },
-            });
-          } catch (e: any) {
-            this.logger.error(
-              `Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`,
-            );
-          }
-          synced++;
-          if (item.status === 'created') newCount++;
-          else if (item.status === 'updated') updatedCount++;
-          else skippedCount++;
-        } else {
-          errors++;
+    for (const item of result.results) {
+      if (
+        item.status === 'created' ||
+        item.status === 'updated' ||
+        item.status === 'skipped'
+      ) {
+        try {
+          await this.prisma.memory.update({
+            where: { id: item.sourceMemoryId },
+            data: { cloudSyncedAt: new Date() },
+          });
+        } catch (e: any) {
+          this.logger.error(
+            `Failed to mark ${item.sourceMemoryId} as synced: ${e.message}`,
+          );
         }
+        synced++;
+        if (item.status === 'created') newCount++;
+        else if (item.status === 'updated') updatedCount++;
+        else skippedCount++;
+      } else {
+        errors++;
       }
-    } finally {
-      await rawPrisma.$disconnect();
     }
 
     return { synced, errors, newCount, updatedCount, skippedCount };

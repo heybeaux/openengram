@@ -10,7 +10,7 @@ import {
   SyncPushResponse,
   SyncPushResultItem,
 } from './dto/sync-push.dto';
-import { PrismaClient } from '@prisma/client';
+
 
 // Delegate services
 import { CloudSyncPushService, SyncResult } from './cloud-sync-push.service';
@@ -60,7 +60,6 @@ export class CloudSyncService {
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
 
-    const rawPrisma = new PrismaClient();
     const startTime = Date.now();
 
     setImmediate(
@@ -68,13 +67,13 @@ export class CloudSyncService {
         void (async () => {
           try {
             const result = await this.pushService.performSyncWithClient(
-              rawPrisma,
+              this.prisma,
               syncKey,
               instanceId,
               this.syncAbortController!.signal,
               this.syncProgress,
             );
-            await rawPrisma.syncEvent.create({
+            await this.prisma.syncEvent.create({
               data: {
                 accountId,
                 direction: 'push',
@@ -93,7 +92,7 @@ export class CloudSyncService {
           } catch (error: any) {
             this.logger.error(`Sync failed: ${error.message}`);
             const durationMs = Date.now() - startTime;
-            await rawPrisma.syncEvent
+            await this.prisma.syncEvent
               .create({
                 data: {
                   accountId,
@@ -112,7 +111,6 @@ export class CloudSyncService {
           } finally {
             this.syncing = false;
             this.syncAbortController = null;
-            await rawPrisma.$disconnect();
           }
         })(),
     );
