@@ -22,6 +22,7 @@ import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { AccountModule } from '../account/account.module';
 import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
+import { GraphModule } from '../graph/graph.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
     MemoryPoolModule,
     MemoryAccessLogModule,
     AnticipatoryModule,
+    GraphModule,
   ],
   controllers: [MemoryController],
   providers: [

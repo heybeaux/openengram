@@ -7,6 +7,7 @@ import {
 } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { GraphExtractionService } from '../graph/services/graph-extraction.service';
 import { parseFlexibleDate } from '../utils/date-parser';
 import {
   RELATED_SIMILARITY_THRESHOLD,
@@ -21,6 +22,7 @@ export class MemoryPipelineService {
     private extraction: ExtractionService,
     private embedding: EmbeddingService,
     @Optional() private hierarchyService?: HierarchyService,
+    @Optional() private graphExtraction?: GraphExtractionService,
   ) {}
 
   /**
@@ -228,7 +230,31 @@ export class MemoryPipelineService {
 
     this.logger.log('[Memory] extractAndEmbed complete:', memoryId);
 
-    // 8. Process hierarchical embeddings
+    // 8. Process graph extraction (HEY-349: wire GraphExtractionService into pipeline)
+    if (this.graphExtraction) {
+      try {
+        const memory = await this.prisma.memory.findUnique({
+          where: { id: memoryId },
+        });
+        if (memory) {
+          const graphResult = await this.graphExtraction.processMemory(memory);
+          this.logger.log('[Memory] Graph extraction complete:', {
+            memoryId,
+            entities: graphResult.entitiesCreated + graphResult.entitiesUpdated,
+            relationships: graphResult.relationshipsCreated,
+            mentions: graphResult.mentionsCreated,
+            ms: graphResult.processingTimeMs,
+          });
+        }
+      } catch (graphError) {
+        this.logger.warn(
+          `[Memory] Graph extraction failed for ${memoryId} — continuing without graph data:`,
+          graphError instanceof Error ? graphError.message : graphError,
+        );
+      }
+    }
+
+    // 9. Process hierarchical embeddings
     if (this.hierarchyService?.isEnabled()) {
       this.hierarchyService
         .processMemory(memoryId, raw, userId)
