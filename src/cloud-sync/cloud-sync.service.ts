@@ -49,9 +49,9 @@ export class CloudSyncService {
    * Returns true if the lock was acquired, false if another instance holds it.
    */
   private async acquireAdvisoryLock(): Promise<boolean> {
-    const result = await this.prisma.$queryRaw<[{ pg_try_advisory_lock: boolean }]>`
-      SELECT pg_try_advisory_lock(hashtext('cloud_sync'))
-    `;
+    const result = await this.prisma.$queryRawUnsafe<[{ pg_try_advisory_lock: boolean }]>(
+      `SELECT pg_try_advisory_lock(hashtext('engram_cloud_sync'))`,
+    );
     return result[0]?.pg_try_advisory_lock === true;
   }
 
@@ -59,16 +59,12 @@ export class CloudSyncService {
    * Release the PostgreSQL advisory lock for cloud sync.
    */
   private async releaseAdvisoryLock(): Promise<void> {
-    await this.prisma.$queryRaw`
-      SELECT pg_advisory_unlock(hashtext('cloud_sync'))
-    `;
+    await this.prisma.$queryRawUnsafe(
+      `SELECT pg_advisory_unlock(hashtext('engram_cloud_sync'))`,
+    );
   }
 
   async triggerSync(accountId: string): Promise<{ message: string }> {
-    if (this.syncing) {
-      throw new BadRequestException('Sync already in progress');
-    }
-
     const link = await this.getCloudLink(accountId);
     const syncKey = link.cloudSyncKey
       ? this.decryptApiKey(link.cloudSyncKey)
@@ -78,11 +74,10 @@ export class CloudSyncService {
     // Acquire distributed lock — if another instance is syncing, bail out
     const lockAcquired = await this.acquireAdvisoryLock();
     if (!lockAcquired) {
-      this.logger.log('Another instance is already syncing (advisory lock held)');
+      this.logger.log('Another instance is syncing — advisory lock held, skipping');
       throw new BadRequestException('Sync already in progress on another instance');
     }
 
-    this.syncing = true;
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
 
@@ -135,7 +130,6 @@ export class CloudSyncService {
               })
               .catch(() => {});
           } finally {
-            this.syncing = false;
             this.syncAbortController = null;
             await this.releaseAdvisoryLock().catch((err) =>
               this.logger.warn(`Failed to release advisory lock: ${err.message}`),
@@ -163,7 +157,7 @@ export class CloudSyncService {
   }
 
   isSyncing(): boolean {
-    return this.syncing;
+    return this.syncAbortController !== null;
   }
 
   getSyncProgress(): { synced: number; total: number } {
@@ -197,8 +191,8 @@ export class CloudSyncService {
       syncedCount,
       pendingCount: totalMemories - syncedCount,
       autoSync: link.autoSync,
-      syncing: this.syncing,
-      ...(this.syncing ? { progress: this.getSyncProgress() } : {}),
+      syncing: this.isSyncing(),
+      ...(this.isSyncing() ? { progress: this.getSyncProgress() } : {}),
     };
   }
 
