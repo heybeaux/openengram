@@ -41,8 +41,15 @@ export class MemoryPipelineService {
       userName: context?.userName,
     });
 
-    // 1. Extract 5W1H structure with user context
-    const extracted = await this.extraction.extract(raw, context);
+    // HEY-350: Run extraction and embedding generation in parallel.
+    // These are the two slowest operations and have no data dependency on each other.
+    const [extracted, embeddingResult] = await Promise.all([
+      this.extraction.extract(raw, context),
+      this.embedding.generate(raw).then(
+        (embedding) => ({ ok: true as const, embedding }),
+        (error) => ({ ok: false as const, error }),
+      ),
+    ]);
 
     this.logger.log('[Memory] Extraction result:', {
       memoryId,
@@ -206,23 +213,29 @@ export class MemoryPipelineService {
       this.logger.log('[Memory] No entities to store for:', memoryId);
     }
 
-    // 5. Generate and store embedding
-    try {
-      const embedding = await this.embedding.generate(raw);
-      const embeddingId = await this.embedding.store(memoryId, embedding);
-      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+    // 5. Store embedding (already generated in parallel with extraction)
+    if (embeddingResult.ok) {
+      try {
+        const embeddingId = await this.embedding.store(memoryId, embeddingResult.embedding);
+        this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
 
-      await this.prisma.memory.update({
-        where: { id: memoryId },
-        data: { embeddingId },
-      });
+        await this.prisma.memory.update({
+          where: { id: memoryId },
+          data: { embeddingId },
+        });
 
-      // 7. Link to related memories
-      await this.linkRelatedMemories(memoryId, embedding, userId);
-    } catch (embedError) {
+        // 7. Link to related memories
+        await this.linkRelatedMemories(memoryId, embeddingResult.embedding, userId);
+      } catch (storeError) {
+        this.logger.warn(
+          `[Memory] Embedding store failed for ${memoryId}:`,
+          storeError instanceof Error ? storeError.message : storeError,
+        );
+      }
+    } else {
       this.logger.warn(
-        `[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`,
-        embedError instanceof Error ? embedError.message : embedError,
+        `[Memory] Embedding generation failed for ${memoryId} — memory saved without embedding, will retry later:`,
+        embeddingResult.error instanceof Error ? embeddingResult.error.message : embeddingResult.error,
       );
     }
 
