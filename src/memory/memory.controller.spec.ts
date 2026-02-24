@@ -53,6 +53,7 @@ describe('MemoryController', () => {
       consolidationService,
       contextualRecallService,
       prismaService,
+      { enqueue: jest.fn().mockReturnValue('job-123'), getStatus: jest.fn() } as any,
     );
   });
 

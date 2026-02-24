@@ -12,6 +12,7 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -52,6 +53,7 @@ import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueService } from '../queue/queue.service';
 
 @ApiTags('memories')
 @Controller('v1')
@@ -64,6 +66,7 @@ export class MemoryController {
     private readonly consolidationService: ConsolidationService,
     private readonly contextualRecallService: ContextualRecallService,
     private readonly prisma: PrismaService,
+    private readonly queueService: QueueService,
   ) {}
 
   /**
@@ -136,6 +139,68 @@ export class MemoryController {
     @Body() dto: CreateMemoryBatchDto,
   ): Promise<{ created: number; failed: number }> {
     return this.memoryService.rememberAll(userId, dto);
+  }
+
+  /**
+   * POST /v1/memories/batch/async
+   * Enqueue memories for async background processing
+   */
+  @Post('memories/batch/async')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Create memories in batch (async)',
+    description:
+      'Enqueue multiple memories for background processing. Returns immediately with a job ID for status polling.',
+  })
+  @ApiResponse({ status: 202, description: 'Batch enqueued for processing.' })
+  async rememberAllAsync(
+    @UserId() userId: string,
+    @Body() dto: CreateMemoryBatchDto,
+  ): Promise<{ jobId: string; count: number; status: string }> {
+    const items = dto.memories.map((m) => ({ ...m }));
+    const jobId = this.queueService.enqueue(
+      'memory.batch',
+      items,
+      async (item) => {
+        await this.memoryService.remember(userId, item);
+      },
+    );
+    return { jobId, count: items.length, status: 'processing' };
+  }
+
+  /**
+   * GET /v1/memories/batch/:jobId/status
+   * Get async batch job status
+   */
+  @Get('memories/batch/:jobId/status')
+  @ApiOperation({
+    summary: 'Get async batch job status',
+    description: 'Poll for the status of an async batch memory creation job.',
+  })
+  async getBatchJobStatus(
+    @Param('jobId') jobId: string,
+  ): Promise<{
+    id: string;
+    status: string;
+    progress: number;
+    total: number;
+    createdAt: Date;
+    completedAt: Date | null;
+    error: string | null;
+  }> {
+    const status = this.queueService.getStatus(jobId);
+    if (!status) {
+      throw new NotFoundException(`Job ${jobId} not found`);
+    }
+    return {
+      id: status.id,
+      status: status.status,
+      progress: status.progress,
+      total: status.total,
+      createdAt: status.createdAt,
+      completedAt: status.completedAt,
+      error: status.error,
+    };
   }
 
   /**

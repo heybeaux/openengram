@@ -23,6 +23,7 @@ import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.mo
 import { AccountModule } from '../account/account.module';
 import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
 import { GraphModule } from '../graph/graph.module';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { GraphModule } from '../graph/graph.module';
     MemoryAccessLogModule,
     AnticipatoryModule,
     GraphModule,
+    QueueModule,
   ],
   controllers: [MemoryController],
   providers: [
