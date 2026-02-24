@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTeamDto,
@@ -20,7 +20,7 @@ const TEAMS_FILE = 'teams.json';
  * Teams are persisted to disk via FileStoreService (HEY-346).
  */
 @Injectable()
-export class TeamProfileService implements OnModuleInit {
+export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TeamProfileService.name);
 
   private teams = new Map<string, TeamProfile>();
@@ -44,6 +44,11 @@ export class TeamProfileService implements OnModuleInit {
         }
       }
     }
+  }
+
+  onModuleDestroy(): void {
+    this.persist();
+    this.logger.log('TeamProfileService: persisted teams on shutdown');
   }
 
   private persist(): void {

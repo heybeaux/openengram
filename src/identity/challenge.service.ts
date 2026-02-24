@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   Challenge,
@@ -22,7 +22,7 @@ const AGENT_PROFILES_FILE = 'agent-profiles.json';
  * Challenges and agent profiles are persisted to disk via FileStoreService (HEY-346).
  */
 @Injectable()
-export class ChallengeService implements OnModuleInit {
+export class ChallengeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ChallengeService.name);
   private challenges = new Map<string, Challenge>();
   private agentProfiles = new Map<string, AgentCapabilityProfile>();
@@ -38,6 +38,12 @@ export class ChallengeService implements OnModuleInit {
     if (this.agentProfiles.size > 0) {
       this.logger.log(`Loaded ${this.agentProfiles.size} agent profiles from disk`);
     }
+  }
+
+  onModuleDestroy(): void {
+    this.persistChallenges();
+    this.persistProfiles();
+    this.logger.log('ChallengeService: persisted challenges and profiles on shutdown');
   }
 
   private persistChallenges(): void {
