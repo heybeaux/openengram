@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-24T06:01:20.195Z
+// Generated at 2026-02-24T06:08:02.259Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
@@ -141,6 +141,7 @@ export const API_ROUTES = {
   V1_MEMORIES_FLUSH: '/v1/memories/flush',
   V1_MEMORIES_GRAPH: '/v1/memories/graph',
   V1_MEMORIES_IMPORT: '/v1/memories/import',
+  V1_MEMORIES_IMPORT_STREAM: '/v1/memories/import/stream',
   V1_MEMORIES_QUERY: '/v1/memories/query',
   V1_MEMORIES_SEARCH: '/v1/memories/search',
   V1_MEMORIES_ID: '/v1/memories/{id}',

@@ -398,6 +398,22 @@
         ]
       }
     },
+    "/v1/memories/import/stream": {
+      "post": {
+        "description": "Import memories via NDJSON streaming. Each line is a JSON object representing one memory. Processes line-by-line without loading entire payload into memory.",
+        "operationId": "MemoryController_importStream",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Stream import memories (NDJSON)",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
     "/v1/memories/graph": {
       "get": {
         "operationId": "MemoryController_getGraph",
