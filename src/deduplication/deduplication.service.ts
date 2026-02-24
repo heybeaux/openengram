@@ -91,7 +91,7 @@ export class DeduplicationService {
     this.config = {
       autoMergeThreshold: 0.88,
       reviewSuggestThreshold: 0.80,
-      autoResolveThreshold: 0.84,
+      autoResolveThreshold: 0.82,
       defaultStrategy: MergeStrategy.KEEP_DETAILED,
       batchEnabled: true,
       incrementalEnabled: true,
