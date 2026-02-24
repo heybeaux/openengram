@@ -279,10 +279,91 @@ export class MemoryPipelineService {
           create: { memoryId, entityId },
           update: {},
         });
+
+        // HEY-358: Sync Entity → GraphEntity mapping layer
+        // Keep both entity systems in sync until full unification
+        try {
+          const graphType = this.mapToGraphEntityType(entity.type);
+          await this.prisma.graphEntity.upsert({
+            where: {
+              userId_name_type: {
+                userId,
+                name: entity.name,
+                type: graphType,
+              },
+            },
+            create: {
+              userId,
+              name: entity.name,
+              type: graphType,
+              mentionCount: 1,
+              firstSeenMemoryId: memoryId,
+            },
+            update: {
+              mentionCount: { increment: 1 },
+            },
+          });
+
+          // Also create a GraphEntityMention
+          const graphEntity = await this.prisma.graphEntity.findUnique({
+            where: {
+              userId_name_type: {
+                userId,
+                name: entity.name,
+                type: graphType,
+              },
+            },
+            select: { id: true },
+          });
+          if (graphEntity) {
+            await this.prisma.graphEntityMention.upsert({
+              where: {
+                entityId_memoryId: {
+                  entityId: graphEntity.id,
+                  memoryId,
+                },
+              },
+              create: {
+                entityId: graphEntity.id,
+                memoryId,
+                userId,
+                role: 'REFERENCE',
+              },
+              update: {},
+            });
+          }
+        } catch (syncError) {
+          // Don't fail the pipeline if graph sync fails
+          this.logger.debug(
+            `[Entity→GraphEntity sync] Failed for ${entity.name}: ${syncError instanceof Error ? syncError.message : syncError}`,
+          );
+        }
       } catch (error) {
         this.logger.error(`Failed to store entity ${entity.name}:`, error);
       }
     }
+  }
+
+  /**
+   * HEY-358: Map Entity type string to GraphEntityType enum.
+   * Entity uses free-form strings; GraphEntity uses a fixed enum.
+   */
+  private mapToGraphEntityType(type: string): any {
+    const mapping: Record<string, string> = {
+      PERSON: 'PERSON',
+      PLACE: 'PLACE',
+      LOCATION: 'PLACE',
+      ORGANIZATION: 'ORGANIZATION',
+      ORG: 'ORGANIZATION',
+      CONCEPT: 'CONCEPT',
+      TOPIC: 'CONCEPT',
+      EVENT: 'EVENT',
+      OBJECT: 'OBJECT',
+      THING: 'OBJECT',
+      TIME: 'TIME',
+      DATE: 'TIME',
+    };
+    return mapping[type.toUpperCase()] || 'UNKNOWN';
   }
 
   /**
