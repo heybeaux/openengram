@@ -446,6 +446,57 @@ export class MemoryController {
   }
 
   /**
+   * POST /v1/memories/import/stream
+   * HEY-354: NDJSON streaming import — processes one memory per line
+   * without loading the entire payload into memory.
+   * Content-Type: application/x-ndjson
+   */
+  @Post('memories/import/stream')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Stream import memories (NDJSON)',
+    description:
+      'Import memories via NDJSON streaming. Each line is a JSON object representing one memory. ' +
+      'Processes line-by-line without loading entire payload into memory.',
+  })
+  async importStream(
+    @UserId() userId: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = { imported: 0, skipped: 0, errors: 0, errorDetails: [] as string[] };
+
+    // Read raw body as stream, split on newlines
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    }
+    const lines = Buffer.concat(chunks)
+      .toString('utf-8')
+      .split('\n')
+      .filter((line: string) => line.trim());
+
+    for (const line of lines) {
+      try {
+        const memory = JSON.parse(line);
+        const importResult = await this.memoryService.importMemories(userId, [memory]);
+        result.imported += importResult.imported;
+        result.skipped += importResult.skipped;
+        result.errors += importResult.errors;
+      } catch (err) {
+        result.errors++;
+        if (result.errorDetails.length < 10) {
+          result.errorDetails.push(
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+    }
+
+    res.json(result);
+  }
+
+  /**
    * GET /v1/memories/graph
    * Get memory graph data for visualization
    * NOTE: Must be defined before /memories/:id to avoid route collision
