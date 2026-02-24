@@ -357,7 +357,7 @@ export class MemoryQueryService {
       return merged;
     } catch (error) {
       // Never let insight surfacing break recall
-      this.logger.warn('[Recall] Insight surfacing failed, skipping:', error?.message || error);
+      this.logger.warn(`[Recall] Insight surfacing failed, skipping: ${(error as Error)?.message || error}`, (error as Error)?.stack);
       return existingResults;
     }
   }

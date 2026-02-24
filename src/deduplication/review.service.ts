@@ -422,6 +422,89 @@ export class ReviewService {
   }
 
   /**
+   * HEY-347: Auto-resolve PENDING candidates older than TTL (default 14 days).
+   * Candidates past their TTL are auto-approved using their suggested strategy.
+   * Returns count of resolved candidates.
+   */
+  async expireStale(
+    userId: string,
+    ttlDays: number = 14,
+  ): Promise<{ resolved: number; errors: number }> {
+    const cutoff = new Date(Date.now() - ttlDays * 24 * 60 * 60 * 1000);
+    const allUserIds = await this.resolveAllUserIds(userId);
+
+    const staleCandidates = await this.prisma.mergeCandidate.findMany({
+      where: {
+        userId: { in: allUserIds },
+        status: CandidateStatus.PENDING,
+        createdAt: { lt: cutoff },
+      },
+      orderBy: { similarity: 'desc' },
+      take: 500, // process in batches to avoid OOM
+    });
+
+    let resolved = 0;
+    let errors = 0;
+
+    for (const candidate of staleCandidates) {
+      try {
+        await this.approve(
+          candidate.id,
+          { strategy: candidate.suggestedStrategy as MergeStrategy },
+          'ttl-auto-resolve',
+        );
+        resolved++;
+      } catch {
+        // If approve fails (e.g. memory deleted), just mark as resolved
+        try {
+          await this.prisma.mergeCandidate.update({
+            where: { id: candidate.id },
+            data: {
+              status: CandidateStatus.APPROVED,
+              reviewedAt: new Date(),
+              reviewedBy: 'ttl-auto-resolve',
+              reviewNotes: 'Auto-resolved: TTL expired, merge failed',
+            },
+          });
+          resolved++;
+        } catch {
+          errors++;
+        }
+      }
+    }
+
+    return { resolved, errors };
+  }
+
+  /**
+   * HEY-347: Bulk resolve PENDING candidates by IDs or by filter.
+   * Action can be 'approve' or 'reject'.
+   */
+  async bulkResolve(
+    candidateIds: string[],
+    action: 'approve' | 'reject',
+    resolvedBy: string = 'bulk-resolve',
+  ): Promise<{ resolved: number; errors: number }> {
+    let resolved = 0;
+    let errors = 0;
+
+    for (const id of candidateIds) {
+      try {
+        if (action === 'approve') {
+          await this.approve(id, {}, resolvedBy);
+        } else {
+          await this.reject(id, { reason: 'Bulk rejected' }, resolvedBy);
+        }
+        resolved++;
+      } catch {
+        errors++;
+      }
+    }
+
+    return { resolved, errors };
+  }
+
+  /**
    * Check if a pair has been previously rejected
    */
   async wasRejected(memoryIdA: string, memoryIdB: string): Promise<boolean> {

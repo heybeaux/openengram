@@ -336,10 +336,11 @@ export class GraphService {
 
     for (let i = 0; i < memories.length; i += CONCURRENCY) {
       const batch = memories.slice(i, i + CONCURRENCY);
+      const backfillTimeout = parseInt(this.config.get('GRAPH_BACKFILL_TIMEOUT_MS') || '120000', 10);
       const results = await Promise.allSettled(
         batch.map(async (memory) => {
           const timeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), 30000),
+            setTimeout(() => reject(new Error('timeout')), backfillTimeout),
           );
           return Promise.race([this.processMemory(memory), timeout]);
         }),

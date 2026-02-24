@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   DelegationContract,
@@ -7,6 +7,9 @@ import {
   ContractStatus,
 } from './identity.types';
 import { ChallengeService } from './challenge.service';
+import { FileStoreService } from '../common/persistence/file-store.service';
+
+const PERSISTENCE_FILE = 'delegation-contracts.json';
 
 /**
  * DelegationContractService (HEY-185)
@@ -15,13 +18,13 @@ import { ChallengeService } from './challenge.service';
  * required before spawning sub-agents. When a contract completes,
  * auto-creates a TASK_COMPLETION memory via the provided callback.
  *
- * Contracts are stored in-memory. For production persistence, a
- * DelegationContract Prisma model is recommended (see migration notes).
+ * Contracts are persisted to disk via FileStoreService (HEY-346).
  */
 @Injectable()
-export class DelegationContractService {
+export class DelegationContractService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DelegationContractService.name);
-  private readonly contracts = new Map<string, DelegationContract>();
+  private contracts = new Map<string, DelegationContract>();
+  private readonly timers = new Map<string, NodeJS.Timeout>();
 
   /** Callback to create a memory when a contract completes */
   private createMemoryFn?: (
@@ -30,6 +33,21 @@ export class DelegationContractService {
   ) => Promise<any>;
 
   private challengeService?: ChallengeService;
+
+  constructor(private readonly fileStore: FileStoreService) {}
+
+  onModuleInit(): void {
+    this.contracts = this.fileStore.load<string, DelegationContract>(PERSISTENCE_FILE);
+    if (this.contracts.size > 0) {
+      this.logger.log(`Loaded ${this.contracts.size} delegation contracts from disk`);
+    }
+  }
+
+  private persist(): void {
+    this.fileStore.save(PERSISTENCE_FILE, this.contracts).catch((err) =>
+      this.logger.warn(`Failed to persist contracts: ${err.message}`),
+    );
+  }
 
   setChallengeService(challengeService: ChallengeService): void {
     this.challengeService = challengeService;
@@ -59,10 +77,13 @@ export class DelegationContractService {
     };
 
     this.contracts.set(contract.id, contract);
+    this.persist();
     this.logger.log(`Contract ${contract.id} created for agent ${contract.delegatedTo}`);
 
     // Schedule timeout
-    setTimeout(() => this.handleTimeout(contract.id), contract.timeout);
+    const timer = setTimeout(() => this.handleTimeout(contract.id), contract.timeout);
+    timer.unref();
+    this.timers.set(contract.id, timer);
 
     // Auto-challenge check via ChallengeService
     if (this.challengeService) {
@@ -85,6 +106,7 @@ export class DelegationContractService {
     if (dto.successCriteria !== undefined) contract.successCriteria = dto.successCriteria;
     if (dto.constraints !== undefined) contract.constraints = dto.constraints;
     if (dto.status !== undefined) contract.status = dto.status;
+    this.persist();
     this.logger.log(`Contract ${id} updated`);
     return contract;
   }
@@ -102,6 +124,10 @@ export class DelegationContractService {
     contract.status = dto.status;
     contract.result = dto.result;
     contract.completedAt = new Date();
+
+    // Clear the timeout timer
+    this.clearTimer(id);
+    this.persist();
 
     this.logger.log(`Contract ${id} completed with status: ${dto.status}`);
 
@@ -144,16 +170,33 @@ export class DelegationContractService {
   }
 
   private handleTimeout(id: string): void {
+    this.timers.delete(id);
     const contract = this.contracts.get(id);
     if (!contract || contract.status !== 'pending' && contract.status !== 'in_progress') return;
 
     contract.status = 'timed_out';
     contract.completedAt = new Date();
+    this.persist();
     this.logger.warn(`Contract ${id} timed out`);
 
     this.createTaskCompletionMemory(contract).catch((err) =>
       this.logger.error(`Failed to create timeout memory: ${err}`),
     );
+  }
+
+  onModuleDestroy(): void {
+    for (const [id, timer] of this.timers) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
+
+  private clearTimer(id: string): void {
+    const timer = this.timers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(id);
+    }
   }
 
   /** Get all contracts for a specific agent (for failure pattern analysis) */

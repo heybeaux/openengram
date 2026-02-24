@@ -7,20 +7,36 @@ import {
 } from './extraction.service';
 import { EmbeddingService } from './embedding.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { GraphExtractionService } from '../graph/services/graph-extraction.service';
 import { parseFlexibleDate } from '../utils/date-parser';
 import {
   RELATED_SIMILARITY_THRESHOLD,
   DEDUP_SIMILARITY_THRESHOLD,
 } from './memory-dedup.service';
 
+/** Entry in the in-memory embedding retry queue */
+interface EmbeddingRetryEntry {
+  memoryId: string;
+  userId: string;
+  raw: string;
+  attempts: number;
+  lastAttempt: Date;
+}
+
 @Injectable()
 export class MemoryPipelineService {
   private readonly logger = new Logger(MemoryPipelineService.name);
+
+  /** In-memory retry queue for failed embeddings (HEY-345) */
+  private readonly embeddingRetryQueue = new Map<string, EmbeddingRetryEntry>();
+  private static readonly MAX_RETRY_ATTEMPTS = 5;
+
   constructor(
     private prisma: PrismaService,
     private extraction: ExtractionService,
     private embedding: EmbeddingService,
     @Optional() private hierarchyService?: HierarchyService,
+    @Optional() private graphExtraction?: GraphExtractionService,
   ) {}
 
   /**
@@ -41,8 +57,15 @@ export class MemoryPipelineService {
       userName: context?.userName,
     });
 
-    // 1. Extract 5W1H structure with user context
-    const extracted = await this.extraction.extract(raw, context);
+    // HEY-350: Run extraction and embedding generation in parallel.
+    // These are the two slowest operations and have no data dependency on each other.
+    const [extracted, embeddingResult] = await Promise.all([
+      this.extraction.extract(raw, context),
+      this.embedding.generate(raw).then(
+        (embedding) => ({ ok: true as const, embedding }),
+        (error) => ({ ok: false as const, error }),
+      ),
+    ]);
 
     this.logger.log('[Memory] Extraction result:', {
       memoryId,
@@ -206,29 +229,36 @@ export class MemoryPipelineService {
       this.logger.log('[Memory] No entities to store for:', memoryId);
     }
 
-    // 5. Generate and store embedding
-    try {
-      const embedding = await this.embedding.generate(raw);
-      const embeddingId = await this.embedding.store(memoryId, embedding);
-      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
-
-      await this.prisma.memory.update({
-        where: { id: memoryId },
-        data: { embeddingId },
-      });
-
-      // 7. Link to related memories
-      await this.linkRelatedMemories(memoryId, embedding, userId);
-    } catch (embedError) {
-      this.logger.warn(
-        `[Memory] Embedding failed for ${memoryId} — memory saved without embedding, will retry later:`,
-        embedError instanceof Error ? embedError.message : embedError,
-      );
-    }
+    // 5. Generate and store embedding (Phase 2 — resilient, HEY-345)
+    await this.generateAndStoreEmbedding(memoryId, raw, userId);
 
     this.logger.log('[Memory] extractAndEmbed complete:', memoryId);
 
-    // 8. Process hierarchical embeddings
+    // 8. Process graph extraction (HEY-349: wire GraphExtractionService into pipeline)
+    if (this.graphExtraction) {
+      try {
+        const memory = await this.prisma.memory.findUnique({
+          where: { id: memoryId },
+        });
+        if (memory) {
+          const graphResult = await this.graphExtraction.processMemory(memory);
+          this.logger.log('[Memory] Graph extraction complete:', {
+            memoryId,
+            entities: graphResult.entitiesCreated + graphResult.entitiesUpdated,
+            relationships: graphResult.relationshipsCreated,
+            mentions: graphResult.mentionsCreated,
+            ms: graphResult.processingTimeMs,
+          });
+        }
+      } catch (graphError) {
+        this.logger.warn(
+          `[Memory] Graph extraction failed for ${memoryId} — continuing without graph data:`,
+          graphError instanceof Error ? graphError.message : graphError,
+        );
+      }
+    }
+
+    // 9. Process hierarchical embeddings
     if (this.hierarchyService?.isEnabled()) {
       this.hierarchyService
         .processMemory(memoryId, raw, userId)
@@ -239,6 +269,147 @@ export class MemoryPipelineService {
           );
         });
     }
+  }
+
+  /**
+   * Phase 2: Generate embedding with retry queue on failure (HEY-345).
+   * If embedding fails, the memory is added to an in-memory retry queue.
+   */
+  async generateAndStoreEmbedding(
+    memoryId: string,
+    raw: string,
+    userId: string,
+  ): Promise<boolean> {
+    try {
+      const embedding = await this.embedding.generate(raw);
+      const embeddingId = await this.embedding.store(memoryId, embedding);
+      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+
+      await this.prisma.memory.update({
+        where: { id: memoryId },
+        data: { embeddingId },
+      });
+
+      // Link to related memories
+      await this.linkRelatedMemories(memoryId, embedding, userId);
+
+      // Remove from retry queue if it was there
+      this.embeddingRetryQueue.delete(memoryId);
+      return true;
+    } catch (embedError) {
+      this.logger.warn(
+        `[Memory] Embedding failed for ${memoryId} — queued for retry:`,
+        embedError instanceof Error ? embedError.message : embedError,
+      );
+
+      // Add to retry queue
+      const existing = this.embeddingRetryQueue.get(memoryId);
+      this.embeddingRetryQueue.set(memoryId, {
+        memoryId,
+        userId,
+        raw,
+        attempts: (existing?.attempts ?? 0) + 1,
+        lastAttempt: new Date(),
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Retry all failed embeddings in the queue (HEY-345).
+   * Also discovers memories in DB that have no embedding.
+   * Can be called manually or via cron.
+   */
+  async retryFailedEmbeddings(): Promise<{
+    retried: number;
+    succeeded: number;
+    failed: number;
+    discovered: number;
+  }> {
+    // 1. Discover memories without embeddings from DB (up to 100)
+    const unembedded = await this.prisma.memory.findMany({
+      where: {
+        embeddingId: null,
+        deletedAt: null,
+      },
+      select: { id: true, userId: true, raw: true },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let discovered = 0;
+    for (const mem of unembedded) {
+      if (!this.embeddingRetryQueue.has(mem.id)) {
+        this.embeddingRetryQueue.set(mem.id, {
+          memoryId: mem.id,
+          userId: mem.userId,
+          raw: mem.raw,
+          attempts: 0,
+          lastAttempt: new Date(0),
+        });
+        discovered++;
+      }
+    }
+
+    let retried = 0;
+    let succeeded = 0;
+    let failed = 0;
+
+    const entries = Array.from(this.embeddingRetryQueue.values());
+    for (const entry of entries) {
+      if (entry.attempts >= MemoryPipelineService.MAX_RETRY_ATTEMPTS) {
+        continue; // Skip exhausted entries
+      }
+
+      retried++;
+      const ok = await this.generateAndStoreEmbedding(
+        entry.memoryId,
+        entry.raw,
+        entry.userId,
+      );
+      if (ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
+    }
+
+    this.logger.log(
+      `[Retry] Embedding retry complete: ${succeeded}/${retried} succeeded, ${discovered} discovered from DB`,
+    );
+    return { retried, succeeded, failed, discovered };
+  }
+
+  /**
+   * Get embedding status counts (HEY-345).
+   */
+  async getEmbeddingStatus(userId?: string): Promise<{
+    withEmbedding: number;
+    withoutEmbedding: number;
+    retryQueueSize: number;
+    exhaustedRetries: number;
+  }> {
+    const baseWhere: any = { deletedAt: null };
+    if (userId) baseWhere.userId = userId;
+
+    const [withEmbedding, withoutEmbedding] = await Promise.all([
+      this.prisma.memory.count({
+        where: { ...baseWhere, embeddingId: { not: null } },
+      }),
+      this.prisma.memory.count({
+        where: { ...baseWhere, embeddingId: null },
+      }),
+    ]);
+
+    const retryQueueSize = this.embeddingRetryQueue.size;
+    let exhaustedRetries = 0;
+    for (const entry of this.embeddingRetryQueue.values()) {
+      if (entry.attempts >= MemoryPipelineService.MAX_RETRY_ATTEMPTS) {
+        exhaustedRetries++;
+      }
+    }
+
+    return { withEmbedding, withoutEmbedding, retryQueueSize, exhaustedRetries };
   }
 
   /**
@@ -279,10 +450,91 @@ export class MemoryPipelineService {
           create: { memoryId, entityId },
           update: {},
         });
+
+        // HEY-358: Sync Entity → GraphEntity mapping layer
+        // Keep both entity systems in sync until full unification
+        try {
+          const graphType = this.mapToGraphEntityType(entity.type);
+          await this.prisma.graphEntity.upsert({
+            where: {
+              userId_name_type: {
+                userId,
+                name: entity.name,
+                type: graphType,
+              },
+            },
+            create: {
+              userId,
+              name: entity.name,
+              type: graphType,
+              mentionCount: 1,
+              firstSeenMemoryId: memoryId,
+            },
+            update: {
+              mentionCount: { increment: 1 },
+            },
+          });
+
+          // Also create a GraphEntityMention
+          const graphEntity = await this.prisma.graphEntity.findUnique({
+            where: {
+              userId_name_type: {
+                userId,
+                name: entity.name,
+                type: graphType,
+              },
+            },
+            select: { id: true },
+          });
+          if (graphEntity) {
+            await this.prisma.graphEntityMention.upsert({
+              where: {
+                entityId_memoryId: {
+                  entityId: graphEntity.id,
+                  memoryId,
+                },
+              },
+              create: {
+                entityId: graphEntity.id,
+                memoryId,
+                userId,
+                role: 'REFERENCE',
+              },
+              update: {},
+            });
+          }
+        } catch (syncError) {
+          // Don't fail the pipeline if graph sync fails
+          this.logger.debug(
+            `[Entity→GraphEntity sync] Failed for ${entity.name}: ${syncError instanceof Error ? syncError.message : syncError}`,
+          );
+        }
       } catch (error) {
         this.logger.error(`Failed to store entity ${entity.name}:`, error);
       }
     }
+  }
+
+  /**
+   * HEY-358: Map Entity type string to GraphEntityType enum.
+   * Entity uses free-form strings; GraphEntity uses a fixed enum.
+   */
+  private mapToGraphEntityType(type: string): any {
+    const mapping: Record<string, string> = {
+      PERSON: 'PERSON',
+      PLACE: 'PLACE',
+      LOCATION: 'PLACE',
+      ORGANIZATION: 'ORGANIZATION',
+      ORG: 'ORGANIZATION',
+      CONCEPT: 'CONCEPT',
+      TOPIC: 'CONCEPT',
+      EVENT: 'EVENT',
+      OBJECT: 'OBJECT',
+      THING: 'OBJECT',
+      TIME: 'TIME',
+      DATE: 'TIME',
+    };
+    return mapping[type.toUpperCase()] || 'UNKNOWN';
   }
 
   /**

@@ -36,13 +36,21 @@ export class RlsInterceptor implements NestInterceptor {
 
     // Skip RLS wrapping when:
     // 1. No accountId (LAN bypass mode / unauthenticated local access)
-    // 2. LAN bypass is enabled and no auth context
-    // 3. Sync push endpoint (uses InstanceSyncKeyGuard, manages own account scoping)
+    // 2. Long-running admin/batch endpoints that manage their own scoping
     if (!accountId) {
       return next.handle();
     }
 
     const url: string = request.url || '';
+    const skipRls =
+      url.includes('/consolidation/') ||
+      url.includes('/consolidate') ||
+      url.includes('/dedup/scan') ||
+      url.includes('/dedup/batch') ||
+      url.includes('/awareness/');
+    if (skipRls) {
+      return next.handle();
+    }
 
     // Determine timeout: long-running endpoints (sync) need more time
     const isLongRunning =

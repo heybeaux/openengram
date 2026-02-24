@@ -26,6 +26,7 @@ export const DEFAULT_CACHE_CONFIG: CacheConfig = {
 
 @Injectable()
 export class PrefetchCacheService {
+  // ⚠️ Ephemeral cache — OK to lose on restart. Not persisted. (HEY-346 triage)
   private cache: Map<string, CachedMemory> = new Map();
   private topicIndex: Map<TopicId, Set<string>> = new Map();
   private accessOrder: string[] = [];

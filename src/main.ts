@@ -1,3 +1,7 @@
+// Load .env BEFORE any module imports so static config objects
+// (AwarenessConfig, AnticipatoryConfig, etc.) see the real values.
+import 'dotenv/config';
+
 import { NestFactory } from '@nestjs/core';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';

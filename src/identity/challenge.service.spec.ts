@@ -1,11 +1,16 @@
 import { ChallengeService } from './challenge.service';
 import { DelegationContract } from './identity.types';
 
+const mockFileStore = {
+  load: jest.fn().mockReturnValue(new Map()),
+  save: jest.fn().mockResolvedValue(undefined),
+} as any;
+
 describe('ChallengeService', () => {
   let service: ChallengeService;
 
   beforeEach(() => {
-    service = new ChallengeService();
+    service = new ChallengeService(mockFileStore);
   });
 
   it('should create a challenge', async () => {

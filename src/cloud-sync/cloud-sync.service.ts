@@ -10,7 +10,7 @@ import {
   SyncPushResponse,
   SyncPushResultItem,
 } from './dto/sync-push.dto';
-import { PrismaClient } from '@prisma/client';
+
 
 // Delegate services
 import { CloudSyncPushService, SyncResult } from './cloud-sync-push.service';
@@ -33,7 +33,6 @@ export interface SyncStatus {
 @Injectable()
 export class CloudSyncService {
   private readonly logger = new Logger(CloudSyncService.name);
-  private syncing = false;
   private syncAbortController: AbortController | null = null;
   private syncProgress = { synced: 0, total: 0 };
 
@@ -45,22 +44,43 @@ export class CloudSyncService {
     private readonly ingestService: CloudSyncIngestService,
   ) {}
 
-  async triggerSync(accountId: string): Promise<{ message: string }> {
-    if (this.syncing) {
-      throw new BadRequestException('Sync already in progress');
-    }
+  /**
+   * Acquire a PostgreSQL advisory lock for cloud sync.
+   * Returns true if the lock was acquired, false if another instance holds it.
+   */
+  private async acquireAdvisoryLock(): Promise<boolean> {
+    const result = await this.prisma.$queryRawUnsafe<[{ pg_try_advisory_lock: boolean }]>(
+      `SELECT pg_try_advisory_lock(hashtext('engram_cloud_sync'))`,
+    );
+    return result[0]?.pg_try_advisory_lock === true;
+  }
 
+  /**
+   * Release the PostgreSQL advisory lock for cloud sync.
+   */
+  private async releaseAdvisoryLock(): Promise<void> {
+    await this.prisma.$queryRawUnsafe(
+      `SELECT pg_advisory_unlock(hashtext('engram_cloud_sync'))`,
+    );
+  }
+
+  async triggerSync(accountId: string): Promise<{ message: string }> {
     const link = await this.getCloudLink(accountId);
     const syncKey = link.cloudSyncKey
       ? this.decryptApiKey(link.cloudSyncKey)
       : this.decryptApiKey(link.cloudApiKey);
     const instanceId = link.instanceId;
 
-    this.syncing = true;
+    // Acquire distributed lock — if another instance is syncing, bail out
+    const lockAcquired = await this.acquireAdvisoryLock();
+    if (!lockAcquired) {
+      this.logger.log('Another instance is syncing — advisory lock held, skipping');
+      throw new BadRequestException('Sync already in progress on another instance');
+    }
+
     this.syncAbortController = new AbortController();
     this.syncProgress = { synced: 0, total: 0 };
 
-    const rawPrisma = new PrismaClient();
     const startTime = Date.now();
 
     setImmediate(
@@ -68,13 +88,13 @@ export class CloudSyncService {
         void (async () => {
           try {
             const result = await this.pushService.performSyncWithClient(
-              rawPrisma,
+              this.prisma,
               syncKey,
               instanceId,
               this.syncAbortController!.signal,
               this.syncProgress,
             );
-            await rawPrisma.syncEvent.create({
+            await this.prisma.syncEvent.create({
               data: {
                 accountId,
                 direction: 'push',
@@ -93,7 +113,7 @@ export class CloudSyncService {
           } catch (error: any) {
             this.logger.error(`Sync failed: ${error.message}`);
             const durationMs = Date.now() - startTime;
-            await rawPrisma.syncEvent
+            await this.prisma.syncEvent
               .create({
                 data: {
                   accountId,
@@ -110,9 +130,10 @@ export class CloudSyncService {
               })
               .catch(() => {});
           } finally {
-            this.syncing = false;
             this.syncAbortController = null;
-            await rawPrisma.$disconnect();
+            await this.releaseAdvisoryLock().catch((err) =>
+              this.logger.warn(`Failed to release advisory lock: ${err.message}`),
+            );
           }
         })(),
     );
@@ -136,7 +157,7 @@ export class CloudSyncService {
   }
 
   isSyncing(): boolean {
-    return this.syncing;
+    return this.syncAbortController !== null;
   }
 
   getSyncProgress(): { synced: number; total: number } {
@@ -170,8 +191,8 @@ export class CloudSyncService {
       syncedCount,
       pendingCount: totalMemories - syncedCount,
       autoSync: link.autoSync,
-      syncing: this.syncing,
-      ...(this.syncing ? { progress: this.getSyncProgress() } : {}),
+      syncing: this.isSyncing(),
+      ...(this.isSyncing() ? { progress: this.getSyncProgress() } : {}),
     };
   }
 

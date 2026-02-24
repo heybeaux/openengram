@@ -398,6 +398,22 @@
         ]
       }
     },
+    "/v1/memories/import/stream": {
+      "post": {
+        "description": "Import memories via NDJSON streaming. Each line is a JSON object representing one memory. Processes line-by-line without loading entire payload into memory.",
+        "operationId": "MemoryController_importStream",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Stream import memories (NDJSON)",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
     "/v1/memories/graph": {
       "get": {
         "operationId": "MemoryController_getGraph",
@@ -2933,6 +2949,64 @@
           }
         },
         "summary": "Skip merge candidate",
+        "tags": [
+          "deduplication"
+        ]
+      }
+    },
+    "/v1/dedup/candidates/bulk-resolve": {
+      "post": {
+        "operationId": "DeduplicationController_bulkResolve",
+        "parameters": [
+          {
+            "name": "x-approver-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bulk resolve merge candidates",
+        "tags": [
+          "deduplication"
+        ]
+      }
+    },
+    "/v1/dedup/candidates/expire-stale": {
+      "post": {
+        "operationId": "DeduplicationController_expireStale",
+        "parameters": [
+          {
+            "name": "ttlDays",
+            "required": false,
+            "in": "query",
+            "description": "TTL in days (default 14)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "x-am-user-id",
+            "in": "header",
+            "description": "User ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Auto-resolve PENDING candidates older than TTL",
         "tags": [
           "deduplication"
         ]

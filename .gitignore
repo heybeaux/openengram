@@ -42,3 +42,4 @@ worktrees/
 prisma/engram.db
 backups/
 package-lock.json
+data/

@@ -1,12 +1,14 @@
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimitService } from './rate-limit.service';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { ExecutionContext, HttpException } from '@nestjs/common';
 
 describe('RateLimitGuard', () => {
   let guard: RateLimitGuard;
   let rateLimitService: jest.Mocked<RateLimitService>;
   let reflector: jest.Mocked<Reflector>;
+  let configService: jest.Mocked<ConfigService>;
   let mockRequest: any;
   let mockResponse: any;
   let mockContext: ExecutionContext;
@@ -18,6 +20,10 @@ describe('RateLimitGuard', () => {
 
     reflector = {
       getAllAndOverride: jest.fn(),
+    } as any;
+
+    configService = {
+      get: jest.fn().mockReturnValue('cloud'),
     } as any;
 
     mockRequest = {
@@ -41,7 +47,7 @@ describe('RateLimitGuard', () => {
   });
 
   function createGuard() {
-    guard = new RateLimitGuard(rateLimitService, reflector);
+    guard = new RateLimitGuard(rateLimitService, reflector, configService);
   }
 
   // Happy path: request allowed

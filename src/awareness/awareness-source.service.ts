@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 export interface SignalSourceConfig {
@@ -18,9 +18,17 @@ export interface SignalSourceConfig {
  * In-memory store — production should persist to DB.
  */
 @Injectable()
-export class AwarenessSourceService {
+export class AwarenessSourceService implements OnModuleDestroy {
   private readonly logger = new Logger(AwarenessSourceService.name);
   private readonly sources = new Map<string, SignalSourceConfig>();
+
+  onModuleDestroy(): void {
+    if (this.sources.size > 0) {
+      this.logger.warn(
+        `Shutting down with ${this.sources.size} awareness source config(s) being discarded`,
+      );
+    }
+  }
 
   create(dto: {
     name: string;
