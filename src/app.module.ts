@@ -60,6 +60,7 @@ const coreModules = [
     isGlobal: true,
   }),
   AuthModule,
+  PersistenceModule,
   ScheduleModule.forRoot(),
   LoggerModule.forRoot({
     pinoHttp: {
