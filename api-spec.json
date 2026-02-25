@@ -5073,6 +5073,104 @@
         ]
       }
     },
+    "/v1/identity/delegation/tasks": {
+      "post": {
+        "operationId": "DelegationController_logTask",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Delegation"
+        ]
+      },
+      "get": {
+        "operationId": "DelegationController_getTasks",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
+    "/v1/identity/delegation/recall": {
+      "get": {
+        "operationId": "DelegationController_getRecall",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_healthRedirect",
