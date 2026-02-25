@@ -113,7 +113,7 @@ describe('CloudLinkService', () => {
       const original = 'my-secret-api-key-12345';
       const encrypted = encrypt(original);
       expect(encrypted).not.toBe(original);
-      expect(encrypted.split(':')).toHaveLength(3); // salt:iv:encrypted
+      expect(encrypted.split(':')).toHaveLength(4); // salt:iv:encrypted:hmac
       const decrypted = decrypt(encrypted);
       expect(decrypted).toBe(original);
     });

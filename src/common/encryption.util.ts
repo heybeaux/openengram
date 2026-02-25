@@ -1,8 +1,10 @@
 import {
   createCipheriv,
   createDecipheriv,
+  createHmac,
   randomBytes,
   scryptSync,
+  timingSafeEqual,
 } from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc';
@@ -36,6 +38,10 @@ function deriveKey(passphrase: string, salt: Buffer | string): Buffer {
   return scryptSync(passphrase, salt, 32);
 }
 
+function computeHmac(key: Buffer, data: Buffer): Buffer {
+  return createHmac('sha256', key).update(data).digest();
+}
+
 /**
  * Encrypt a string using AES-256-CBC with a random per-encryption salt.
  * Output format: base64(salt):base64(iv):base64(encrypted)
@@ -50,10 +56,12 @@ export function encrypt(text: string): string {
     cipher.update(text, 'utf8'),
     cipher.final(),
   ]);
+  const hmac = computeHmac(derivedKey, encrypted);
   return [
     salt.toString('base64'),
     iv.toString('base64'),
     encrypted.toString('base64'),
+    hmac.toString('base64'),
   ].join(':');
 }
 
@@ -66,8 +74,28 @@ export function decrypt(encrypted: string): string {
   const passphrase = getEncryptionKey();
   const parts = encrypted.split(':');
 
+  if (parts.length === 4) {
+    // Authenticated format: salt:iv:encrypted:hmac
+    const salt = Buffer.from(parts[0], 'base64');
+    const iv = Buffer.from(parts[1], 'base64');
+    const enc = Buffer.from(parts[2], 'base64');
+    const storedHmac = Buffer.from(parts[3], 'base64');
+    const derivedKey = deriveKey(passphrase, salt);
+    const expectedHmac = computeHmac(derivedKey, enc);
+    if (
+      storedHmac.length !== expectedHmac.length ||
+      !timingSafeEqual(storedHmac, expectedHmac)
+    ) {
+      throw new Error('Decryption failed: HMAC verification failed');
+    }
+    const decipher = createDecipheriv(ALGORITHM, derivedKey, iv);
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString(
+      'utf8',
+    );
+  }
+
   if (parts.length === 3) {
-    // New format with per-encryption salt
+    // Legacy new format without HMAC (pre-authentication)
     const salt = Buffer.from(parts[0], 'base64');
     const iv = Buffer.from(parts[1], 'base64');
     const enc = Buffer.from(parts[2], 'base64');

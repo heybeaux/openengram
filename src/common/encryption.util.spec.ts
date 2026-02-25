@@ -70,10 +70,10 @@ describe('encryption.util', () => {
   });
 
   describe('encrypt output format', () => {
-    it('should produce 3-part colon-separated output (salt:iv:encrypted)', () => {
+    it('should produce 4-part colon-separated output (salt:iv:encrypted:hmac)', () => {
       const encrypted = encrypt('test');
       const parts = encrypted.split(':');
-      expect(parts).toHaveLength(3);
+      expect(parts).toHaveLength(4);
       // Each part should be valid base64
       for (const part of parts) {
         expect(() => Buffer.from(part, 'base64')).not.toThrow();
@@ -86,15 +86,15 @@ describe('encryption.util', () => {
       expect(() => decrypt('invaliddata')).toThrow('Invalid encrypted value format');
     });
 
-    it('should throw on invalid format (4 parts)', () => {
-      expect(() => decrypt('a:b:c:d')).toThrow('Invalid encrypted value format');
+    it('should throw on invalid format (5 parts)', () => {
+      expect(() => decrypt('a:b:c:d:e')).toThrow('Invalid encrypted value format');
     });
 
     it('should throw on corrupted ciphertext', () => {
       const encrypted = encrypt('test');
       const parts = encrypted.split(':');
       parts[2] = Buffer.from('corrupted').toString('base64');
-      expect(() => decrypt(parts.join(':'))).toThrow();
+      expect(() => decrypt(parts.join(':'))).toThrow('HMAC verification failed');
     });
 
     it('should throw when decrypting with wrong key', () => {
