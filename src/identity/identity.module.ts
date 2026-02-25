@@ -15,6 +15,8 @@ import { PortableIdentityService } from './portable-identity.service';
 import { TaskCompletionService } from './task-completion.service';
 import { DelegationTemplateService } from './delegation-template.service';
 import { TrustProfileService } from './trust-profile.service';
+import { DelegationTaskService } from './delegation-task.service';
+import { DelegationController } from './delegation.controller';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { TrustProfileService } from './trust-profile.service';
     ChallengeController,
     MemoryChallengeController,
     TeamController,
+    DelegationController,
   ],
   providers: [
     IdentityController,
@@ -40,6 +43,7 @@ import { TrustProfileService } from './trust-profile.service';
     TaskCompletionService,
     DelegationTemplateService,
     TrustProfileService,
+    DelegationTaskService,
   ],
   exports: [
     DelegationContractService,
@@ -51,6 +55,7 @@ import { TrustProfileService } from './trust-profile.service';
     TaskCompletionService,
     DelegationTemplateService,
     TrustProfileService,
+    DelegationTaskService,
   ],
 })
 export class IdentityModule implements OnModuleInit {
