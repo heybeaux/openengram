@@ -97,7 +97,7 @@ describe('DelegationContractService', () => {
   });
 
   it('should handle timeout', async () => {
-    const contract = await service.create({ ...baseDto, timeout: 1000 });
+    const contract = await service.create({ ...baseDto, timeout: 1 });
     jest.advanceTimersByTime(1500);
     // Allow async timeout handler to run
     await Promise.resolve();
@@ -107,7 +107,7 @@ describe('DelegationContractService', () => {
   });
 
   it('should create TASK_COMPLETION memory on timeout', async () => {
-    await service.create({ ...baseDto, timeout: 1000 });
+    await service.create({ ...baseDto, timeout: 1 });
     jest.advanceTimersByTime(1500);
     await Promise.resolve();
     await Promise.resolve();

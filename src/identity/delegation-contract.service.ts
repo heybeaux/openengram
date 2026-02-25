@@ -81,7 +81,7 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
     this.logger.log(`Contract ${contract.id} created for agent ${contract.delegatedTo}`);
 
     // Schedule timeout
-    const timer = setTimeout(() => this.handleTimeout(contract.id), contract.timeout);
+    const timer = setTimeout(() => this.handleTimeout(contract.id), contract.timeout * 1000);
     timer.unref();
     this.timers.set(contract.id, timer);
 
