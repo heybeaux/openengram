@@ -67,7 +67,7 @@ export class MemoryPipelineService {
       ),
     ]);
 
-    this.logger.log('[Memory] Extraction result:', {
+    this.logger.debug('[Memory] Extraction result:', {
       memoryId,
       who: extracted.who,
       what: extracted.what?.substring(0, 50),
@@ -138,7 +138,7 @@ export class MemoryPipelineService {
         howConfidence: extracted.confidence.howConfidence,
       },
     });
-    this.logger.log('[Memory] MemoryExtraction saved for:', memoryId, {
+    this.logger.debug('[Memory] MemoryExtraction saved for:', memoryId, {
       parsedWhen: parsedWhen?.toISOString() ?? null,
       memoryType: extracted.memoryType,
       typeConfidence: extracted.typeConfidence,
@@ -169,7 +169,7 @@ export class MemoryPipelineService {
           ...layerUpdate,
         },
       });
-      this.logger.log('[Memory] Memory Intelligence updated:', {
+      this.logger.debug('[Memory] Memory Intelligence updated:', {
         memoryId,
         memoryType: extracted.memoryType,
         priority,
@@ -220,7 +220,7 @@ export class MemoryPipelineService {
         where: { id: memoryId },
         data: { metadata: metadataUpdate },
       });
-      this.logger.log('[Memory] Capability/preference signals stored:', {
+      this.logger.debug('[Memory] Capability/preference signals stored:', {
         memoryId,
         capabilities: extracted.capabilities.length,
         preferences: extracted.preferenceSignals.length,
@@ -229,15 +229,15 @@ export class MemoryPipelineService {
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
-      this.logger.log('[Memory] Storing entities:', {
+      this.logger.debug('[Memory] Storing entities:', {
         memoryId,
         count: extracted.entities.length,
         entities: extracted.entities.map((e) => `${e.name}:${e.type}`),
       });
       await this.storeEntities(userId, memoryId, extracted.entities);
-      this.logger.log('[Memory] Entities stored successfully for:', memoryId);
+      this.logger.debug('[Memory] Entities stored successfully for:', memoryId);
     } else {
-      this.logger.log('[Memory] No entities to store for:', memoryId);
+      this.logger.debug('[Memory] No entities to store for:', memoryId);
     }
 
     // 5. Generate and store embedding (Phase 2 — resilient, HEY-345)
@@ -253,7 +253,7 @@ export class MemoryPipelineService {
         });
         if (memory) {
           const graphResult = await this.graphExtraction.processMemory(memory);
-          this.logger.log('[Memory] Graph extraction complete:', {
+          this.logger.debug('[Memory] Graph extraction complete:', {
             memoryId,
             entities: graphResult.entitiesCreated + graphResult.entitiesUpdated,
             relationships: graphResult.relationshipsCreated,
@@ -294,7 +294,10 @@ export class MemoryPipelineService {
     try {
       const embedding = await this.embedding.generate(raw);
       const embeddingId = await this.embedding.store(memoryId, embedding);
-      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+      this.logger.debug('[Memory] Embedding stored:', {
+        memoryId,
+        embeddingId,
+      });
 
       await this.prisma.memory.update({
         where: { id: memoryId },
