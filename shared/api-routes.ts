@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-25T00:22:16.914Z
+// Generated at 2026-02-26T02:34:57.728Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
@@ -125,8 +125,9 @@ export const API_ROUTES = {
   V1_IDENTITY_CONTRACTS: '/v1/identity/contracts',
   V1_IDENTITY_CONTRACTS_ID: '/v1/identity/contracts/{id}',
   V1_IDENTITY_CONTRACTS_ID_COMPLETE: '/v1/identity/contracts/{id}/complete',
-  V1_IDENTITY_DELEGATION_RECALL: '/v1/identity/delegation/recall',
+  V1_IDENTITY_DELEGATION_RECALL: '/v1/identity/delegation-recall',
   V1_IDENTITY_DELEGATION_TEMPLATES: '/v1/identity/delegation-templates',
+  V1_IDENTITY_DELEGATION_RECALL: '/v1/identity/delegation/recall',
   V1_IDENTITY_DELEGATION_TASKS: '/v1/identity/delegation/tasks',
   V1_IDENTITY_TASK_COMPLETIONS: '/v1/identity/task-completions',
   V1_IDENTITY_TEAMS: '/v1/identity/teams',
