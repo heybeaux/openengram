@@ -3,15 +3,26 @@
  *
  * Tracks precision, recall, and other metrics for prefetch effectiveness.
  * Provides insights for learning and optimization.
+ *
+ * Uses Redis for persistence of pendingFeedback and latencyBuckets
+ * so calibration data survives restarts.
  */
 
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Optional,
+  Inject,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import {
   TopicId,
   PrefetchFeedback,
   PrecisionRecallMetrics,
   PrefetchMetrics,
 } from './prefetch.types';
+import { REDIS_CLIENT } from './prefetch-cache.service';
+import Redis from 'ioredis';
 
 interface FeedbackEntry {
   feedback: PrefetchFeedback;
@@ -23,8 +34,16 @@ interface LatencyBucket {
   maxSize: number;
 }
 
+const REDIS_PREFIX = 'prefetch:metrics:';
+const PENDING_KEY = REDIS_PREFIX + 'pending';
+const COMPLETED_KEY = REDIS_PREFIX + 'completed';
+const LATENCY_PREFIX = REDIS_PREFIX + 'latency:';
+const COUNTERS_KEY = REDIS_PREFIX + 'counters';
+
 @Injectable()
-export class PrefetchMetricsService {
+export class PrefetchMetricsService implements OnModuleInit {
+  private readonly logger = new Logger(PrefetchMetricsService.name);
+
   // Feedback tracking
   private pendingFeedback: Map<string, FeedbackEntry> = new Map();
   private completedFeedback: PrefetchFeedback[] = [];
@@ -43,11 +62,22 @@ export class PrefetchMetricsService {
   // Memory pressure
   private memoryPressureLevel: 'normal' | 'warning' | 'critical' = 'normal';
 
-  constructor() {
+  constructor(
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {
     // Initialize latency buckets
     this.latencyBuckets.set('prefetch', { latencies: [], maxSize: 100 });
     this.latencyBuckets.set('lookup', { latencies: [], maxSize: 100 });
     this.latencyBuckets.set('detection', { latencies: [], maxSize: 100 });
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      await this.hydrateFromRedis();
+    } catch (err) {
+      this.logger.warn('Failed to hydrate prefetch metrics from Redis', err);
+    }
   }
 
   /**
@@ -81,6 +111,10 @@ export class PrefetchMetricsService {
 
     this.totalPrefetches++;
 
+    // Persist to Redis
+    this.persistPending(key, { feedback, completed: false });
+    this.persistCounters();
+
     // Auto-complete after timeout (5 minutes)
     setTimeout(
       () => {
@@ -102,9 +136,13 @@ export class PrefetchMetricsService {
       entry.feedback.accessedAt = Date.now();
       entry.feedback.accessLatencyMs =
         entry.feedback.accessedAt - entry.feedback.prefetchedAt;
+
+      // Update in Redis
+      this.persistPending(key, entry);
     }
 
     this.totalAccesses++;
+    this.persistCounters();
   }
 
   /**
@@ -116,6 +154,7 @@ export class PrefetchMetricsService {
     } else {
       this.cacheMisses++;
     }
+    this.persistCounters();
   }
 
   /**
@@ -303,6 +342,8 @@ export class PrefetchMetricsService {
     for (const bucket of this.latencyBuckets.values()) {
       bucket.latencies = [];
     }
+
+    this.clearRedis();
   }
 
   /**
@@ -357,6 +398,10 @@ export class PrefetchMetricsService {
     while (this.completedFeedback.length > this.maxFeedbackHistory) {
       this.completedFeedback.shift();
     }
+
+    // Persist to Redis
+    this.removePending(key);
+    this.persistCompleted();
   }
 
   /**
@@ -372,6 +417,9 @@ export class PrefetchMetricsService {
     while (b.latencies.length > b.maxSize) {
       b.latencies.shift();
     }
+
+    // Persist to Redis
+    this.persistLatencyBucket(bucket, b);
   }
 
   /**
@@ -394,5 +442,120 @@ export class PrefetchMetricsService {
     const sorted = [...b.latencies].sort((a, b) => a - b);
     const index = Math.floor((percentile / 100) * sorted.length);
     return sorted[Math.min(index, sorted.length - 1)];
+  }
+
+  // =========================================================================
+  // Redis Persistence (fire-and-forget write-through)
+  // =========================================================================
+
+  private persistPending(key: string, entry: FeedbackEntry): void {
+    if (!this.redis) return;
+    this.redis
+      .hset(PENDING_KEY, key, JSON.stringify(entry))
+      .catch((err) => this.logger.warn('Redis persist pending failed', err));
+  }
+
+  private removePending(key: string): void {
+    if (!this.redis) return;
+    this.redis
+      .hdel(PENDING_KEY, key)
+      .catch((err) => this.logger.warn('Redis remove pending failed', err));
+  }
+
+  private persistCompleted(): void {
+    if (!this.redis) return;
+    this.redis
+      .set(COMPLETED_KEY, JSON.stringify(this.completedFeedback))
+      .catch((err) => this.logger.warn('Redis persist completed failed', err));
+  }
+
+  private persistLatencyBucket(bucket: string, b: LatencyBucket): void {
+    if (!this.redis) return;
+    this.redis
+      .set(LATENCY_PREFIX + bucket, JSON.stringify(b))
+      .catch((err) => this.logger.warn('Redis persist latency failed', err));
+  }
+
+  private persistCounters(): void {
+    if (!this.redis) return;
+    this.redis
+      .set(
+        COUNTERS_KEY,
+        JSON.stringify({
+          totalPrefetches: this.totalPrefetches,
+          totalAccesses: this.totalAccesses,
+          cacheHits: this.cacheHits,
+          cacheMisses: this.cacheMisses,
+        }),
+      )
+      .catch((err) => this.logger.warn('Redis persist counters failed', err));
+  }
+
+  private clearRedis(): void {
+    if (!this.redis) return;
+    this.redis.del(PENDING_KEY, COMPLETED_KEY, COUNTERS_KEY).catch(() => {});
+    for (const bucket of this.latencyBuckets.keys()) {
+      this.redis.del(LATENCY_PREFIX + bucket).catch(() => {});
+    }
+  }
+
+  private async hydrateFromRedis(): Promise<void> {
+    if (!this.redis) return;
+
+    // Hydrate pending feedback
+    const pendingData = await this.redis.hgetall(PENDING_KEY);
+    for (const [key, val] of Object.entries(pendingData)) {
+      try {
+        const entry: FeedbackEntry = JSON.parse(val);
+        this.pendingFeedback.set(key, entry);
+      } catch {
+        // skip malformed
+      }
+    }
+
+    // Hydrate completed feedback
+    const completedData = await this.redis.get(COMPLETED_KEY);
+    if (completedData) {
+      try {
+        this.completedFeedback = JSON.parse(completedData);
+      } catch {
+        // skip malformed
+      }
+    }
+
+    // Hydrate latency buckets
+    for (const bucket of ['prefetch', 'lookup', 'detection']) {
+      const data = await this.redis.get(LATENCY_PREFIX + bucket);
+      if (data) {
+        try {
+          const parsed: LatencyBucket = JSON.parse(data);
+          this.latencyBuckets.set(bucket, parsed);
+        } catch {
+          // skip malformed
+        }
+      }
+    }
+
+    // Hydrate counters
+    const countersData = await this.redis.get(COUNTERS_KEY);
+    if (countersData) {
+      try {
+        const counters = JSON.parse(countersData);
+        this.totalPrefetches = counters.totalPrefetches ?? 0;
+        this.totalAccesses = counters.totalAccesses ?? 0;
+        this.cacheHits = counters.cacheHits ?? 0;
+        this.cacheMisses = counters.cacheMisses ?? 0;
+      } catch {
+        // skip malformed
+      }
+    }
+
+    const totalHydrated =
+      this.pendingFeedback.size + this.completedFeedback.length;
+    if (totalHydrated > 0) {
+      this.logger.log(
+        `Hydrated ${this.pendingFeedback.size} pending + ${this.completedFeedback.length} completed metrics from Redis`,
+      );
+    }
   }
 }

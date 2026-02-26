@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrefetchMetricsService } from './prefetch-metrics.service';
+import { REDIS_CLIENT } from './prefetch-cache.service';
 import { TopicId } from './prefetch.types';
 
 describe('PrefetchMetricsService', () => {
@@ -7,7 +8,10 @@ describe('PrefetchMetricsService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PrefetchMetricsService],
+      providers: [
+        PrefetchMetricsService,
+        { provide: REDIS_CLIENT, useValue: undefined },
+      ],
     }).compile();
 
     service = module.get<PrefetchMetricsService>(PrefetchMetricsService);
