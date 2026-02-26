@@ -14,7 +14,6 @@ import {
   HttpStatus,
   NotFoundException,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import * as crypto from 'crypto';
@@ -51,7 +50,6 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
-import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
@@ -61,7 +59,6 @@ import { MemoryPipelineService } from './memory-pipeline.service';
 @ApiTags('memories')
 @Controller('v1')
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
-@UseInterceptors(SanitizeInterceptor)
 export class MemoryController {
   constructor(
     private readonly memoryService: MemoryService,

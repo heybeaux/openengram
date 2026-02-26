@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SessionIndexingService } from './session-indexing.service';
@@ -15,12 +14,10 @@ import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
-import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 
 @ApiTags('sessions', 'flush')
 @Controller('v1')
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
-@UseInterceptors(SanitizeInterceptor)
 export class SessionIndexingController {
   constructor(private readonly service: SessionIndexingService) {}
 
