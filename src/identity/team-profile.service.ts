@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTeamDto,
@@ -24,7 +25,6 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TeamProfileService.name);
 
   private teams = new Map<string, TeamProfile>();
-  private idCounter = 0;
 
   constructor(
     private prisma: PrismaService,
@@ -35,14 +35,6 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     this.teams = this.fileStore.load<string, TeamProfile>(TEAMS_FILE);
     if (this.teams.size > 0) {
       this.logger.log(`Loaded ${this.teams.size} teams from disk`);
-      // Restore idCounter from existing team IDs
-      for (const id of this.teams.keys()) {
-        const match = id.match(/^team_(\d+)_/);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num > this.idCounter) this.idCounter = num;
-        }
-      }
     }
   }
 
@@ -61,7 +53,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
    * Create a new team profile
    */
   async createTeam(dto: CreateTeamDto): Promise<TeamProfile> {
-    const id = `team_${++this.idCounter}_${Date.now()}`;
+    const id = `team_${randomUUID()}`;
 
     // Aggregate capabilities from member agents
     const capabilities = await this.aggregateCapabilities(dto.agentIds);
