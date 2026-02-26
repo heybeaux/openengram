@@ -150,25 +150,27 @@ export class PortableIdentityService {
   }
 
   /**
-   * Build capability profile from agent memories
+   * Build capability profile from structured task outcomes
    */
   private async buildCapabilityProfile(
     agentId: string,
   ): Promise<CapabilityProfile[]> {
-    const memories = await this.prisma.memory.findMany({
+    const taskOutcomes = await this.prisma.memory.findMany({
       where: {
         subjectType: SubjectType.AGENT,
         subjectId: agentId,
+        memoryType: 'TASK_OUTCOME',
         deletedAt: null,
       },
       orderBy: { effectiveScore: 'desc' },
       take: 100,
+      select: { metadata: true, effectiveScore: true },
     });
 
     const capMap = new Map<string, { totalScore: number; count: number }>();
 
-    for (const mem of memories) {
-      const caps = this.extractCapabilities(mem.raw);
+    for (const mem of taskOutcomes) {
+      const caps = this.extractCapabilitiesFromOutcome(mem.metadata);
       for (const cap of caps) {
         const existing = capMap.get(cap) || { totalScore: 0, count: 0 };
         existing.totalScore += mem.effectiveScore;
@@ -351,40 +353,36 @@ export class PortableIdentityService {
   }
 
   private async extractSpecializations(agentId: string): Promise<string[]> {
-    const topMemories = await this.prisma.memory.findMany({
+    const taskOutcomes = await this.prisma.memory.findMany({
       where: {
         subjectId: agentId,
         subjectType: SubjectType.AGENT,
+        memoryType: 'TASK_OUTCOME',
         deletedAt: null,
       },
       orderBy: { effectiveScore: 'desc' },
       take: 20,
-      select: { raw: true },
+      select: { metadata: true },
     });
 
     const caps = new Set<string>();
-    for (const mem of topMemories) {
-      for (const cap of this.extractCapabilities(mem.raw)) {
+    for (const mem of taskOutcomes) {
+      for (const cap of this.extractCapabilitiesFromOutcome(mem.metadata)) {
         caps.add(cap);
       }
     }
     return Array.from(caps).slice(0, 5);
   }
 
-  private extractCapabilities(text: string): string[] {
-    const lower = text.toLowerCase();
-    const found: string[] = [];
-    const keywords: Record<string, string[]> = {
-      coding: ['code', 'programming', 'implement', 'debug'],
-      analysis: ['analyze', 'analysis', 'evaluate'],
-      communication: ['communicate', 'writing', 'documentation'],
-      planning: ['plan', 'strategy', 'organize'],
-      research: ['research', 'investigate', 'explore'],
-    };
-    for (const [cap, kws] of Object.entries(keywords)) {
-      if (kws.some((k) => lower.includes(k))) found.push(cap);
-    }
-    return found;
+  /**
+   * Extract capabilities from structured task outcome metadata
+   * instead of low signal-to-noise keyword matching.
+   */
+  private extractCapabilitiesFromOutcome(metadata: any): string[] {
+    if (!metadata || typeof metadata !== 'object') return [];
+    const caps = (metadata as Record<string, any>).capabilitiesUsed;
+    if (!Array.isArray(caps)) return [];
+    return caps.filter((c: unknown) => typeof c === 'string' && c.length > 0);
   }
 
   private extractPartnerAgents(text: string, selfId: string): string[] {
