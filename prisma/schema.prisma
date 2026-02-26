@@ -1388,6 +1388,28 @@ model DreamCycleRun {
   @@map("dream_cycle_runs")
 }
 
+/// HEY-335: Dedicated awareness cycle run history with proper fields
+model AwarenessCycleRun {
+  id                 String    @id @default(cuid())
+  status             String    @default("RUNNING") // RUNNING | COMPLETED | FAILED
+  phase              String    @default("starting") // starting | observing | analyzing | generating | idle | failed
+  instanceId         String    @map("instance_id")
+  startTime          DateTime  @default(now()) @map("start_time")
+  endTime            DateTime? @map("end_time")
+  insightsGenerated  Int       @default(0) @map("insights_generated")
+  observations       Int       @default(0)
+  patterns           Int       @default(0)
+  durationMs         Int       @default(0) @map("duration_ms")
+  error              String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([startTime(sort: Desc)])
+  @@map("awareness_cycle_runs")
+}
+
 /// Eval run results for longitudinal tracking
 model EvalRun {
   id           String   @id @default(cuid())
