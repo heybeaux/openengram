@@ -1,6 +1,14 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  Optional,
+  Inject,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnticipatoryConfig } from '../anticipatory.config';
+import { REDIS_CLIENT } from '../../prefetch/prefetch-cache.service';
+import Redis from 'ioredis';
 
 interface BufferedEvent {
   userId: string;
@@ -12,6 +20,8 @@ interface BufferedEvent {
   latencyMs: number;
 }
 
+const WEIGHT_CACHE_PREFIX = 'anticipatory:weights:';
+
 /**
  * Feedback Service — Buffered Event Writing + Weight Learning
  *
@@ -19,7 +29,8 @@ interface BufferedEvent {
  * in batches to avoid write contention on the hot recall path.
  *
  * Also manages per-user per-strategy weights that adapt based on
- * feedback data.
+ * feedback data. Weight cache is persisted to Redis so learned
+ * weights survive restarts.
  */
 @Injectable()
 export class FeedbackService implements OnModuleDestroy {
@@ -27,13 +38,21 @@ export class FeedbackService implements OnModuleDestroy {
   private buffer: BufferedEvent[] = [];
   private flushInterval: ReturnType<typeof setInterval> | null = null;
 
-  /** In-memory weight cache per user. ⚠️ Pure cache — OK to lose on restart. (HEY-346 triage) */
+  /** In-memory weight cache per user, backed by Redis for persistence. */
   private weightCache = new Map<string, Record<string, number>>();
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {
     this.flushInterval = setInterval(() => {
       void this.flush().catch((err) => this.logger.error('Flush failed:', err));
     }, AnticipatoryConfig.eventFlushIntervalMs);
+
+    // Hydrate weight cache from Redis on construction
+    this.hydrateWeightCache().catch((err) =>
+      this.logger.warn('Failed to hydrate weight cache from Redis', err),
+    );
   }
 
   onModuleDestroy(): void {
@@ -83,9 +102,23 @@ export class FeedbackService implements OnModuleDestroy {
    * Get learned weights for a user. Returns defaults if insufficient data.
    */
   async getWeights(userId: string): Promise<Record<string, number>> {
-    // Check cache
+    // Check in-memory cache
     const cached = this.weightCache.get(userId);
     if (cached) return cached;
+
+    // Check Redis cache
+    if (this.redis) {
+      try {
+        const redisData = await this.redis.get(WEIGHT_CACHE_PREFIX + userId);
+        if (redisData) {
+          const parsed = JSON.parse(redisData) as Record<string, number>;
+          this.weightCache.set(userId, parsed);
+          return parsed;
+        }
+      } catch {
+        // fall through to DB
+      }
+    }
 
     try {
       const weights = await this.prisma.anticipatoryWeight.findMany({
@@ -107,6 +140,7 @@ export class FeedbackService implements OnModuleDestroy {
       }
 
       this.weightCache.set(userId, result);
+      this.persistWeightToRedis(userId, result);
       return result;
     } catch {
       return { ...AnticipatoryConfig.defaultWeights };
@@ -189,11 +223,79 @@ export class FeedbackService implements OnModuleDestroy {
           data: { weight: newWeight },
         });
 
-        // Invalidate cache
+        // Invalidate cache (both in-memory and Redis)
         this.weightCache.delete(userId);
+        this.deleteWeightFromRedis(userId);
       }
     } catch (err) {
       this.logger.warn(`Failed to update weights: ${(err as Error).message}`);
+    }
+  }
+
+  // =========================================================================
+  // Redis Persistence (fire-and-forget for weight cache)
+  // =========================================================================
+
+  private persistWeightToRedis(
+    userId: string,
+    weights: Record<string, number>,
+  ): void {
+    if (!this.redis) return;
+    // TTL of 24h — weights will be refreshed from DB if expired
+    this.redis
+      .set(WEIGHT_CACHE_PREFIX + userId, JSON.stringify(weights), 'EX', 86400)
+      .catch((err) =>
+        this.logger.warn('Redis persist weight cache failed', err),
+      );
+  }
+
+  private deleteWeightFromRedis(userId: string): void {
+    if (!this.redis) return;
+    this.redis
+      .del(WEIGHT_CACHE_PREFIX + userId)
+      .catch((err) =>
+        this.logger.warn('Redis delete weight cache failed', err),
+      );
+  }
+
+  private async hydrateWeightCache(): Promise<void> {
+    if (!this.redis) return;
+
+    const keys: string[] = [];
+    const stream = this.redis.scanStream({
+      match: WEIGHT_CACHE_PREFIX + '*',
+      count: 100,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      stream.on('data', (batch: string[]) => keys.push(...batch));
+      stream.on('end', resolve);
+      stream.on('error', reject);
+    });
+
+    if (keys.length === 0) return;
+
+    const pipeline = this.redis.pipeline();
+    for (const key of keys) pipeline.get(key);
+    const results = await pipeline.exec();
+    if (!results) return;
+
+    let hydrated = 0;
+    for (let i = 0; i < results.length; i++) {
+      const [err, val] = results[i];
+      if (err || !val) continue;
+      try {
+        const userId = keys[i].slice(WEIGHT_CACHE_PREFIX.length);
+        const weights = JSON.parse(val as string) as Record<string, number>;
+        this.weightCache.set(userId, weights);
+        hydrated++;
+      } catch {
+        // skip malformed
+      }
+    }
+
+    if (hydrated > 0) {
+      this.logger.log(`Hydrated ${hydrated} weight cache entries from Redis`);
     }
   }
 }
