@@ -15,6 +15,26 @@ export class ExportQueryDto {
   format?: 'json' | 'ndjson' = 'json';
 }
 
+export interface ExportedGraphEntity {
+  id: string;
+  name: string;
+  type: string;
+  aliases: string[];
+  description: string | null;
+  metadata: Record<string, any>;
+}
+
+export interface ExportedGraphRelationship {
+  id: string;
+  sourceEntityId: string;
+  targetEntityId: string;
+  type: string;
+  label: string | null;
+  weight: number;
+  properties: Record<string, any>;
+  isInferred: boolean;
+}
+
 export interface ExportedMemory {
   id: string;
   raw: string;
@@ -25,6 +45,10 @@ export interface ExportedMemory {
   createdAt: string;
   updatedAt: string;
   ensembleEmbeddings?: Record<string, number[]>;
+  graph: {
+    entities: ExportedGraphEntity[];
+    relationships: ExportedGraphRelationship[];
+  };
 }
 
 export class ImportMemoriesDto {
