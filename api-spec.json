@@ -179,6 +179,7 @@
     },
     "/v1/memories/search": {
       "post": {
+        "deprecated": true,
         "operationId": "MemoryController_search",
         "parameters": [
           {
@@ -212,6 +213,7 @@
         ]
       },
       "get": {
+        "deprecated": true,
         "operationId": "MemoryController_searchGet",
         "parameters": [
           {
@@ -313,6 +315,7 @@
     },
     "/v1/recall": {
       "post": {
+        "deprecated": true,
         "operationId": "MemoryController_recallAlias",
         "parameters": [
           {

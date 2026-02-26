@@ -1,5 +1,5 @@
 // Auto-generated from api-spec.json — do not edit manually
-// Generated at 2026-02-26T03:47:06.347Z
+// Generated at 2026-02-26T04:20:16.542Z
 
 export const API_ROUTES = {
   ANTICIPATORY_FEEDBACK: '/anticipatory/feedback',
@@ -149,8 +149,7 @@ export const API_ROUTES = {
   V1_MEMORIES_IMPORT: '/v1/memories/import',
   V1_MEMORIES_IMPORT_ASYNC: '/v1/memories/import/async',
   V1_MEMORIES_IMPORT_STREAM: '/v1/memories/import/stream',
-  V1_MEMORIES_QUERY: '/v1/memories/query', // Canonical search endpoint
-  /** @deprecated Use V1_MEMORIES_QUERY instead */
+  V1_MEMORIES_QUERY: '/v1/memories/query',
   V1_MEMORIES_SEARCH: '/v1/memories/search',
   V1_MEMORIES_ID: '/v1/memories/{id}',
   V1_MEMORIES_ID_ATTRIBUTION: '/v1/memories/{id}/attribution',
@@ -172,7 +171,6 @@ export const API_ROUTES = {
   V1_POOLS_ID_MEMBERS: '/v1/pools/{id}/members',
   V1_POOLS_ID_MEMORIES: '/v1/pools/{id}/memories',
   V1_POOLS_ID_MEMORIES_MEMORYID: '/v1/pools/{id}/memories/{memoryId}',
-  /** @deprecated Use V1_MEMORIES_QUERY instead */
   V1_RECALL: '/v1/recall',
   V1_RECALL_CONTEXTUAL: '/v1/recall/contextual',
   V1_SESSIONS_INDEX: '/v1/sessions/index',
