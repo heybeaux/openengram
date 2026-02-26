@@ -14,7 +14,6 @@ import {
   HttpStatus,
   NotFoundException,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import * as crypto from 'crypto';
@@ -51,7 +50,6 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
-import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
@@ -61,7 +59,6 @@ import { MemoryPipelineService } from './memory-pipeline.service';
 @ApiTags('memories')
 @Controller('v1')
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
-@UseInterceptors(SanitizeInterceptor)
 export class MemoryController {
   constructor(
     private readonly memoryService: MemoryService,
@@ -179,9 +176,7 @@ export class MemoryController {
     summary: 'Get async batch job status',
     description: 'Poll for the status of an async batch memory creation job.',
   })
-  async getBatchJobStatus(
-    @Param('jobId') jobId: string,
-  ): Promise<{
+  async getBatchJobStatus(@Param('jobId') jobId: string): Promise<{
     jobId: string;
     status: string;
     total: number;
@@ -223,17 +218,24 @@ export class MemoryController {
   /**
    * POST /v1/memories/search
    * Alias for /v1/memories/query
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Post('memories/search')
-  @ApiOperation({ summary: 'Search memories (alias for /query)' })
+  @ApiOperation({
+    summary: 'Search memories (alias for /query)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async search(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
@@ -241,17 +243,24 @@ export class MemoryController {
   /**
    * GET /v1/memories/search
    * GET alias for search
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Get('memories/search')
-  @ApiOperation({ summary: 'Search memories (GET alias)' })
+  @ApiOperation({
+    summary: 'Search memories (GET alias)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async searchGet(
     @UserId() userId: string,
     @Query() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
@@ -259,17 +268,24 @@ export class MemoryController {
   /**
    * POST /v1/recall
    * Alias for /v1/memories/query — semantic search for memories
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Post('recall')
-  @ApiOperation({ summary: 'Recall memories (alias for /memories/query)' })
+  @ApiOperation({
+    summary: 'Recall memories (alias for /memories/query)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async recallAlias(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
@@ -524,7 +540,12 @@ export class MemoryController {
     @Req() req: any,
     @Res() res: Response,
   ): Promise<void> {
-    const result = { imported: 0, skipped: 0, errors: 0, errorDetails: [] as string[] };
+    const result = {
+      imported: 0,
+      skipped: 0,
+      errors: 0,
+      errorDetails: [] as string[],
+    };
 
     // Read raw body as stream, split on newlines
     const chunks: Buffer[] = [];
@@ -539,7 +560,9 @@ export class MemoryController {
     for (const line of lines) {
       try {
         const memory = JSON.parse(line);
-        const importResult = await this.memoryService.importMemories(userId, [memory]);
+        const importResult = await this.memoryService.importMemories(userId, [
+          memory,
+        ]);
         result.imported += importResult.imported;
         result.skipped += importResult.skipped;
         result.errors += importResult.errors;
@@ -568,7 +591,10 @@ export class MemoryController {
     description:
       'Import memories in background via the job queue. Returns immediately with a job ID for status polling.',
   })
-  @ApiResponse({ status: 202, description: 'Import enqueued for background processing.' })
+  @ApiResponse({
+    status: 202,
+    description: 'Import enqueued for background processing.',
+  })
   async importMemoriesAsync(
     @UserId() userId: string,
     @Body() dto: ImportMemoriesDto,
@@ -593,13 +619,14 @@ export class MemoryController {
   @Get('memories/embedding-status')
   @ApiOperation({
     summary: 'Embedding status',
-    description: 'Show counts of memories with and without embeddings, plus retry queue status.',
+    description:
+      'Show counts of memories with and without embeddings, plus retry queue status.',
   })
-  async getEmbeddingStatus(
-    @UserId() userId: string,
-  ): Promise<{
+  async getEmbeddingStatus(@UserId() userId: string): Promise<{
     withEmbedding: number;
     withoutEmbedding: number;
+    failedEmbedding: number;
+    pendingEmbedding: number;
     retryQueueSize: number;
     exhaustedRetries: number;
   }> {
@@ -613,7 +640,8 @@ export class MemoryController {
   @Post('memories/embedding-retry')
   @ApiOperation({
     summary: 'Retry failed embeddings',
-    description: 'Retry generating embeddings for memories that previously failed.',
+    description:
+      'Retry generating embeddings for memories that previously failed.',
   })
   async retryFailedEmbeddings(): Promise<{
     retried: number;
@@ -664,7 +692,12 @@ export class MemoryController {
   ): Promise<MemoryWithExtraction | null> {
     const accountUserIds = await this.resolveAccountUserIds(req);
     const accountId = req.accountId ?? req.agent?.accountId;
-    return this.memoryService.getById(id, userId, accountUserIds ?? undefined, accountId);
+    return this.memoryService.getById(
+      id,
+      userId,
+      accountUserIds ?? undefined,
+      accountId,
+    );
   }
 
   /**

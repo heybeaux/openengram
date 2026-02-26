@@ -17,7 +17,9 @@ describe('FailurePatternService', () => {
     contractService = new DelegationContractService(mockFileStore);
     createMemoryFn = jest.fn().mockResolvedValue({ id: 'mem-1' });
     service.setCreateMemoryFn(createMemoryFn);
-    contractService.setCreateMemoryFn(jest.fn().mockResolvedValue({ id: 'mem-x' }));
+    contractService.setCreateMemoryFn(
+      jest.fn().mockResolvedValue({ id: 'mem-x' }),
+    );
   });
 
   afterEach(() => {
@@ -41,7 +43,7 @@ describe('FailurePatternService', () => {
       taskDescription: task,
       expectedOutputs: ['output'],
       successCriteria: ['pass'],
-      timeout: 100,
+      timeout: 0.1,
       delegatedTo: agentId,
     });
     jest.advanceTimersByTime(200);
@@ -72,7 +74,9 @@ describe('FailurePatternService', () => {
     await createAndTimeout('agent-2', 'task B');
 
     const patterns = await service.analyze(contractService);
-    const timeoutPatterns = patterns.filter((p) => p.patternType === 'timeout_pattern');
+    const timeoutPatterns = patterns.filter(
+      (p) => p.patternType === 'timeout_pattern',
+    );
     expect(timeoutPatterns).toHaveLength(1);
     expect(timeoutPatterns[0].agentId).toBe('agent-2');
   });
@@ -83,7 +87,9 @@ describe('FailurePatternService', () => {
     await createAndFail('agent-3', 'task C');
 
     const patterns = await service.analyze(contractService);
-    const cascading = patterns.filter((p) => p.patternType === 'cascading_failure');
+    const cascading = patterns.filter(
+      (p) => p.patternType === 'cascading_failure',
+    );
     expect(cascading).toHaveLength(1);
     expect(cascading[0].agentId).toBe('multiple');
     expect(cascading[0].occurrences).toBe(3);
@@ -94,12 +100,17 @@ describe('FailurePatternService', () => {
     await createAndFail('agent-1', 'task B');
 
     await service.analyze(contractService);
-    expect(createMemoryFn).toHaveBeenCalledWith('system', expect.objectContaining({
-      layer: 'INSIGHT',
-      memoryType: 'LESSON',
-      source: 'SYSTEM_GENERATED',
-    }));
-    expect(createMemoryFn.mock.calls[0][1].raw).toContain('FAILURE PATTERN DETECTED');
+    expect(createMemoryFn).toHaveBeenCalledWith(
+      'system',
+      expect.objectContaining({
+        layer: 'INSIGHT',
+        memoryType: 'LESSON',
+        source: 'SYSTEM_GENERATED',
+      }),
+    );
+    expect(createMemoryFn.mock.calls[0][1].raw).toContain(
+      'FAILURE PATTERN DETECTED',
+    );
   });
 
   it('should not duplicate patterns on re-analysis', async () => {

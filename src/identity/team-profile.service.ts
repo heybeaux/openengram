@@ -1,4 +1,11 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTeamDto,
@@ -24,7 +31,6 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TeamProfileService.name);
 
   private teams = new Map<string, TeamProfile>();
-  private idCounter = 0;
 
   constructor(
     private prisma: PrismaService,
@@ -35,14 +41,6 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     this.teams = this.fileStore.load<string, TeamProfile>(TEAMS_FILE);
     if (this.teams.size > 0) {
       this.logger.log(`Loaded ${this.teams.size} teams from disk`);
-      // Restore idCounter from existing team IDs
-      for (const id of this.teams.keys()) {
-        const match = id.match(/^team_(\d+)_/);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num > this.idCounter) this.idCounter = num;
-        }
-      }
     }
   }
 
@@ -52,20 +50,24 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   }
 
   private persist(): void {
-    this.fileStore.save(TEAMS_FILE, this.teams).catch((err) =>
-      this.logger.warn(`Failed to persist teams: ${err.message}`),
-    );
+    this.fileStore
+      .save(TEAMS_FILE, this.teams)
+      .catch((err) =>
+        this.logger.warn(`Failed to persist teams: ${err.message}`),
+      );
   }
 
   /**
    * Create a new team profile
    */
   async createTeam(dto: CreateTeamDto): Promise<TeamProfile> {
-    const id = `team_${++this.idCounter}_${Date.now()}`;
+    const id = `team_${randomUUID()}`;
 
     // Aggregate capabilities from member agents
     const capabilities = await this.aggregateCapabilities(dto.agentIds);
-    const collaborationScore = await this.calculateCollaborationScore(dto.agentIds);
+    const collaborationScore = await this.calculateCollaborationScore(
+      dto.agentIds,
+    );
 
     const team: TeamProfile = {
       id,
@@ -81,7 +83,9 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
 
     this.teams.set(id, team);
     this.persist();
-    this.logger.log(`Created team "${dto.name}" with ${dto.agentIds.length} agents`);
+    this.logger.log(
+      `Created team "${dto.name}" with ${dto.agentIds.length} agents`,
+    );
     return team;
   }
 
@@ -106,7 +110,10 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   /**
    * Update team metadata
    */
-  async updateTeam(teamId: string, dto: { name?: string; description?: string }): Promise<TeamProfile> {
+  async updateTeam(
+    teamId: string,
+    dto: { name?: string; description?: string },
+  ): Promise<TeamProfile> {
     const team = await this.getTeam(teamId);
     if (dto.name) team.name = dto.name;
     if (dto.description !== undefined) team.description = dto.description;
@@ -134,7 +141,9 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     const newIds = agentIds.filter((id) => !team.agentIds.includes(id));
     team.agentIds.push(...newIds);
     team.capabilities = await this.aggregateCapabilities(team.agentIds);
-    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.collaborationScore = await this.calculateCollaborationScore(
+      team.agentIds,
+    );
     team.updatedAt = new Date();
     this.persist();
     return team;
@@ -143,11 +152,16 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
   /**
    * Remove members from a team
    */
-  async removeMembers(teamId: string, agentIds: string[]): Promise<TeamProfile> {
+  async removeMembers(
+    teamId: string,
+    agentIds: string[],
+  ): Promise<TeamProfile> {
     const team = await this.getTeam(teamId);
     team.agentIds = team.agentIds.filter((id) => !agentIds.includes(id));
     team.capabilities = await this.aggregateCapabilities(team.agentIds);
-    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.collaborationScore = await this.calculateCollaborationScore(
+      team.agentIds,
+    );
     team.updatedAt = new Date();
     this.persist();
     return team;
@@ -158,14 +172,23 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
    */
   async recordCollaboration(
     teamId: string,
-    dto: { agentA: string; agentB: string; taskDescription: string; success: boolean },
+    dto: {
+      agentA: string;
+      agentB: string;
+      taskDescription: string;
+      success: boolean;
+    },
   ): Promise<{ recorded: boolean; team: TeamProfile }> {
     const team = await this.getTeam(teamId);
     team.lastActive = new Date();
-    team.collaborationScore = await this.calculateCollaborationScore(team.agentIds);
+    team.collaborationScore = await this.calculateCollaborationScore(
+      team.agentIds,
+    );
     team.updatedAt = new Date();
     this.persist();
-    this.logger.log(`Collaboration recorded in team ${teamId}: ${dto.agentA} <-> ${dto.agentB}`);
+    this.logger.log(
+      `Collaboration recorded in team ${teamId}: ${dto.agentA} <-> ${dto.agentB}`,
+    );
     return { recorded: true, team };
   }
 
@@ -182,7 +205,10 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
    * their AGENT-type memories (reflections, observations).
    */
   async aggregateCapabilities(agentIds: string[]): Promise<TeamCapability[]> {
-    const capabilityMap = new Map<string, { score: number; contributors: Set<string>; count: number }>();
+    const capabilityMap = new Map<
+      string,
+      { score: number; contributors: Set<string>; count: number }
+    >();
 
     for (const agentId of agentIds) {
       // Find agent self-memories that indicate capabilities
@@ -230,14 +256,17 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     const pairs = await this.getCollaborationPairs(agentIds);
     if (pairs.length === 0) return 0;
 
-    const avgSuccess = pairs.reduce((sum, p) => sum + p.successRate, 0) / pairs.length;
+    const avgSuccess =
+      pairs.reduce((sum, p) => sum + p.successRate, 0) / pairs.length;
     return Math.round(avgSuccess * 100) / 100;
   }
 
   /**
    * Get collaboration pairs showing which agents work well together
    */
-  async getCollaborationPairs(agentIds: string[]): Promise<CollaborationPair[]> {
+  async getCollaborationPairs(
+    agentIds: string[],
+  ): Promise<CollaborationPair[]> {
     const pairs: CollaborationPair[] = [];
 
     for (let i = 0; i < agentIds.length; i++) {
@@ -288,9 +317,23 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     const lower = text.toLowerCase();
 
     const capKeywords: Record<string, string[]> = {
-      coding: ['code', 'programming', 'development', 'implement', 'debug', 'typescript', 'python'],
+      coding: [
+        'code',
+        'programming',
+        'development',
+        'implement',
+        'debug',
+        'typescript',
+        'python',
+      ],
       analysis: ['analyze', 'analysis', 'evaluate', 'assess', 'review'],
-      communication: ['communicate', 'explain', 'writing', 'documentation', 'report'],
+      communication: [
+        'communicate',
+        'explain',
+        'writing',
+        'documentation',
+        'report',
+      ],
       planning: ['plan', 'strategy', 'organize', 'coordinate', 'schedule'],
       research: ['research', 'investigate', 'search', 'explore', 'find'],
       testing: ['test', 'qa', 'quality', 'verify', 'validate'],

@@ -1,4 +1,16 @@
-import { Controller, Post, Get, Patch, Body, Param, Query, Req, UseGuards, HttpCode, Optional } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseGuards,
+  HttpCode,
+  Optional,
+} from '@nestjs/common';
 import { WakingCycleService } from './waking-cycle.service';
 import { InsightFeedbackService } from './insight-feedback.service';
 import { ProactiveNotificationService } from './proactive-notification.service';
@@ -18,7 +30,8 @@ export class AwarenessController {
     private readonly prisma: PrismaService,
     @Optional() private readonly wakingCycle?: WakingCycleService,
     @Optional() private readonly insightFeedback?: InsightFeedbackService,
-    @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
+    @Optional()
+    private readonly proactiveNotification?: ProactiveNotificationService,
   ) {}
 
   @Get('insights')
@@ -60,7 +73,12 @@ export class AwarenessController {
   @HttpCode(200)
   async getCycleStatus() {
     if (!this.wakingCycle) {
-      return { phase: 'disabled', lastRun: null, nextRun: null, insightsGenerated: 0 };
+      return {
+        phase: 'disabled',
+        lastRun: null,
+        nextRun: null,
+        insightsGenerated: 0,
+      };
     }
     // HEY-335: Query persisted cycle run history
     const status = await this.wakingCycle.getLastCycleRun();
@@ -97,7 +115,8 @@ export class AwarenessController {
   async triggerCycle(@Query('accountId') accountId?: string) {
     if (!this.wakingCycle) {
       return {
-        error: 'Waking Cycle not available. Set AWARENESS_ENABLED=true and redeploy.',
+        error:
+          'Waking Cycle not available. Set AWARENESS_ENABLED=true and redeploy.',
         enabled: AwarenessConfig.enabled,
       };
     }
@@ -113,11 +132,16 @@ export class AwarenessController {
   ) {
     if (!this.insightFeedback) {
       return {
-        error: 'Insight feedback not available. Set AWARENESS_ENABLED=true and redeploy.',
+        error:
+          'Insight feedback not available. Set AWARENESS_ENABLED=true and redeploy.',
         enabled: AwarenessConfig.enabled,
       };
     }
-    return this.insightFeedback.recordFeedback(insightId, dto.action, dto.comment);
+    return this.insightFeedback.recordFeedback(
+      insightId,
+      dto.action,
+      dto.comment,
+    );
   }
 
   /** HEY-154: POST /v1/notifications/configure */
@@ -126,7 +150,8 @@ export class AwarenessController {
   async configureNotifications(@Body() dto: NotificationConfigDto) {
     if (!this.proactiveNotification) {
       return {
-        error: 'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
+        error:
+          'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
         enabled: AwarenessConfig.enabled,
       };
     }
@@ -145,7 +170,8 @@ export class AwarenessController {
   async getNotificationConfig() {
     if (!this.proactiveNotification) {
       return {
-        error: 'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
+        error:
+          'Proactive notifications not available. Set AWARENESS_ENABLED=true and redeploy.',
         enabled: AwarenessConfig.enabled,
       };
     }

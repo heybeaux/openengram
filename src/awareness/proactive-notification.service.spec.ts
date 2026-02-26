@@ -21,7 +21,9 @@ describe('ProactiveNotificationService', () => {
       },
     };
 
-    service = new ProactiveNotificationService(prisma as unknown as PrismaService);
+    service = new ProactiveNotificationService(
+      prisma as unknown as PrismaService,
+    );
     mockFetch.mockReset();
   });
 

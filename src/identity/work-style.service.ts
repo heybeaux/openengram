@@ -62,7 +62,10 @@ export class WorkStyleService {
       let newValue: any;
       let trend: string | null = null;
 
-      if (typeof observation === 'number' && typeof currentValue?.avg === 'number') {
+      if (
+        typeof observation === 'number' &&
+        typeof currentValue?.avg === 'number'
+      ) {
         // Numeric dimension: update running average + min/max
         const newAvg =
           (currentValue.avg * existing.sampleCount + observation) /
@@ -81,7 +84,12 @@ export class WorkStyleService {
         };
       } else if (typeof observation === 'number') {
         // First numeric for this dimension
-        newValue = { avg: observation, min: observation, max: observation, latest: observation };
+        newValue = {
+          avg: observation,
+          min: observation,
+          max: observation,
+          latest: observation,
+        };
         trend = 'stable';
       } else if (typeof observation === 'string') {
         // Categorical: frequency map
@@ -104,7 +112,12 @@ export class WorkStyleService {
     } else {
       let value: any;
       if (typeof observation === 'number') {
-        value = { avg: observation, min: observation, max: observation, latest: observation };
+        value = {
+          avg: observation,
+          min: observation,
+          max: observation,
+          latest: observation,
+        };
       } else if (typeof observation === 'string') {
         value = { frequencies: { [observation]: 1 }, latest: observation };
       } else {

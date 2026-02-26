@@ -265,7 +265,7 @@ export class MultiQueryService {
     const fusionStart = Date.now();
     const fusedResults = this.fusion.fuse(
       searchResults,
-      options.multiQuery?.fusionStrategy as any ?? config.fusion.strategy,
+      (options.multiQuery?.fusionStrategy as any) ?? config.fusion.strategy,
       expansion,
     );
     metrics.fusionMs = Date.now() - fusionStart;

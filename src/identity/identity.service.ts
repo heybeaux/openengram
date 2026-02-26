@@ -121,15 +121,9 @@ export class IdentityService {
         this.capabilityProfile
           .getProfile(agentId, userId)
           .catch(() => ({ agentId, capabilities: [] })),
-        this.workStyle
-          .getWorkStyle(agentId, userId)
-          .catch(() => []),
-        this.selfAssessment
-          .getLatestByArea(userId, agentId)
-          .catch(() => []),
-        this.taskOutcome
-          .list(userId, agentId, 20)
-          .catch(() => []),
+        this.workStyle.getWorkStyle(agentId, userId).catch(() => []),
+        this.selfAssessment.getLatestByArea(userId, agentId).catch(() => []),
+        this.taskOutcome.list(userId, agentId, 20).catch(() => []),
       ]);
 
     // HEY-171: Extract preferences from memory data
@@ -291,9 +285,8 @@ export class IdentityService {
       totalMemories: memories.length,
       identityMemories: memories.filter((m) => m.layer === 'IDENTITY').length,
       lessonMemories: memories.filter((m) => m.memoryType === 'LESSON').length,
-      constraintMemories: memories.filter(
-        (m) => m.memoryType === 'CONSTRAINT',
-      ).length,
+      constraintMemories: memories.filter((m) => m.memoryType === 'CONSTRAINT')
+        .length,
       averageConfidence:
         confidences.length > 0
           ? Math.round(
@@ -303,15 +296,11 @@ export class IdentityService {
           : 0,
       oldestMemory:
         dates.length > 0
-          ? new Date(
-              Math.min(...dates.map((d) => d.getTime())),
-            ).toISOString()
+          ? new Date(Math.min(...dates.map((d) => d.getTime()))).toISOString()
           : null,
       newestMemory:
         dates.length > 0
-          ? new Date(
-              Math.max(...dates.map((d) => d.getTime())),
-            ).toISOString()
+          ? new Date(Math.max(...dates.map((d) => d.getTime()))).toISOString()
           : null,
     };
   }
@@ -340,7 +329,7 @@ export class IdentityService {
     const topicCounts = new Map<string, number>();
     for (const memory of recentMemories) {
       if (memory.extraction?.topics) {
-        for (const topic of memory.extraction.topics as string[]) {
+        for (const topic of memory.extraction.topics) {
           topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
         }
       }

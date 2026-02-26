@@ -177,7 +177,9 @@ export class GraphExtractionService {
       );
 
       // Strip thinking tags (qwen3, deepseek-r1, etc.)
-      const cleaned = response.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      const cleaned = response.content
+        .replace(/<think>[\s\S]*?<\/think>/g, '')
+        .trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         this.logger.warn('No JSON array found in entity extraction response');
@@ -185,13 +187,18 @@ export class GraphExtractionService {
       }
 
       // Try parsing; if it fails, attempt to fix common LLM JSON issues
-      let parsed: Array<{ name: string; type: string; aliases?: string[]; role?: string }>;
+      let parsed: Array<{
+        name: string;
+        type: string;
+        aliases?: string[];
+        role?: string;
+      }>;
       try {
         parsed = JSON.parse(jsonMatch[0]);
       } catch {
         // Try fixing trailing commas, single quotes, etc.
         const fixedJson = jsonMatch[0]
-          .replace(/,\s*([}\]])/g, '$1')       // trailing commas
+          .replace(/,\s*([}\]])/g, '$1') // trailing commas
           .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":') // unquoted keys
           .replace(/:\s*'([^']*)'/g, ': "$1"'); // single-quoted values
         parsed = JSON.parse(fixedJson);
@@ -234,7 +241,9 @@ export class GraphExtractionService {
       );
 
       // Strip thinking tags (qwen3, deepseek-r1, etc.)
-      const cleaned = response.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      const cleaned = response.content
+        .replace(/<think>[\s\S]*?<\/think>/g, '')
+        .trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         this.logger.warn(

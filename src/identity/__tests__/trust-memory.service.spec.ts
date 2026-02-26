@@ -37,7 +37,9 @@ describe('TrustMemoryService', () => {
       });
       prisma.memory.create.mockResolvedValue({ id: 'mem-1' } as any);
 
-      const result = await service.recomputeAndRemember('user-1', { agentId: 'agent-1' });
+      const result = await service.recomputeAndRemember('user-1', {
+        agentId: 'agent-1',
+      });
 
       expect(result.score.score).toBe(0.65);
       expect(result.memoryId).toBe('mem-1');
@@ -78,7 +80,9 @@ describe('TrustMemoryService', () => {
       });
       prisma.memory.create.mockResolvedValue({ id: 'mem-2' } as any);
 
-      const result = await service.recomputeAndRemember('user-1', { agentId: 'agent-1' });
+      const result = await service.recomputeAndRemember('user-1', {
+        agentId: 'agent-1',
+      });
 
       expect(result.narrative).toContain('increased');
       expect(result.narrative).toContain('0.60');
@@ -133,7 +137,9 @@ describe('TrustMemoryService', () => {
       });
       prisma.memory.create.mockResolvedValue({ id: 'mem-3' } as any);
 
-      const result = await service.recomputeAndRemember('user-1', { agentId: 'a1' });
+      const result = await service.recomputeAndRemember('user-1', {
+        agentId: 'a1',
+      });
 
       expect(result.narrative).toContain('significantly decreased');
       expect(result.narrative).toContain('0.80');
@@ -147,12 +153,19 @@ describe('TrustMemoryService', () => {
         {
           id: 'mem-1',
           raw: 'Trust increased from 0.5 to 0.7',
-          metadata: { trustScore: true, category: 'overall', newScore: 0.7, delta: 0.2 },
+          metadata: {
+            trustScore: true,
+            category: 'overall',
+            newScore: 0.7,
+            delta: 0.2,
+          },
           createdAt: new Date('2026-02-20'),
         },
       ] as any);
 
-      const result = await service.getTrustNarrative('user-1', { agentId: 'a1' });
+      const result = await service.getTrustNarrative('user-1', {
+        agentId: 'a1',
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0].score).toBe(0.7);
@@ -164,18 +177,30 @@ describe('TrustMemoryService', () => {
         {
           id: 'mem-1',
           raw: 'Trust for deploy...',
-          metadata: { trustScore: true, category: 'deploy', newScore: 0.8, delta: 0.1 },
+          metadata: {
+            trustScore: true,
+            category: 'deploy',
+            newScore: 0.8,
+            delta: 0.1,
+          },
           createdAt: new Date(),
         },
         {
           id: 'mem-2',
           raw: 'Trust for code-review...',
-          metadata: { trustScore: true, category: 'code-review', newScore: 0.6, delta: -0.1 },
+          metadata: {
+            trustScore: true,
+            category: 'code-review',
+            newScore: 0.6,
+            delta: -0.1,
+          },
           createdAt: new Date(),
         },
       ] as any);
 
-      const result = await service.getTrustNarrative('user-1', { category: 'deploy' });
+      const result = await service.getTrustNarrative('user-1', {
+        category: 'deploy',
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('mem-1');

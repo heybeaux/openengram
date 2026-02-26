@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ChallengeStatus,
@@ -81,7 +86,10 @@ export class ChallengeService {
         metadata: {
           ...existingMeta,
           disputed: true,
-          challengeIds: [...((existingMeta.challengeIds as string[]) ?? []), challengeMemory.id],
+          challengeIds: [
+            ...((existingMeta.challengeIds as string[]) ?? []),
+            challengeMemory.id,
+          ],
         },
         confidence: Math.max(0.1, memory.confidence - 0.2), // Reduce confidence while disputed
       },
@@ -127,7 +135,10 @@ export class ChallengeService {
   /**
    * Get a specific challenge by its ID.
    */
-  async getChallenge(userId: string, challengeId: string): Promise<ChallengeResult> {
+  async getChallenge(
+    userId: string,
+    challengeId: string,
+  ): Promise<ChallengeResult> {
     const memory = await this.prisma.memory.findFirst({
       where: {
         id: challengeId,
@@ -166,7 +177,10 @@ export class ChallengeService {
     }
 
     const meta = (memory.metadata as Record<string, unknown>) ?? {};
-    if (meta.status !== ChallengeStatus.OPEN && meta.status !== ChallengeStatus.UNDER_REVIEW) {
+    if (
+      meta.status !== ChallengeStatus.OPEN &&
+      meta.status !== ChallengeStatus.UNDER_REVIEW
+    ) {
       throw new BadRequestException('Challenge is already resolved');
     }
 
@@ -194,9 +208,10 @@ export class ChallengeService {
         where: { id: targetMemoryId },
       });
       if (targetMemory) {
-        const targetMeta = (targetMemory.metadata as Record<string, unknown>) ?? {};
+        const targetMeta =
+          (targetMemory.metadata as Record<string, unknown>) ?? {};
         const challengeIds = (targetMeta.challengeIds as string[]) ?? [];
-        
+
         if (resolution.status === ChallengeStatus.UPHELD) {
           await this.prisma.memory.update({
             where: { id: targetMemoryId },

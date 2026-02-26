@@ -67,7 +67,7 @@ export class MemoryPipelineService {
       ),
     ]);
 
-    this.logger.log('[Memory] Extraction result:', {
+    this.logger.debug('[Memory] Extraction result:', {
       memoryId,
       who: extracted.who,
       what: extracted.what?.substring(0, 50),
@@ -138,7 +138,7 @@ export class MemoryPipelineService {
         howConfidence: extracted.confidence.howConfidence,
       },
     });
-    this.logger.log('[Memory] MemoryExtraction saved for:', memoryId, {
+    this.logger.debug('[Memory] MemoryExtraction saved for:', memoryId, {
       parsedWhen: parsedWhen?.toISOString() ?? null,
       memoryType: extracted.memoryType,
       typeConfidence: extracted.typeConfidence,
@@ -169,7 +169,7 @@ export class MemoryPipelineService {
           ...layerUpdate,
         },
       });
-      this.logger.log('[Memory] Memory Intelligence updated:', {
+      this.logger.debug('[Memory] Memory Intelligence updated:', {
         memoryId,
         memoryType: extracted.memoryType,
         priority,
@@ -185,23 +185,34 @@ export class MemoryPipelineService {
     }
 
     // 3b. Store capability/preference signals in metadata (HEY-169, HEY-171)
-    if (extracted.capabilities.length > 0 || extracted.preferenceSignals.length > 0) {
+    if (
+      extracted.capabilities.length > 0 ||
+      extracted.preferenceSignals.length > 0
+    ) {
       let existingMeta: Record<string, any> = {};
       try {
-        const existingMem = await this.prisma.memory.findUnique?.({ where: { id: memoryId }, select: { metadata: true } });
+        const existingMem = await this.prisma.memory.findUnique?.({
+          where: { id: memoryId },
+          select: { metadata: true },
+        });
         existingMeta = (existingMem?.metadata as Record<string, any>) || {};
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       const metadataUpdate: Record<string, any> = { ...existingMeta };
 
       if (extracted.capabilities.length > 0) {
         metadataUpdate.capabilities = extracted.capabilities;
       }
       if (extracted.preferenceSignals.length > 0) {
-        metadataUpdate.preferenceCategory = extracted.preferenceSignals[0].category;
+        metadataUpdate.preferenceCategory =
+          extracted.preferenceSignals[0].category;
         metadataUpdate.preference = extracted.preferenceSignals[0].preference;
-        metadataUpdate.preferenceStrength = extracted.preferenceSignals[0].strength;
+        metadataUpdate.preferenceStrength =
+          extracted.preferenceSignals[0].strength;
         if (extracted.preferenceSignals.length > 1) {
-          metadataUpdate.additionalPreferences = extracted.preferenceSignals.slice(1);
+          metadataUpdate.additionalPreferences =
+            extracted.preferenceSignals.slice(1);
         }
       }
 
@@ -209,7 +220,7 @@ export class MemoryPipelineService {
         where: { id: memoryId },
         data: { metadata: metadataUpdate },
       });
-      console.log('[Memory] Capability/preference signals stored:', {
+      this.logger.debug('[Memory] Capability/preference signals stored:', {
         memoryId,
         capabilities: extracted.capabilities.length,
         preferences: extracted.preferenceSignals.length,
@@ -218,15 +229,15 @@ export class MemoryPipelineService {
 
     // 4. Store extracted entities
     if (extracted.entities && extracted.entities.length > 0) {
-      this.logger.log('[Memory] Storing entities:', {
+      this.logger.debug('[Memory] Storing entities:', {
         memoryId,
         count: extracted.entities.length,
         entities: extracted.entities.map((e) => `${e.name}:${e.type}`),
       });
       await this.storeEntities(userId, memoryId, extracted.entities);
-      this.logger.log('[Memory] Entities stored successfully for:', memoryId);
+      this.logger.debug('[Memory] Entities stored successfully for:', memoryId);
     } else {
-      this.logger.log('[Memory] No entities to store for:', memoryId);
+      this.logger.debug('[Memory] No entities to store for:', memoryId);
     }
 
     // 5. Generate and store embedding (Phase 2 — resilient, HEY-345)
@@ -242,7 +253,7 @@ export class MemoryPipelineService {
         });
         if (memory) {
           const graphResult = await this.graphExtraction.processMemory(memory);
-          this.logger.log('[Memory] Graph extraction complete:', {
+          this.logger.debug('[Memory] Graph extraction complete:', {
             memoryId,
             entities: graphResult.entitiesCreated + graphResult.entitiesUpdated,
             relationships: graphResult.relationshipsCreated,
@@ -283,11 +294,14 @@ export class MemoryPipelineService {
     try {
       const embedding = await this.embedding.generate(raw);
       const embeddingId = await this.embedding.store(memoryId, embedding);
-      this.logger.log('[Memory] Embedding stored:', { memoryId, embeddingId });
+      this.logger.debug('[Memory] Embedding stored:', {
+        memoryId,
+        embeddingId,
+      });
 
       await this.prisma.memory.update({
         where: { id: memoryId },
-        data: { embeddingId },
+        data: { embeddingId, embeddingStatus: 'COMPLETE' },
       });
 
       // Link to related memories
@@ -301,6 +315,19 @@ export class MemoryPipelineService {
         `[Memory] Embedding failed for ${memoryId} — queued for retry:`,
         embedError instanceof Error ? embedError.message : embedError,
       );
+
+      // Mark as FAILED in DB
+      try {
+        await this.prisma.memory.update({
+          where: { id: memoryId },
+          data: { embeddingStatus: 'FAILED' },
+        });
+      } catch (e) {
+        this.logger.warn(
+          `[Memory] Could not update embeddingStatus for ${memoryId}:`,
+          e instanceof Error ? e.message : e,
+        );
+      }
 
       // Add to retry queue
       const existing = this.embeddingRetryQueue.get(memoryId);
@@ -329,7 +356,11 @@ export class MemoryPipelineService {
     // 1. Discover memories without embeddings from DB (up to 100)
     const unembedded = await this.prisma.memory.findMany({
       where: {
-        embeddingId: null,
+        OR: [
+          { embeddingId: null },
+          { embeddingStatus: 'FAILED' },
+          { embeddingStatus: 'PENDING' },
+        ],
         deletedAt: null,
       },
       select: { id: true, userId: true, raw: true },
@@ -386,20 +417,29 @@ export class MemoryPipelineService {
   async getEmbeddingStatus(userId?: string): Promise<{
     withEmbedding: number;
     withoutEmbedding: number;
+    failedEmbedding: number;
+    pendingEmbedding: number;
     retryQueueSize: number;
     exhaustedRetries: number;
   }> {
     const baseWhere: any = { deletedAt: null };
     if (userId) baseWhere.userId = userId;
 
-    const [withEmbedding, withoutEmbedding] = await Promise.all([
-      this.prisma.memory.count({
-        where: { ...baseWhere, embeddingId: { not: null } },
-      }),
-      this.prisma.memory.count({
-        where: { ...baseWhere, embeddingId: null },
-      }),
-    ]);
+    const [withEmbedding, withoutEmbedding, failedEmbedding, pendingEmbedding] =
+      await Promise.all([
+        this.prisma.memory.count({
+          where: { ...baseWhere, embeddingStatus: 'COMPLETE' },
+        }),
+        this.prisma.memory.count({
+          where: { ...baseWhere, embeddingId: null },
+        }),
+        this.prisma.memory.count({
+          where: { ...baseWhere, embeddingStatus: 'FAILED' },
+        }),
+        this.prisma.memory.count({
+          where: { ...baseWhere, embeddingStatus: 'PENDING' },
+        }),
+      ]);
 
     const retryQueueSize = this.embeddingRetryQueue.size;
     let exhaustedRetries = 0;
@@ -409,7 +449,14 @@ export class MemoryPipelineService {
       }
     }
 
-    return { withEmbedding, withoutEmbedding, retryQueueSize, exhaustedRetries };
+    return {
+      withEmbedding,
+      withoutEmbedding,
+      failedEmbedding,
+      pendingEmbedding,
+      retryQueueSize,
+      exhaustedRetries,
+    };
   }
 
   /**

@@ -380,12 +380,13 @@ export class ModelRegistryService implements OnModuleInit {
       queryTypeWeights: model.queryTypeWeights as
         | Record<QueryType, number>
         | undefined,
-      qualityMetrics: (model.qualityMetrics as unknown as ModelQualityMetrics) ?? {
-        sampleQueries: 0,
-        avgRankContribution: 0,
-        uniqueHits: 0,
-        correlationWithGoldStandard: 0,
-      },
+      qualityMetrics:
+        (model.qualityMetrics as unknown as ModelQualityMetrics) ?? {
+          sampleQueries: 0,
+          avgRankContribution: 0,
+          uniqueHits: 0,
+          correlationWithGoldStandard: 0,
+        },
       promotionThresholds:
         (model.promotionThresholds as unknown as PromotionThresholds) ??
         DEFAULT_PROMOTION_THRESHOLDS,

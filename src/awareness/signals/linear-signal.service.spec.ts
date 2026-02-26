@@ -104,9 +104,15 @@ describe('LinearSignalService', () => {
         callCount++;
         // Return different data based on call order
         if (callCount <= 3) {
-          return { ok: true, json: async () => ({ data: { issues: { nodes: [issueNode] } } }) } as Response;
+          return {
+            ok: true,
+            json: async () => ({ data: { issues: { nodes: [issueNode] } } }),
+          } as Response;
         }
-        return { ok: true, json: async () => ({ data: { comments: { nodes: [commentNode] } } }) } as Response;
+        return {
+          ok: true,
+          json: async () => ({ data: { comments: { nodes: [commentNode] } } }),
+        } as Response;
       });
 
       const result = await service.collect(null, { maxQueries: 4 });

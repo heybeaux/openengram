@@ -11,7 +11,10 @@ import {
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { DelegationContractService } from './delegation-contract.service';
-import { CreateDelegationContractDto, CompleteContractRequestDto } from './dto/delegation-contract.dto';
+import {
+  CreateDelegationContractDto,
+  CompleteContractRequestDto,
+} from './dto/delegation-contract.dto';
 
 @ApiTags('delegation-contracts')
 @UseGuards(ApiKeyOrJwtGuard)

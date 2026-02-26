@@ -16,7 +16,10 @@ describe('DelegationContractController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DelegationContractController],
-      providers: [DelegationContractService, { provide: FileStoreService, useValue: mockFileStore }],
+      providers: [
+        DelegationContractService,
+        { provide: FileStoreService, useValue: mockFileStore },
+      ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)
       .useValue({ canActivate: () => true })

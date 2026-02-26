@@ -6,6 +6,8 @@ import { MemoryDedupService } from './memory-dedup.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import {
   ExportedMemory,
+  ExportedGraphEntity,
+  ExportedGraphRelationship,
   ImportMemoryItemDto,
   ImportResult,
 } from './dto/export-import.dto';
@@ -58,8 +60,12 @@ export class MemoryExportService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const ensembleMap = await this.buildEnsembleMap(memories.map((m) => m.id));
-    return memories.map((m) => this.mapToExported(m, ensembleMap));
+    const memoryIds = memories.map((m) => m.id);
+    const [ensembleMap, graphMap] = await Promise.all([
+      this.buildEnsembleMap(memoryIds),
+      this.buildGraphMap(memoryIds),
+    ]);
+    return memories.map((m) => this.mapToExported(m, ensembleMap, graphMap));
   }
 
   async exportMemoriesBatch(
@@ -75,8 +81,12 @@ export class MemoryExportService {
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    const ensembleMap = await this.buildEnsembleMap(memories.map((m) => m.id));
-    return memories.map((m) => this.mapToExported(m, ensembleMap));
+    const memoryIds = memories.map((m) => m.id);
+    const [ensembleMap, graphMap] = await Promise.all([
+      this.buildEnsembleMap(memoryIds),
+      this.buildGraphMap(memoryIds),
+    ]);
+    return memories.map((m) => this.mapToExported(m, ensembleMap, graphMap));
   }
 
   async importMemories(
@@ -192,6 +202,146 @@ export class MemoryExportService {
     return { imported, skipped, errors };
   }
 
+  private async buildGraphMap(memoryIds: string[]): Promise<
+    Map<
+      string,
+      {
+        entities: ExportedGraphEntity[];
+        relationships: ExportedGraphRelationship[];
+      }
+    >
+  > {
+    const graphMap = new Map<
+      string,
+      {
+        entities: ExportedGraphEntity[];
+        relationships: ExportedGraphRelationship[];
+      }
+    >();
+
+    if (!memoryIds.length) return graphMap;
+
+    // Batch fetch all entity mentions for these memories, including entity data
+    let mentions: any[] = [];
+    try {
+      mentions = await this.prisma.graphEntityMention.findMany({
+        where: { memoryId: { in: memoryIds } },
+        select: {
+          memoryId: true,
+          entityId: true,
+          entity: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              aliases: true,
+              description: true,
+              metadata: true,
+            },
+          },
+        },
+      });
+    } catch {
+      // Graph tables may not exist in test or older schemas
+    }
+
+    // Build per-memory entity map and collect all entity IDs
+    const memoryEntityMap = new Map<string, Map<string, ExportedGraphEntity>>();
+    const allEntityIds = new Set<string>();
+
+    for (const mention of mentions) {
+      allEntityIds.add(mention.entityId);
+      if (!memoryEntityMap.has(mention.memoryId)) {
+        memoryEntityMap.set(mention.memoryId, new Map());
+      }
+      const entityMap = memoryEntityMap.get(mention.memoryId)!;
+      if (!entityMap.has(mention.entityId)) {
+        entityMap.set(mention.entityId, {
+          id: mention.entity.id,
+          name: mention.entity.name,
+          type: mention.entity.type,
+          aliases: mention.entity.aliases,
+          description: mention.entity.description,
+          metadata: mention.entity.metadata as Record<string, any>,
+        });
+      }
+    }
+
+    // Batch fetch relationships where sourceMemoryIds overlap with our memoryIds
+    let relationships: any[] = [];
+    if (allEntityIds.size) {
+      try {
+        relationships = await this.prisma.graphRelationship.findMany({
+          where: {
+            OR: [
+              { sourceEntityId: { in: [...allEntityIds] } },
+              { targetEntityId: { in: [...allEntityIds] } },
+            ],
+            sourceMemoryIds: { hasSome: memoryIds },
+          },
+          select: {
+            id: true,
+            sourceEntityId: true,
+            targetEntityId: true,
+            type: true,
+            label: true,
+            weight: true,
+            properties: true,
+            isInferred: true,
+            sourceMemoryIds: true,
+          },
+        });
+      } catch {
+        // Graph tables may not exist in test or older schemas
+      }
+    }
+
+    // Map relationships to memories via sourceMemoryIds
+    const memoryRelMap = new Map<
+      string,
+      Map<string, ExportedGraphRelationship>
+    >();
+    for (const rel of relationships) {
+      for (const memId of rel.sourceMemoryIds) {
+        if (!memoryIds.includes(memId)) continue;
+        if (!memoryRelMap.has(memId)) {
+          memoryRelMap.set(memId, new Map());
+        }
+        const relMap = memoryRelMap.get(memId)!;
+        if (!relMap.has(rel.id)) {
+          relMap.set(rel.id, {
+            id: rel.id,
+            sourceEntityId: rel.sourceEntityId,
+            targetEntityId: rel.targetEntityId,
+            type: rel.type,
+            label: rel.label,
+            weight: rel.weight,
+            properties: rel.properties as Record<string, any>,
+            isInferred: rel.isInferred,
+          });
+        }
+      }
+    }
+
+    // Combine into graphMap
+    const allMemoryIds = new Set([
+      ...memoryEntityMap.keys(),
+      ...memoryRelMap.keys(),
+    ]);
+    for (const memId of allMemoryIds) {
+      graphMap.set(memId, {
+        entities: memoryEntityMap.has(memId)
+          ? [...memoryEntityMap.get(memId)!.values()]
+          : [],
+        relationships: memoryRelMap.has(memId)
+          ? [...memoryRelMap.get(memId)!.values()]
+          : [],
+      });
+    }
+
+    return graphMap;
+  }
+
   private async buildEnsembleMap(
     memoryIds: string[],
   ): Promise<Map<string, Record<string, any>>> {
@@ -217,6 +367,13 @@ export class MemoryExportService {
   private mapToExported(
     m: any,
     ensembleMap: Map<string, Record<string, any>>,
+    graphMap: Map<
+      string,
+      {
+        entities: ExportedGraphEntity[];
+        relationships: ExportedGraphRelationship[];
+      }
+    >,
   ): ExportedMemory {
     return {
       id: m.id,
@@ -248,6 +405,7 @@ export class MemoryExportService {
       ...(ensembleMap.has(m.id)
         ? { ensembleEmbeddings: ensembleMap.get(m.id) }
         : {}),
+      graph: graphMap.get(m.id) ?? { entities: [], relationships: [] },
     };
   }
 

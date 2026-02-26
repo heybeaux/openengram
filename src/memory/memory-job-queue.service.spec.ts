@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { MemoryJobQueueService, MAX_BATCH_SIZE, MemoryJob } from './memory-job-queue.service';
+import {
+  MemoryJobQueueService,
+  MAX_BATCH_SIZE,
+  MemoryJob,
+} from './memory-job-queue.service';
 
 describe('MemoryJobQueueService', () => {
   let service: MemoryJobQueueService;
@@ -31,7 +35,9 @@ describe('MemoryJobQueueService', () => {
       memoryId: `m${i}`,
       raw: `memory ${i}`,
     }));
-    expect(() => service.createBatch('user-1', memories)).toThrow(BadRequestException);
+    expect(() => service.createBatch('user-1', memories)).toThrow(
+      BadRequestException,
+    );
   });
 
   it('should process all jobs to completion', async () => {
@@ -88,10 +94,13 @@ describe('MemoryJobQueueService', () => {
       concurrent--;
     });
 
-    service.createBatch('user-1', Array.from({ length: 10 }, (_, i) => ({
-      memoryId: `m${i}`,
-      raw: `memory ${i}`,
-    })));
+    service.createBatch(
+      'user-1',
+      Array.from({ length: 10 }, (_, i) => ({
+        memoryId: `m${i}`,
+        raw: `memory ${i}`,
+      })),
+    );
 
     await new Promise((r) => setTimeout(r, 1000));
 

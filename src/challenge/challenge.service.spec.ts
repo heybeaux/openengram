@@ -134,17 +134,39 @@ describe('ChallengeService', () => {
       prisma.memory.findMany.mockResolvedValue([
         {
           id: 'c-1',
-          metadata: { challenge: true, status: 'OPEN', challengerId: 'a', targetMemoryId: 'm', reason: 'r', evidence: null, resolution: null, resolvedBy: null, resolvedAt: null },
+          metadata: {
+            challenge: true,
+            status: 'OPEN',
+            challengerId: 'a',
+            targetMemoryId: 'm',
+            reason: 'r',
+            evidence: null,
+            resolution: null,
+            resolvedBy: null,
+            resolvedAt: null,
+          },
           createdAt: new Date(),
         },
         {
           id: 'c-2',
-          metadata: { challenge: true, status: 'UPHELD', challengerId: 'a', targetMemoryId: 'm', reason: 'r', evidence: null, resolution: 'yes', resolvedBy: 'human', resolvedAt: new Date().toISOString() },
+          metadata: {
+            challenge: true,
+            status: 'UPHELD',
+            challengerId: 'a',
+            targetMemoryId: 'm',
+            reason: 'r',
+            evidence: null,
+            resolution: 'yes',
+            resolvedBy: 'human',
+            resolvedAt: new Date().toISOString(),
+          },
           createdAt: new Date(),
         },
       ] as any);
 
-      const result = await service.listChallenges('user-1', { status: ChallengeStatus.OPEN });
+      const result = await service.listChallenges('user-1', {
+        status: ChallengeStatus.OPEN,
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('c-1');

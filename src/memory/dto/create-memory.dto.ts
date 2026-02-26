@@ -83,7 +83,10 @@ export class CreateMemoryDto {
     enum: ['SESSION', 'PROJECT', 'IDENTITY', 'TASK'],
   })
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
+  @ApiPropertyOptional({
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'],
+    type: String,
+  })
   @IsEnum(MemoryLayer)
   @Transform(({ value, obj }) => value ?? mapMemoryType(obj.memoryType))
   layer?: string;
@@ -136,7 +139,18 @@ export class CreateMemoryDto {
 
   // Memory source type (defaults to EXPLICIT_STATEMENT)
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['EXPLICIT_STATEMENT', 'AGENT_OBSERVATION', 'AGENT_REFLECTION', 'CORRECTION', 'PATTERN_DETECTED', 'SYSTEM', 'GIT_HISTORY'], type: String })
+  @ApiPropertyOptional({
+    enum: [
+      'EXPLICIT_STATEMENT',
+      'AGENT_OBSERVATION',
+      'AGENT_REFLECTION',
+      'CORRECTION',
+      'PATTERN_DETECTED',
+      'SYSTEM',
+      'GIT_HISTORY',
+    ],
+    type: String,
+  })
   @IsEnum(MemorySource)
   source?: string;
 

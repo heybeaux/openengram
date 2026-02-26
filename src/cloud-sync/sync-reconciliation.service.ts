@@ -62,17 +62,26 @@ export class SyncReconciliationService {
     await this.ensureLocalContentHashes();
     const localMemories = await this.prisma.memory.findMany({
       where: { deletedAt: null, contentHash: { not: null } },
-      select: { id: true, raw: true, contentHash: true, layer: true, createdAt: true },
+      select: {
+        id: true,
+        raw: true,
+        contentHash: true,
+        layer: true,
+        createdAt: true,
+      },
     });
 
-    const localByHash = new Map<string, typeof localMemories[0]>();
+    const localByHash = new Map<string, (typeof localMemories)[0]>();
     for (const m of localMemories) {
       if (m.contentHash) localByHash.set(m.contentHash, m);
     }
 
     // 2. Gather cloud content hashes via paginated pull
     const cloudMemories = await this.fetchAllCloudHashes(apiKey);
-    const cloudByHash = new Map<string, { id: string; raw: string; layer: string; createdAt: string }>();
+    const cloudByHash = new Map<
+      string,
+      { id: string; raw: string; layer: string; createdAt: string }
+    >();
     for (const m of cloudMemories) {
       if (m.contentHash) cloudByHash.set(m.contentHash, m);
     }
@@ -180,7 +189,10 @@ export class SyncReconciliationService {
       const cloudApiKey = this.decryptApiKey(link.cloudApiKey);
       for (const item of plan.cloudOnly) {
         try {
-          const cloudMemory = await this.fetchCloudMemory(cloudApiKey, item.cloudId!);
+          const cloudMemory = await this.fetchCloudMemory(
+            cloudApiKey,
+            item.cloudId!,
+          );
           if (!cloudMemory) {
             skipped++;
             continue;
@@ -214,12 +226,16 @@ export class SyncReconciliationService {
               layer: (cloudMemory.layer as any) || 'SEMANTIC',
               source: (cloudMemory.source as any) || 'EXPLICIT_STATEMENT',
               contentHash: item.contentHash,
-              createdAt: cloudMemory.createdAt ? new Date(cloudMemory.createdAt) : undefined,
+              createdAt: cloudMemory.createdAt
+                ? new Date(cloudMemory.createdAt)
+                : undefined,
             },
           });
           pulled++;
         } catch (err: any) {
-          this.logger.warn(`Reconciliation pull failed for ${item.cloudId}: ${err.message}`);
+          this.logger.warn(
+            `Reconciliation pull failed for ${item.cloudId}: ${err.message}`,
+          );
           errors++;
         }
       }
@@ -280,14 +296,28 @@ export class SyncReconciliationService {
     }
 
     if (missing.length > 0) {
-      this.logger.log(`Backfilled ${missing.length} content hashes for reconciliation`);
+      this.logger.log(
+        `Backfilled ${missing.length} content hashes for reconciliation`,
+      );
     }
   }
 
-  private async fetchAllCloudHashes(
-    apiKey: string,
-  ): Promise<Array<{ id: string; raw: string; contentHash: string; layer: string; createdAt: string }>> {
-    const all: Array<{ id: string; raw: string; contentHash: string; layer: string; createdAt: string }> = [];
+  private async fetchAllCloudHashes(apiKey: string): Promise<
+    Array<{
+      id: string;
+      raw: string;
+      contentHash: string;
+      layer: string;
+      createdAt: string;
+    }>
+  > {
+    const all: Array<{
+      id: string;
+      raw: string;
+      contentHash: string;
+      layer: string;
+      createdAt: string;
+    }> = [];
     let since = new Date(0).toISOString();
     let hasMore = true;
 
@@ -306,7 +336,9 @@ export class SyncReconciliationService {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new BadRequestException(`Cloud API error ${response.status}: ${body}`);
+        throw new BadRequestException(
+          `Cloud API error ${response.status}: ${body}`,
+        );
       }
 
       const data = (await response.json()) as {
@@ -348,7 +380,12 @@ export class SyncReconciliationService {
   private async fetchCloudMemory(
     apiKey: string,
     cloudId: string,
-  ): Promise<{ raw: string; layer: string; source: string; createdAt: string } | null> {
+  ): Promise<{
+    raw: string;
+    layer: string;
+    source: string;
+    createdAt: string;
+  } | null> {
     // Use the pull endpoint with a narrow time window — or search by ID
     // For simplicity, we already have the data from the reconciliation plan's cloud fetch
     // But if we need fresh data, we fetch the full memory
@@ -360,7 +397,7 @@ export class SyncReconciliationService {
         },
       );
       if (!response.ok) return null;
-      return (await response.json()) as any;
+      return await response.json();
     } catch {
       return null;
     }
@@ -418,7 +455,11 @@ export class SyncReconciliationService {
     }
 
     const result = (await response.json()) as {
-      results: Array<{ sourceMemoryId: string; cloudMemoryId?: string; status: string }>;
+      results: Array<{
+        sourceMemoryId: string;
+        cloudMemoryId?: string;
+        status: string;
+      }>;
     };
 
     let created = 0;
@@ -429,16 +470,20 @@ export class SyncReconciliationService {
       if (item.status === 'created') {
         created++;
         // Mark as synced locally
-        await this.prisma.memory.update({
-          where: { id: item.sourceMemoryId },
-          data: { cloudSyncedAt: new Date() },
-        }).catch(() => {});
+        await this.prisma.memory
+          .update({
+            where: { id: item.sourceMemoryId },
+            data: { cloudSyncedAt: new Date() },
+          })
+          .catch(() => {});
       } else if (item.status === 'skipped') {
         skipped++;
-        await this.prisma.memory.update({
-          where: { id: item.sourceMemoryId },
-          data: { cloudSyncedAt: new Date() },
-        }).catch(() => {});
+        await this.prisma.memory
+          .update({
+            where: { id: item.sourceMemoryId },
+            data: { cloudSyncedAt: new Date() },
+          })
+          .catch(() => {});
       } else {
         errors++;
       }

@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TeamsService } from './teams.service';
@@ -20,13 +19,11 @@ import {
 } from './dto/team.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
-import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 import { UserId } from '../common/decorators/user-id.decorator';
 
 @ApiTags('teams')
 @Controller('v1/teams')
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
-@UseInterceptors(SanitizeInterceptor)
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 

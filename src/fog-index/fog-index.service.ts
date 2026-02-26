@@ -55,9 +55,7 @@ export class FogIndexService {
    * Priority: explicit userId > agentId (all users for that agent) >
    *           accountId (all users across all agents) > fallback to first user.
    */
-  private async resolveUserIds(
-    scope: FogScope,
-  ): Promise<string[] | null> {
+  private async resolveUserIds(scope: FogScope): Promise<string[] | null> {
     if (scope.userId) return [scope.userId];
 
     if (scope.agentId) {
@@ -70,7 +68,10 @@ export class FogIndexService {
 
     if (scope.accountId) {
       const users = await this.prisma.user.findMany({
-        where: { agent: { accountId: scope.accountId, deletedAt: null }, deletedAt: null },
+        where: {
+          agent: { accountId: scope.accountId, deletedAt: null },
+          deletedAt: null,
+        },
         select: { id: true },
       });
       if (users.length > 0) return users.map((u) => u.id);
@@ -161,10 +162,7 @@ export class FogIndexService {
   // ─── Components ──────────────────────────────────────────────────
 
   /** Build a Prisma memory filter from resolved userIds */
-  private memoryFilter(
-    userIds: string[],
-    extra: Record<string, any> = {},
-  ) {
+  private memoryFilter(userIds: string[], extra: Record<string, any> = {}) {
     return {
       userId: userIds.length === 1 ? userIds[0] : { in: userIds },
       deletedAt: null,
@@ -173,9 +171,7 @@ export class FogIndexService {
   }
 
   /** % of memories accessed (retrieved or used) in the last 7 days */
-  private async memoryStaleness(
-    userIds: string[],
-  ): Promise<FogIndexComponent> {
+  private async memoryStaleness(userIds: string[]): Promise<FogIndexComponent> {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const total = await this.prisma.memory.count({
@@ -257,9 +253,7 @@ export class FogIndexService {
   }
 
   /** Near-duplicate density — lower is better */
-  private async dedupDensity(
-    userIds: string[],
-  ): Promise<FogIndexComponent> {
+  private async dedupDensity(userIds: string[]): Promise<FogIndexComponent> {
     const total = await this.prisma.memory.count({
       where: this.memoryFilter(userIds),
     });
@@ -329,9 +323,7 @@ export class FogIndexService {
   }
 
   /** How fast memories are becoming stale (high decay = low score) */
-  private async memoryDecayRate(
-    userIds: string[],
-  ): Promise<FogIndexComponent> {
+  private async memoryDecayRate(userIds: string[]): Promise<FogIndexComponent> {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -373,9 +365,7 @@ export class FogIndexService {
   }
 
   /** Coverage gaps: are there important types with thin coverage? */
-  private async coverageGaps(
-    userIds: string[],
-  ): Promise<FogIndexComponent> {
+  private async coverageGaps(userIds: string[]): Promise<FogIndexComponent> {
     const total = await this.prisma.memory.count({
       where: this.memoryFilter(userIds),
     });

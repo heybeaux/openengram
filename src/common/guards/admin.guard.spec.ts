@@ -65,7 +65,9 @@ describe('AdminGuard', () => {
       mockPrisma.account.findUnique.mockResolvedValue({ isAdmin: false });
 
       await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Admin access required');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Admin access required',
+      );
     });
 
     it('should deny access when account not found', async () => {
@@ -81,7 +83,9 @@ describe('AdminGuard', () => {
       const ctx = createMockContext({});
 
       await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Authentication required');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -115,7 +119,9 @@ describe('AdminGuard', () => {
       const ctx = createMockContext({ isLanBypass: true });
 
       await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Authentication required');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Authentication required',
+      );
     });
 
     it('should NOT allow LAN bypass when isLanBypass is false on local edition', async () => {

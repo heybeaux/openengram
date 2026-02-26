@@ -39,7 +39,10 @@ describe('AwarenessSourceController (Sources CRUD)', () => {
       name: 'Old',
       type: 'custom',
     });
-    const updated = await controller.update(created.id, { name: 'New', enabled: false });
+    const updated = await controller.update(created.id, {
+      name: 'New',
+      enabled: false,
+    });
     expect(updated.name).toBe('New');
     expect(updated.enabled).toBe(false);
   });

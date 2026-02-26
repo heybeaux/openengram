@@ -27,7 +27,7 @@ export class GitHubSignalService implements SignalSource {
     this.token = process.env.AWARENESS_GITHUB_TOKEN;
     this.repos = (process.env.AWARENESS_GITHUB_REPOS ?? '')
       .split(',')
-      .map(r => r.trim())
+      .map((r) => r.trim())
       .filter(Boolean);
 
     if (this.token && this.repos.length > 0) {
@@ -75,10 +75,12 @@ export class GitHubSignalService implements SignalSource {
           queriesUsed++;
 
           if (commits.length > 0) {
-            const authors = [...new Set(commits.map(c => c.commit.author.name))];
+            const authors = [
+              ...new Set(commits.map((c) => c.commit.author.name)),
+            ];
             const messages = commits
               .slice(0, 10)
-              .map(c => c.commit.message.split('\n')[0])
+              .map((c) => c.commit.message.split('\n')[0])
               .join('; ');
 
             observations.push({
@@ -104,14 +106,17 @@ export class GitHubSignalService implements SignalSource {
           queriesUsed++;
 
           const stalePRs = prs.filter(
-            pr => Date.now() - new Date(pr.created_at).getTime() > 3 * 24 * 60 * 60 * 1000,
+            (pr) =>
+              Date.now() - new Date(pr.created_at).getTime() >
+              3 * 24 * 60 * 60 * 1000,
           );
 
           if (prs.length > 0) {
             const prSummary = prs
-              .map(pr => {
+              .map((pr) => {
                 const ageDays = Math.round(
-                  (Date.now() - new Date(pr.created_at).getTime()) / (24 * 60 * 60 * 1000),
+                  (Date.now() - new Date(pr.created_at).getTime()) /
+                    (24 * 60 * 60 * 1000),
                 );
                 return `#${pr.number} "${pr.title}" (${ageDays}d old, by ${pr.user.login})`;
               })
@@ -140,12 +145,12 @@ export class GitHubSignalService implements SignalSource {
           queriesUsed++;
 
           // Filter out PRs (GitHub API returns PRs in issues endpoint)
-          const realIssues = issues.filter(i => !i.pull_request);
+          const realIssues = issues.filter((i) => !i.pull_request);
 
           if (realIssues.length > 0) {
             const issueSummary = realIssues
               .slice(0, 5)
-              .map(i => `#${i.number} "${i.title}"`)
+              .map((i) => `#${i.number} "${i.title}"`)
               .join('; ');
 
             observations.push({
@@ -162,7 +167,9 @@ export class GitHubSignalService implements SignalSource {
           }
         }
       } catch (error) {
-        this.logger.warn(`Failed to fetch GitHub data for ${repo}: ${error.message}`);
+        this.logger.warn(
+          `Failed to fetch GitHub data for ${repo}: ${error.message}`,
+        );
       }
     }
 

@@ -61,14 +61,15 @@ export class QueueService {
         await processor(items[i], i);
       } catch (err: any) {
         job.errors.push({ index: i, message: err.message ?? String(err) });
-        this.logger.warn(
-          `Job ${job.id} item ${i} failed: ${err.message}`,
-        );
+        this.logger.warn(`Job ${job.id} item ${i} failed: ${err.message}`);
       }
       job.progress = i + 1;
     }
 
-    job.status = job.errors.length === items.length && items.length > 0 ? 'failed' : 'completed';
+    job.status =
+      job.errors.length === items.length && items.length > 0
+        ? 'failed'
+        : 'completed';
     job.completedAt = new Date();
 
     if (job.errors.length > 0) {

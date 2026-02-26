@@ -5,7 +5,9 @@ describe('ReconciliationService', () => {
 
   beforeEach(() => {
     const mockCloudSync = {
-      getSyncStatus: jest.fn().mockResolvedValue({ lastSync: new Date(), status: 'idle' }),
+      getSyncStatus: jest
+        .fn()
+        .mockResolvedValue({ lastSync: new Date(), status: 'idle' }),
     };
     service = new ReconciliationService(mockCloudSync as any);
   });

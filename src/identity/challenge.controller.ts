@@ -11,7 +11,10 @@ import {
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { ChallengeService } from './challenge.service';
-import { CreateChallengeRequestDto, ResolveChallengeRequestDto } from './dto/challenge.dto';
+import {
+  CreateChallengeRequestDto,
+  ResolveChallengeRequestDto,
+} from './dto/challenge.dto';
 
 @ApiTags('challenges')
 @UseGuards(ApiKeyOrJwtGuard)

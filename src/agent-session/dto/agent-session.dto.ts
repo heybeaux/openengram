@@ -37,7 +37,10 @@ export class CreateAgentSessionDto {
 }
 
 export class UpdateAgentSessionDto {
-  @ApiPropertyOptional({ enum: ['ACTIVE', 'COMPLETED', 'TERMINATED'], type: String })
+  @ApiPropertyOptional({
+    enum: ['ACTIVE', 'COMPLETED', 'TERMINATED'],
+    type: String,
+  })
   @IsEnum(AgentSessionStatus)
   @IsOptional()
   status?: string;

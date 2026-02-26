@@ -20,7 +20,9 @@ function deterministicStringify(value: any): string {
   if (value === null || value === undefined) return JSON.stringify(value);
   if (typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) {
-    return '[' + value.map((item) => deterministicStringify(item)).join(',') + ']';
+    return (
+      '[' + value.map((item) => deterministicStringify(item)).join(',') + ']'
+    );
   }
   const keys = Object.keys(value).sort();
   const pairs = keys.map(
@@ -48,15 +50,21 @@ export class PortableIdentityService {
   async exportIdentity(agentId: string): Promise<PortableIdentityExport> {
     this.logger.log(`Exporting identity for agent: ${agentId}`);
 
-    const [capabilities, preferences, trustProfile, workHistory, collaborationPatterns, agentName] =
-      await Promise.all([
-        this.buildCapabilityProfile(agentId),
-        this.buildPreferences(agentId),
-        this.buildTrustProfile(agentId),
-        this.buildWorkHistorySummary(agentId),
-        this.buildCollaborationPatterns(agentId),
-        this.getAgentName(agentId),
-      ]);
+    const [
+      capabilities,
+      preferences,
+      trustProfile,
+      workHistory,
+      collaborationPatterns,
+      agentName,
+    ] = await Promise.all([
+      this.buildCapabilityProfile(agentId),
+      this.buildPreferences(agentId),
+      this.buildTrustProfile(agentId),
+      this.buildWorkHistorySummary(agentId),
+      this.buildCollaborationPatterns(agentId),
+      this.getAgentName(agentId),
+    ]);
 
     const exportData: Omit<PortableIdentityExport, 'integrityHash'> = {
       schemaVersion: SCHEMA_VERSION,
@@ -142,23 +150,27 @@ export class PortableIdentityService {
   }
 
   /**
-   * Build capability profile from agent memories
+   * Build capability profile from structured task outcomes
    */
-  private async buildCapabilityProfile(agentId: string): Promise<CapabilityProfile[]> {
-    const memories = await this.prisma.memory.findMany({
+  private async buildCapabilityProfile(
+    agentId: string,
+  ): Promise<CapabilityProfile[]> {
+    const taskOutcomes = await this.prisma.memory.findMany({
       where: {
         subjectType: SubjectType.AGENT,
         subjectId: agentId,
+        memoryType: 'TASK_OUTCOME',
         deletedAt: null,
       },
       orderBy: { effectiveScore: 'desc' },
       take: 100,
+      select: { metadata: true, effectiveScore: true },
     });
 
     const capMap = new Map<string, { totalScore: number; count: number }>();
 
-    for (const mem of memories) {
-      const caps = this.extractCapabilities(mem.raw);
+    for (const mem of taskOutcomes) {
+      const caps = this.extractCapabilitiesFromOutcome(mem.metadata);
       for (const cap of caps) {
         const existing = capMap.get(cap) || { totalScore: 0, count: 0 };
         existing.totalScore += mem.effectiveScore;
@@ -179,7 +191,9 @@ export class PortableIdentityService {
   /**
    * Build preferences from agent memories
    */
-  private async buildPreferences(agentId: string): Promise<Record<string, any>> {
+  private async buildPreferences(
+    agentId: string,
+  ): Promise<Record<string, any>> {
     const memories = await this.prisma.memory.findMany({
       where: {
         subjectType: SubjectType.AGENT,
@@ -212,7 +226,9 @@ export class PortableIdentityService {
 
     const totalTasks = taskMemories.length;
     const successfulTasks = taskMemories.filter(
-      (m) => m.raw.toLowerCase().includes('success') || m.raw.toLowerCase().includes('completed'),
+      (m) =>
+        m.raw.toLowerCase().includes('success') ||
+        m.raw.toLowerCase().includes('completed'),
     ).length;
 
     const avgQuality =
@@ -225,7 +241,10 @@ export class PortableIdentityService {
 
     return {
       totalTasks,
-      successRate: totalTasks > 0 ? Math.round((successfulTasks / totalTasks) * 100) / 100 : 0,
+      successRate:
+        totalTasks > 0
+          ? Math.round((successfulTasks / totalTasks) * 100) / 100
+          : 0,
       avgResponseQuality: Math.round(avgQuality * 100) / 100,
       specializations,
     };
@@ -234,29 +253,44 @@ export class PortableIdentityService {
   /**
    * Build work history summary
    */
-  private async buildWorkHistorySummary(agentId: string): Promise<WorkHistorySummary> {
-    const [totalMemories, taskCompletions, reflections, oldest, typeCounts] = await Promise.all([
-      this.prisma.memory.count({
-        where: { subjectId: agentId, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { subjectId: agentId, source: MemorySource.SYSTEM, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { subjectId: agentId, source: MemorySource.AGENT_REFLECTION, deletedAt: null },
-      }),
-      this.prisma.memory.findFirst({
-        where: { subjectId: agentId, deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: { createdAt: true },
-      }),
-      this.prisma.memory.groupBy({
-        by: ['memoryType'],
-        where: { subjectId: agentId, deletedAt: null, memoryType: { not: null } },
-        _count: true,
-        orderBy: { _count: { memoryType: 'desc' } },
-      }),
-    ]);
+  private async buildWorkHistorySummary(
+    agentId: string,
+  ): Promise<WorkHistorySummary> {
+    const [totalMemories, taskCompletions, reflections, oldest, typeCounts] =
+      await Promise.all([
+        this.prisma.memory.count({
+          where: { subjectId: agentId, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: {
+            subjectId: agentId,
+            source: MemorySource.SYSTEM,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.memory.count({
+          where: {
+            subjectId: agentId,
+            source: MemorySource.AGENT_REFLECTION,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.memory.findFirst({
+          where: { subjectId: agentId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true },
+        }),
+        this.prisma.memory.groupBy({
+          by: ['memoryType'],
+          where: {
+            subjectId: agentId,
+            deletedAt: null,
+            memoryType: { not: null },
+          },
+          _count: true,
+          orderBy: { _count: { memoryType: 'desc' } },
+        }),
+      ]);
 
     return {
       totalMemories,
@@ -273,7 +307,9 @@ export class PortableIdentityService {
   /**
    * Build collaboration patterns
    */
-  private async buildCollaborationPatterns(agentId: string): Promise<CollaborationPattern[]> {
+  private async buildCollaborationPatterns(
+    agentId: string,
+  ): Promise<CollaborationPattern[]> {
     // Find memories that reference other agents
     const memories = await this.prisma.memory.findMany({
       where: {
@@ -286,7 +322,10 @@ export class PortableIdentityService {
     });
 
     // Extract partner agent IDs from memory text (simple heuristic)
-    const partnerStats = new Map<string, { count: number; totalScore: number }>();
+    const partnerStats = new Map<
+      string,
+      { count: number; totalScore: number }
+    >();
 
     for (const mem of memories) {
       const partners = this.extractPartnerAgents(mem.raw, agentId);
@@ -314,40 +353,36 @@ export class PortableIdentityService {
   }
 
   private async extractSpecializations(agentId: string): Promise<string[]> {
-    const topMemories = await this.prisma.memory.findMany({
+    const taskOutcomes = await this.prisma.memory.findMany({
       where: {
         subjectId: agentId,
         subjectType: SubjectType.AGENT,
+        memoryType: 'TASK_OUTCOME',
         deletedAt: null,
       },
       orderBy: { effectiveScore: 'desc' },
       take: 20,
-      select: { raw: true },
+      select: { metadata: true },
     });
 
     const caps = new Set<string>();
-    for (const mem of topMemories) {
-      for (const cap of this.extractCapabilities(mem.raw)) {
+    for (const mem of taskOutcomes) {
+      for (const cap of this.extractCapabilitiesFromOutcome(mem.metadata)) {
         caps.add(cap);
       }
     }
     return Array.from(caps).slice(0, 5);
   }
 
-  private extractCapabilities(text: string): string[] {
-    const lower = text.toLowerCase();
-    const found: string[] = [];
-    const keywords: Record<string, string[]> = {
-      coding: ['code', 'programming', 'implement', 'debug'],
-      analysis: ['analyze', 'analysis', 'evaluate'],
-      communication: ['communicate', 'writing', 'documentation'],
-      planning: ['plan', 'strategy', 'organize'],
-      research: ['research', 'investigate', 'explore'],
-    };
-    for (const [cap, kws] of Object.entries(keywords)) {
-      if (kws.some((k) => lower.includes(k))) found.push(cap);
-    }
-    return found;
+  /**
+   * Extract capabilities from structured task outcome metadata
+   * instead of low signal-to-noise keyword matching.
+   */
+  private extractCapabilitiesFromOutcome(metadata: any): string[] {
+    if (!metadata || typeof metadata !== 'object') return [];
+    const caps = (metadata as Record<string, any>).capabilitiesUsed;
+    if (!Array.isArray(caps)) return [];
+    return caps.filter((c: unknown) => typeof c === 'string' && c.length > 0);
   }
 
   private extractPartnerAgents(text: string, selfId: string): string[] {

@@ -40,7 +40,12 @@ describe('MemoryDedupService', () => {
   });
 
   describe('findDuplicateV2', () => {
-    const mockMemory = { id: 'mem-1', deletedAt: null, confidence: 0.7, importanceScore: 0.5 };
+    const mockMemory = {
+      id: 'mem-1',
+      deletedAt: null,
+      confidence: 0.7,
+      importanceScore: 0.5,
+    };
 
     beforeEach(() => {
       mockEmbedding.generate.mockResolvedValue([0.1, 0.2, 0.3]);
@@ -74,7 +79,7 @@ describe('MemoryDedupService', () => {
     });
 
     it('should create MergeCandidate when score >= review threshold but < reinforce', async () => {
-      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.80 }]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.8 }]);
       mockPrisma.memory.findUnique.mockResolvedValue(mockMemory);
 
       const result = await service.findDuplicateV2('user1', 'test text');
@@ -84,14 +89,14 @@ describe('MemoryDedupService', () => {
         data: expect.objectContaining({
           userId: 'user1',
           memoryIds: ['mem-1'],
-          similarity: 0.80,
+          similarity: 0.8,
           status: 'PENDING',
         }),
       });
     });
 
     it('should return create when score < review threshold', async () => {
-      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.50 }]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.5 }]);
       mockPrisma.memory.findUnique.mockResolvedValue(mockMemory);
 
       const result = await service.findDuplicateV2('user1', 'test text');
@@ -102,7 +107,10 @@ describe('MemoryDedupService', () => {
 
     it('should return create when existing memory is soft-deleted', async () => {
       mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.95 }]);
-      mockPrisma.memory.findUnique.mockResolvedValue({ ...mockMemory, deletedAt: new Date() });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        ...mockMemory,
+        deletedAt: new Date(),
+      });
 
       const result = await service.findDuplicateV2('user1', 'test text');
       expect(result.action).toBe('create');
@@ -117,14 +125,16 @@ describe('MemoryDedupService', () => {
     });
 
     it('should gracefully handle embedding errors', async () => {
-      mockEmbedding.generate.mockRejectedValue(new Error('Embedding service down'));
+      mockEmbedding.generate.mockRejectedValue(
+        new Error('Embedding service down'),
+      );
 
       const result = await service.findDuplicateV2('user1', 'test text');
       expect(result.action).toBe('create');
     });
 
     it('should handle MergeCandidate creation failure gracefully', async () => {
-      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.80 }]);
+      mockEmbedding.search.mockResolvedValue([{ id: 'mem-1', score: 0.8 }]);
       mockPrisma.memory.findUnique.mockResolvedValue(mockMemory);
       mockPrisma.mergeCandidate.create.mockRejectedValue(new Error('DB error'));
 
@@ -156,9 +166,16 @@ describe('MemoryDedupService', () => {
 
   describe('autoMergeMemory', () => {
     it('should boost confidence and update counters', async () => {
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'mem-1', confidence: 0.7 });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        id: 'mem-1',
+        confidence: 0.7,
+      });
 
-      await service.autoMergeMemory('mem-1', 'new content', 'EXPLICIT_STATEMENT' as any);
+      await service.autoMergeMemory(
+        'mem-1',
+        'new content',
+        'EXPLICIT_STATEMENT' as any,
+      );
 
       expect(mockPrisma.$executeRaw).toHaveBeenCalled();
     });
@@ -166,15 +183,26 @@ describe('MemoryDedupService', () => {
     it('should not update when memory not found', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue(null);
 
-      await service.autoMergeMemory('nonexistent', 'new content', 'SYSTEM' as any);
+      await service.autoMergeMemory(
+        'nonexistent',
+        'new content',
+        'SYSTEM' as any,
+      );
 
       expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
     });
 
     it('should cap boosted confidence at 1.0', async () => {
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'mem-1', confidence: 0.98 });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        id: 'mem-1',
+        confidence: 0.98,
+      });
 
-      await service.autoMergeMemory('mem-1', 'content', 'EXPLICIT_STATEMENT' as any);
+      await service.autoMergeMemory(
+        'mem-1',
+        'content',
+        'EXPLICIT_STATEMENT' as any,
+      );
 
       // The first arg to $executeRaw is a template string array, confidence is embedded
       expect(mockPrisma.$executeRaw).toHaveBeenCalled();
@@ -183,7 +211,10 @@ describe('MemoryDedupService', () => {
 
   describe('reinforceMemory', () => {
     it('should update counters via raw SQL', async () => {
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'mem-1', importanceScore: 0.5 });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        id: 'mem-1',
+        importanceScore: 0.5,
+      });
 
       await service.reinforceMemory('mem-1');
 
@@ -191,7 +222,10 @@ describe('MemoryDedupService', () => {
     });
 
     it('should cap importance at 1.0 if exceeded', async () => {
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'mem-1', importanceScore: 1.1 });
+      mockPrisma.memory.findUnique.mockResolvedValue({
+        id: 'mem-1',
+        importanceScore: 1.1,
+      });
 
       await service.reinforceMemory('mem-1');
 

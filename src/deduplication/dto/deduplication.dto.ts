@@ -103,7 +103,16 @@ export class TriggerScanDto {
 export class ApproveRequestDto {
   @ApiPropertyOptional({ description: 'Override suggested merge strategy' })
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
+  @ApiPropertyOptional({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+    type: String,
+  })
   @IsEnum(MergeStrategy)
   strategy?: string;
 
@@ -142,7 +151,16 @@ export class ManualMergeDto {
   memoryIds: string[];
 
   @ApiProperty({ description: 'Merge strategy to use' })
-  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
+  @ApiProperty({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+    type: String,
+  })
   @IsEnum(MergeStrategy)
   strategy: string;
 
@@ -168,7 +186,10 @@ export class ListCandidatesQueryDto {
 
   @ApiPropertyOptional({ description: 'Filter by status' })
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['PENDING', 'APPROVED', 'REJECTED', 'SKIPPED'], type: String })
+  @ApiPropertyOptional({
+    enum: ['PENDING', 'APPROVED', 'REJECTED', 'SKIPPED'],
+    type: String,
+  })
   @IsEnum(CandidateStatus)
   status?: string;
 
@@ -216,7 +237,16 @@ export class UpdateConfigDto {
 
   @ApiPropertyOptional({ description: 'Default merge strategy' })
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'], type: String })
+  @ApiPropertyOptional({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+    type: String,
+  })
   @IsEnum(MergeStrategy)
   defaultStrategy?: string;
 
@@ -263,7 +293,16 @@ export class UpdateConfigDto {
  * Safety reason attached to a memory/candidate
  */
 export class SafetyReasonDto {
-  @ApiProperty({ enum: ['protected_type', 'protected_keyword', 'high_importance', 'requires_review', 'recently_accessed', 'manually_edited'] })
+  @ApiProperty({
+    enum: [
+      'protected_type',
+      'protected_keyword',
+      'high_importance',
+      'requires_review',
+      'recently_accessed',
+      'manually_edited',
+    ],
+  })
   type: string;
 
   @ApiPropertyOptional()
@@ -312,7 +351,15 @@ export class MergeCandidateDto {
   @ApiProperty()
   similarity: number;
 
-  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  @ApiProperty({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+  })
   suggestedStrategy: string;
 
   @ApiProperty()
@@ -440,7 +487,15 @@ export class ConfigResponseDto {
   @ApiProperty()
   reviewSuggestThreshold: number;
 
-  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  @ApiProperty({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+  })
   defaultStrategy: string;
 
   @ApiProperty({ type: [String] })
@@ -547,7 +602,15 @@ export class MergeEventDto {
   @ApiProperty({ type: [String] })
   absorbedMemoryIds: string[];
 
-  @ApiProperty({ enum: ['KEEP_NEWEST', 'KEEP_OLDEST', 'KEEP_DETAILED', 'KEEP_IMPORTANCE', 'COMBINE_METADATA'] })
+  @ApiProperty({
+    enum: [
+      'KEEP_NEWEST',
+      'KEEP_OLDEST',
+      'KEEP_DETAILED',
+      'KEEP_IMPORTANCE',
+      'COMBINE_METADATA',
+    ],
+  })
   strategy: string;
 
   @ApiProperty()

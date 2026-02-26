@@ -51,7 +51,10 @@ export class FileStoreService implements OnModuleInit {
   /**
    * Save a Map to a JSON file. Writes atomically via temp file + rename.
    */
-  async save<K extends string, V>(filename: string, map: Map<K, V>): Promise<void> {
+  async save<K extends string, V>(
+    filename: string,
+    map: Map<K, V>,
+  ): Promise<void> {
     const filePath = path.join(this.dataDir, filename);
 
     // Simple write serialization per file

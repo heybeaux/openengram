@@ -17,4 +17,3 @@ export class UpdateTaskDto {
   @IsString()
   result?: string;
 }
-

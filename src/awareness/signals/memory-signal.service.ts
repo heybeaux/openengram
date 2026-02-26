@@ -59,11 +59,13 @@ export class MemorySignalService implements SignalSource {
           source: this.name,
           content: `${recentMemories.length} new memories since ${since.toISOString()}. Topics: ${this.summarizeTopics(recentMemories)}`,
           observedAt: new Date(),
-          relatedMemoryIds: recentMemories.map(m => m.id),
+          relatedMemoryIds: recentMemories.map((m) => m.id),
           metadata: {
             count: recentMemories.length,
-            layers: [...new Set(recentMemories.map(m => m.layer))],
-            agents: [...new Set(recentMemories.map(m => m.agentId).filter(Boolean))],
+            layers: [...new Set(recentMemories.map((m) => m.layer))],
+            agents: [
+              ...new Set(recentMemories.map((m) => m.agentId).filter(Boolean)),
+            ],
           },
         });
       }
@@ -95,7 +97,7 @@ export class MemorySignalService implements SignalSource {
           source: this.name,
           content: `${staleMemories.length} important memories (importance ≥ 0.5) created over 7 days ago have never been retrieved. They may contain valuable but forgotten context.`,
           observedAt: new Date(),
-          relatedMemoryIds: staleMemories.map(m => m.id),
+          relatedMemoryIds: staleMemories.map((m) => m.id),
           metadata: { count: staleMemories.length },
         });
       }
@@ -123,11 +125,14 @@ export class MemorySignalService implements SignalSource {
       if (hotEntities.length > 0) {
         // Stable ID: hash of sorted entity IDs so identical entity sets
         // produce the same observation ID across cycles
-        const entityHash = hotEntities.map(e => e.id).sort().join(',');
+        const entityHash = hotEntities
+          .map((e) => e.id)
+          .sort()
+          .join(',');
         observations.push({
           id: `hot-entities-${entityHash.slice(0, 32)}`,
           source: this.name,
-          content: `Top recurring entities: ${hotEntities.map(e => `${e.name} (${e.type}, ${e.mentionCount} mentions)`).join(', ')}`,
+          content: `Top recurring entities: ${hotEntities.map((e) => `${e.name} (${e.type}, ${e.mentionCount} mentions)`).join(', ')}`,
           observedAt: new Date(),
           metadata: { entities: hotEntities },
         });
@@ -180,7 +185,7 @@ export class MemorySignalService implements SignalSource {
       const allSampled = [...diverseMemories, ...olderMemories];
       // Deduplicate by ID
       const seen = new Set<string>();
-      const unique = allSampled.filter(m => {
+      const unique = allSampled.filter((m) => {
         if (seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
@@ -190,14 +195,16 @@ export class MemorySignalService implements SignalSource {
         observations.push({
           id: `cross-cutting-${new Date().toISOString()}`,
           source: this.name,
-          content: `Cross-cutting memory sample: ${unique.length} memories across layers [${[...new Set(unique.map(m => m.layer))].join(', ')}] spanning ${this.daySpan(unique)} days. Looking for patterns, connections, and gaps.`,
+          content: `Cross-cutting memory sample: ${unique.length} memories across layers [${[...new Set(unique.map((m) => m.layer))].join(', ')}] spanning ${this.daySpan(unique)} days. Looking for patterns, connections, and gaps.`,
           observedAt: new Date(),
-          relatedMemoryIds: unique.map(m => m.id),
+          relatedMemoryIds: unique.map((m) => m.id),
           metadata: {
             count: unique.length,
-            layers: [...new Set(unique.map(m => m.layer))],
-            agents: [...new Set(unique.map(m => m.agentId).filter(Boolean))],
-            types: [...new Set(unique.map(m => m.memoryType).filter(Boolean))],
+            layers: [...new Set(unique.map((m) => m.layer))],
+            agents: [...new Set(unique.map((m) => m.agentId).filter(Boolean))],
+            types: [
+              ...new Set(unique.map((m) => m.memoryType).filter(Boolean)),
+            ],
             crossCutting: true,
           },
         });
@@ -221,16 +228,18 @@ export class MemorySignalService implements SignalSource {
   /** Calculate the time span in days across a set of memories. */
   private daySpan(memories: { createdAt: Date }[]): number {
     if (memories.length < 2) return 0;
-    const dates = memories.map(m => m.createdAt.getTime());
-    return Math.round((Math.max(...dates) - Math.min(...dates)) / (24 * 60 * 60 * 1000));
+    const dates = memories.map((m) => m.createdAt.getTime());
+    return Math.round(
+      (Math.max(...dates) - Math.min(...dates)) / (24 * 60 * 60 * 1000),
+    );
   }
 
   /** Extract top keywords from memory content for observation summaries. */
   private summarizeTopics(memories: { raw: string; layer: string }[]): string {
     // Simple keyword extraction — the LLM will do the real synthesis
     const words = memories
-      .flatMap(m => m.raw.toLowerCase().split(/\s+/))
-      .filter(w => w.length > 4);
+      .flatMap((m) => m.raw.toLowerCase().split(/\s+/))
+      .filter((w) => w.length > 4);
     const freq = new Map<string, number>();
     for (const w of words) {
       freq.set(w, (freq.get(w) || 0) + 1);

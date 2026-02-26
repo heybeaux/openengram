@@ -359,8 +359,8 @@ describe('SimilarityService', () => {
       ]);
       mockEmbedding.generate.mockResolvedValue([0.1]);
       mockEmbedding.search.mockResolvedValue([
-        { id: 'mem_2', score: 0.80 }, // Below 0.85 threshold
-        { id: 'mem_3', score: 0.90 }, // Above threshold
+        { id: 'mem_2', score: 0.8 }, // Below 0.85 threshold
+        { id: 'mem_3', score: 0.9 }, // Above threshold
       ]);
 
       const pairs = await service.computePairwiseSimilarity('user_123', {
@@ -368,7 +368,7 @@ describe('SimilarityService', () => {
       });
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].similarity).toBe(0.90);
+      expect(pairs[0].similarity).toBe(0.9);
     });
 
     it('should produce identical results regardless of batch size', async () => {

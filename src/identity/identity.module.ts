@@ -4,7 +4,10 @@ import { EmbeddingModule } from '../embedding/embedding.module';
 import { IdentityController } from './identity.controller';
 import { AgentsAliasController } from './agents-alias.controller';
 import { DelegationContractController } from './delegation-contract.controller';
-import { ChallengeController, MemoryChallengeController } from './challenge.controller';
+import {
+  ChallengeController,
+  MemoryChallengeController,
+} from './challenge.controller';
 import { TeamController } from './team.controller';
 import { DelegationContractService } from './delegation-contract.service';
 import { ChallengeService } from './challenge.service';
@@ -19,10 +22,7 @@ import { DelegationTaskService } from './delegation-task.service';
 import { DelegationController } from './delegation.controller';
 
 @Module({
-  imports: [
-    PrismaModule,
-    EmbeddingModule,
-  ],
+  imports: [PrismaModule, EmbeddingModule],
   controllers: [
     IdentityController,
     AgentsAliasController,
@@ -68,6 +68,8 @@ export class IdentityModule implements OnModuleInit {
 
   onModuleInit() {
     this.contractService.setChallengeService(this.challengeService);
-    this.logger.log('Identity module initialized — all identity services active');
+    this.logger.log(
+      'Identity module initialized — all identity services active',
+    );
   }
 }

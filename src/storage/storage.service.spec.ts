@@ -29,7 +29,6 @@ const mockPrismaPostgresProvider = {
   }),
 };
 
-
 describe('StorageService', () => {
   let service: StorageService;
 
@@ -287,7 +286,6 @@ describe('StorageService', () => {
       expect(service.getProvider()).toBe(mockPrismaPostgresProvider);
     });
   });
-
 
   describe('with unknown provider', () => {
     beforeEach(async () => {

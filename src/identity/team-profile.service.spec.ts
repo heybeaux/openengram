@@ -56,9 +56,25 @@ describe('TeamProfileService', () => {
       expect(team.name).toBe('Alpha Team');
       expect(team.agentIds).toEqual(['agent-1', 'agent-2']);
       expect(team.id).toMatch(/^team_/);
+      expect(team.id).toMatch(
+        /^team_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
       expect(team.capabilities).toBeDefined();
       expect(team.collaborationScore).toBeDefined();
       expect(team.createdAt).toBeDefined();
+    });
+
+    it('should produce unique IDs across multiple calls', async () => {
+      mockPrisma.memory.findMany.mockResolvedValue([]);
+      const ids = new Set<string>();
+      for (let i = 0; i < 5; i++) {
+        const team = await service.createTeam({
+          name: `Team ${i}`,
+          agentIds: ['agent-1'],
+        });
+        ids.add(team.id);
+      }
+      expect(ids.size).toBe(5);
     });
 
     it('should include description when provided', async () => {
@@ -84,14 +100,20 @@ describe('TeamProfileService', () => {
     });
 
     it('should throw NotFoundException for unknown team', async () => {
-      await expect(service.getTeam('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getTeam('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getTeamCapabilities', () => {
     it('should return capabilities for a team', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([
-        { id: 'm1', raw: 'Expert in research and analysis', effectiveScore: 0.9 },
+        {
+          id: 'm1',
+          raw: 'Expert in research and analysis',
+          effectiveScore: 0.9,
+        },
       ]);
 
       const team = await service.createTeam({
@@ -107,7 +129,11 @@ describe('TeamProfileService', () => {
   describe('aggregateCapabilities', () => {
     it('should extract capabilities from agent memories', async () => {
       mockPrisma.memory.findMany.mockResolvedValue([
-        { id: 'm1', raw: 'I excel at code review and debugging', effectiveScore: 0.9 },
+        {
+          id: 'm1',
+          raw: 'I excel at code review and debugging',
+          effectiveScore: 0.9,
+        },
         { id: 'm2', raw: 'Good at planning and strategy', effectiveScore: 0.7 },
       ]);
 
@@ -120,8 +146,12 @@ describe('TeamProfileService', () => {
 
     it('should merge capabilities from multiple agents', async () => {
       mockPrisma.memory.findMany
-        .mockResolvedValueOnce([{ id: 'm1', raw: 'I do coding and testing', effectiveScore: 0.8 }])
-        .mockResolvedValueOnce([{ id: 'm2', raw: 'I do coding and research', effectiveScore: 0.7 }]);
+        .mockResolvedValueOnce([
+          { id: 'm1', raw: 'I do coding and testing', effectiveScore: 0.8 },
+        ])
+        .mockResolvedValueOnce([
+          { id: 'm2', raw: 'I do coding and research', effectiveScore: 0.7 },
+        ]);
 
       const caps = await service.aggregateCapabilities(['a1', 'a2']);
       const codingCap = caps.find((c) => c.name === 'coding');

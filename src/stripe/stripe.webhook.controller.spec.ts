@@ -44,7 +44,9 @@ describe('StripeWebhookController', () => {
       await controller.handleWebhook(req, '', res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Missing stripe-signature header' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Missing stripe-signature header',
+      });
     });
 
     it('should return 400 if signature is undefined', async () => {
@@ -54,7 +56,9 @@ describe('StripeWebhookController', () => {
       await controller.handleWebhook(req, undefined as any, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Missing stripe-signature header' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Missing stripe-signature header',
+      });
     });
 
     it('should process valid webhook and return received:true', async () => {
@@ -65,7 +69,10 @@ describe('StripeWebhookController', () => {
 
       await controller.handleWebhook(req, 'sig_valid', res);
 
-      expect(stripeService.handleWebhookEvent).toHaveBeenCalledWith(rawBody, 'sig_valid');
+      expect(stripeService.handleWebhookEvent).toHaveBeenCalledWith(
+        rawBody,
+        'sig_valid',
+      );
       expect(res.json).toHaveBeenCalledWith({ received: true });
     });
 

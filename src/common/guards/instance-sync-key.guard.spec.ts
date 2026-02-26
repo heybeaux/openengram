@@ -70,8 +70,12 @@ describe('InstanceSyncKeyGuard', () => {
       const { ctx } = createMockContext({ 'x-sync-key': 'bad-key' });
       mockPrisma.instanceSyncKey.findUnique.mockResolvedValue(null);
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid or revoked sync key');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Invalid or revoked sync key',
+      );
     });
 
     it('should reject revoked sync key', async () => {
@@ -83,8 +87,12 @@ describe('InstanceSyncKeyGuard', () => {
         revokedAt: new Date(),
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid or revoked sync key');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Invalid or revoked sync key',
+      );
     });
 
     it('should update lastUsedAt (best-effort, no failure on error)', async () => {
@@ -96,7 +104,9 @@ describe('InstanceSyncKeyGuard', () => {
         instanceName: 'test',
         revokedAt: null,
       });
-      mockPrisma.instanceSyncKey.update.mockRejectedValue(new Error('DB error'));
+      mockPrisma.instanceSyncKey.update.mockRejectedValue(
+        new Error('DB error'),
+      );
 
       const result = await guard.canActivate(ctx);
       expect(result).toBe(true); // Should not fail
@@ -135,8 +145,12 @@ describe('InstanceSyncKeyGuard', () => {
         deletedAt: null,
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Instance API key lacks sync scope');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Instance API key lacks sync scope',
+      );
     });
 
     it('should reject deleted instance API key', async () => {
@@ -148,15 +162,21 @@ describe('InstanceSyncKeyGuard', () => {
         deletedAt: new Date(),
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid instance API key');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Invalid instance API key',
+      );
     });
 
     it('should reject unknown instance API key', async () => {
       const { ctx } = createMockContext({ 'x-am-api-key': apiKey });
       mockPrisma.instanceApiKey.findUnique.mockResolvedValue(null);
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should use X-Instance-Id header when present', async () => {
@@ -180,8 +200,12 @@ describe('InstanceSyncKeyGuard', () => {
     it('should ignore non eng_inst_ API keys', async () => {
       const { ctx } = createMockContext({ 'x-am-api-key': 'eng_regular_key' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-Sync-Key or X-AM-API-Key header');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Missing X-Sync-Key or X-AM-API-Key header',
+      );
     });
   });
 
@@ -189,8 +213,12 @@ describe('InstanceSyncKeyGuard', () => {
     it('should throw when no sync key or API key provided', async () => {
       const { ctx } = createMockContext({});
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Missing X-Sync-Key or X-AM-API-Key header');
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        'Missing X-Sync-Key or X-AM-API-Key header',
+      );
     });
   });
 

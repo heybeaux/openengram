@@ -11,19 +11,27 @@ describe('PatternDetectorService', () => {
   // ── Helper to build observations ──────────────────────────────────────
 
   function makeHotEntitiesObs(
-    entities: Array<{ id: string; name: string; type: string; mentionCount: number }>,
+    entities: Array<{
+      id: string;
+      name: string;
+      type: string;
+      mentionCount: number;
+    }>,
     id = 'hot-entities-test',
   ): Observation {
     return {
       id,
       source: 'memory',
-      content: `Top recurring entities: ${entities.map(e => `${e.name} (${e.type}, ${e.mentionCount})`).join(', ')}`,
+      content: `Top recurring entities: ${entities.map((e) => `${e.name} (${e.type}, ${e.mentionCount})`).join(', ')}`,
       observedAt: new Date(),
       metadata: { entities },
     };
   }
 
-  function makeNewMemoriesObs(count: number, memoryIds: string[] = []): Observation {
+  function makeNewMemoriesObs(
+    count: number,
+    memoryIds: string[] = [],
+  ): Observation {
     return {
       id: `new-memories-test`,
       source: 'memory',
@@ -63,7 +71,7 @@ describe('PatternDetectorService', () => {
         { id: '2', name: 'Rook', type: 'PERSON', mentionCount: 200 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 
@@ -73,7 +81,7 @@ describe('PatternDetectorService', () => {
         { id: '2', name: '2026-01-15', type: 'DATE', mentionCount: 150 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 
@@ -82,7 +90,7 @@ describe('PatternDetectorService', () => {
         { id: '1', name: '2026-02', type: 'TOPIC', mentionCount: 300 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 
@@ -91,7 +99,7 @@ describe('PatternDetectorService', () => {
         { id: '1', name: '42', type: 'QUANTITY', mentionCount: 100 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 
@@ -100,7 +108,7 @@ describe('PatternDetectorService', () => {
         { id: '1', name: 'AI', type: 'TOPIC', mentionCount: 500 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
   });
@@ -115,7 +123,7 @@ describe('PatternDetectorService', () => {
         { id: '3', name: 'Prisma', type: 'TOOL', mentionCount: 10 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring.length).toBeGreaterThanOrEqual(1);
       expect(recurring[0].description).toContain('Engram');
       expect(recurring[0].description).toContain('dominates');
@@ -127,7 +135,7 @@ describe('PatternDetectorService', () => {
         { id: '2', name: 'Other', type: 'TOOL', mentionCount: 5 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 
@@ -138,7 +146,7 @@ describe('PatternDetectorService', () => {
         { id: '3', name: 'Charlie', type: 'PROJECT', mentionCount: 25 },
       ]);
       const patterns = service.detect([obs]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       // ~33% share each, under 40% threshold
       expect(recurring).toHaveLength(0);
     });
@@ -155,7 +163,9 @@ describe('PatternDetectorService', () => {
         { id: '4', name: 'PostgreSQL', type: 'TOOL', mentionCount: 25 },
       ]);
       const patterns = service.detect([obs]);
-      const connections = patterns.filter(p => p.type === 'pattern_connection');
+      const connections = patterns.filter(
+        (p) => p.type === 'pattern_connection',
+      );
       expect(connections.length).toBeGreaterThanOrEqual(1);
       expect(connections[0].description).toContain('cluster');
     });
@@ -167,7 +177,8 @@ describe('PatternDetectorService', () => {
       ]);
       const patterns = service.detect([obs]);
       const connections = patterns.filter(
-        p => p.type === 'pattern_connection' && p.description.includes('cluster'),
+        (p) =>
+          p.type === 'pattern_connection' && p.description.includes('cluster'),
       );
       expect(connections).toHaveLength(0);
     });
@@ -187,7 +198,7 @@ describe('PatternDetectorService', () => {
         'hot-entities-bbb',
       );
       const patterns = service.detect([obs1, obs2]);
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       // Should have at most 1 (not 2)
       expect(recurring.length).toBeLessThanOrEqual(1);
     });
@@ -239,7 +250,7 @@ describe('PatternDetectorService', () => {
       };
       const patterns = service.detect([obs]);
       // Should not crash, no recurring patterns generated
-      const recurring = patterns.filter(p => p.type === 'recurring_pattern');
+      const recurring = patterns.filter((p) => p.type === 'recurring_pattern');
       expect(recurring).toHaveLength(0);
     });
 

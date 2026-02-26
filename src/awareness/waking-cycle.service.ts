@@ -7,7 +7,10 @@ import { MemorySignalService } from './signals/memory-signal.service';
 import { GitHubSignalService } from './signals/github-signal.service';
 import { LinearSignalService } from './signals/linear-signal.service';
 import { PatternDetectorService } from './analysis/pattern-detector.service';
-import { InsightGeneratorService, GeneratedInsight } from './analysis/insight-generator.service';
+import {
+  InsightGeneratorService,
+  GeneratedInsight,
+} from './analysis/insight-generator.service';
 import { BehavioralConsistencyService } from './analysis/behavioral-consistency.service';
 import { ProactiveNotificationService } from './proactive-notification.service';
 import { InsightFeedbackService } from './insight-feedback.service';
@@ -50,7 +53,8 @@ export class WakingCycleService {
     private readonly patternDetector: PatternDetectorService,
     private readonly insightGenerator: InsightGeneratorService,
     private readonly behavioralConsistency: BehavioralConsistencyService,
-    @Optional() private readonly proactiveNotification?: ProactiveNotificationService,
+    @Optional()
+    private readonly proactiveNotification?: ProactiveNotificationService,
     @Optional() private readonly insightFeedback?: InsightFeedbackService,
     @Optional() private readonly embeddingService?: EmbeddingService,
   ) {}
@@ -63,7 +67,9 @@ export class WakingCycleService {
     if (!AwarenessConfig.enabled) return;
 
     // Multi-tenant: run a cycle for each account
-    const accounts = await this.prisma.account.findMany({ select: { id: true } });
+    const accounts = await this.prisma.account.findMany({
+      select: { id: true },
+    });
     for (const account of accounts) {
       await this.runCycle(account.id);
     }
@@ -87,7 +93,8 @@ export class WakingCycleService {
 
     this.running = true;
     const startTime = Date.now();
-    const instanceId = process.env.HOSTNAME || process.env.RAILWAY_REPLICA_ID || 'local';
+    const instanceId =
+      process.env.HOSTNAME || process.env.RAILWAY_REPLICA_ID || 'local';
 
     // HEY-335: Persist cycle run in DB
     const cycleRun = await this.prisma.dreamCycleRun.create({
@@ -107,8 +114,8 @@ export class WakingCycleService {
       const durationMs = Date.now() - startTime;
       this.logger.log(
         `Waking Cycle complete: ${result.observations} observations, ` +
-        `${result.patterns} patterns, ${result.insights} insights ` +
-        `(${durationMs}ms)`,
+          `${result.patterns} patterns, ${result.insights} insights ` +
+          `(${durationMs}ms)`,
       );
 
       // HEY-335: Update cycle run with results
@@ -132,16 +139,23 @@ export class WakingCycleService {
       this.logger.error(`Waking Cycle failed: ${error.message}`, error.stack);
 
       // HEY-335: Record failure
-      await this.prisma.dreamCycleRun.update({
-        where: { id: cycleRun.id },
-        data: {
-          status: 'FAILED',
-          endedAt: new Date(),
-          error: error.message,
-        },
-      }).catch(() => {});
+      await this.prisma.dreamCycleRun
+        .update({
+          where: { id: cycleRun.id },
+          data: {
+            status: 'FAILED',
+            endedAt: new Date(),
+            error: error.message,
+          },
+        })
+        .catch(() => {});
 
-      return { observations: 0, patterns: 0, insights: 0, durationMs: Date.now() - startTime };
+      return {
+        observations: 0,
+        patterns: 0,
+        insights: 0,
+        durationMs: Date.now() - startTime,
+      };
     } finally {
       this.running = false;
     }
@@ -157,8 +171,8 @@ export class WakingCycleService {
     insights: number;
   }> {
     // ── 0. Resolve account ────────────────────────────────────────────
-    const resolvedAccountId = accountId
-      ?? (await this.prisma.account.findFirst())?.id;
+    const resolvedAccountId =
+      accountId ?? (await this.prisma.account.findFirst())?.id;
     if (!resolvedAccountId) {
       this.logger.warn('No account found — cannot run waking cycle');
       return { observations: 0, patterns: 0, insights: 0 };
@@ -175,14 +189,22 @@ export class WakingCycleService {
       { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.6) },
     );
     allObservations.push(...memoryResult.observations);
-    await this.saveCheckpoint(resolvedAccountId, 'memory', memoryResult.checkpoint);
+    await this.saveCheckpoint(
+      resolvedAccountId,
+      'memory',
+      memoryResult.checkpoint,
+    );
 
     const githubResult = await this.githubSignal.collect(
       checkpoints.get('github') || null,
       { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.15) }, // 15% budget to GitHub
     );
     allObservations.push(...githubResult.observations);
-    await this.saveCheckpoint(resolvedAccountId, 'github', githubResult.checkpoint);
+    await this.saveCheckpoint(
+      resolvedAccountId,
+      'github',
+      githubResult.checkpoint,
+    );
 
     // Linear signal (optional — collects if configured)
     const linearResult = await this.linearSignal.collect(
@@ -190,7 +212,11 @@ export class WakingCycleService {
       { maxQueries: Math.floor(AwarenessConfig.maxDbQueries * 0.15) }, // 15% budget to Linear
     );
     allObservations.push(...linearResult.observations);
-    await this.saveCheckpoint(resolvedAccountId, 'linear', linearResult.checkpoint);
+    await this.saveCheckpoint(
+      resolvedAccountId,
+      'linear',
+      linearResult.checkpoint,
+    );
 
     // ── 3. Detect patterns ────────────────────────────────────────────
     const patterns = this.patternDetector.detect(allObservations);
@@ -218,7 +244,9 @@ export class WakingCycleService {
         });
 
         if (recentConsistencyInsight) {
-          this.logger.debug('[Awareness] Skipping behavioral consistency — recent insight exists (7-day cooldown)');
+          this.logger.debug(
+            '[Awareness] Skipping behavioral consistency — recent insight exists (7-day cooldown)',
+          );
         } else {
           const consistencyResult = await this.behavioralConsistency.check(
             user.id,
@@ -226,8 +254,11 @@ export class WakingCycleService {
           );
           for (const inconsistency of consistencyResult.inconsistencies) {
             insights.push({
-              content: `[Behavioral Consistency] ${inconsistency.description}` +
-                (inconsistency.suggestion ? ` — Suggestion: ${inconsistency.suggestion}` : ''),
+              content:
+                `[Behavioral Consistency] ${inconsistency.description}` +
+                (inconsistency.suggestion
+                  ? ` — Suggestion: ${inconsistency.suggestion}`
+                  : ''),
               insightType: `consistency:${inconsistency.type}`,
               confidence: inconsistency.confidence,
               sourceMemoryIds: inconsistency.evidenceMemoryIds,
@@ -252,13 +283,18 @@ export class WakingCycleService {
   }
 
   /** Load signal source checkpoints for a specific account. */
-  private async loadCheckpoints(accountId: string): Promise<Map<string, Record<string, unknown>>> {
+  private async loadCheckpoints(
+    accountId: string,
+  ): Promise<Map<string, Record<string, unknown>>> {
     const states = await this.prisma.awarenessState.findMany({
       where: { accountId },
     });
     const map = new Map<string, Record<string, unknown>>();
     for (const state of states) {
-      map.set(state.signalSource, (state.checkpoint as Record<string, unknown>) || {});
+      map.set(
+        state.signalSource,
+        (state.checkpoint as Record<string, unknown>) || {},
+      );
     }
     return map;
   }
@@ -296,7 +332,10 @@ export class WakingCycleService {
    * HEY-151: Adjusts confidence based on feedback history for similar insight types
    * HEY-154: Triggers proactive notifications for high-confidence actionable insights
    */
-  private async storeInsights(accountId: string, insights: GeneratedInsight[]): Promise<void> {
+  private async storeInsights(
+    accountId: string,
+    insights: GeneratedInsight[],
+  ): Promise<void> {
     if (insights.length === 0) return;
 
     // Find the first user belonging to this account
@@ -304,7 +343,9 @@ export class WakingCycleService {
       where: { agent: { accountId } },
     });
     if (!user) {
-      this.logger.warn(`No user found for account ${accountId} — cannot store insights`);
+      this.logger.warn(
+        `No user found for account ${accountId} — cannot store insights`,
+      );
       return;
     }
 
@@ -323,16 +364,23 @@ export class WakingCycleService {
         });
 
         if (recentSameType) {
-          this.logger.debug(`Skipping insight (7-day type dedup): "${insight.content.slice(0, 60)}..." [${insight.insightType}]`);
+          this.logger.debug(
+            `Skipping insight (7-day type dedup): "${insight.content.slice(0, 60)}..." [${insight.insightType}]`,
+          );
           continue;
         }
 
         // HEY-336: Deduplicate insights using cosine similarity (fallback)
         if (this.embeddingService) {
           try {
-            const isDuplicate = await this.isDuplicateInsight(user.id, insight.content);
+            const isDuplicate = await this.isDuplicateInsight(
+              user.id,
+              insight.content,
+            );
             if (isDuplicate) {
-              this.logger.log(`Skipping duplicate insight: "${insight.content.slice(0, 60)}..."`);
+              this.logger.log(
+                `Skipping duplicate insight: "${insight.content.slice(0, 60)}..."`,
+              );
               continue;
             }
           } catch (e) {
@@ -349,9 +397,10 @@ export class WakingCycleService {
               insight.insightType,
             );
             if (stats.totalFeedback > 0) {
-              adjustedConfidence = Math.max(0, Math.min(1,
-                insight.confidence + stats.avgConfidenceAdjustment,
-              ));
+              adjustedConfidence = Math.max(
+                0,
+                Math.min(1, insight.confidence + stats.avgConfidenceAdjustment),
+              );
             }
           } catch (e) {
             this.logger.debug(`Feedback stats lookup failed: ${e.message}`);
@@ -361,7 +410,10 @@ export class WakingCycleService {
         const stored = await this.memoryService.remember(user.id, {
           raw: insight.content,
           layer: 'INSIGHT',
-          importanceHint: adjustedConfidence > 0.7 ? ImportanceHint.HIGH : ImportanceHint.MEDIUM,
+          importanceHint:
+            adjustedConfidence > 0.7
+              ? ImportanceHint.HIGH
+              : ImportanceHint.MEDIUM,
           source: 'PATTERN_DETECTED',
         });
 
@@ -378,7 +430,8 @@ export class WakingCycleService {
               actionable: insight.actionable,
               acknowledged: false,
               expiresAt: new Date(
-                Date.now() + AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000,
+                Date.now() +
+                  AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000,
               ).toISOString(),
             },
           },
@@ -400,7 +453,9 @@ export class WakingCycleService {
           await this.proactiveNotification.checkAndNotify(account.id);
         }
       } catch (error) {
-        this.logger.warn(`Proactive notification check failed: ${error.message}`);
+        this.logger.warn(
+          `Proactive notification check failed: ${error.message}`,
+        );
       }
     }
   }
@@ -409,7 +464,10 @@ export class WakingCycleService {
    * HEY-336: Check if a similar insight already exists (cosine similarity > threshold).
    * Compares against INSIGHT layer memories from the last 7 days.
    */
-  private async isDuplicateInsight(userId: string, content: string): Promise<boolean> {
+  private async isDuplicateInsight(
+    userId: string,
+    content: string,
+  ): Promise<boolean> {
     if (!this.embeddingService) return false;
 
     const queryEmbedding = await this.embeddingService.generate(content);
@@ -429,7 +487,9 @@ export class WakingCycleService {
           select: { createdAt: true, deletedAt: true },
         });
         if (memory && !memory.deletedAt) {
-          const cutoff = new Date(Date.now() - AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000);
+          const cutoff = new Date(
+            Date.now() - AwarenessConfig.insightTtlDays * 24 * 60 * 60 * 1000,
+          );
           if (memory.createdAt >= cutoff) {
             return true;
           }
@@ -455,22 +515,38 @@ export class WakingCycleService {
     });
 
     if (!lastRun) {
-      return { phase: 'idle', lastRunAt: null, insightsGenerated: 0, duration: 0, observations: 0, patterns: 0 };
+      return {
+        phase: 'idle',
+        lastRunAt: null,
+        insightsGenerated: 0,
+        duration: 0,
+        observations: 0,
+        patterns: 0,
+      };
     }
 
     let stats = { observations: 0, patterns: 0, insights: 0, durationMs: 0 };
     if (lastRun.status === 'COMPLETED' && lastRun.error) {
       try {
         stats = JSON.parse(lastRun.error);
-      } catch { /* ignore parse errors */ }
+      } catch {
+        /* ignore parse errors */
+      }
     }
 
     // Check if there's a currently running cycle
     const runningCycle = lastRun.status === 'RUNNING' ? lastRun : null;
 
     return {
-      phase: runningCycle ? 'running' : lastRun.status === 'COMPLETED' ? 'idle' : 'failed',
-      lastRunAt: lastRun.status === 'COMPLETED' ? lastRun.endedAt?.toISOString() ?? lastRun.startedAt.toISOString() : lastRun.startedAt.toISOString(),
+      phase: runningCycle
+        ? 'running'
+        : lastRun.status === 'COMPLETED'
+          ? 'idle'
+          : 'failed',
+      lastRunAt:
+        lastRun.status === 'COMPLETED'
+          ? (lastRun.endedAt?.toISOString() ?? lastRun.startedAt.toISOString())
+          : lastRun.startedAt.toISOString(),
       insightsGenerated: stats.insights || 0,
       duration: stats.durationMs || 0,
       observations: stats.observations || 0,

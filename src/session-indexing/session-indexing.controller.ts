@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SessionIndexingService } from './session-indexing.service';
@@ -15,12 +14,10 @@ import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
-import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';
 
 @ApiTags('sessions', 'flush')
 @Controller('v1')
 @UseGuards(ApiKeyOrJwtGuard, RateLimitGuard)
-@UseInterceptors(SanitizeInterceptor)
 export class SessionIndexingController {
   constructor(private readonly service: SessionIndexingService) {}
 
@@ -35,10 +32,7 @@ export class SessionIndexingController {
     description:
       'Split a conversation transcript into chunks, embed, and store as SESSION memories.',
   })
-  async indexSession(
-    @UserId() userId: string,
-    @Body() dto: IndexSessionDto,
-  ) {
+  async indexSession(@UserId() userId: string, @Body() dto: IndexSessionDto) {
     return this.service.indexSession(userId, dto);
   }
 
@@ -77,10 +71,7 @@ export class SessionIndexingController {
     description:
       'Urgently store key memories/summaries before context window compaction.',
   })
-  async flushMemories(
-    @UserId() userId: string,
-    @Body() dto: FlushMemoriesDto,
-  ) {
+  async flushMemories(@UserId() userId: string, @Body() dto: FlushMemoriesDto) {
     return this.service.flushMemories(userId, dto);
   }
 }

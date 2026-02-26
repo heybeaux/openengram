@@ -50,19 +50,30 @@ describe('TeamController', () => {
   });
 
   it('should get team by id', async () => {
-    const created = await controller.create({ name: 'Team B', agentIds: ['a1'] });
+    const created = await controller.create({
+      name: 'Team B',
+      agentIds: ['a1'],
+    });
     const found = await controller.getById(created.id);
     expect(found.name).toBe('Team B');
   });
 
   it('should update a team', async () => {
-    const created = await controller.create({ name: 'Team C', agentIds: ['a1'] });
-    const updated = await controller.update(created.id, { name: 'Team C Updated' });
+    const created = await controller.create({
+      name: 'Team C',
+      agentIds: ['a1'],
+    });
+    const updated = await controller.update(created.id, {
+      name: 'Team C Updated',
+    });
     expect(updated.name).toBe('Team C Updated');
   });
 
   it('should delete a team', async () => {
-    const created = await controller.create({ name: 'Team D', agentIds: ['a1'] });
+    const created = await controller.create({
+      name: 'Team D',
+      agentIds: ['a1'],
+    });
     await controller.delete(created.id);
     await expect(controller.getById(created.id)).rejects.toThrow();
   });

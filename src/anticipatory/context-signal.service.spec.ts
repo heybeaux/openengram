@@ -98,7 +98,11 @@ describe('ContextSignalService', () => {
 
     it('should work without entity service', async () => {
       const serviceWithout = new ContextSignalService();
-      const signals = await serviceWithout.extract('Engram query', 'user1', new Set());
+      const signals = await serviceWithout.extract(
+        'Engram query',
+        'user1',
+        new Set(),
+      );
       expect(signals.entities).toHaveLength(0);
       expect(signals.topics.length).toBeGreaterThanOrEqual(0);
     });

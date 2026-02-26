@@ -6,7 +6,11 @@ describe('CapabilityDeltaService', () => {
   let service: CapabilityDeltaService;
   let prisma: {
     trustSignal: { findMany: jest.Mock };
-    capabilityCheckpoint: { create: jest.Mock; findMany: jest.Mock; findFirst: jest.Mock };
+    capabilityCheckpoint: {
+      create: jest.Mock;
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
@@ -59,7 +63,9 @@ describe('CapabilityDeltaService', () => {
 
       expect(result).toHaveLength(2);
       expect(result.find((c) => c.name === 'deploy')?.evidenceCount).toBe(3);
-      expect(result.find((c) => c.name === 'code-review')?.evidenceCount).toBe(2);
+      expect(result.find((c) => c.name === 'code-review')?.evidenceCount).toBe(
+        2,
+      );
       // 'testing' excluded — only 1 signal, below MIN_EVIDENCE of 2
       expect(result.find((c) => c.name === 'testing')).toBeUndefined();
     });
@@ -88,7 +94,12 @@ describe('CapabilityDeltaService', () => {
         {
           checkpointAt: new Date(),
           capabilities: [
-            { name: 'deploy', evidenceCount: 5, firstSeen: '2025-01-01', lastSeen: '2025-02-01' },
+            {
+              name: 'deploy',
+              evidenceCount: 5,
+              firstSeen: '2025-01-01',
+              lastSeen: '2025-02-01',
+            },
           ],
         },
       ]);
@@ -107,14 +118,29 @@ describe('CapabilityDeltaService', () => {
         {
           checkpointAt: now,
           capabilities: [
-            { name: 'deploy', evidenceCount: 5, firstSeen: '2025-01-01', lastSeen: '2025-02-01' },
-            { name: 'monitoring', evidenceCount: 3, firstSeen: '2025-02-01', lastSeen: '2025-02-15' },
+            {
+              name: 'deploy',
+              evidenceCount: 5,
+              firstSeen: '2025-01-01',
+              lastSeen: '2025-02-01',
+            },
+            {
+              name: 'monitoring',
+              evidenceCount: 3,
+              firstSeen: '2025-02-01',
+              lastSeen: '2025-02-15',
+            },
           ],
         },
         {
           checkpointAt: lastWeek,
           capabilities: [
-            { name: 'deploy', evidenceCount: 3, firstSeen: '2025-01-01', lastSeen: '2025-01-20' },
+            {
+              name: 'deploy',
+              evidenceCount: 3,
+              firstSeen: '2025-01-01',
+              lastSeen: '2025-01-20',
+            },
           ],
         },
       ]);
