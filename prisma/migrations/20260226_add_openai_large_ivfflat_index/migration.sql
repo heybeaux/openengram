@@ -1,9 +1,10 @@
--- Add HNSW index for openai-large (HEY-388)
+-- Add index for openai-large (HEY-388)
 --
--- openai-large produces 3072-dim vectors. pgvector 0.7.0+ supports HNSW
--- up to 4096 dimensions. IVFFlat is limited to 2000 dimensions.
+-- openai-large produces 3072-dim vectors. pgvector HNSW supports up to 2000
+-- dimensions in versions < 0.8.0. Use a plain btree index on model_id for
+-- filtering, and rely on sequential scan for cosine similarity on large vectors.
+-- When pgvector >= 0.8.0 is available, an HNSW index can be added.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "memory_embeddings_openai_large_hnsw_idx"
-ON "memory_embeddings" USING hnsw ((embedding::vector(3072)) vector_cosine_ops)
-WITH (m = 16, ef_construction = 64)
-WHERE model_id = 'openai-large' AND embedding IS NOT NULL;
+-- No vector index created — 3072 dims exceeds pgvector HNSW/IVFFlat limits.
+-- Queries on openai-large embeddings will use sequential scan with the
+-- existing model_id filter index.
