@@ -49,6 +49,11 @@ describe('WakingCycleService', () => {
         update: jest.fn().mockResolvedValue({}),
         findFirst: jest.fn().mockResolvedValue(null),
       },
+      awarenessCycleRun: {
+        create: jest.fn().mockResolvedValue({ id: 'run-1' }),
+        update: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
 
     memoryService = {
@@ -334,22 +339,25 @@ describe('WakingCycleService', () => {
       expect(result.insights).toBe(1);
     });
 
-    it('should persist cycle run in DreamCycleRun table (HEY-335)', async () => {
+    it('should persist cycle run in AwarenessCycleRun table (HEY-335)', async () => {
       await service.runCycle();
 
-      expect(prisma.dreamCycleRun.create).toHaveBeenCalledWith({
+      expect(prisma.awarenessCycleRun.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           status: 'RUNNING',
+          phase: 'starting',
           instanceId: expect.any(String),
         }),
       });
 
-      expect(prisma.dreamCycleRun.update).toHaveBeenCalledWith({
+      expect(prisma.awarenessCycleRun.update).toHaveBeenCalledWith({
         where: { id: 'run-1' },
         data: expect.objectContaining({
           status: 'COMPLETED',
-          endedAt: expect.any(Date),
-          error: expect.stringContaining('"insights":1'),
+          phase: 'idle',
+          insightsGenerated: expect.any(Number),
+          observations: expect.any(Number),
+          patterns: expect.any(Number),
         }),
       });
     });
@@ -359,10 +367,11 @@ describe('WakingCycleService', () => {
 
       await service.runCycle();
 
-      expect(prisma.dreamCycleRun.update).toHaveBeenCalledWith({
+      expect(prisma.awarenessCycleRun.update).toHaveBeenCalledWith({
         where: { id: 'run-1' },
         data: expect.objectContaining({
           status: 'FAILED',
+          phase: 'failed',
           error: 'DB connection lost',
         }),
       });
@@ -414,7 +423,7 @@ describe('WakingCycleService', () => {
 
   describe('getLastCycleRun (HEY-335)', () => {
     it('should return idle with nulls when no runs exist', async () => {
-      prisma.dreamCycleRun.findFirst.mockResolvedValue(null);
+      prisma.awarenessCycleRun.findFirst.mockResolvedValue(null);
 
       const status = await service.getLastCycleRun();
 
@@ -424,17 +433,17 @@ describe('WakingCycleService', () => {
     });
 
     it('should return completed run stats from DB', async () => {
-      prisma.dreamCycleRun.findFirst.mockResolvedValue({
+      prisma.awarenessCycleRun.findFirst.mockResolvedValue({
         id: 'run-1',
         status: 'COMPLETED',
-        startedAt: new Date('2026-01-15T10:00:00Z'),
-        endedAt: new Date('2026-01-15T10:00:02Z'),
-        error: JSON.stringify({
-          observations: 10,
-          patterns: 5,
-          insights: 3,
-          durationMs: 2000,
-        }),
+        phase: 'idle',
+        startTime: new Date('2026-01-15T10:00:00Z'),
+        endTime: new Date('2026-01-15T10:00:02Z'),
+        insightsGenerated: 3,
+        observations: 10,
+        patterns: 5,
+        durationMs: 2000,
+        error: null,
       });
 
       const status = await service.getLastCycleRun();
@@ -446,17 +455,22 @@ describe('WakingCycleService', () => {
     });
 
     it('should return running phase when cycle is in progress', async () => {
-      prisma.dreamCycleRun.findFirst.mockResolvedValue({
+      prisma.awarenessCycleRun.findFirst.mockResolvedValue({
         id: 'run-2',
         status: 'RUNNING',
-        startedAt: new Date('2026-01-15T10:00:00Z'),
-        endedAt: null,
+        phase: 'observing',
+        startTime: new Date('2026-01-15T10:00:00Z'),
+        endTime: null,
+        insightsGenerated: 0,
+        observations: 0,
+        patterns: 0,
+        durationMs: 0,
         error: null,
       });
 
       const status = await service.getLastCycleRun();
 
-      expect(status.phase).toBe('running');
+      expect(status.phase).toBe('observing');
     });
   });
 });

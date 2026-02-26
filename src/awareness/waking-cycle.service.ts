@@ -97,8 +97,8 @@ export class WakingCycleService {
       process.env.HOSTNAME || process.env.RAILWAY_REPLICA_ID || 'local';
 
     // HEY-335: Persist cycle run in DB
-    const cycleRun = await this.prisma.dreamCycleRun.create({
-      data: { status: 'RUNNING', instanceId },
+    const cycleRun = await this.prisma.awarenessCycleRun.create({
+      data: { status: 'RUNNING', phase: 'starting', instanceId },
     });
 
     try {
@@ -119,17 +119,16 @@ export class WakingCycleService {
       );
 
       // HEY-335: Update cycle run with results
-      await this.prisma.dreamCycleRun.update({
+      await this.prisma.awarenessCycleRun.update({
         where: { id: cycleRun.id },
         data: {
           status: 'COMPLETED',
-          endedAt: new Date(),
-          error: JSON.stringify({
-            observations: result.observations,
-            patterns: result.patterns,
-            insights: result.insights,
-            durationMs,
-          }),
+          phase: 'idle',
+          endTime: new Date(),
+          insightsGenerated: result.insights,
+          observations: result.observations,
+          patterns: result.patterns,
+          durationMs,
         },
       });
 
@@ -139,12 +138,14 @@ export class WakingCycleService {
       this.logger.error(`Waking Cycle failed: ${error.message}`, error.stack);
 
       // HEY-335: Record failure
-      await this.prisma.dreamCycleRun
+      await this.prisma.awarenessCycleRun
         .update({
           where: { id: cycleRun.id },
           data: {
             status: 'FAILED',
-            endedAt: new Date(),
+            phase: 'failed',
+            endTime: new Date(),
+            durationMs: Date.now() - startTime,
             error: error.message,
           },
         })
@@ -510,8 +511,8 @@ export class WakingCycleService {
     observations: number;
     patterns: number;
   }> {
-    const lastRun = await this.prisma.dreamCycleRun.findFirst({
-      orderBy: { startedAt: 'desc' },
+    const lastRun = await this.prisma.awarenessCycleRun.findFirst({
+      orderBy: { startTime: 'desc' },
     });
 
     if (!lastRun) {
@@ -525,32 +526,21 @@ export class WakingCycleService {
       };
     }
 
-    let stats = { observations: 0, patterns: 0, insights: 0, durationMs: 0 };
-    if (lastRun.status === 'COMPLETED' && lastRun.error) {
-      try {
-        stats = JSON.parse(lastRun.error);
-      } catch {
-        /* ignore parse errors */
-      }
-    }
-
-    // Check if there's a currently running cycle
-    const runningCycle = lastRun.status === 'RUNNING' ? lastRun : null;
-
     return {
-      phase: runningCycle
-        ? 'running'
-        : lastRun.status === 'COMPLETED'
-          ? 'idle'
-          : 'failed',
+      phase:
+        lastRun.status === 'RUNNING'
+          ? lastRun.phase || 'running'
+          : lastRun.status === 'COMPLETED'
+            ? 'idle'
+            : 'failed',
       lastRunAt:
         lastRun.status === 'COMPLETED'
-          ? (lastRun.endedAt?.toISOString() ?? lastRun.startedAt.toISOString())
-          : lastRun.startedAt.toISOString(),
-      insightsGenerated: stats.insights || 0,
-      duration: stats.durationMs || 0,
-      observations: stats.observations || 0,
-      patterns: stats.patterns || 0,
+          ? (lastRun.endTime?.toISOString() ?? lastRun.startTime.toISOString())
+          : lastRun.startTime.toISOString(),
+      insightsGenerated: lastRun.insightsGenerated,
+      duration: lastRun.durationMs,
+      observations: lastRun.observations,
+      patterns: lastRun.patterns,
     };
   }
 
