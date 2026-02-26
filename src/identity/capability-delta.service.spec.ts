@@ -121,7 +121,12 @@ describe('CapabilityDeltaService', () => {
 
     it('should treat all capabilities as gained when only one checkpoint exists', async () => {
       const caps = [
-        { name: 'deployment', evidenceCount: 3, firstSeen: '2026-02-20', lastSeen: '2026-02-26' },
+        {
+          name: 'deployment',
+          evidenceCount: 3,
+          firstSeen: '2026-02-20',
+          lastSeen: '2026-02-26',
+        },
       ];
       prisma.capabilityCheckpoint.findMany.mockResolvedValue([
         { checkpointAt: now, capabilities: caps },
@@ -136,11 +141,26 @@ describe('CapabilityDeltaService', () => {
 
     it('should detect newly gained capabilities', async () => {
       const previousCaps = [
-        { name: 'testing', evidenceCount: 2, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
+        {
+          name: 'testing',
+          evidenceCount: 2,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
       ];
       const currentCaps = [
-        { name: 'testing', evidenceCount: 2, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
-        { name: 'deployment', evidenceCount: 3, firstSeen: '2026-02-22', lastSeen: '2026-02-26' },
+        {
+          name: 'testing',
+          evidenceCount: 2,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
+        {
+          name: 'deployment',
+          evidenceCount: 3,
+          firstSeen: '2026-02-22',
+          lastSeen: '2026-02-26',
+        },
       ];
 
       prisma.capabilityCheckpoint.findMany.mockResolvedValue([
@@ -156,10 +176,20 @@ describe('CapabilityDeltaService', () => {
 
     it('should detect improved capabilities (increased evidence)', async () => {
       const previousCaps = [
-        { name: 'testing', evidenceCount: 2, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
+        {
+          name: 'testing',
+          evidenceCount: 2,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
       ];
       const currentCaps = [
-        { name: 'testing', evidenceCount: 5, firstSeen: '2026-02-15', lastSeen: '2026-02-26' },
+        {
+          name: 'testing',
+          evidenceCount: 5,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-26',
+        },
       ];
 
       prisma.capabilityCheckpoint.findMany.mockResolvedValue([
@@ -180,7 +210,12 @@ describe('CapabilityDeltaService', () => {
 
     it('should not flag unchanged capabilities', async () => {
       const caps = [
-        { name: 'testing', evidenceCount: 3, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
+        {
+          name: 'testing',
+          evidenceCount: 3,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
       ];
 
       prisma.capabilityCheckpoint.findMany.mockResolvedValue([
@@ -196,11 +231,26 @@ describe('CapabilityDeltaService', () => {
 
     it('should not report removed capabilities (only tracks growth)', async () => {
       const previousCaps = [
-        { name: 'testing', evidenceCount: 3, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
-        { name: 'deployment', evidenceCount: 2, firstSeen: '2026-02-18', lastSeen: '2026-02-20' },
+        {
+          name: 'testing',
+          evidenceCount: 3,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
+        {
+          name: 'deployment',
+          evidenceCount: 2,
+          firstSeen: '2026-02-18',
+          lastSeen: '2026-02-20',
+        },
       ];
       const currentCaps = [
-        { name: 'testing', evidenceCount: 3, firstSeen: '2026-02-15', lastSeen: '2026-02-20' },
+        {
+          name: 'testing',
+          evidenceCount: 3,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-20',
+        },
         // deployment removed
       ];
 
@@ -245,8 +295,18 @@ describe('CapabilityDeltaService', () => {
 
     it('should handle all capabilities being new (empty previous snapshot)', async () => {
       const currentCaps = [
-        { name: 'testing', evidenceCount: 3, firstSeen: '2026-02-20', lastSeen: '2026-02-26' },
-        { name: 'deployment', evidenceCount: 2, firstSeen: '2026-02-22', lastSeen: '2026-02-26' },
+        {
+          name: 'testing',
+          evidenceCount: 3,
+          firstSeen: '2026-02-20',
+          lastSeen: '2026-02-26',
+        },
+        {
+          name: 'deployment',
+          evidenceCount: 2,
+          firstSeen: '2026-02-22',
+          lastSeen: '2026-02-26',
+        },
       ];
 
       prisma.capabilityCheckpoint.findMany.mockResolvedValue([
@@ -269,7 +329,12 @@ describe('CapabilityDeltaService', () => {
 
     it('should return capabilities from latest checkpoint', async () => {
       const caps = [
-        { name: 'deployment', evidenceCount: 4, firstSeen: '2026-02-15', lastSeen: '2026-02-26' },
+        {
+          name: 'deployment',
+          evidenceCount: 4,
+          firstSeen: '2026-02-15',
+          lastSeen: '2026-02-26',
+        },
       ];
       prisma.capabilityCheckpoint.findFirst.mockResolvedValue({
         capabilities: caps,

@@ -111,7 +111,10 @@ describe('CloudSyncPushService', () => {
     });
 
     it('should sync a batch of memories successfully', async () => {
-      const memories = [makeMemory({ id: 'mem-1' }), makeMemory({ id: 'mem-2' })];
+      const memories = [
+        makeMemory({ id: 'mem-1' }),
+        makeMemory({ id: 'mem-2' }),
+      ];
       prisma.memory.count.mockResolvedValue(2);
       prisma.memory.findMany
         .mockResolvedValueOnce(memories)
@@ -417,7 +420,11 @@ describe('CloudSyncPushService', () => {
         }),
       });
 
-      const result = await service.syncBatchToCloud(memories, apiKey, instanceId);
+      const result = await service.syncBatchToCloud(
+        memories,
+        apiKey,
+        instanceId,
+      );
 
       expect(result.synced).toBe(3);
       expect(result.newCount).toBe(1);
@@ -453,7 +460,11 @@ describe('CloudSyncPushService', () => {
       });
 
       // Should not throw - error is logged
-      const result = await service.syncBatchToCloud([mockMemory], apiKey, instanceId);
+      const result = await service.syncBatchToCloud(
+        [mockMemory],
+        apiKey,
+        instanceId,
+      );
       expect(result.synced).toBe(1);
     });
 
@@ -481,7 +492,11 @@ describe('CloudSyncPushService', () => {
         }),
       });
 
-      await service.syncBatchToCloud([mockMemory], 'secret-key-123', instanceId);
+      await service.syncBatchToCloud(
+        [mockMemory],
+        'secret-key-123',
+        instanceId,
+      );
 
       const body = mockFetch.mock.calls[0][1].body;
       expect(body).not.toContain('secret-key-123');
