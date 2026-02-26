@@ -128,22 +128,54 @@ export class ClusteringService {
       };
     }
 
-    // DBSCAN using pgvector cosine distance
-    // For each memory, find neighbors within eps cosine distance
+    // Batch-fetch all embeddings once to avoid O(n²) DB queries
+    const embeddingRows = await this.prisma.$queryRawUnsafe<
+      Array<{ memory_id: string; embedding: string }>
+    >(
+      `SELECT memory_id, embedding::text
+       FROM memory_embeddings
+       WHERE memory_id = ANY($1::text[])
+         AND model_id = $2
+         AND embedding IS NOT NULL`,
+      memoryIds,
+      modelId,
+    );
+
+    // Parse embeddings into a map of memoryId -> float array
+    const embeddingMap = new Map<string, number[]>();
+    for (const row of embeddingRows) {
+      const vec = row.embedding.replace(/[[\]]/g, '').split(',').map(Number);
+      embeddingMap.set(row.memory_id, vec);
+    }
+
+    // Pre-compute neighbor lists in-memory using cosine distance
+    const neighborCache = new Map<string, string[]>();
+    const idsWithEmbeddings = memoryIds.filter((id) => embeddingMap.has(id));
+
+    for (const memoryId of idsWithEmbeddings) {
+      const neighbors: string[] = [];
+      const vecA = embeddingMap.get(memoryId)!;
+      for (const candidateId of idsWithEmbeddings) {
+        if (candidateId === memoryId) continue;
+        const vecB = embeddingMap.get(candidateId)!;
+        const dist = this.cosineDistance(vecA, vecB);
+        if (dist <= eps) {
+          neighbors.push(candidateId);
+        }
+      }
+      neighborCache.set(memoryId, neighbors);
+    }
+
+    // DBSCAN using pre-computed in-memory neighbors
     const visited = new Set<string>();
     const clusterAssignments = new Map<string, number>(); // memoryId -> clusterId
     let nextClusterId = 0;
 
-    for (const memoryId of memoryIds) {
+    for (const memoryId of idsWithEmbeddings) {
       if (visited.has(memoryId)) continue;
       visited.add(memoryId);
 
-      const neighbors = await this.findNeighbors(
-        memoryId,
-        memoryIds,
-        eps,
-        modelId,
-      );
+      const neighbors = neighborCache.get(memoryId) || [];
 
       if (neighbors.length < minPoints) {
         // Noise point
@@ -163,12 +195,7 @@ export class ClusteringService {
 
         if (!visited.has(currentId)) {
           visited.add(currentId);
-          const currentNeighbors = await this.findNeighbors(
-            currentId,
-            memoryIds,
-            eps,
-            modelId,
-          );
+          const currentNeighbors = neighborCache.get(currentId) || [];
 
           if (currentNeighbors.length >= minPoints) {
             for (const n of currentNeighbors) {
@@ -289,33 +316,21 @@ export class ClusteringService {
   }
 
   /**
-   * Find neighbors of a memory within eps cosine distance
+   * Compute cosine distance between two vectors.
+   * Cosine distance = 1 - cosine_similarity
    */
-  private async findNeighbors(
-    memoryId: string,
-    candidateIds: string[],
-    eps: number,
-    modelId: string,
-  ): Promise<string[]> {
-    // Use pgvector cosine distance operator (<=>)
-    const results = await this.prisma.$queryRawUnsafe<
-      Array<{ memory_id: string; distance: number }>
-    >(
-      `SELECT b.memory_id, (a.embedding <=> b.embedding) as distance
-       FROM memory_embeddings a
-       JOIN memory_embeddings b ON b.model_id = a.model_id
-       WHERE a.memory_id = $1
-         AND a.model_id = $2
-         AND b.memory_id = ANY($3::text[])
-         AND b.memory_id != $1
-         AND (a.embedding <=> b.embedding) <= $4`,
-      memoryId,
-      modelId,
-      candidateIds,
-      eps,
-    );
-
-    return results.map((r) => r.memory_id);
+  private cosineDistance(a: number[], b: number[]): number {
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denom = Math.sqrt(normA) * Math.sqrt(normB);
+    if (denom === 0) return 1;
+    return 1 - dot / denom;
   }
 
   /**
