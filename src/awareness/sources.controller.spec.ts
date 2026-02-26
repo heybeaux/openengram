@@ -1,12 +1,22 @@
 import { AwarenessSourceController } from './awareness-source.controller';
 import { AwarenessSourceService } from './awareness-source.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('AwarenessSourceController (Sources CRUD)', () => {
   let controller: AwarenessSourceController;
   let service: AwarenessSourceService;
 
-  beforeEach(() => {
-    service = new AwarenessSourceService();
+  beforeEach(async () => {
+    const prisma = {
+      awarenessState: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn().mockResolvedValue({}),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    } as unknown as PrismaService;
+
+    service = new AwarenessSourceService(prisma);
+    await service.onModuleInit();
     controller = new AwarenessSourceController(service);
   });
 

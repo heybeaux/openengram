@@ -2,8 +2,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 
 export interface SignalSourceConfig {
@@ -16,31 +17,79 @@ export interface SignalSourceConfig {
   updatedAt: Date;
 }
 
+const SOURCE_PREFIX = 'source:';
+const SYSTEM_ACCOUNT_ID = 'system';
+
 /**
- * AwarenessSourceService (HEY-286)
+ * AwarenessSourceService (HEY-286, HEY-380)
  *
  * CRUD for awareness signal source configurations.
- * In-memory store — production should persist to DB.
+ * Persisted to AwarenessState rows (signalSource = 'source:{id}').
+ * In-memory Map serves as a write-through cache loaded on init.
  */
 @Injectable()
-export class AwarenessSourceService implements OnModuleDestroy {
+export class AwarenessSourceService implements OnModuleInit {
   private readonly logger = new Logger(AwarenessSourceService.name);
   private readonly sources = new Map<string, SignalSourceConfig>();
 
-  onModuleDestroy(): void {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.loadFromDb();
+  }
+
+  private async loadFromDb(): Promise<void> {
+    const rows = await this.prisma.awarenessState.findMany({
+      where: {
+        accountId: SYSTEM_ACCOUNT_ID,
+        signalSource: { startsWith: SOURCE_PREFIX },
+      },
+    });
+
+    for (const row of rows) {
+      if (row.checkpoint) {
+        const source = row.checkpoint as unknown as SignalSourceConfig;
+        // Restore Date objects from JSON
+        source.createdAt = new Date(source.createdAt);
+        source.updatedAt = new Date(source.updatedAt);
+        this.sources.set(source.id, source);
+      }
+    }
+
     if (this.sources.size > 0) {
-      this.logger.warn(
-        `Shutting down with ${this.sources.size} awareness source config(s) being discarded`,
+      this.logger.log(
+        `Loaded ${this.sources.size} signal source config(s) from database`,
       );
     }
   }
 
-  create(dto: {
+  private async persistSource(source: SignalSourceConfig): Promise<void> {
+    await this.prisma.awarenessState.upsert({
+      where: {
+        accountId_signalSource: {
+          accountId: SYSTEM_ACCOUNT_ID,
+          signalSource: `${SOURCE_PREFIX}${source.id}`,
+        },
+      },
+      update: {
+        checkpoint: source as any,
+        lastCheckedAt: new Date(),
+      },
+      create: {
+        accountId: SYSTEM_ACCOUNT_ID,
+        signalSource: `${SOURCE_PREFIX}${source.id}`,
+        lastCheckedAt: new Date(),
+        checkpoint: source as any,
+      },
+    });
+  }
+
+  async create(dto: {
     name: string;
     type: 'linear' | 'github' | 'memory' | 'custom';
     enabled?: boolean;
     config?: Record<string, any>;
-  }): SignalSourceConfig {
+  }): Promise<SignalSourceConfig> {
     const source: SignalSourceConfig = {
       id: randomUUID(),
       name: dto.name,
@@ -51,6 +100,7 @@ export class AwarenessSourceService implements OnModuleDestroy {
       updatedAt: new Date(),
     };
     this.sources.set(source.id, source);
+    await this.persistSource(source);
     this.logger.log(`Created signal source "${source.name}" (${source.type})`);
     return source;
   }
@@ -65,16 +115,17 @@ export class AwarenessSourceService implements OnModuleDestroy {
     return source;
   }
 
-  update(
+  async update(
     id: string,
     dto: { name?: string; enabled?: boolean; config?: Record<string, any> },
-  ): SignalSourceConfig {
+  ): Promise<SignalSourceConfig> {
     const source = this.getById(id);
     if (dto.name !== undefined) source.name = dto.name;
     if (dto.enabled !== undefined) source.enabled = dto.enabled;
     if (dto.config !== undefined)
       source.config = { ...source.config, ...dto.config };
     source.updatedAt = new Date();
+    await this.persistSource(source);
     return source;
   }
 
@@ -88,7 +139,6 @@ export class AwarenessSourceService implements OnModuleDestroy {
     message: string;
   } {
     const source = this.getById(id);
-    // Basic health check — in production this would ping the actual integration
     return {
       id: source.id,
       name: source.name,
@@ -102,9 +152,15 @@ export class AwarenessSourceService implements OnModuleDestroy {
     };
   }
 
-  delete(id: string): { deleted: true } {
+  async delete(id: string): Promise<{ deleted: true }> {
     const source = this.getById(id);
     this.sources.delete(id);
+    await this.prisma.awarenessState.deleteMany({
+      where: {
+        accountId: SYSTEM_ACCOUNT_ID,
+        signalSource: `${SOURCE_PREFIX}${id}`,
+      },
+    });
     this.logger.log(`Deleted signal source "${source.name}"`);
     return { deleted: true };
   }
