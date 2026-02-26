@@ -221,17 +221,24 @@ export class MemoryController {
   /**
    * POST /v1/memories/search
    * Alias for /v1/memories/query
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Post('memories/search')
-  @ApiOperation({ summary: 'Search memories (alias for /query)' })
+  @ApiOperation({
+    summary: 'Search memories (alias for /query)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async search(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
@@ -239,17 +246,24 @@ export class MemoryController {
   /**
    * GET /v1/memories/search
    * GET alias for search
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Get('memories/search')
-  @ApiOperation({ summary: 'Search memories (GET alias)' })
+  @ApiOperation({
+    summary: 'Search memories (GET alias)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async searchGet(
     @UserId() userId: string,
     @Query() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
@@ -257,17 +271,24 @@ export class MemoryController {
   /**
    * POST /v1/recall
    * Alias for /v1/memories/query — semantic search for memories
+   * @deprecated Use POST /v1/memories/query instead. This endpoint will be removed in a future release.
    */
   @Post('recall')
-  @ApiOperation({ summary: 'Recall memories (alias for /memories/query)' })
+  @ApiOperation({
+    summary: 'Recall memories (alias for /memories/query)',
+    deprecated: true,
+  })
   @ApiTags('search')
   @RateLimit(60)
   async recallAlias(
     @UserId() userId: string,
     @Body() dto: QueryMemoryDto,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('agentId') agentId?: string,
   ): Promise<QueryResult> {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
   }
