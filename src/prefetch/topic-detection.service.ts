@@ -3,9 +3,18 @@
  *
  * Detects conversation topics using keyword matching and optional
  * embedding-based classification. Fast (<10ms target).
+ *
+ * Topic prototypes and recent-topic history are persisted to Redis
+ * (when available) so they survive restarts.
  */
 
-import { Injectable, Optional, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Optional,
+  Inject,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { EmbeddingService } from '../memory/embedding.service';
 import {
   TopicId,
@@ -22,6 +31,12 @@ import {
   getRelatedTopics,
   TOPIC_DEFINITIONS,
 } from './topic-taxonomy';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from './prefetch-cache.service';
+
+const PROTO_PREFIX = 'topic:proto:';
+const RECENT_PREFIX = 'topic:recent:';
+const RECENT_TTL_SEC = 3600; // 1 hour
 
 /**
  * Default configuration for topic detection
@@ -38,14 +53,27 @@ export const DEFAULT_DETECTION_CONFIG: TopicDetectionConfig = {
 };
 
 @Injectable()
-export class TopicDetectionService {
+export class TopicDetectionService implements OnModuleInit {
   private readonly logger = new Logger(TopicDetectionService.name);
   private config: TopicDetectionConfig;
   private prototypes: Map<TopicId, TopicPrototype> = new Map();
   private recentTopics: Map<string, TopicScore[][]> = new Map(); // userId -> history
 
-  constructor(@Optional() private embeddingService?: EmbeddingService) {
+  constructor(
+    @Optional() private embeddingService?: EmbeddingService,
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {
     this.config = { ...DEFAULT_DETECTION_CONFIG };
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      await this.hydratePrototypesFromRedis();
+      await this.hydrateRecentTopicsFromRedis();
+    } catch (err) {
+      this.logger.warn('Failed to hydrate topic data from Redis', err);
+    }
   }
 
   /**
@@ -88,6 +116,9 @@ export class TopicDetectionService {
         );
       }
     }
+
+    // Persist all prototypes to Redis
+    this.persistAllPrototypesToRedis();
   }
 
   /**
@@ -99,11 +130,13 @@ export class TopicDetectionService {
     embedding: number[],
     threshold: number = 0.5,
   ): void {
-    this.prototypes.set(topicId, {
+    const proto: TopicPrototype = {
       topic: topicId,
       embedding,
       threshold,
-    });
+    };
+    this.prototypes.set(topicId, proto);
+    this.persistPrototypeToRedis(topicId, proto);
   }
 
   /**
@@ -243,6 +276,7 @@ export class TopicDetectionService {
    */
   clearHistory(userId: string): void {
     this.recentTopics.delete(userId);
+    this.deleteRecentTopicsFromRedis(userId);
   }
 
   // =========================================================================
@@ -415,6 +449,7 @@ export class TopicDetectionService {
     }
 
     this.recentTopics.set(userId, history);
+    this.persistRecentTopicsToRedis(userId, history);
   }
 
   /**
@@ -439,5 +474,130 @@ export class TopicDetectionService {
     if (magnitude === 0) return 0;
 
     return dotProduct / magnitude;
+  }
+
+  // =========================================================================
+  // Redis Persistence (fire-and-forget write-through)
+  // =========================================================================
+
+  private persistPrototypeToRedis(
+    topicId: TopicId,
+    proto: TopicPrototype,
+  ): void {
+    if (!this.redis) return;
+    this.redis
+      .set(PROTO_PREFIX + topicId, JSON.stringify(proto))
+      .catch((err) => this.logger.warn('Redis prototype persist failed', err));
+  }
+
+  private persistAllPrototypesToRedis(): void {
+    if (!this.redis) return;
+    const pipeline = this.redis.pipeline();
+    for (const [topicId, proto] of this.prototypes) {
+      pipeline.set(PROTO_PREFIX + topicId, JSON.stringify(proto));
+    }
+    pipeline
+      .exec()
+      .catch((err) =>
+        this.logger.warn('Redis prototype batch persist failed', err),
+      );
+  }
+
+  private persistRecentTopicsToRedis(
+    userId: string,
+    history: TopicScore[][],
+  ): void {
+    if (!this.redis) return;
+    this.redis
+      .set(
+        RECENT_PREFIX + userId,
+        JSON.stringify(history),
+        'EX',
+        RECENT_TTL_SEC,
+      )
+      .catch((err) =>
+        this.logger.warn('Redis recent topics persist failed', err),
+      );
+  }
+
+  private deleteRecentTopicsFromRedis(userId: string): void {
+    if (!this.redis) return;
+    this.redis
+      .del(RECENT_PREFIX + userId)
+      .catch((err) =>
+        this.logger.warn('Redis recent topics delete failed', err),
+      );
+  }
+
+  private async hydratePrototypesFromRedis(): Promise<void> {
+    if (!this.redis) return;
+    const keys: string[] = [];
+    const stream = this.redis.scanStream({
+      match: PROTO_PREFIX + '*',
+      count: 100,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      stream.on('data', (batch: string[]) => keys.push(...batch));
+      stream.on('end', resolve);
+      stream.on('error', reject);
+    });
+
+    if (keys.length === 0) return;
+
+    const pipeline = this.redis.pipeline();
+    for (const key of keys) pipeline.get(key);
+    const results = await pipeline.exec();
+    if (!results) return;
+
+    let count = 0;
+    for (const [err, val] of results) {
+      if (err || !val) continue;
+      try {
+        const proto: TopicPrototype = JSON.parse(val as string);
+        this.prototypes.set(proto.topic, proto);
+        count++;
+      } catch {
+        // skip
+      }
+    }
+    this.logger.log(`Hydrated ${count} topic prototypes from Redis`);
+  }
+
+  private async hydrateRecentTopicsFromRedis(): Promise<void> {
+    if (!this.redis) return;
+    const keys: string[] = [];
+    const stream = this.redis.scanStream({
+      match: RECENT_PREFIX + '*',
+      count: 100,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      stream.on('data', (batch: string[]) => keys.push(...batch));
+      stream.on('end', resolve);
+      stream.on('error', reject);
+    });
+
+    if (keys.length === 0) return;
+
+    const pipeline = this.redis.pipeline();
+    for (const key of keys) pipeline.get(key);
+    const results = await pipeline.exec();
+    if (!results) return;
+
+    let count = 0;
+    for (let i = 0; i < keys.length; i++) {
+      const [err, val] = results[i];
+      if (err || !val) continue;
+      try {
+        const userId = keys[i].slice(RECENT_PREFIX.length);
+        const history: TopicScore[][] = JSON.parse(val as string);
+        this.recentTopics.set(userId, history);
+        count++;
+      } catch {
+        // skip
+      }
+    }
+    this.logger.log(`Hydrated ${count} user topic histories from Redis`);
   }
 }
