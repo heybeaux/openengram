@@ -1,13 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChallengeController } from './challenge.controller';
 import { ChallengeService } from './challenge.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
-  onModuleInit: jest.fn(),
+const mockPrisma = {
+  identityChallenge: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
+  identityAgentProfile: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 };
 
 describe('ChallengeController', () => {
@@ -18,7 +23,7 @@ describe('ChallengeController', () => {
       controllers: [ChallengeController],
       providers: [
         ChallengeService,
-        { provide: FileStoreService, useValue: mockFileStore },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)

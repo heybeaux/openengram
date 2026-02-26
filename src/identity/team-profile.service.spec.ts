@@ -2,13 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { TeamProfileService } from './team-profile.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
-
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
-  onModuleInit: jest.fn(),
-};
 
 describe('TeamProfileService', () => {
   let service: TeamProfileService;
@@ -19,13 +12,17 @@ describe('TeamProfileService', () => {
       memory: {
         findMany: jest.fn().mockResolvedValue([]),
       },
+      identityTeamProfile: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TeamProfileService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: FileStoreService, useValue: mockFileStore },
       ],
     }).compile();
 

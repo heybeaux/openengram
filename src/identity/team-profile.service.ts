@@ -14,9 +14,6 @@ import {
   CollaborationPair,
 } from './dto/team.dto';
 import { SubjectType, MemorySource } from '@prisma/client';
-import { FileStoreService } from '../common/persistence/file-store.service';
-
-const TEAMS_FILE = 'teams.json';
 
 /**
  * HEY-188: Multi-Agent Team Profiles
@@ -24,7 +21,7 @@ const TEAMS_FILE = 'teams.json';
  * Manages composite team identities by aggregating member capabilities,
  * tracking collaboration history, and computing team strengths.
  *
- * Teams are persisted to disk via FileStoreService (HEY-346).
+ * Teams are persisted to PostgreSQL via Prisma (HEY-385).
  */
 @Injectable()
 export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
@@ -32,28 +29,71 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
 
   private teams = new Map<string, TeamProfile>();
 
-  constructor(
-    private prisma: PrismaService,
-    private readonly fileStore: FileStoreService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  onModuleInit(): void {
-    this.teams = this.fileStore.load<string, TeamProfile>(TEAMS_FILE);
-    if (this.teams.size > 0) {
-      this.logger.log(`Loaded ${this.teams.size} teams from disk`);
+  async onModuleInit(): Promise<void> {
+    try {
+      const rows = await this.prisma.identityTeamProfile.findMany();
+      for (const row of rows) {
+        this.teams.set(row.id, {
+          id: row.id,
+          name: row.name,
+          description: row.description ?? undefined,
+          agentIds: row.agentIds,
+          capabilities: row.capabilities as unknown as TeamCapability[],
+          collaborationScore: row.collaborationScore,
+          lastActive: row.lastActive,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        });
+      }
+      if (this.teams.size > 0) {
+        this.logger.log(`Loaded ${this.teams.size} teams from database`);
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to load teams from database: ${err}`);
     }
   }
 
   onModuleDestroy(): void {
-    this.persist();
-    this.logger.log('TeamProfileService: persisted teams on shutdown');
+    this.logger.log(
+      'TeamProfileService: shutdown complete (data persisted to database)',
+    );
   }
 
-  private persist(): void {
-    this.fileStore
-      .save(TEAMS_FILE, this.teams)
+  private persist(team: TeamProfile): void {
+    this.prisma.identityTeamProfile
+      .upsert({
+        where: { id: team.id },
+        create: {
+          id: team.id,
+          name: team.name,
+          description: team.description ?? null,
+          agentIds: team.agentIds,
+          capabilities: team.capabilities as any,
+          collaborationScore: team.collaborationScore,
+          lastActive: team.lastActive,
+          createdAt: team.createdAt,
+        },
+        update: {
+          name: team.name,
+          description: team.description ?? null,
+          agentIds: team.agentIds,
+          capabilities: team.capabilities as any,
+          collaborationScore: team.collaborationScore,
+          lastActive: team.lastActive,
+        },
+      })
       .catch((err) =>
-        this.logger.warn(`Failed to persist teams: ${err.message}`),
+        this.logger.warn(`Failed to persist team: ${err.message}`),
+      );
+  }
+
+  private persistDelete(teamId: string): void {
+    this.prisma.identityTeamProfile
+      .delete({ where: { id: teamId } })
+      .catch((err) =>
+        this.logger.warn(`Failed to delete team from database: ${err.message}`),
       );
   }
 
@@ -82,7 +122,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     };
 
     this.teams.set(id, team);
-    this.persist();
+    this.persist(team);
     this.logger.log(
       `Created team "${dto.name}" with ${dto.agentIds.length} agents`,
     );
@@ -118,7 +158,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     if (dto.name) team.name = dto.name;
     if (dto.description !== undefined) team.description = dto.description;
     team.updatedAt = new Date();
-    this.persist();
+    this.persist(team);
     return team;
   }
 
@@ -130,7 +170,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
     this.teams.delete(teamId);
-    this.persist();
+    this.persistDelete(teamId);
   }
 
   /**
@@ -145,7 +185,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
       team.agentIds,
     );
     team.updatedAt = new Date();
-    this.persist();
+    this.persist(team);
     return team;
   }
 
@@ -163,7 +203,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
       team.agentIds,
     );
     team.updatedAt = new Date();
-    this.persist();
+    this.persist(team);
     return team;
   }
 
@@ -185,7 +225,7 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
       team.agentIds,
     );
     team.updatedAt = new Date();
-    this.persist();
+    this.persist(team);
     this.logger.log(
       `Collaboration recorded in team ${teamId}: ${dto.agentA} <-> ${dto.agentB}`,
     );
@@ -354,21 +394,3 @@ export class TeamProfileService implements OnModuleInit, OnModuleDestroy {
     return capabilities;
   }
 }
-
-/**
- * MIGRATION NEEDED (HEY-188):
- *
- * model Team {
- *   id                String   @id @default(cuid())
- *   name              String
- *   description       String?
- *   agentIds          String[] @map("agent_ids")
- *   collaborationScore Float   @default(0) @map("collaboration_score")
- *   lastActive        DateTime @default(now()) @map("last_active")
- *   createdAt         DateTime @default(now()) @map("created_at")
- *   updatedAt         DateTime @updatedAt @map("updated_at")
- *   deletedAt         DateTime? @map("deleted_at")
- *
- *   @@map("teams")
- * }
- */

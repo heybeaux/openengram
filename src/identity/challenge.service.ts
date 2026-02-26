@@ -13,10 +13,7 @@ import {
   AgentCapabilityProfile,
   DelegationContract,
 } from './identity.types';
-import { FileStoreService } from '../common/persistence/file-store.service';
-
-const CHALLENGES_FILE = 'challenges.json';
-const AGENT_PROFILES_FILE = 'agent-profiles.json';
+import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * ChallengeService (HEY-186)
@@ -25,7 +22,7 @@ const AGENT_PROFILES_FILE = 'agent-profiles.json';
  * When a delegation contract is created, auto-checks agent capability profile
  * and raises a challenge if confidence is below threshold.
  *
- * Challenges and agent profiles are persisted to disk via FileStoreService (HEY-346).
+ * Challenges and agent profiles are persisted to PostgreSQL via Prisma (HEY-385).
  */
 @Injectable()
 export class ChallengeService implements OnModuleInit, OnModuleDestroy {
@@ -33,44 +30,101 @@ export class ChallengeService implements OnModuleInit, OnModuleDestroy {
   private challenges = new Map<string, Challenge>();
   private agentProfiles = new Map<string, AgentCapabilityProfile>();
 
-  constructor(private readonly fileStore: FileStoreService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  onModuleInit(): void {
-    this.challenges = this.fileStore.load<string, Challenge>(CHALLENGES_FILE);
-    this.agentProfiles = this.fileStore.load<string, AgentCapabilityProfile>(
-      AGENT_PROFILES_FILE,
-    );
-    if (this.challenges.size > 0) {
-      this.logger.log(`Loaded ${this.challenges.size} challenges from disk`);
-    }
-    if (this.agentProfiles.size > 0) {
-      this.logger.log(
-        `Loaded ${this.agentProfiles.size} agent profiles from disk`,
+  async onModuleInit(): Promise<void> {
+    try {
+      const challengeRows = await this.prisma.identityChallenge.findMany();
+      for (const row of challengeRows) {
+        this.challenges.set(row.id, {
+          id: row.id,
+          contractId: row.contractId ?? undefined,
+          taskDescription: row.taskDescription,
+          challengeType: row.challengeType as Challenge['challengeType'],
+          reasoning: row.reasoning,
+          resolution: (row.resolution as Challenge['resolution']) ?? undefined,
+          resolvedBy: row.resolvedBy ?? undefined,
+          resolvedAt: row.resolvedAt ?? undefined,
+          createdAt: row.createdAt,
+          accountId: row.accountId ?? undefined,
+        });
+      }
+      if (this.challenges.size > 0) {
+        this.logger.log(
+          `Loaded ${this.challenges.size} challenges from database`,
+        );
+      }
+
+      const profileRows = await this.prisma.identityAgentProfile.findMany();
+      for (const row of profileRows) {
+        this.agentProfiles.set(row.agentId, {
+          agentId: row.agentId,
+          domains: row.domains,
+          confidenceByDomain: row.confidenceByDomain as Record<string, number>,
+        });
+      }
+      if (this.agentProfiles.size > 0) {
+        this.logger.log(
+          `Loaded ${this.agentProfiles.size} agent profiles from database`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to load challenges/profiles from database: ${err}`,
       );
     }
   }
 
   onModuleDestroy(): void {
-    this.persistChallenges();
-    this.persistProfiles();
+    // No-op — all writes are persisted immediately
     this.logger.log(
-      'ChallengeService: persisted challenges and profiles on shutdown',
+      'ChallengeService: shutdown complete (data persisted to database)',
     );
   }
 
-  private persistChallenges(): void {
-    this.fileStore
-      .save(CHALLENGES_FILE, this.challenges)
+  private persistChallenge(challenge: Challenge): void {
+    this.prisma.identityChallenge
+      .upsert({
+        where: { id: challenge.id },
+        create: {
+          id: challenge.id,
+          contractId: challenge.contractId ?? null,
+          taskDescription: challenge.taskDescription,
+          challengeType: challenge.challengeType,
+          reasoning: challenge.reasoning,
+          resolution: challenge.resolution ?? null,
+          resolvedBy: challenge.resolvedBy ?? null,
+          resolvedAt: challenge.resolvedAt ?? null,
+          accountId: challenge.accountId ?? null,
+          createdAt: challenge.createdAt,
+        },
+        update: {
+          resolution: challenge.resolution ?? null,
+          resolvedBy: challenge.resolvedBy ?? null,
+          resolvedAt: challenge.resolvedAt ?? null,
+        },
+      })
       .catch((err) =>
-        this.logger.warn(`Failed to persist challenges: ${err.message}`),
+        this.logger.warn(`Failed to persist challenge: ${err.message}`),
       );
   }
 
-  private persistProfiles(): void {
-    this.fileStore
-      .save(AGENT_PROFILES_FILE, this.agentProfiles)
+  private persistProfile(profile: AgentCapabilityProfile): void {
+    this.prisma.identityAgentProfile
+      .upsert({
+        where: { agentId: profile.agentId },
+        create: {
+          agentId: profile.agentId,
+          domains: profile.domains,
+          confidenceByDomain: profile.confidenceByDomain,
+        },
+        update: {
+          domains: profile.domains,
+          confidenceByDomain: profile.confidenceByDomain,
+        },
+      })
       .catch((err) =>
-        this.logger.warn(`Failed to persist agent profiles: ${err.message}`),
+        this.logger.warn(`Failed to persist agent profile: ${err.message}`),
       );
   }
 
@@ -78,7 +132,7 @@ export class ChallengeService implements OnModuleInit, OnModuleDestroy {
 
   registerAgentProfile(profile: AgentCapabilityProfile): void {
     this.agentProfiles.set(profile.agentId, profile);
-    this.persistProfiles();
+    this.persistProfile(profile);
   }
 
   getAgentProfile(agentId: string): AgentCapabilityProfile | undefined {
@@ -97,7 +151,7 @@ export class ChallengeService implements OnModuleInit, OnModuleDestroy {
     };
 
     this.challenges.set(challenge.id, challenge);
-    this.persistChallenges();
+    this.persistChallenge(challenge);
     this.logger.log(
       `Challenge ${challenge.id} raised: ${challenge.challengeType}`,
     );
@@ -129,7 +183,7 @@ export class ChallengeService implements OnModuleInit, OnModuleDestroy {
     challenge.resolution = dto.resolution;
     challenge.resolvedBy = dto.resolvedBy;
     challenge.resolvedAt = new Date();
-    this.persistChallenges();
+    this.persistChallenge(challenge);
 
     this.logger.log(
       `Challenge ${id} resolved: ${dto.resolution} by ${dto.resolvedBy}`,

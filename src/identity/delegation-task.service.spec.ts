@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DelegationTaskService, LogTaskDto } from './delegation-task.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { DelegationContractService } from './delegation-contract.service';
 import { FailurePatternService } from './failure-pattern.service';
 
 describe('DelegationTaskService', () => {
   let service: DelegationTaskService;
-  let fileStore: Partial<FileStoreService>;
+  let mockPrisma: any;
 
   const mockContractService = {
     listAll: jest.fn().mockReturnValue([]),
@@ -18,22 +18,25 @@ describe('DelegationTaskService', () => {
   } as any;
 
   beforeEach(async () => {
-    fileStore = {
-      load: jest.fn().mockReturnValue(new Map()),
-      save: jest.fn().mockResolvedValue(undefined),
+    mockPrisma = {
+      identityTask: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      },
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DelegationTaskService,
-        { provide: FileStoreService, useValue: fileStore },
+        { provide: PrismaService, useValue: mockPrisma },
         { provide: DelegationContractService, useValue: mockContractService },
         { provide: FailurePatternService, useValue: mockPatternService },
       ],
     }).compile();
 
     service = module.get(DelegationTaskService);
-    service.onModuleInit();
+    await service.onModuleInit();
 
     // Reset mocks to default empty state
     mockContractService.listAll.mockReturnValue([]);

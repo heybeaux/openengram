@@ -1,16 +1,22 @@
 import { ChallengeService } from './challenge.service';
 import { DelegationContract } from './identity.types';
 
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
+const mockPrisma = {
+  identityChallenge: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
+  identityAgentProfile: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 } as any;
 
 describe('ChallengeService', () => {
   let service: ChallengeService;
 
   beforeEach(() => {
-    service = new ChallengeService(mockFileStore);
+    service = new ChallengeService(mockPrisma);
   });
 
   it('should create a challenge', async () => {
