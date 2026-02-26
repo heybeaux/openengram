@@ -31,7 +31,10 @@ export class UpdateMemoryDto {
    * Change the memory layer (IDENTITY, PROJECT, SESSION, TASK)
    */
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
+  @ApiPropertyOptional({
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'],
+    type: String,
+  })
   @IsEnum(MemoryLayer)
   layer?: string;
 
@@ -39,7 +42,10 @@ export class UpdateMemoryDto {
    * Adjust importance hint
    */
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], type: String })
+  @ApiPropertyOptional({
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    type: String,
+  })
   @IsEnum(ImportanceHint)
   importanceHint?: ImportanceHint;
 
@@ -99,7 +105,10 @@ export class CorrectMemoryDto {
    * Defaults to the same layer as the original.
    */
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
+  @ApiPropertyOptional({
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'],
+    type: String,
+  })
   @IsEnum(MemoryLayer)
   layer?: string;
 
@@ -108,7 +117,10 @@ export class CorrectMemoryDto {
    * Defaults to same as original or slightly higher.
    */
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], type: String })
+  @ApiPropertyOptional({
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    type: String,
+  })
   @IsEnum(ImportanceHint)
   importanceHint?: ImportanceHint;
 }

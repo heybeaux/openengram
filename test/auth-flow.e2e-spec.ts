@@ -55,31 +55,51 @@ describe('Auth Flow E2E (HEY-130)', () => {
     jwtService = app.get(JwtService);
 
     // Clean up any leftover test data
-    await prisma.agent.deleteMany({
-      where: { account: { email: { in: [emailA, emailB] } } },
-    }).catch(() => {});
-    await prisma.account.deleteMany({
-      where: { email: { in: [emailA, emailB] } },
-    }).catch(() => {});
+    await prisma.agent
+      .deleteMany({
+        where: { account: { email: { in: [emailA, emailB] } } },
+      })
+      .catch(() => {});
+    await prisma.account
+      .deleteMany({
+        where: { email: { in: [emailA, emailB] } },
+      })
+      .catch(() => {});
   });
 
   afterAll(async () => {
     // Cleanup
-    await prisma.memoryExtraction.deleteMany({
-      where: { memory: { user: { agent: { account: { email: { in: [emailA, emailB] } } } } } },
-    }).catch(() => {});
-    await prisma.memory.deleteMany({
-      where: { user: { agent: { account: { email: { in: [emailA, emailB] } } } } },
-    }).catch(() => {});
-    await prisma.user.deleteMany({
-      where: { agent: { account: { email: { in: [emailA, emailB] } } } },
-    }).catch(() => {});
-    await prisma.agent.deleteMany({
-      where: { account: { email: { in: [emailA, emailB] } } },
-    }).catch(() => {});
-    await prisma.account.deleteMany({
-      where: { email: { in: [emailA, emailB] } },
-    }).catch(() => {});
+    await prisma.memoryExtraction
+      .deleteMany({
+        where: {
+          memory: {
+            user: { agent: { account: { email: { in: [emailA, emailB] } } } },
+          },
+        },
+      })
+      .catch(() => {});
+    await prisma.memory
+      .deleteMany({
+        where: {
+          user: { agent: { account: { email: { in: [emailA, emailB] } } } },
+        },
+      })
+      .catch(() => {});
+    await prisma.user
+      .deleteMany({
+        where: { agent: { account: { email: { in: [emailA, emailB] } } } },
+      })
+      .catch(() => {});
+    await prisma.agent
+      .deleteMany({
+        where: { account: { email: { in: [emailA, emailB] } } },
+      })
+      .catch(() => {});
+    await prisma.account
+      .deleteMany({
+        where: { email: { in: [emailA, emailB] } },
+      })
+      .catch(() => {});
 
     // Restore env
     for (const [key, orig] of [
@@ -103,7 +123,12 @@ describe('Auth Flow E2E (HEY-130)', () => {
       const bcrypt = await import('bcryptjs');
       const hash = await bcrypt.hash(passwordA, 10);
       const account = await prisma.account.create({
-        data: { email: emailA, passwordHash: hash, name: 'Test Account A', plan: 'STARTER' },
+        data: {
+          email: emailA,
+          passwordHash: hash,
+          name: 'Test Account A',
+          plan: 'STARTER',
+        },
       });
       accountAId = account.id;
       expect(accountAId).toBeDefined();
@@ -113,7 +138,12 @@ describe('Auth Flow E2E (HEY-130)', () => {
       const bcrypt = await import('bcryptjs');
       const hash = await bcrypt.hash(passwordB, 10);
       const account = await prisma.account.create({
-        data: { email: emailB, passwordHash: hash, name: 'Test Account B', plan: 'STARTER' },
+        data: {
+          email: emailB,
+          passwordHash: hash,
+          name: 'Test Account B',
+          plan: 'STARTER',
+        },
       });
       accountBId = account.id;
       expect(accountBId).toBeDefined();
@@ -175,7 +205,10 @@ describe('Auth Flow E2E (HEY-130)', () => {
     });
 
     it('should reject expired JWT', async () => {
-      const expiredToken = jwtService.sign({ sub: accountAId }, { expiresIn: '-1s' });
+      const expiredToken = jwtService.sign(
+        { sub: accountAId },
+        { expiresIn: '-1s' },
+      );
       await request(app.getHttpServer())
         .get('/v1/auth/me')
         .set('Authorization', `Bearer ${expiredToken}`)
@@ -194,7 +227,9 @@ describe('Auth Flow E2E (HEY-130)', () => {
       const validToken = jwtService.sign({ sub: accountAId });
       const parts = validToken.split('.');
       // Corrupt the payload
-      parts[1] = Buffer.from(JSON.stringify({ sub: 'fake-id-12345' })).toString('base64url');
+      parts[1] = Buffer.from(JSON.stringify({ sub: 'fake-id-12345' })).toString(
+        'base64url',
+      );
       const tamperedToken = parts.join('.');
 
       await request(app.getHttpServer())
@@ -204,9 +239,7 @@ describe('Auth Flow E2E (HEY-130)', () => {
     });
 
     it('should reject requests with no auth at all', async () => {
-      await request(app.getHttpServer())
-        .get('/v1/account')
-        .expect(401);
+      await request(app.getHttpServer()).get('/v1/account').expect(401);
     });
   });
 
@@ -362,9 +395,7 @@ describe('Auth Flow E2E (HEY-130)', () => {
     });
 
     it('/auth/me rejects unauthenticated requests', async () => {
-      await request(app.getHttpServer())
-        .get('/v1/auth/me')
-        .expect(401);
+      await request(app.getHttpServer()).get('/v1/auth/me').expect(401);
     });
 
     it('/auth/setup-status returns without auth', async () => {

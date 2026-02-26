@@ -20,9 +20,9 @@ describe('OpenAIProvider', () => {
 
   describe('constructor', () => {
     it('should throw if no API key provided', () => {
-      expect(() => new OpenAIProvider({ provider: 'openai', model: 'gpt-4o-mini' })).toThrow(
-        'OpenAI provider requires an API key',
-      );
+      expect(
+        () => new OpenAIProvider({ provider: 'openai', model: 'gpt-4o-mini' }),
+      ).toThrow('OpenAI provider requires an API key');
     });
 
     it('should use default base URL', () => {
@@ -75,7 +75,9 @@ describe('OpenAIProvider', () => {
         }),
       });
 
-      await provider.chat([{ role: 'user', content: 'Hi' }], { model: 'gpt-4o' });
+      await provider.chat([{ role: 'user', content: 'Hi' }], {
+        model: 'gpt-4o',
+      });
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.model).toBe('gpt-4o');

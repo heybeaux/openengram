@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { FileStoreService } from '../common/persistence/file-store.service';
 import { DelegationContractService } from './delegation-contract.service';
@@ -61,7 +66,10 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     this.tasks = this.fileStore.load<string, TaskCompletion>(PERSISTENCE_FILE);
     // Rebuild order from createdAt
     this.taskOrder = Array.from(this.tasks.values())
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
       .map((t) => t.id);
     if (this.tasks.size > 0) {
       this.logger.log(`Loaded ${this.tasks.size} delegation tasks from disk`);
@@ -73,9 +81,11 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
   }
 
   private persist(): void {
-    this.fileStore.save(PERSISTENCE_FILE, this.tasks).catch((err) =>
-      this.logger.warn(`Failed to persist tasks: ${err.message}`),
-    );
+    this.fileStore
+      .save(PERSISTENCE_FILE, this.tasks)
+      .catch((err) =>
+        this.logger.warn(`Failed to persist tasks: ${err.message}`),
+      );
   }
 
   logTask(dto: LogTaskDto): TaskCompletion {
@@ -141,13 +151,18 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     }
     if (query.since) {
       const sinceDate = new Date(query.since).getTime();
-      results = results.filter((t) => new Date(t.createdAt).getTime() >= sinceDate);
+      results = results.filter(
+        (t) => new Date(t.createdAt).getTime() >= sinceDate,
+      );
     }
 
     const total = results.length;
 
     // Sort newest first
-    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    results.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
     const limit = Math.min(query.limit ?? 20, 100);
     results = results.slice(0, limit);
@@ -159,7 +174,12 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     contracts: any[];
     tasks: TaskCompletion[];
     patterns: any[];
-    summary: { totalTasks: number; successRate: number; avgDurationMs: number; commonFailures: string[] };
+    summary: {
+      totalTasks: number;
+      successRate: number;
+      avgDurationMs: number;
+      commonFailures: string[];
+    };
   } {
     const limit = query.limit ?? 5;
 
@@ -167,7 +187,9 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     let contracts: any[] = [];
     try {
       if (query.agentId) {
-        contracts = this.contractService.getByAgent(query.agentId).slice(0, limit);
+        contracts = this.contractService
+          .getByAgent(query.agentId)
+          .slice(0, limit);
       } else {
         contracts = this.contractService.listAll().slice(0, limit);
       }
@@ -181,7 +203,9 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     // Patterns
     let patterns: any[] = [];
     try {
-      patterns = this.failurePatternService.getPatterns(query.agentId).slice(0, limit);
+      patterns = this.failurePatternService
+        .getPatterns(query.agentId)
+        .slice(0, limit);
     } catch {
       // Pattern service may not have data
     }

@@ -37,8 +37,15 @@ describe('DelegationContractService', () => {
     const contract = await service.create(baseDto);
     expect(contract.id).toBeDefined();
     expect(contract.taskDescription).toBe('Build a REST API');
-    expect(contract.expectedOutputs).toEqual(['controller', 'service', 'tests']);
-    expect(contract.successCriteria).toEqual(['all tests pass', 'endpoints respond']);
+    expect(contract.expectedOutputs).toEqual([
+      'controller',
+      'service',
+      'tests',
+    ]);
+    expect(contract.successCriteria).toEqual([
+      'all tests pass',
+      'endpoints respond',
+    ]);
     expect(contract.timeout).toBe(60000);
     expect(contract.delegatedTo).toBe('agent-1');
     expect(contract.status).toBe('pending');
@@ -74,26 +81,37 @@ describe('DelegationContractService', () => {
 
   it('should create TASK_COMPLETION memory on completion', async () => {
     const contract = await service.create(baseDto);
-    await service.complete(contract.id, { status: 'completed', result: 'Done' });
-    expect(createMemoryFn).toHaveBeenCalledWith('system', expect.objectContaining({
-      layer: 'TASK',
-      memoryType: 'TASK',
-      agentId: 'agent-1',
-      source: 'SYSTEM_GENERATED',
-    }));
+    await service.complete(contract.id, {
+      status: 'completed',
+      result: 'Done',
+    });
+    expect(createMemoryFn).toHaveBeenCalledWith(
+      'system',
+      expect.objectContaining({
+        layer: 'TASK',
+        memoryType: 'TASK',
+        agentId: 'agent-1',
+        source: 'SYSTEM_GENERATED',
+      }),
+    );
     expect(createMemoryFn.mock.calls[0][1].raw).toContain('TASK_COMPLETION');
   });
 
   it('should fail a contract', async () => {
     const contract = await service.create(baseDto);
-    const failed = await service.complete(contract.id, { status: 'failed', result: 'Error occurred' });
+    const failed = await service.complete(contract.id, {
+      status: 'failed',
+      result: 'Error occurred',
+    });
     expect(failed.status).toBe('failed');
   });
 
   it('should not allow completing an already finalized contract', async () => {
     const contract = await service.create(baseDto);
     await service.complete(contract.id, { status: 'completed' });
-    await expect(service.complete(contract.id, { status: 'failed' })).rejects.toThrow('already finalized');
+    await expect(
+      service.complete(contract.id, { status: 'failed' }),
+    ).rejects.toThrow('already finalized');
   });
 
   it('should handle timeout', async () => {
@@ -134,7 +152,10 @@ describe('DelegationContractService', () => {
       ...baseDto,
       constraints: ['no database changes', 'max 5 files'],
     });
-    expect(contract.constraints).toEqual(['no database changes', 'max 5 files']);
+    expect(contract.constraints).toEqual([
+      'no database changes',
+      'max 5 files',
+    ]);
   });
 
   it('should auto-check capability on create when challenge service is set', async () => {

@@ -19,12 +19,26 @@ describe('DeduplicationController', () => {
         durationMs: 1500,
       }),
       getJobStatus: jest.fn(),
-      manualMerge: jest.fn().mockResolvedValue({ mergeEventId: 'merge-1', survivorId: 'mem-1' }),
+      manualMerge: jest
+        .fn()
+        .mockResolvedValue({ mergeEventId: 'merge-1', survivorId: 'mem-1' }),
       rollback: jest.fn().mockResolvedValue({ success: true }),
       findSimilar: jest.fn().mockResolvedValue([]),
-      getConfig: jest.fn().mockResolvedValue({ autoMergeThreshold: 0.9, reviewSuggestThreshold: 0.7, defaultStrategy: 'APPEND', protectedTypes: [], protectedKeywords: [] }),
+      getConfig: jest.fn().mockResolvedValue({
+        autoMergeThreshold: 0.9,
+        reviewSuggestThreshold: 0.7,
+        defaultStrategy: 'APPEND',
+        protectedTypes: [],
+        protectedKeywords: [],
+      }),
       updateConfig: jest.fn().mockResolvedValue({ autoMergeThreshold: 0.9 }),
-      getStats: jest.fn().mockResolvedValue({ totalMemories: 100, potentialDuplicates: 5, clustersIdentified: 3, autoMergedToday: 2, pendingReview: 1 }),
+      getStats: jest.fn().mockResolvedValue({
+        totalMemories: 100,
+        potentialDuplicates: 5,
+        clustersIdentified: 3,
+        autoMergedToday: 2,
+        pendingReview: 1,
+      }),
       isEnabled: jest.fn().mockReturnValue(true),
     };
     reviewService = {
@@ -32,15 +46,25 @@ describe('DeduplicationController', () => {
       getCandidate: jest.fn(),
       approve: jest.fn().mockResolvedValue({ success: true }),
       reject: jest.fn().mockResolvedValue({ success: true }),
-      skip: jest.fn().mockResolvedValue({ success: true, nextReviewAt: new Date() }),
+      skip: jest
+        .fn()
+        .mockResolvedValue({ success: true, nextReviewAt: new Date() }),
     };
     lineageService = {
       getMergeHistory: jest.fn().mockResolvedValue({ events: [], total: 0 }),
       getMergeEvent: jest.fn(),
-      getMemoryLineage: jest.fn().mockResolvedValue({ mergedFrom: [], mergedInto: null, mergeEvents: [] }),
+      getMemoryLineage: jest.fn().mockResolvedValue({
+        mergedFrom: [],
+        mergedInto: null,
+        mergeEvents: [],
+      }),
     };
 
-    controller = new DeduplicationController(dedupService, reviewService, lineageService);
+    controller = new DeduplicationController(
+      dedupService,
+      reviewService,
+      lineageService,
+    );
   });
 
   // === Scan ===
@@ -48,17 +72,27 @@ describe('DeduplicationController', () => {
     it('should trigger batch dedup scan', async () => {
       const result = await controller.scan('user-1', { dryRun: false });
       expect(result.scanId).toBe('scan-1');
-      expect(dedupService.runBatchDedup).toHaveBeenCalledWith('user-1', expect.objectContaining({ dryRun: false }));
+      expect(dedupService.runBatchDedup).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ dryRun: false }),
+      );
     });
 
     it('should use dto.userId if provided', async () => {
       await controller.scan('user-1', { userId: 'user-2', dryRun: true });
-      expect(dedupService.runBatchDedup).toHaveBeenCalledWith('user-2', expect.anything());
+      expect(dedupService.runBatchDedup).toHaveBeenCalledWith(
+        'user-2',
+        expect.anything(),
+      );
     });
 
     it('should throw BAD_REQUEST on error', async () => {
-      dedupService.runBatchDedup.mockRejectedValue(new Error('Job already running'));
-      await expect(controller.scan('user-1', {})).rejects.toThrow(HttpException);
+      dedupService.runBatchDedup.mockRejectedValue(
+        new Error('Job already running'),
+      );
+      await expect(controller.scan('user-1', {})).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -66,9 +100,14 @@ describe('DeduplicationController', () => {
     it('should return job status', () => {
       const now = new Date();
       dedupService.getJobStatus.mockReturnValue({
-        id: 'scan-1', status: 'completed', memoriesProcessed: 50,
-        clustersFound: 3, autoMerged: 2, queuedForReview: 1,
-        startedAt: now, completedAt: new Date(now.getTime() + 1000),
+        id: 'scan-1',
+        status: 'completed',
+        memoriesProcessed: 50,
+        clustersFound: 3,
+        autoMerged: 2,
+        queuedForReview: 1,
+        startedAt: now,
+        completedAt: new Date(now.getTime() + 1000),
       });
       const result = controller.getScanStatus('scan-1');
       expect(result.scanId).toBe('scan-1');
@@ -99,20 +138,28 @@ describe('DeduplicationController', () => {
 
     it('should throw NOT_FOUND for missing candidate', async () => {
       reviewService.getCandidate.mockResolvedValue(null);
-      await expect(controller.getCandidate('missing')).rejects.toThrow(HttpException);
+      await expect(controller.getCandidate('missing')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
   describe('approve', () => {
     it('should approve a candidate', async () => {
       const result = await controller.approve('cand-1', {}, 'approver-1');
-      expect(reviewService.approve).toHaveBeenCalledWith('cand-1', {}, 'approver-1');
+      expect(reviewService.approve).toHaveBeenCalledWith(
+        'cand-1',
+        {},
+        'approver-1',
+      );
       expect(result.success).toBe(true);
     });
 
     it('should throw NOT_FOUND when candidate not found', async () => {
       reviewService.approve.mockRejectedValue(new Error('Candidate not found'));
-      await expect(controller.approve('missing', {})).rejects.toThrow(HttpException);
+      await expect(controller.approve('missing', {})).rejects.toThrow(
+        HttpException,
+      );
     });
 
     it('should throw BAD_REQUEST for other errors', async () => {
@@ -127,13 +174,23 @@ describe('DeduplicationController', () => {
 
   describe('reject', () => {
     it('should reject a candidate', async () => {
-      await controller.reject('cand-1', { reason: 'not duplicate' }, 'approver-1');
-      expect(reviewService.reject).toHaveBeenCalledWith('cand-1', { reason: 'not duplicate' }, 'approver-1');
+      await controller.reject(
+        'cand-1',
+        { reason: 'not duplicate' },
+        'approver-1',
+      );
+      expect(reviewService.reject).toHaveBeenCalledWith(
+        'cand-1',
+        { reason: 'not duplicate' },
+        'approver-1',
+      );
     });
 
     it('should throw NOT_FOUND when candidate not found', async () => {
       reviewService.reject.mockRejectedValue(new Error('not found'));
-      await expect(controller.reject('missing', { reason: 'test' })).rejects.toThrow(HttpException);
+      await expect(
+        controller.reject('missing', { reason: 'test' }),
+      ).rejects.toThrow(HttpException);
     });
   });
 
@@ -153,14 +210,27 @@ describe('DeduplicationController', () => {
   // === Merge ===
   describe('merge', () => {
     it('should perform manual merge', async () => {
-      const result = await controller.merge('user-1', { memoryIds: ['a', 'b'], strategy: 'APPEND' as any }, 'approver-1');
-      expect(dedupService.manualMerge).toHaveBeenCalledWith({ memoryIds: ['a', 'b'], strategy: 'APPEND' }, 'user-1', 'approver-1');
+      const result = await controller.merge(
+        'user-1',
+        { memoryIds: ['a', 'b'], strategy: 'APPEND' as any },
+        'approver-1',
+      );
+      expect(dedupService.manualMerge).toHaveBeenCalledWith(
+        { memoryIds: ['a', 'b'], strategy: 'APPEND' },
+        'user-1',
+        'approver-1',
+      );
       expect(result.mergeEventId).toBe('merge-1');
     });
 
     it('should throw BAD_REQUEST on error', async () => {
       dedupService.manualMerge.mockRejectedValue(new Error('Cannot merge'));
-      await expect(controller.merge('user-1', { memoryIds: [], strategy: 'APPEND' as any })).rejects.toThrow(HttpException);
+      await expect(
+        controller.merge('user-1', {
+          memoryIds: [],
+          strategy: 'APPEND' as any,
+        }),
+      ).rejects.toThrow(HttpException);
     });
   });
 
@@ -172,7 +242,9 @@ describe('DeduplicationController', () => {
 
     it('should throw NOT_FOUND for missing merge event', async () => {
       dedupService.rollback.mockRejectedValue(new Error('not found'));
-      await expect(controller.rollback('missing')).rejects.toThrow(HttpException);
+      await expect(controller.rollback('missing')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -194,7 +266,9 @@ describe('DeduplicationController', () => {
 
     it('should throw NOT_FOUND for missing event', async () => {
       lineageService.getMergeEvent.mockResolvedValue(null);
-      await expect(controller.getMergeEvent('missing')).rejects.toThrow(HttpException);
+      await expect(controller.getMergeEvent('missing')).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -210,7 +284,10 @@ describe('DeduplicationController', () => {
   describe('findSimilar', () => {
     it('should find similar memories', async () => {
       const result = await controller.findSimilar('mem-1', 'user-1', 5, 0.8);
-      expect(dedupService.findSimilar).toHaveBeenCalledWith('mem-1', 'user-1', { topK: 5, minSimilarity: 0.8 });
+      expect(dedupService.findSimilar).toHaveBeenCalledWith('mem-1', 'user-1', {
+        topK: 5,
+        minSimilarity: 0.8,
+      });
     });
   });
 
@@ -225,7 +302,9 @@ describe('DeduplicationController', () => {
   describe('updateConfig', () => {
     it('should update config', async () => {
       await controller.updateConfig('user-1', { autoMergeThreshold: 0.8 });
-      expect(dedupService.updateConfig).toHaveBeenCalledWith('user-1', { autoMergeThreshold: 0.8 });
+      expect(dedupService.updateConfig).toHaveBeenCalledWith('user-1', {
+        autoMergeThreshold: 0.8,
+      });
     });
   });
 

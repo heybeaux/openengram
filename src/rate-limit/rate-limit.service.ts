@@ -56,7 +56,10 @@ export class RateLimitService implements OnModuleDestroy {
         }
       }, 300_000);
       // Unref so the interval doesn't prevent Node.js from exiting
-      if (typeof this.cleanupInterval === 'object' && 'unref' in this.cleanupInterval) {
+      if (
+        typeof this.cleanupInterval === 'object' &&
+        'unref' in this.cleanupInterval
+      ) {
         this.cleanupInterval.unref();
       }
     }

@@ -27,17 +27,24 @@ describe('StripeController', () => {
 
   describe('createCheckout', () => {
     it('should create checkout session for valid STARTER plan', async () => {
-      stripeService.createCheckoutSession.mockResolvedValue('https://checkout.stripe.com/123');
+      stripeService.createCheckoutSession.mockResolvedValue(
+        'https://checkout.stripe.com/123',
+      );
       const req = { accountId: 'acc-1' };
 
       const result = await controller.createCheckout(req, { plan: 'STARTER' });
 
       expect(result).toEqual({ url: 'https://checkout.stripe.com/123' });
-      expect(stripeService.createCheckoutSession).toHaveBeenCalledWith('acc-1', 'STARTER');
+      expect(stripeService.createCheckoutSession).toHaveBeenCalledWith(
+        'acc-1',
+        'STARTER',
+      );
     });
 
     it('should create checkout session for valid PRO plan', async () => {
-      stripeService.createCheckoutSession.mockResolvedValue('https://checkout.stripe.com/456');
+      stripeService.createCheckoutSession.mockResolvedValue(
+        'https://checkout.stripe.com/456',
+      );
       const req = { accountId: 'acc-2' };
 
       const result = await controller.createCheckout(req, { plan: 'PRO' });
@@ -46,7 +53,9 @@ describe('StripeController', () => {
     });
 
     it('should create checkout session for valid SCALE plan', async () => {
-      stripeService.createCheckoutSession.mockResolvedValue('https://checkout.stripe.com/789');
+      stripeService.createCheckoutSession.mockResolvedValue(
+        'https://checkout.stripe.com/789',
+      );
       const req = { accountId: 'acc-3' };
 
       const result = await controller.createCheckout(req, { plan: 'SCALE' });
@@ -71,7 +80,9 @@ describe('StripeController', () => {
     });
 
     it('should propagate service errors', async () => {
-      stripeService.createCheckoutSession.mockRejectedValue(new Error('Stripe error'));
+      stripeService.createCheckoutSession.mockRejectedValue(
+        new Error('Stripe error'),
+      );
       const req = { accountId: 'acc-1' };
 
       await expect(
@@ -82,7 +93,9 @@ describe('StripeController', () => {
 
   describe('createPortal', () => {
     it('should create portal session', async () => {
-      stripeService.createPortalSession.mockResolvedValue('https://billing.stripe.com/portal');
+      stripeService.createPortalSession.mockResolvedValue(
+        'https://billing.stripe.com/portal',
+      );
       const req = { accountId: 'acc-1' };
 
       const result = await controller.createPortal(req);
@@ -97,7 +110,9 @@ describe('StripeController', () => {
       );
       const req = { accountId: 'acc-1' };
 
-      await expect(controller.createPortal(req)).rejects.toThrow('No Stripe customer found');
+      await expect(controller.createPortal(req)).rejects.toThrow(
+        'No Stripe customer found',
+      );
     });
   });
 });

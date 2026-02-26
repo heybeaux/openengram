@@ -318,7 +318,8 @@ export class DreamCycleService {
       if (this.trustProfileService) {
         this.log('Stage 3.7: Trust profile recalculation');
         try {
-          const trustResult = await this.trustProfileService.recalculateAllProfiles();
+          const trustResult =
+            await this.trustProfileService.recalculateAllProfiles();
           stageDetails.trustUpdate = trustResult;
           this.log('Stage 3.7 complete', trustResult);
         } catch (err) {

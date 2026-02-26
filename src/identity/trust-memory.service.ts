@@ -58,8 +58,12 @@ export class TrustMemoryService {
         subjectType: opts?.agentId ? SubjectType.AGENT : SubjectType.USER,
         agentId: opts?.agentId ?? null,
         source: MemorySource.AGENT_REFLECTION,
-        importanceScore: this.computeImportance(previousScore?.score, newScore.score),
-        confidence: newScore.score > 0 ? Math.min(newScore.signalCount / 10, 1.0) : 0.5,
+        importanceScore: this.computeImportance(
+          previousScore?.score,
+          newScore.score,
+        ),
+        confidence:
+          newScore.score > 0 ? Math.min(newScore.signalCount / 10, 1.0) : 0.5,
         metadata: {
           trustScore: true,
           category: opts?.category ?? 'overall',
@@ -87,7 +91,15 @@ export class TrustMemoryService {
   async getTrustNarrative(
     userId: string,
     opts?: { agentId?: string; category?: string; limit?: number },
-  ): Promise<Array<{ id: string; narrative: string; score: number; delta: number | null; createdAt: Date }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      narrative: string;
+      score: number;
+      delta: number | null;
+      createdAt: Date;
+    }>
+  > {
     const where: Record<string, unknown> = {
       userId,
       layer: MemoryLayer.IDENTITY,
@@ -153,8 +165,11 @@ export class TrustMemoryService {
 
     const direction = delta > 0 ? 'increased' : 'decreased';
     const magnitude =
-      Math.abs(delta) > 0.15 ? 'significantly ' :
-      Math.abs(delta) > 0.05 ? '' : 'slightly ';
+      Math.abs(delta) > 0.15
+        ? 'significantly '
+        : Math.abs(delta) > 0.05
+          ? ''
+          : 'slightly ';
 
     const newSignals = current.signalCount - previous.signalCount;
     const newSuccesses = current.successCount - previous.successCount;
@@ -163,8 +178,10 @@ export class TrustMemoryService {
     let detail = '';
     if (newSignals > 0) {
       const parts: string[] = [];
-      if (newSuccesses > 0) parts.push(`${newSuccesses} success${newSuccesses > 1 ? 'es' : ''}`);
-      if (newFailures > 0) parts.push(`${newFailures} failure${newFailures > 1 ? 's' : ''}`);
+      if (newSuccesses > 0)
+        parts.push(`${newSuccesses} success${newSuccesses > 1 ? 'es' : ''}`);
+      if (newFailures > 0)
+        parts.push(`${newFailures} failure${newFailures > 1 ? 's' : ''}`);
       if (parts.length > 0) {
         detail = ` after ${parts.join(' and ')}`;
       }
@@ -181,7 +198,10 @@ export class TrustMemoryService {
   /**
    * Higher importance for larger trust changes.
    */
-  private computeImportance(previousScore: number | undefined, newScore: number): number {
+  private computeImportance(
+    previousScore: number | undefined,
+    newScore: number,
+  ): number {
     if (previousScore === undefined) return 0.6;
     const delta = Math.abs(newScore - previousScore);
     if (delta > 0.2) return 0.9;

@@ -95,7 +95,9 @@ async function bootstrap() {
         .split(',')
         .map((o) => o.trim())
         .filter(Boolean)
-        .forEach((o) => { if (!origins.includes(o)) origins.push(o); });
+        .forEach((o) => {
+          if (!origins.includes(o)) origins.push(o);
+        });
     }
     if (process.env.NODE_ENV !== 'production') {
       origins.push('http://localhost:3000');

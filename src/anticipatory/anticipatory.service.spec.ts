@@ -75,7 +75,9 @@ describe('AnticipatoryService', () => {
 
   it('should return empty when circuit breaker is open', async () => {
     circuitBreaker.isAllowed.mockReturnValue(false);
-    const result = await service.run('test', 'user1', new Set(), { enabled: true });
+    const result = await service.run('test', 'user1', new Set(), {
+      enabled: true,
+    });
     expect(result.memories).toHaveLength(0);
     expect(result.meta.circuitBreakerActive).toBe(true);
   });
@@ -92,9 +94,15 @@ describe('AnticipatoryService', () => {
     });
     selector.select.mockReturnValue(['entity_radiation']);
 
-    const result = await service.run('How is Engram?', 'user1', new Set(), { enabled: true });
+    const result = await service.run('How is Engram?', 'user1', new Set(), {
+      enabled: true,
+    });
 
-    expect(signalService.extract).toHaveBeenCalledWith('How is Engram?', 'user1', expect.any(Set));
+    expect(signalService.extract).toHaveBeenCalledWith(
+      'How is Engram?',
+      'user1',
+      expect.any(Set),
+    );
     expect(selector.select).toHaveBeenCalled();
     expect(entityRadiation.execute).toHaveBeenCalled();
     expect(result.meta.strategiesRun).toEqual(['entity_radiation']);
@@ -141,7 +149,9 @@ describe('AnticipatoryService', () => {
       },
     ]);
 
-    const result = await service.run('test', 'user1', new Set(), { enabled: true });
+    const result = await service.run('test', 'user1', new Set(), {
+      enabled: true,
+    });
 
     expect(result.memories).toHaveLength(1);
     expect(result.memories[0].id).toBe('mem_1');
@@ -180,7 +190,13 @@ describe('AnticipatoryService', () => {
 
     entityRadiation.execute.mockResolvedValue([
       {
-        memory: { id: 'mem_1', raw: 'test', score: 0.7, effectiveScore: 0.5, createdAt: new Date() } as any,
+        memory: {
+          id: 'mem_1',
+          raw: 'test',
+          score: 0.7,
+          effectiveScore: 0.5,
+          createdAt: new Date(),
+        } as any,
         meta: { strategy: 'entity_radiation', reason: 'test', salience: 0.7 },
       },
     ]);
@@ -216,7 +232,9 @@ describe('AnticipatoryService', () => {
     // Override budget for test speed
     (AnticipatoryConfig as any).latencyBudgetMs = 50;
 
-    const result = await service.run('test', 'user1', new Set(), { enabled: true });
+    const result = await service.run('test', 'user1', new Set(), {
+      enabled: true,
+    });
 
     // Should return empty (timed out) but not throw
     expect(result.memories).toHaveLength(0);

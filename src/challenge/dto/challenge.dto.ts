@@ -14,13 +14,21 @@ export class CreateChallengeDto {
 }
 
 export class ResolveChallengeDto {
-  @IsIn([ChallengeStatus.UPHELD, ChallengeStatus.DISMISSED, ChallengeStatus.RESOLVED])
+  @IsIn([
+    ChallengeStatus.UPHELD,
+    ChallengeStatus.DISMISSED,
+    ChallengeStatus.RESOLVED,
+  ])
   status: ChallengeStatus;
 
   @IsString()
   resolution: string;
 
-  @IsIn([ResolutionMethod.HUMAN_REVIEW, ResolutionMethod.CONSENSUS, ResolutionMethod.EVIDENCE_BASED])
+  @IsIn([
+    ResolutionMethod.HUMAN_REVIEW,
+    ResolutionMethod.CONSENSUS,
+    ResolutionMethod.EVIDENCE_BASED,
+  ])
   method: ResolutionMethod;
 
   @IsString()

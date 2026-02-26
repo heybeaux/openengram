@@ -157,7 +157,10 @@ export class SummarizationService implements OnModuleDestroy {
         });
         created++;
       } catch (error) {
-        this.logger.error('[Summarization] Failed to store summary fact:', error);
+        this.logger.error(
+          '[Summarization] Failed to store summary fact:',
+          error,
+        );
       }
     }
 
@@ -244,16 +247,22 @@ export class SummarizationService implements OnModuleDestroy {
       nonEmpty.map(([sessionId]) => {
         const userId = this.sessionUserIds.get(sessionId);
         if (!userId) {
-          this.logger.warn(`[Shutdown] No userId for session ${sessionId}, skipping flush`);
+          this.logger.warn(
+            `[Shutdown] No userId for session ${sessionId}, skipping flush`,
+          );
           return Promise.resolve(null);
         }
         return this.flushBuffer(userId, sessionId);
       }),
     );
 
-    const flushed = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+    const flushed = results.filter(
+      (r) => r.status === 'fulfilled' && r.value,
+    ).length;
     const failed = results.filter((r) => r.status === 'rejected').length;
-    this.logger.log(`[Shutdown] Summarization flush complete: ${flushed} flushed, ${failed} failed`);
+    this.logger.log(
+      `[Shutdown] Summarization flush complete: ${flushed} flushed, ${failed} failed`,
+    );
   }
 
   private normalizeCategory(category: string): SummaryFact['category'] {

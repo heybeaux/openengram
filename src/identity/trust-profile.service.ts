@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TaskCompletionService, TaskCompletion } from './task-completion.service';
+import {
+  TaskCompletionService,
+  TaskCompletion,
+} from './task-completion.service';
 
 export interface DomainTrust {
   domain: string;
@@ -97,7 +100,8 @@ export class TrustProfileService {
       // Exponential decay: weight = 2^(-ageDays / halfLife)
       const weight = Math.pow(2, -ageDays / this.HALF_LIFE_DAYS);
 
-      const success = task.outcome === 'success' ? 1 : task.outcome === 'partial' ? 0.5 : 0;
+      const success =
+        task.outcome === 'success' ? 1 : task.outcome === 'partial' ? 0.5 : 0;
       weightedSuccess += success * weight;
       totalWeight += weight;
       totalDuration += task.durationMs;
@@ -190,12 +194,22 @@ export class TrustProfileService {
   async getTrustHistory(
     agentId: string,
     days: number = 30,
-  ): Promise<{ history: Array<{ date: string; overall: number; domains: Record<string, number> }> }> {
+  ): Promise<{
+    history: Array<{
+      date: string;
+      overall: number;
+      domains: Record<string, number>;
+    }>;
+  }> {
     const completions =
       await this.taskCompletionService.getCompletionsByAgent(agentId);
 
     const now = new Date();
-    const history: Array<{ date: string; overall: number; domains: Record<string, number> }> = [];
+    const history: Array<{
+      date: string;
+      overall: number;
+      domains: Record<string, number>;
+    }> = [];
 
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now);
@@ -227,15 +241,22 @@ export class TrustProfileService {
       let totalTasks = 0;
 
       for (const [domain, tasks] of domainMap) {
-        const successCount = tasks.filter((t) => t.outcome === 'success').length;
-        const partialCount = tasks.filter((t) => t.outcome === 'partial').length;
+        const successCount = tasks.filter(
+          (t) => t.outcome === 'success',
+        ).length;
+        const partialCount = tasks.filter(
+          (t) => t.outcome === 'partial',
+        ).length;
         const score = (successCount + partialCount * 0.5) / tasks.length;
         domains[domain] = Math.round(score * 1000) / 1000;
         totalWeighted += score * tasks.length;
         totalTasks += tasks.length;
       }
 
-      const overall = totalTasks > 0 ? Math.round((totalWeighted / totalTasks) * 1000) / 1000 : 0;
+      const overall =
+        totalTasks > 0
+          ? Math.round((totalWeighted / totalTasks) * 1000) / 1000
+          : 0;
       history.push({ date: dateStr, overall, domains });
     }
 
@@ -245,7 +266,9 @@ export class TrustProfileService {
   /**
    * Get trust profiles for multiple agents at once.
    */
-  async getBulkProfiles(agentIds: string[]): Promise<{ profiles: TrustProfile[] }> {
+  async getBulkProfiles(
+    agentIds: string[],
+  ): Promise<{ profiles: TrustProfile[] }> {
     const profiles = await Promise.all(
       agentIds.map((id) => this.getProfile(id)),
     );
@@ -254,11 +277,12 @@ export class TrustProfileService {
 
   private async getDistinctAgents(): Promise<string[]> {
     try {
-      const results = await this.taskCompletionService['prisma']
-        .taskCompletion.findMany({
-          select: { delegatedTo: true },
-          distinct: ['delegatedTo'],
-        });
+      const results = await this.taskCompletionService[
+        'prisma'
+      ].taskCompletion.findMany({
+        select: { delegatedTo: true },
+        distinct: ['delegatedTo'],
+      });
       return results.map((r: any) => r.delegatedTo);
     } catch {
       return [];

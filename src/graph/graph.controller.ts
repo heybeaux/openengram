@@ -396,6 +396,11 @@ export class GraphController {
       totalFailed += result.failed;
     }
 
-    return { processed: totalProcessed, skipped: totalSkipped, failed: totalFailed, users: userIds.length };
+    return {
+      processed: totalProcessed,
+      skipped: totalSkipped,
+      failed: totalFailed,
+      users: userIds.length,
+    };
   }
 }

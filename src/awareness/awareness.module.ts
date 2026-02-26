@@ -52,7 +52,13 @@ const logger = new Logger('AwarenessModule');
       ]
     : [AwarenessSourceService],
   exports: AwarenessConfig.enabled
-    ? [WakingCycleService, BehavioralConsistencyService, InsightFeedbackService, ProactiveNotificationService, AwarenessSourceService]
+    ? [
+        WakingCycleService,
+        BehavioralConsistencyService,
+        InsightFeedbackService,
+        ProactiveNotificationService,
+        AwarenessSourceService,
+      ]
     : [AwarenessSourceService],
 })
 export class AwarenessModule {
@@ -60,7 +66,9 @@ export class AwarenessModule {
     if (AwarenessConfig.enabled) {
       logger.log('Awareness module enabled — Waking Cycle active');
     } else {
-      logger.log('Awareness module disabled (set AWARENESS_ENABLED=true to enable)');
+      logger.log(
+        'Awareness module disabled (set AWARENESS_ENABLED=true to enable)',
+      );
     }
   }
 }

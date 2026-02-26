@@ -13,7 +13,7 @@ describe('ContractService', () => {
     delegator: 'agent-a',
     delegate: 'agent-b',
     taskDescription: 'Deploy v2',
-    status: "PROPOSED",
+    status: 'PROPOSED',
     terms: { deadline: '2026-03-01', qualityCriteria: ['no regressions'] },
     result: null,
     verifiedAt: null,
@@ -55,14 +55,14 @@ describe('ContractService', () => {
         taskDescription: 'Deploy v2',
         terms: { deadline: '2026-03-01' },
       });
-      expect(result.status).toBe("PROPOSED");
+      expect(result.status).toBe('PROPOSED');
     });
   });
 
   describe('update - state transitions', () => {
     it('should allow PROPOSED → ACCEPTED', async () => {
       await service.update('user-1', 'contract-1', {
-        status: "ACCEPTED",
+        status: 'ACCEPTED',
       });
       expect(prisma.delegationContract.update).toHaveBeenCalled();
     });
@@ -70,14 +70,14 @@ describe('ContractService', () => {
     it('should reject invalid transition PROPOSED → COMPLETED', async () => {
       await expect(
         service.update('user-1', 'contract-1', {
-          status: "COMPLETED",
+          status: 'COMPLETED',
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should allow PROPOSED → REJECTED', async () => {
       await service.update('user-1', 'contract-1', {
-        status: "REJECTED",
+        status: 'REJECTED',
       });
       expect(prisma.delegationContract.update).toHaveBeenCalled();
     });
@@ -85,10 +85,10 @@ describe('ContractService', () => {
     it('should set completedAt on COMPLETED', async () => {
       prisma.delegationContract.findFirst.mockResolvedValue({
         ...mockContract,
-        status: "IN_PROGRESS",
+        status: 'IN_PROGRESS',
       });
       await service.update('user-1', 'contract-1', {
-        status: "COMPLETED",
+        status: 'COMPLETED',
       });
       expect(prisma.delegationContract.update).toHaveBeenCalledWith({
         where: { id: 'contract-1' },
@@ -101,7 +101,7 @@ describe('ContractService', () => {
     it('should throw if not found', async () => {
       prisma.delegationContract.findFirst.mockResolvedValue(null);
       await expect(
-        service.update('user-1', 'nope', { status: "ACCEPTED" }),
+        service.update('user-1', 'nope', { status: 'ACCEPTED' }),
       ).rejects.toThrow(NotFoundException);
     });
   });

@@ -16,7 +16,10 @@ describe('ChallengeController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ChallengeController],
-      providers: [ChallengeService, { provide: FileStoreService, useValue: mockFileStore }],
+      providers: [
+        ChallengeService,
+        { provide: FileStoreService, useValue: mockFileStore },
+      ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)
       .useValue({ canActivate: () => true })

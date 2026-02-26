@@ -32,9 +32,10 @@ export class SelfAssessmentService {
       goals: dto.goals ?? [],
     };
 
-    const raw = `Self-assessment for ${dto.area}: rating ${dto.selfRating}/10 (confidence: ${dto.confidence}). ${
-      dto.goals?.length ? `Goals: ${dto.goals.join('; ')}` : ''
-    }`.trim();
+    const raw =
+      `Self-assessment for ${dto.area}: rating ${dto.selfRating}/10 (confidence: ${dto.confidence}). ${
+        dto.goals?.length ? `Goals: ${dto.goals.join('; ')}` : ''
+      }`.trim();
 
     const memory = await this.prisma.memory.create({
       data: {

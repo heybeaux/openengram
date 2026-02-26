@@ -57,9 +57,12 @@ export class LinearSignalService implements SignalSource {
     try {
       // ── 1. Recently updated issues ────────────────────────────────
       if (queriesUsed < budget.maxQueries) {
-        const issuesData = await this.query<IssuesResponse>(UPDATED_ISSUES_QUERY, {
-          since: since.toISOString(),
-        });
+        const issuesData = await this.query<IssuesResponse>(
+          UPDATED_ISSUES_QUERY,
+          {
+            since: since.toISOString(),
+          },
+        );
         queriesUsed++;
         await this.rateLimit();
 
@@ -78,7 +81,9 @@ export class LinearSignalService implements SignalSource {
 
           const issueSummary = issues
             .slice(0, 8)
-            .map(i => `${i.identifier} "${i.title}" [${i.state?.name ?? '?'}]`)
+            .map(
+              (i) => `${i.identifier} "${i.title}" [${i.state?.name ?? '?'}]`,
+            )
             .join('; ');
 
           observations.push({
@@ -89,7 +94,9 @@ export class LinearSignalService implements SignalSource {
             metadata: {
               type: 'updated_issues',
               count: issues.length,
-              stateDistribution: Object.fromEntries([...byState.entries()].map(([k, v]) => [k, v.length])),
+              stateDistribution: Object.fromEntries(
+                [...byState.entries()].map(([k, v]) => [k, v.length]),
+              ),
             },
           });
         }
@@ -97,9 +104,12 @@ export class LinearSignalService implements SignalSource {
 
       // ── 2. Recently completed issues (done/cancelled) ─────────────
       if (queriesUsed < budget.maxQueries) {
-        const completedData = await this.query<IssuesResponse>(COMPLETED_ISSUES_QUERY, {
-          since: since.toISOString(),
-        });
+        const completedData = await this.query<IssuesResponse>(
+          COMPLETED_ISSUES_QUERY,
+          {
+            since: since.toISOString(),
+          },
+        );
         queriesUsed++;
         await this.rateLimit();
 
@@ -107,7 +117,7 @@ export class LinearSignalService implements SignalSource {
         if (completed.length > 0) {
           const issueSummary = completed
             .slice(0, 5)
-            .map(i => `${i.identifier} "${i.title}"`)
+            .map((i) => `${i.identifier} "${i.title}"`)
             .join('; ');
 
           observations.push({
@@ -125,9 +135,12 @@ export class LinearSignalService implements SignalSource {
 
       // ── 3. Recently created issues (new work) ─────────────────────
       if (queriesUsed < budget.maxQueries) {
-        const createdData = await this.query<IssuesResponse>(CREATED_ISSUES_QUERY, {
-          since: since.toISOString(),
-        });
+        const createdData = await this.query<IssuesResponse>(
+          CREATED_ISSUES_QUERY,
+          {
+            since: since.toISOString(),
+          },
+        );
         queriesUsed++;
         await this.rateLimit();
 
@@ -142,7 +155,7 @@ export class LinearSignalService implements SignalSource {
 
           const issueSummary = created
             .slice(0, 5)
-            .map(i => `${i.identifier} "${i.title}"`)
+            .map((i) => `${i.identifier} "${i.title}"`)
             .join('; ');
 
           observations.push({
@@ -161,15 +174,24 @@ export class LinearSignalService implements SignalSource {
 
       // ── 4. Recent comments (discussion activity) ──────────────────
       if (queriesUsed < budget.maxQueries) {
-        const commentsData = await this.query<CommentsResponse>(RECENT_COMMENTS_QUERY, {
-          since: since.toISOString(),
-        });
+        const commentsData = await this.query<CommentsResponse>(
+          RECENT_COMMENTS_QUERY,
+          {
+            since: since.toISOString(),
+          },
+        );
         queriesUsed++;
 
         const comments = commentsData.data?.comments?.nodes ?? [];
         if (comments.length > 0) {
-          const commenters = [...new Set(comments.map(c => c.user?.name ?? 'Unknown'))];
-          const issueIds = [...new Set(comments.map(c => c.issue?.identifier).filter(Boolean))];
+          const commenters = [
+            ...new Set(comments.map((c) => c.user?.name ?? 'Unknown')),
+          ];
+          const issueIds = [
+            ...new Set(
+              comments.map((c) => c.issue?.identifier).filter(Boolean),
+            ),
+          ];
 
           observations.push({
             id: `linear-comments-${new Date().toISOString()}`,
@@ -204,7 +226,10 @@ export class LinearSignalService implements SignalSource {
   }
 
   /** Execute a GraphQL query against the Linear API. */
-  private async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+  private async query<T>(
+    query: string,
+    variables: Record<string, unknown> = {},
+  ): Promise<T> {
     const response = await fetch(this.apiBase, {
       method: 'POST',
       headers: {
@@ -223,7 +248,7 @@ export class LinearSignalService implements SignalSource {
 
   /** Simple rate limit delay between requests. */
   private rateLimit(): Promise<void> {
-    return new Promise(resolve =>
+    return new Promise((resolve) =>
       setTimeout(resolve, LinearSignalService.RATE_LIMIT_DELAY_MS),
     );
   }

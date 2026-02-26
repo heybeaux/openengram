@@ -42,7 +42,7 @@ export class EmbeddingService {
       if (Date.now() < this.circuitOpenUntil) {
         throw new Error(
           `Embedding circuit breaker open (${this.consecutiveFailures} consecutive failures). ` +
-          `Retry after ${new Date(this.circuitOpenUntil).toISOString()}`,
+            `Retry after ${new Date(this.circuitOpenUntil).toISOString()}`,
         );
       }
       // Cooldown expired — allow a probe request
@@ -66,7 +66,7 @@ export class EmbeddingService {
         this.circuitOpenUntil = Date.now() + this.COOLDOWN_MS;
         this.logger.warn(
           `[CircuitBreaker] OPEN — ${this.consecutiveFailures} consecutive embedding failures. ` +
-          `Cooldown until ${new Date(this.circuitOpenUntil).toISOString()}`,
+            `Cooldown until ${new Date(this.circuitOpenUntil).toISOString()}`,
         );
       }
       throw error;

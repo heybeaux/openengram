@@ -13,7 +13,7 @@ describe('TaskService', () => {
     assignedTo: 'agent-b',
     assignedBy: 'agent-a',
     taskDescription: 'Review PR #42',
-    status: "ASSIGNED",
+    status: 'ASSIGNED',
     deadline: null,
     completedAt: null,
     result: null,
@@ -31,15 +31,14 @@ describe('TaskService', () => {
         create: jest.fn().mockResolvedValue(mockTask),
         findFirst: jest.fn().mockResolvedValue(mockTask),
         findMany: jest.fn().mockResolvedValue([mockTask]),
-        update: jest.fn().mockResolvedValue({ ...mockTask, status: "IN_PROGRESS" }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...mockTask, status: 'IN_PROGRESS' }),
       },
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TaskService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [TaskService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<TaskService>(TaskService);
@@ -66,23 +65,23 @@ describe('TaskService', () => {
   describe('update', () => {
     it('should update task status', async () => {
       await service.update('user-1', 'task-1', {
-        status: "IN_PROGRESS",
+        status: 'IN_PROGRESS',
       });
       expect(prisma.delegatedTask.update).toHaveBeenCalledWith({
         where: { id: 'task-1' },
-        data: { status: "IN_PROGRESS" },
+        data: { status: 'IN_PROGRESS' },
       });
     });
 
     it('should set completedAt when completing', async () => {
       await service.update('user-1', 'task-1', {
-        status: "COMPLETED",
+        status: 'COMPLETED',
         result: 'Done',
       });
       expect(prisma.delegatedTask.update).toHaveBeenCalledWith({
         where: { id: 'task-1' },
         data: expect.objectContaining({
-          status: "COMPLETED",
+          status: 'COMPLETED',
           completedAt: expect.any(Date),
           result: 'Done',
         }),
@@ -92,16 +91,16 @@ describe('TaskService', () => {
     it('should throw if task not found', async () => {
       prisma.delegatedTask.findFirst.mockResolvedValue(null);
       await expect(
-        service.update('user-1', 'nope', { status: "COMPLETED" }),
+        service.update('user-1', 'nope', { status: 'COMPLETED' }),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findAll', () => {
     it('should filter by status', async () => {
-      await service.findAll('user-1', { status: "ASSIGNED" });
+      await service.findAll('user-1', { status: 'ASSIGNED' });
       expect(prisma.delegatedTask.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', status: "ASSIGNED" },
+        where: { userId: 'user-1', status: 'ASSIGNED' },
         orderBy: { createdAt: 'desc' },
         include: { template: true, contract: true },
       });

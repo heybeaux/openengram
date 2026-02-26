@@ -5,10 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContractDto } from './dto/create-contract.dto';
-import {
-  UpdateContractDto,
-  ContractStatus,
-} from './dto/update-contract.dto';
+import { UpdateContractDto, ContractStatus } from './dto/update-contract.dto';
 
 const VALID_TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
   PROPOSED: ['ACCEPTED', 'REJECTED'],

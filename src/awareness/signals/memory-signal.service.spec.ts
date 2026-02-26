@@ -55,7 +55,7 @@ describe('MemorySignalService', () => {
       await service.collect(null, { maxQueries: 10 });
 
       const call = (prisma.memory.findMany as jest.Mock).mock.calls[0][0];
-      const sinceDate = (call as any).where.createdAt.gt as Date;
+      const sinceDate = call.where.createdAt.gt as Date;
       // Should be roughly 4 hours ago (within 5s tolerance)
       expect(Math.abs(sinceDate.getTime() - before)).toBeLessThan(5000);
     });
@@ -63,8 +63,22 @@ describe('MemorySignalService', () => {
     it('should create observation for recent memories', async () => {
       (prisma.memory.findMany as jest.Mock)
         .mockResolvedValueOnce([
-          { id: 'm1', raw: 'hello world testing', layer: 'SESSION', createdAt: new Date(), userId: 'u1', agentId: null },
-          { id: 'm2', raw: 'another memory item', layer: 'CORE', createdAt: new Date(), userId: 'u1', agentId: 'agent1' },
+          {
+            id: 'm1',
+            raw: 'hello world testing',
+            layer: 'SESSION',
+            createdAt: new Date(),
+            userId: 'u1',
+            agentId: null,
+          },
+          {
+            id: 'm2',
+            raw: 'another memory item',
+            layer: 'CORE',
+            createdAt: new Date(),
+            userId: 'u1',
+            agentId: 'agent1',
+          },
         ] as any)
         .mockResolvedValueOnce([]) // stale
         .mockResolvedValueOnce([]) // entities (graphEntity, but we mock memory)
@@ -77,7 +91,9 @@ describe('MemorySignalService', () => {
       const result = await service.collect(null, { maxQueries: 10 });
 
       expect(result.observations.length).toBeGreaterThanOrEqual(1);
-      const newMemObs = result.observations.find(o => o.id.startsWith('new-memories'));
+      const newMemObs = result.observations.find((o) =>
+        o.id.startsWith('new-memories'),
+      );
       expect(newMemObs).toBeDefined();
       expect(newMemObs!.relatedMemoryIds).toEqual(['m1', 'm2']);
     });
@@ -86,7 +102,12 @@ describe('MemorySignalService', () => {
       (prisma.memory.findMany as jest.Mock)
         .mockResolvedValueOnce([]) // recent
         .mockResolvedValueOnce([
-          { id: 'stale-1', raw: 'old forgotten memory', createdAt: new Date('2025-01-01'), importanceScore: 0.7 },
+          {
+            id: 'stale-1',
+            raw: 'old forgotten memory',
+            createdAt: new Date('2025-01-01'),
+            importanceScore: 0.7,
+          },
         ] as any)
         .mockResolvedValueOnce([]) // diverse
         .mockResolvedValueOnce([]); // older
@@ -95,7 +116,9 @@ describe('MemorySignalService', () => {
 
       const result = await service.collect(null, { maxQueries: 10 });
 
-      const staleObs = result.observations.find(o => o.id.startsWith('stale-memories'));
+      const staleObs = result.observations.find((o) =>
+        o.id.startsWith('stale-memories'),
+      );
       expect(staleObs).toBeDefined();
       expect(staleObs!.content).toContain('1 important memories');
     });
@@ -109,7 +132,9 @@ describe('MemorySignalService', () => {
 
       const result = await service.collect(null, { maxQueries: 10 });
 
-      const entityObs = result.observations.find(o => o.id.startsWith('hot-entities'));
+      const entityObs = result.observations.find((o) =>
+        o.id.startsWith('hot-entities'),
+      );
       expect(entityObs).toBeDefined();
       expect(entityObs!.content).toContain('Engram');
       expect(entityObs!.content).toContain('Beaux');

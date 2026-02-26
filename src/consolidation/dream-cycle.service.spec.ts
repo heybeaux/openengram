@@ -81,25 +81,21 @@ const mockPatternsStage = {
     .mockResolvedValue({ patternsCreated: 0, clustersFound: 0, llmCalls: 0 }),
 };
 const mockIdentityStage = {
-  run: jest
-    .fn()
-    .mockResolvedValue({
-      snapshotId: null,
-      capabilitiesExtracted: 0,
-      preferencesExtracted: 0,
-      behavioralTraits: 0,
-      llmCalls: 0,
-    }),
+  run: jest.fn().mockResolvedValue({
+    snapshotId: null,
+    capabilitiesExtracted: 0,
+    preferencesExtracted: 0,
+    behavioralTraits: 0,
+    llmCalls: 0,
+  }),
 };
 
 const mockDriftStage = {
-  run: jest
-    .fn()
-    .mockResolvedValue({
-      modelsAnalyzed: 0,
-      snapshotsPersisted: 0,
-      alerts: [],
-    }),
+  run: jest.fn().mockResolvedValue({
+    modelsAnalyzed: 0,
+    snapshotsPersisted: 0,
+    alerts: [],
+  }),
 };
 
 describe('DreamCycleService', () => {

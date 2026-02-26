@@ -199,15 +199,13 @@ describe('AnalyticsService', () => {
       });
 
       expect(result.total).toBe(100);
-      expect(
-        result.current.find((l) => l.layer === 'INSIGHT'),
-      ).toBeDefined();
+      expect(result.current.find((l) => l.layer === 'INSIGHT')).toBeDefined();
       expect(
         result.current.find((l) => l.layer === 'INSIGHT')?.percentage,
       ).toBe(15);
-      expect(
-        result.current.find((l) => l.layer === 'TASK')?.percentage,
-      ).toBe(15);
+      expect(result.current.find((l) => l.layer === 'TASK')?.percentage).toBe(
+        15,
+      );
     });
 
     it('should include trend data when requested', async () => {

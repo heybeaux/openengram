@@ -87,7 +87,9 @@ describe('CloudSyncService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
-      $queryRawUnsafe: jest.fn().mockResolvedValue([{ pg_try_advisory_lock: true }]),
+      $queryRawUnsafe: jest
+        .fn()
+        .mockResolvedValue([{ pg_try_advisory_lock: true }]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,9 +97,25 @@ describe('CloudSyncService', () => {
         CloudSyncService,
         { provide: PrismaService, useValue: prisma },
         { provide: CloudLinkService, useValue: {} },
-        { provide: CloudSyncPushService, useValue: { performSyncWithClient: jest.fn(), syncBatchToCloud: jest.fn() } },
-        { provide: CloudSyncPullService, useValue: { triggerPull: jest.fn(), handleSyncPull: jest.fn() } },
-        { provide: CloudSyncIngestService, useValue: { handleSyncPush: jest.fn(), updateCloudInstance: jest.fn(), getInstances: jest.fn() } },
+        {
+          provide: CloudSyncPushService,
+          useValue: {
+            performSyncWithClient: jest.fn(),
+            syncBatchToCloud: jest.fn(),
+          },
+        },
+        {
+          provide: CloudSyncPullService,
+          useValue: { triggerPull: jest.fn(), handleSyncPull: jest.fn() },
+        },
+        {
+          provide: CloudSyncIngestService,
+          useValue: {
+            handleSyncPush: jest.fn(),
+            updateCloudInstance: jest.fn(),
+            getInstances: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -178,7 +196,9 @@ describe('CloudSyncService', () => {
       expect(first.message).toBe('Sync started in background');
 
       // Simulate advisory lock held by another instance on second call
-      prisma.$queryRawUnsafe.mockResolvedValueOnce([{ pg_try_advisory_lock: false }]);
+      prisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { pg_try_advisory_lock: false },
+      ]);
 
       // Second call should reject because advisory lock is held
       await expect(service.triggerSync('acc-1')).rejects.toThrow(

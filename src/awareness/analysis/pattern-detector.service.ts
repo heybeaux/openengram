@@ -132,9 +132,7 @@ export class PatternDetectorService {
 
     // Filter out noise: skip PERSON entities (users/agents), dates,
     // common words, and anything too short to be meaningful
-    const interesting = entities.filter(
-      (e) => !this.isNoiseEntity(e),
-    );
+    const interesting = entities.filter((e) => !this.isNoiseEntity(e));
 
     if (interesting.length === 0) return patterns;
 
@@ -162,9 +160,7 @@ export class PatternDetectorService {
     // ── 2. Cluster detection ────────────────────────────────────────
     // Multiple entities with similar mention counts suggests a cluster
     // of related concepts getting attention together
-    const highActivity = interesting.filter(
-      (e) => e.mentionCount >= 15,
-    );
+    const highActivity = interesting.filter((e) => e.mentionCount >= 15);
     if (highActivity.length >= 3) {
       const names = highActivity
         .slice(0, 5)
@@ -207,10 +203,30 @@ export class PatternDetectorService {
 
     // Skip common stopword-like entities
     const stopwords = new Set([
-      'the', 'this', 'that', 'with', 'from', 'have', 'been',
-      'will', 'would', 'could', 'should', 'about', 'which',
-      'their', 'there', 'these', 'those', 'other', 'some',
-      'true', 'false', 'null', 'undefined', 'error',
+      'the',
+      'this',
+      'that',
+      'with',
+      'from',
+      'have',
+      'been',
+      'will',
+      'would',
+      'could',
+      'should',
+      'about',
+      'which',
+      'their',
+      'there',
+      'these',
+      'those',
+      'other',
+      'some',
+      'true',
+      'false',
+      'null',
+      'undefined',
+      'error',
     ]);
     if (stopwords.has(name)) return true;
 

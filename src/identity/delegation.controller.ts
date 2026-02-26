@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Query, HttpCode, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  HttpCode,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { DelegationTaskService } from './delegation-task.service';
 import type { LogTaskDto } from './delegation-task.service';

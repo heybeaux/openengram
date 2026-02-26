@@ -148,9 +148,7 @@ describe('TrustSignalService', () => {
 
     it('should apply time decay - older signals matter less', async () => {
       const now = new Date();
-      const thirtyDaysAgo = new Date(
-        now.getTime() - 30 * 24 * 60 * 60 * 1000,
-      );
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       // Old failure, recent success
       prisma.trustSignal.findMany.mockResolvedValue([

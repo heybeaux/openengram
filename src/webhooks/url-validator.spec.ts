@@ -23,15 +23,15 @@ describe('WebhookUrlValidator', () => {
     });
 
     it('rejects file:// scheme', () => {
-      expect(() =>
-        validateWebhookUrlSync('file:///etc/passwd'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('file:///etc/passwd')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects ftp:// scheme', () => {
-      expect(() =>
-        validateWebhookUrlSync('ftp://example.com'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('ftp://example.com')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects invalid URL', () => {
@@ -41,27 +41,27 @@ describe('WebhookUrlValidator', () => {
     });
 
     it('rejects localhost IP', () => {
-      expect(() =>
-        validateWebhookUrlSync('http://127.0.0.1/hook'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('http://127.0.0.1/hook')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects 10.x.x.x', () => {
-      expect(() =>
-        validateWebhookUrlSync('http://10.0.0.1/hook'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('http://10.0.0.1/hook')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects 172.16.x.x', () => {
-      expect(() =>
-        validateWebhookUrlSync('http://172.16.0.1/hook'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('http://172.16.0.1/hook')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects 192.168.x.x', () => {
-      expect(() =>
-        validateWebhookUrlSync('http://192.168.1.1/hook'),
-      ).toThrow(WebhookUrlValidationError);
+      expect(() => validateWebhookUrlSync('http://192.168.1.1/hook')).toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('rejects 169.254.x.x (link-local / metadata)', () => {
@@ -102,18 +102,14 @@ describe('WebhookUrlValidator', () => {
     });
 
     it('rejects URL resolving to ::1 (IPv6 loopback)', async () => {
-      mockLookup.mockResolvedValue([
-        { address: '::1', family: 6 },
-      ] as any);
+      mockLookup.mockResolvedValue([{ address: '::1', family: 6 }] as any);
       await expect(
         validateWebhookUrl('https://ipv6-loopback.example.com'),
       ).rejects.toThrow(WebhookUrlValidationError);
     });
 
     it('rejects URL resolving to fc00:: (IPv6 private)', async () => {
-      mockLookup.mockResolvedValue([
-        { address: 'fc00::1', family: 6 },
-      ] as any);
+      mockLookup.mockResolvedValue([{ address: 'fc00::1', family: 6 }] as any);
       await expect(
         validateWebhookUrl('https://private-ipv6.example.com'),
       ).rejects.toThrow(WebhookUrlValidationError);
@@ -137,9 +133,9 @@ describe('WebhookUrlValidator', () => {
     });
 
     it('rejects file:// scheme', async () => {
-      await expect(
-        validateWebhookUrl('file:///etc/passwd'),
-      ).rejects.toThrow(WebhookUrlValidationError);
+      await expect(validateWebhookUrl('file:///etc/passwd')).rejects.toThrow(
+        WebhookUrlValidationError,
+      );
     });
 
     it('allows IP literal that is public', async () => {

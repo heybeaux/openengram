@@ -18,7 +18,10 @@ export class ListMemoriesDto {
   limit?: number = 25;
 
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], type: String })
+  @ApiPropertyOptional({
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'],
+    type: String,
+  })
   @IsEnum(MemoryLayer)
   layer?: string;
 

@@ -12,7 +12,8 @@ export const AnticipatoryConfig = {
   strategies: {
     entityRadiation: process.env.ANTICIPATORY_ENTITY_RADIATION !== 'false',
     insightInjection: process.env.ANTICIPATORY_INSIGHT_INJECTION !== 'false',
-    contradictionSurfacing: process.env.ANTICIPATORY_CONTRADICTION_SURFACING === 'true',
+    contradictionSurfacing:
+      process.env.ANTICIPATORY_CONTRADICTION_SURFACING === 'true',
     behavioralSequence: process.env.ANTICIPATORY_BEHAVIORAL_SEQUENCE === 'true',
   },
 

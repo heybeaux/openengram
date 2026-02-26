@@ -93,7 +93,9 @@ export class MemoryService {
   ): void {
     if (!accountId) {
       // No account context (self-hosted / LAN mode) — run without RLS
-      fn().catch((err) => this.logger.error('[Memory] Background op failed:', err));
+      fn().catch((err) =>
+        this.logger.error('[Memory] Background op failed:', err),
+      );
       return;
     }
     const sanitized = accountId.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -104,7 +106,9 @@ export class MemoryService {
         );
         await rlsContext.run(tx as any, () => fn());
       })
-      .catch((err) => this.logger.error('[Memory] Background RLS op failed:', err));
+      .catch((err) =>
+        this.logger.error('[Memory] Background RLS op failed:', err),
+      );
   }
 
   /**
@@ -642,7 +646,10 @@ export class MemoryService {
           }
         })
         .catch((err) => {
-          this.logger.error(`[Memory] Re-extraction failed for ${memoryId}:`, err);
+          this.logger.error(
+            `[Memory] Re-extraction failed for ${memoryId}:`,
+            err,
+          );
         });
     }
 

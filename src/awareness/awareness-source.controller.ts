@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
-import { AwarenessSourceService, SignalSourceConfig } from './awareness-source.service';
+import {
+  AwarenessSourceService,
+  SignalSourceConfig,
+} from './awareness-source.service';
 
 class CreateSourceDto {
   name: string;

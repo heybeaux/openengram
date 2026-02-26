@@ -17,7 +17,10 @@ export class ContextSignalService {
    * Cache of known entity names per user, refreshed periodically.
    * Key: userId, Value: Set of lowercase entity names/aliases.
    */
-  private entityNameCache = new Map<string, { names: Map<string, string>; expiresAt: number }>();
+  private entityNameCache = new Map<
+    string,
+    { names: Map<string, string>; expiresAt: number }
+  >();
   private static readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(@Optional() private readonly entityService?: EntityService) {}
@@ -54,7 +57,10 @@ export class ContextSignalService {
    * Detect entity names in the query by matching against known entities.
    * Uses a per-user cache to avoid DB lookups on every recall.
    */
-  private async detectEntities(query: string, userId: string): Promise<string[]> {
+  private async detectEntities(
+    query: string,
+    userId: string,
+  ): Promise<string[]> {
     if (!this.entityService) return [];
 
     const nameMap = await this.getEntityNames(userId);
@@ -109,7 +115,9 @@ export class ContextSignalService {
       this.logger.log(`Loaded ${names.size} entity names for user ${userId}`);
       return names;
     } catch (err) {
-      this.logger.warn(`Failed to load entity names for user ${userId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to load entity names for user ${userId}: ${(err as Error).message}`,
+      );
       return new Map();
     }
   }
@@ -127,27 +135,74 @@ export class ContextSignalService {
     const rules: Array<{ topic: string; patterns: RegExp[] }> = [
       {
         topic: 'family',
-        patterns: [/\bfamily\b/, /\bwife\b/, /\bhusband\b/, /\bkids?\b/, /\bchildren\b/, /\bson\b/, /\bdaughter\b/, /\bpet\b/, /\bdog\b/],
+        patterns: [
+          /\bfamily\b/,
+          /\bwife\b/,
+          /\bhusband\b/,
+          /\bkids?\b/,
+          /\bchildren\b/,
+          /\bson\b/,
+          /\bdaughter\b/,
+          /\bpet\b/,
+          /\bdog\b/,
+        ],
       },
       {
         topic: 'health',
-        patterns: [/\bhealth\b/, /\bmedic\w*\b/, /\bdoctor\b/, /\bsick\b/, /\bmeds?\b/, /\bprescription\b/],
+        patterns: [
+          /\bhealth\b/,
+          /\bmedic\w*\b/,
+          /\bdoctor\b/,
+          /\bsick\b/,
+          /\bmeds?\b/,
+          /\bprescription\b/,
+        ],
       },
       {
         topic: 'projects',
-        patterns: [/\bproject\b/, /\bfeature\b/, /\bbuild\b/, /\bship\b/, /\bdeploy\b/, /\brelease\b/, /\blaunch\b/],
+        patterns: [
+          /\bproject\b/,
+          /\bfeature\b/,
+          /\bbuild\b/,
+          /\bship\b/,
+          /\bdeploy\b/,
+          /\brelease\b/,
+          /\blaunch\b/,
+        ],
       },
       {
         topic: 'technical',
-        patterns: [/\bdatabase\b/, /\bapi\b/, /\bbug\b/, /\berror\b/, /\bcode\b/, /\bmigrat\w*\b/, /\bserver\b/, /\binfra\w*\b/],
+        patterns: [
+          /\bdatabase\b/,
+          /\bapi\b/,
+          /\bbug\b/,
+          /\berror\b/,
+          /\bcode\b/,
+          /\bmigrat\w*\b/,
+          /\bserver\b/,
+          /\binfra\w*\b/,
+        ],
       },
       {
         topic: 'schedule',
-        patterns: [/\bmeeting\b/, /\bcalendar\b/, /\bschedule\b/, /\bdeadline\b/, /\btomorrow\b/, /\btoday\b/],
+        patterns: [
+          /\bmeeting\b/,
+          /\bcalendar\b/,
+          /\bschedule\b/,
+          /\bdeadline\b/,
+          /\btomorrow\b/,
+          /\btoday\b/,
+        ],
       },
       {
         topic: 'work',
-        patterns: [/\bjob\b/, /\bclient\b/, /\bfreelance\b/, /\bcontract\b/, /\binvoice\b/],
+        patterns: [
+          /\bjob\b/,
+          /\bclient\b/,
+          /\bfreelance\b/,
+          /\bcontract\b/,
+          /\binvoice\b/,
+        ],
       },
     ];
 

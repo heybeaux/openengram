@@ -51,7 +51,11 @@ describe('CloudEnsembleService', () => {
       service = await createService();
       await service.onModuleInit();
       expect(service.isAvailable()).toBe(true);
-      expect(service.getModelIds()).toEqual(['openai-small', 'openai-large', 'cohere-v3']);
+      expect(service.getModelIds()).toEqual([
+        'openai-small',
+        'openai-large',
+        'cohere-v3',
+      ]);
     });
 
     it('should initialize with only OpenAI when Cohere key missing', async () => {
@@ -108,7 +112,10 @@ describe('CloudEnsembleService', () => {
 
     it('should return models in priority order', () => {
       const models = service.getModelsForCount(2);
-      expect(models.map((m) => m.modelId)).toEqual(['openai-small', 'openai-large']);
+      expect(models.map((m) => m.modelId)).toEqual([
+        'openai-small',
+        'openai-large',
+      ]);
     });
 
     it('should cap at available models', () => {
@@ -133,7 +140,9 @@ describe('CloudEnsembleService', () => {
     it('should handle partial failures gracefully', async () => {
       // Override one provider to fail
       const provider = service.getProvider('openai-large');
-      (provider!.embed as jest.Mock).mockRejectedValueOnce(new Error('rate limited'));
+      (provider!.embed as jest.Mock).mockRejectedValueOnce(
+        new Error('rate limited'),
+      );
 
       const result = await service.embedAll('test text');
       expect(result.embeddings.length).toBe(2);

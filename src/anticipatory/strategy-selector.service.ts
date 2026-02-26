@@ -54,7 +54,10 @@ export class StrategySelectorService {
     }
 
     // Contradiction Surfacing (Phase 2): score based on topic presence
-    if (this.isEnabled('contradiction_surfacing') && signals.topics.length > 0) {
+    if (
+      this.isEnabled('contradiction_surfacing') &&
+      signals.topics.length > 0
+    ) {
       const signalStrength = Math.min(1.0, signals.topics.length * 0.4);
       candidates.push({
         name: 'contradiction_surfacing',
@@ -81,7 +84,8 @@ export class StrategySelectorService {
     const strategyMap: Record<string, boolean> = {
       entity_radiation: AnticipatoryConfig.strategies.entityRadiation,
       insight_injection: AnticipatoryConfig.strategies.insightInjection,
-      contradiction_surfacing: AnticipatoryConfig.strategies.contradictionSurfacing,
+      contradiction_surfacing:
+        AnticipatoryConfig.strategies.contradictionSurfacing,
       behavioral_sequence: AnticipatoryConfig.strategies.behavioralSequence,
     };
     return strategyMap[strategy] ?? false;

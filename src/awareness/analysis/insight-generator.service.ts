@@ -57,7 +57,10 @@ export class InsightGeneratorService {
 
     for (const pattern of sorted) {
       if (pattern.confidence < AwarenessConfig.minConfidence) continue;
-      if (pattern.type === 'pattern_connection' && llmCallsUsed < budget.maxLlmCalls) {
+      if (
+        pattern.type === 'pattern_connection' &&
+        llmCallsUsed < budget.maxLlmCalls
+      ) {
         patternsForLlm.push(pattern);
       } else {
         passthrough.push(pattern);
@@ -73,7 +76,9 @@ export class InsightGeneratorService {
         for (const synth of synthesized) {
           if (insights.length >= budget.maxInsights) break;
 
-          const sourceMemoryIds = patternsForLlm.flatMap(p => p.relatedMemoryIds);
+          const sourceMemoryIds = patternsForLlm.flatMap(
+            (p) => p.relatedMemoryIds,
+          );
           const validMemoryIds = await this.validateSources(sourceMemoryIds);
 
           insights.push({
@@ -81,12 +86,17 @@ export class InsightGeneratorService {
             insightType: synth.type || 'pattern_connection',
             confidence: synth.confidence,
             sourceMemoryIds: validMemoryIds,
-            signalSource: patternsForLlm[0]?.sourceObservations.map(o => o.source).join('+') || 'memory',
+            signalSource:
+              patternsForLlm[0]?.sourceObservations
+                .map((o) => o.source)
+                .join('+') || 'memory',
             actionable: synth.actionable,
           });
         }
       } catch (error) {
-        this.logger.warn(`LLM synthesis failed, falling back to passthrough: ${error.message}`);
+        this.logger.warn(
+          `LLM synthesis failed, falling back to passthrough: ${error.message}`,
+        );
         // On LLM failure, treat as passthrough
         passthrough.push(...patternsForLlm);
       }
@@ -96,14 +106,16 @@ export class InsightGeneratorService {
     for (const pattern of passthrough) {
       if (insights.length >= budget.maxInsights) break;
 
-      const validMemoryIds = await this.validateSources(pattern.relatedMemoryIds);
+      const validMemoryIds = await this.validateSources(
+        pattern.relatedMemoryIds,
+      );
 
       insights.push({
         content: pattern.description,
         insightType: pattern.type,
         confidence: pattern.confidence,
         sourceMemoryIds: validMemoryIds,
-        signalSource: pattern.sourceObservations.map(o => o.source).join('+'),
+        signalSource: pattern.sourceObservations.map((o) => o.source).join('+'),
         actionable: pattern.actionable,
       });
     }
@@ -120,29 +132,48 @@ export class InsightGeneratorService {
    * Fetches source memories for full context and asks the model to find
    * non-obvious connections, gaps, and actionable observations.
    */
-  private async synthesizeWithLlm(
-    patterns: DetectedPattern[],
-  ): Promise<Array<{ content: string; confidence: number; actionable: boolean; type: string }>> {
+  private async synthesizeWithLlm(patterns: DetectedPattern[]): Promise<
+    Array<{
+      content: string;
+      confidence: number;
+      actionable: boolean;
+      type: string;
+    }>
+  > {
     // Fetch the actual memory content for richer context
-    const allMemoryIds = [...new Set(patterns.flatMap(p => p.relatedMemoryIds))];
-    const memories = allMemoryIds.length > 0
-      ? await this.prisma.memory.findMany({
-          where: { id: { in: allMemoryIds.slice(0, 30) }, deletedAt: null },
-          select: { id: true, raw: true, layer: true, createdAt: true, agentId: true },
-          orderBy: { createdAt: 'desc' },
-        })
-      : [];
+    const allMemoryIds = [
+      ...new Set(patterns.flatMap((p) => p.relatedMemoryIds)),
+    ];
+    const memories =
+      allMemoryIds.length > 0
+        ? await this.prisma.memory.findMany({
+            where: { id: { in: allMemoryIds.slice(0, 30) }, deletedAt: null },
+            select: {
+              id: true,
+              raw: true,
+              layer: true,
+              createdAt: true,
+              agentId: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
 
     const memoryContext = memories
-      .map(m => `[${m.layer}${m.agentId ? ` by ${m.agentId}` : ''}] (${m.createdAt.toISOString().slice(0, 10)}): ${m.raw.slice(0, 200)}`)
+      .map(
+        (m) =>
+          `[${m.layer}${m.agentId ? ` by ${m.agentId}` : ''}] (${m.createdAt.toISOString().slice(0, 10)}): ${m.raw.slice(0, 200)}`,
+      )
       .join('\n');
 
     const patternSummary = patterns
-      .map(p => `- [${p.type}] ${p.description}`)
+      .map((p) => `- [${p.type}] ${p.description}`)
       .join('\n');
 
     // Fetch existing insights to avoid duplicates
-    const allMemoryUserIds = [...new Set(memories.map(m => m.agentId).filter(Boolean))];
+    const allMemoryUserIds = [
+      ...new Set(memories.map((m) => m.agentId).filter(Boolean)),
+    ];
     let existingInsightsSummary = '';
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -157,7 +188,7 @@ export class InsightGeneratorService {
         take: 20,
       });
       if (existingInsights.length > 0) {
-        existingInsightsSummary = `\n\nEXISTING INSIGHTS (do NOT repeat or rephrase these):\n${existingInsights.map(i => `- ${i.raw.slice(0, 150)}`).join('\n')}`;
+        existingInsightsSummary = `\n\nEXISTING INSIGHTS (do NOT repeat or rephrase these):\n${existingInsights.map((i) => `- ${i.raw.slice(0, 150)}`).join('\n')}`;
       }
     } catch {
       // Non-critical, proceed without
@@ -254,8 +285,8 @@ What non-obvious insights do you see? Only return insights that are genuinely NE
       select: { id: true },
     });
 
-    const validIds = new Set(existing.map(m => m.id));
-    const dropped = memoryIds.filter(id => !validIds.has(id));
+    const validIds = new Set(existing.map((m) => m.id));
+    const dropped = memoryIds.filter((id) => !validIds.has(id));
 
     if (dropped.length > 0) {
       this.logger.warn(

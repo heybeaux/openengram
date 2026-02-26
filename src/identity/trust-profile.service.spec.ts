@@ -72,8 +72,16 @@ describe('TrustProfileService', () => {
       const recentDate = new Date('2026-02-19');
 
       taskCompletionService.getCompletionsByAgent.mockResolvedValue([
-        makeTc({ domain: 'typescript', outcome: 'failure', createdAt: oldDate }),
-        makeTc({ domain: 'typescript', outcome: 'success', createdAt: recentDate }),
+        makeTc({
+          domain: 'typescript',
+          outcome: 'failure',
+          createdAt: oldDate,
+        }),
+        makeTc({
+          domain: 'typescript',
+          outcome: 'success',
+          createdAt: recentDate,
+        }),
       ]);
 
       const result = await service.getProfile('agent-coder');
@@ -123,10 +131,26 @@ describe('TrustProfileService', () => {
 
     it('should detect improving trend', async () => {
       const tasks = [
-        makeTc({ domain: 'ts', outcome: 'failure', createdAt: new Date('2026-01-01') }),
-        makeTc({ domain: 'ts', outcome: 'failure', createdAt: new Date('2026-01-05') }),
-        makeTc({ domain: 'ts', outcome: 'success', createdAt: new Date('2026-02-10') }),
-        makeTc({ domain: 'ts', outcome: 'success', createdAt: new Date('2026-02-15') }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'failure',
+          createdAt: new Date('2026-01-01'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'failure',
+          createdAt: new Date('2026-01-05'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'success',
+          createdAt: new Date('2026-02-10'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'success',
+          createdAt: new Date('2026-02-15'),
+        }),
       ];
       taskCompletionService.getCompletionsByAgent.mockResolvedValue(tasks);
 
@@ -138,10 +162,26 @@ describe('TrustProfileService', () => {
 
     it('should detect declining trend', async () => {
       const tasks = [
-        makeTc({ domain: 'ts', outcome: 'success', createdAt: new Date('2026-01-01') }),
-        makeTc({ domain: 'ts', outcome: 'success', createdAt: new Date('2026-01-05') }),
-        makeTc({ domain: 'ts', outcome: 'failure', createdAt: new Date('2026-02-10') }),
-        makeTc({ domain: 'ts', outcome: 'failure', createdAt: new Date('2026-02-15') }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'success',
+          createdAt: new Date('2026-01-01'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'success',
+          createdAt: new Date('2026-01-05'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'failure',
+          createdAt: new Date('2026-02-10'),
+        }),
+        makeTc({
+          domain: 'ts',
+          outcome: 'failure',
+          createdAt: new Date('2026-02-15'),
+        }),
       ];
       taskCompletionService.getCompletionsByAgent.mockResolvedValue(tasks);
 
@@ -158,9 +198,7 @@ describe('TrustProfileService', () => {
         { delegatedTo: 'agent-a' },
         { delegatedTo: 'agent-b' },
       ]);
-      taskCompletionService.getCompletionsByAgent.mockResolvedValue([
-        makeTc(),
-      ]);
+      taskCompletionService.getCompletionsByAgent.mockResolvedValue([makeTc()]);
 
       const result = await service.recalculateAllProfiles();
 

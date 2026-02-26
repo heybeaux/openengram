@@ -63,8 +63,10 @@ export class AnticipatoryService {
     @Optional() private readonly insightInjection?: InsightInjectionStrategy,
   ) {
     // Register available strategies
-    if (entityRadiation) this.strategyMap.set(entityRadiation.name, entityRadiation);
-    if (insightInjection) this.strategyMap.set(insightInjection.name, insightInjection);
+    if (entityRadiation)
+      this.strategyMap.set(entityRadiation.name, entityRadiation);
+    if (insightInjection)
+      this.strategyMap.set(insightInjection.name, insightInjection);
   }
 
   /**
@@ -106,13 +108,21 @@ export class AnticipatoryService {
 
     try {
       // 1. Extract context signals (<10ms)
-      const signals = await this.signalService.extract(query, userId, excludeMemoryIds);
+      const signals = await this.signalService.extract(
+        query,
+        userId,
+        excludeMemoryIds,
+      );
 
       // 2. Get learned weights for strategy selection
       const weights = await this.feedbackService.getWeights(userId);
 
       // 3. Select strategies (<1ms)
-      const strategyNames = this.selector.select(signals, options.strategies, weights);
+      const strategyNames = this.selector.select(
+        signals,
+        options.strategies,
+        weights,
+      );
 
       if (strategyNames.length === 0) {
         return this.emptyResult(startTime);
@@ -176,7 +186,9 @@ export class AnticipatoryService {
     } catch (err) {
       const latencyMs = Date.now() - startTime;
       this.circuitBreaker.record(latencyMs);
-      this.logger.error(`ARE failed after ${latencyMs}ms: ${(err as Error).message}`);
+      this.logger.error(
+        `ARE failed after ${latencyMs}ms: ${(err as Error).message}`,
+      );
       return this.emptyResult(startTime);
     }
   }
@@ -202,7 +214,9 @@ export class AnticipatoryService {
           }),
           new Promise<AnticipatoryResult[]>((resolve) =>
             setTimeout(() => {
-              this.logger.warn(`Strategy ${name} timed out at ${perStrategyTimeoutMs}ms`);
+              this.logger.warn(
+                `Strategy ${name} timed out at ${perStrategyTimeoutMs}ms`,
+              );
               resolve([]);
             }, perStrategyTimeoutMs),
           ),
@@ -217,7 +231,10 @@ export class AnticipatoryService {
     return results.flat();
   }
 
-  private emptyResult(startTime: number, circuitBreakerActive = false): AnticipatoryRunResult {
+  private emptyResult(
+    startTime: number,
+    circuitBreakerActive = false,
+  ): AnticipatoryRunResult {
     return {
       memories: [],
       meta: {

@@ -5,9 +5,9 @@
 export enum ChallengeStatus {
   OPEN = 'OPEN',
   UNDER_REVIEW = 'UNDER_REVIEW',
-  UPHELD = 'UPHELD',       // Challenge was valid — memory is disputed
-  DISMISSED = 'DISMISSED',  // Challenge was invalid — memory stands
-  RESOLVED = 'RESOLVED',    // Resolved via consensus or evidence
+  UPHELD = 'UPHELD', // Challenge was valid — memory is disputed
+  DISMISSED = 'DISMISSED', // Challenge was invalid — memory stands
+  RESOLVED = 'RESOLVED', // Resolved via consensus or evidence
 }
 
 export enum ResolutionMethod {

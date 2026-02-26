@@ -31,7 +31,11 @@ export class QueryMemoryDto {
   })
   @IsOptional()
   @IsArray()
-  @ApiPropertyOptional({ enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'], isArray: true, type: String })
+  @ApiPropertyOptional({
+    enum: ['IDENTITY', 'PROJECT', 'SESSION', 'TASK', 'INSIGHT'],
+    isArray: true,
+    type: String,
+  })
   @IsEnum(MemoryLayer, { each: true })
   layers?: string[];
 
@@ -80,7 +84,11 @@ export class QueryMemoryDto {
   // HEY-174: Visibility filter for cross-agent recall
   @IsOptional()
   @IsArray()
-  @ApiPropertyOptional({ enum: ['PRIVATE', 'TEAM', 'PUBLIC'], isArray: true, type: String })
+  @ApiPropertyOptional({
+    enum: ['PRIVATE', 'TEAM', 'PUBLIC'],
+    isArray: true,
+    type: String,
+  })
   @IsEnum(MemoryVisibilityEnum, { each: true })
   visibility?: string[];
 
@@ -97,7 +105,8 @@ export class QueryMemoryDto {
 
   // v1.6: Anticipatory Recall Engine options
   @ApiPropertyOptional({
-    description: 'Anticipatory recall options — surfaces adjacent memories and insights',
+    description:
+      'Anticipatory recall options — surfaces adjacent memories and insights',
     type: AnticipatoryOptionsDto,
   })
   @IsOptional()

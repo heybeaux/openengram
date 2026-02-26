@@ -90,7 +90,7 @@ export class DeduplicationService implements OnModuleDestroy {
   ) {
     this.config = {
       autoMergeThreshold: 0.88,
-      reviewSuggestThreshold: 0.80,
+      reviewSuggestThreshold: 0.8,
       autoResolveThreshold: 0.82,
       defaultStrategy: MergeStrategy.KEEP_DETAILED,
       batchEnabled: true,
@@ -260,7 +260,10 @@ export class DeduplicationService implements OnModuleDestroy {
 
       return { action: 'none' };
     } catch (error) {
-      this.logger.error(`[DeduplicationService] Error checking duplicates:`, error);
+      this.logger.error(
+        `[DeduplicationService] Error checking duplicates:`,
+        error,
+      );
       return { action: 'none' };
     }
   }
@@ -341,7 +344,9 @@ export class DeduplicationService implements OnModuleDestroy {
       );
       job.clustersFound = clusters.length;
 
-      this.logger.log(`[DeduplicationService] Found ${clusters.length} clusters`);
+      this.logger.log(
+        `[DeduplicationService] Found ${clusters.length} clusters`,
+      );
 
       // Emit cluster found events
       for (const cluster of clusters) {
@@ -714,7 +719,9 @@ export class DeduplicationService implements OnModuleDestroy {
       autoMergedToday,
       deletedMemories,
     ] = await Promise.all([
-      this.prisma.memory.count({ where: { userId: userFilter, deletedAt: null } }),
+      this.prisma.memory.count({
+        where: { userId: userFilter, deletedAt: null },
+      }),
       this.prisma.mergeCandidate.count({
         where: { userId: userFilter, status: 'PENDING' },
       }),
@@ -725,9 +732,15 @@ export class DeduplicationService implements OnModuleDestroy {
         where: { userId: userFilter, rolledBackAt: { gte: weekStart } },
       }),
       this.prisma.memoryMergeEvent.count({
-        where: { userId: userFilter, triggeredBy: 'auto', createdAt: { gte: todayStart } },
+        where: {
+          userId: userFilter,
+          triggeredBy: 'auto',
+          createdAt: { gte: todayStart },
+        },
       }),
-      this.prisma.memory.count({ where: { userId: userFilter, deletedAt: { not: null } } }),
+      this.prisma.memory.count({
+        where: { userId: userFilter, deletedAt: { not: null } },
+      }),
     ]);
 
     // Estimate clusters (simplified - count pending candidates)

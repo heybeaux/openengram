@@ -127,7 +127,12 @@ describe('TrustSignalService', () => {
       const now = new Date();
       const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
       mockPrisma.trustSignal.findMany.mockResolvedValue([
-        { id: '1', signalType: 'FAILURE', weight: -1.5, createdAt: sixtyDaysAgo },
+        {
+          id: '1',
+          signalType: 'FAILURE',
+          weight: -1.5,
+          createdAt: sixtyDaysAgo,
+        },
       ]);
       mockPrisma.trustScore.create.mockResolvedValue({});
       const result = await service.computeScore('user1');
@@ -141,7 +146,10 @@ describe('TrustSignalService', () => {
     it('should filter by agentId and category', async () => {
       mockPrisma.trustSignal.findMany.mockResolvedValue([]);
       mockPrisma.trustScore.create.mockResolvedValue({});
-      await service.computeScore('user1', { agentId: 'a1', category: 'coding' });
+      await service.computeScore('user1', {
+        agentId: 'a1',
+        category: 'coding',
+      });
       expect(mockPrisma.trustSignal.findMany).toHaveBeenCalledWith({
         where: { userId: 'user1', agentId: 'a1', category: 'coding' },
         orderBy: { createdAt: 'desc' },
@@ -195,7 +203,9 @@ describe('TrustSignalService', () => {
         computedAt: new Date(),
       };
       mockPrisma.trustScore.findFirst.mockResolvedValue(score);
-      const result = await service.getLatestScore('user1', { category: 'coding' });
+      const result = await service.getLatestScore('user1', {
+        category: 'coding',
+      });
       expect(result).toEqual(score);
     });
   });

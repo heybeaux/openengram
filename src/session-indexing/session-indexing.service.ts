@@ -68,9 +68,7 @@ export class SessionIndexingService {
     );
 
     const chunks = chunkTranscript(transcript, chunkSize, chunkOverlap);
-    this.logger.log(
-      `[SessionIndexing] Split into ${chunks.length} chunks`,
-    );
+    this.logger.log(`[SessionIndexing] Split into ${chunks.length} chunks`);
 
     const memoryIds: string[] = [];
 
@@ -120,10 +118,7 @@ export class SessionIndexingService {
     // Resolve the internal session record
     const session = await this.prisma.session.findFirst({
       where: {
-        OR: [
-          { id: sessionId },
-          { externalId: sessionId },
-        ],
+        OR: [{ id: sessionId }, { externalId: sessionId }],
       },
     });
 

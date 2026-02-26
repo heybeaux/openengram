@@ -15,7 +15,9 @@ describe('ExtractionClassifiers', () => {
 
   describe('classifyLayer', () => {
     it('should classify TASK when LLM extraction says TASK', () => {
-      expect(classifyLayer('anything', { memoryType: 'TASK' } as any)).toBe('TASK');
+      expect(classifyLayer('anything', { memoryType: 'TASK' } as any)).toBe(
+        'TASK',
+      );
     });
 
     it.each([
@@ -154,7 +156,10 @@ describe('ExtractionClassifiers', () => {
     });
 
     it('should skip invalid entries', () => {
-      const result = normalizeEntities([null as any, { name: '', type: 'person' }]);
+      const result = normalizeEntities([
+        null as any,
+        { name: '', type: 'person' },
+      ]);
       // Empty name object still passes since it has .name property (even if empty)
       expect(result.length).toBeLessThanOrEqual(2);
     });
@@ -163,12 +168,16 @@ describe('ExtractionClassifiers', () => {
   // ==================== validateEntityType ====================
 
   describe('validateEntityType', () => {
-    it.each(['person', 'organization', 'project', 'product', 'location', 'other'])(
-      'should accept valid type "%s"',
-      (type) => {
-        expect(validateEntityType(type)).toBe(type);
-      },
-    );
+    it.each([
+      'person',
+      'organization',
+      'project',
+      'product',
+      'location',
+      'other',
+    ])('should accept valid type "%s"', (type) => {
+      expect(validateEntityType(type)).toBe(type);
+    });
 
     it('should default invalid types to "other"', () => {
       expect(validateEntityType('animal')).toBe('other');
@@ -246,35 +255,51 @@ describe('ExtractionClassifiers', () => {
 
   describe('basicMemoryTypeClassification', () => {
     it('should classify allergy as CONSTRAINT', () => {
-      expect(basicMemoryTypeClassification('I am allergic to peanuts')).toBe('CONSTRAINT');
+      expect(basicMemoryTypeClassification('I am allergic to peanuts')).toBe(
+        'CONSTRAINT',
+      );
     });
 
     it('should classify prohibition as CONSTRAINT', () => {
-      expect(basicMemoryTypeClassification('I must not eat gluten')).toBe('CONSTRAINT');
+      expect(basicMemoryTypeClassification('I must not eat gluten')).toBe(
+        'CONSTRAINT',
+      );
     });
 
     it('should classify corrections as LESSON', () => {
-      expect(basicMemoryTypeClassification("that's wrong, you made a mistake")).toBe('LESSON');
+      expect(
+        basicMemoryTypeClassification("that's wrong, you made a mistake"),
+      ).toBe('LESSON');
     });
 
     it('should classify "actually no, that was incorrect" as LESSON', () => {
-      expect(basicMemoryTypeClassification('actually, that was wrong')).toBe('LESSON');
+      expect(basicMemoryTypeClassification('actually, that was wrong')).toBe(
+        'LESSON',
+      );
     });
 
     it('should classify reminders as TASK', () => {
-      expect(basicMemoryTypeClassification('remind me to call the doctor')).toBe('TASK');
+      expect(
+        basicMemoryTypeClassification('remind me to call the doctor'),
+      ).toBe('TASK');
     });
 
     it('should classify preferences', () => {
-      expect(basicMemoryTypeClassification('I prefer dark mode')).toBe('PREFERENCE');
+      expect(basicMemoryTypeClassification('I prefer dark mode')).toBe(
+        'PREFERENCE',
+      );
     });
 
     it('should classify habits as PREFERENCE', () => {
-      expect(basicMemoryTypeClassification('I always have coffee in the morning')).toBe('PREFERENCE');
+      expect(
+        basicMemoryTypeClassification('I always have coffee in the morning'),
+      ).toBe('PREFERENCE');
     });
 
     it('should classify recent events as EVENT', () => {
-      expect(basicMemoryTypeClassification('yesterday I went to the store')).toBe('EVENT');
+      expect(
+        basicMemoryTypeClassification('yesterday I went to the store'),
+      ).toBe('EVENT');
     });
 
     it('should default to FACT', () => {

@@ -54,8 +54,20 @@ describe('DreamCycleDedupStage', () => {
 
   it('should skip memories without embeddings', async () => {
     mockPrisma.memory.findMany.mockResolvedValue([
-      { id: '1', raw: 'a', importanceScore: 1, effectiveScore: 1, memoryType: 'FACT' },
-      { id: '2', raw: 'b', importanceScore: 1, effectiveScore: 1, memoryType: 'FACT' },
+      {
+        id: '1',
+        raw: 'a',
+        importanceScore: 1,
+        effectiveScore: 1,
+        memoryType: 'FACT',
+      },
+      {
+        id: '2',
+        raw: 'b',
+        importanceScore: 1,
+        effectiveScore: 1,
+        memoryType: 'FACT',
+      },
     ]);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
     const result = await stage.run('user1', false);
@@ -65,8 +77,22 @@ describe('DreamCycleDedupStage', () => {
 
   it('should auto-merge high similarity non-protected memories', async () => {
     const memories = [
-      { id: '1', raw: 'fact A', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
-      { id: '2', raw: 'fact A again', importanceScore: 3, effectiveScore: 3, memoryType: 'FACT', createdAt: new Date() },
+      {
+        id: '1',
+        raw: 'fact A',
+        importanceScore: 5,
+        effectiveScore: 5,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        raw: 'fact A again',
+        importanceScore: 3,
+        effectiveScore: 3,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1,0.2]' }]);
@@ -84,8 +110,22 @@ describe('DreamCycleDedupStage', () => {
 
   it('should not auto-merge protected memory types (CONSTRAINT/LESSON)', async () => {
     const memories = [
-      { id: '1', raw: 'rule', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
-      { id: '2', raw: 'rule copy', importanceScore: 3, effectiveScore: 3, memoryType: 'CONSTRAINT', createdAt: new Date() },
+      {
+        id: '1',
+        raw: 'rule',
+        importanceScore: 5,
+        effectiveScore: 5,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        raw: 'rule copy',
+        importanceScore: 3,
+        effectiveScore: 3,
+        memoryType: 'CONSTRAINT',
+        createdAt: new Date(),
+      },
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1,0.2]' }]);
@@ -104,13 +144,27 @@ describe('DreamCycleDedupStage', () => {
 
   it('should auto-merge at 0.90 without LLM (below old threshold, above new)', async () => {
     const memories = [
-      { id: '1', raw: 'likes coffee', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
-      { id: '2', raw: 'enjoys coffee', importanceScore: 3, effectiveScore: 3, memoryType: 'FACT', createdAt: new Date() },
+      {
+        id: '1',
+        raw: 'likes coffee',
+        importanceScore: 5,
+        effectiveScore: 5,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        raw: 'enjoys coffee',
+        importanceScore: 3,
+        effectiveScore: 3,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1]' }]);
     mockEmbedding.search.mockResolvedValue([
-      { id: '2', score: 0.90 }, // above 0.88 auto-merge threshold
+      { id: '2', score: 0.9 }, // above 0.88 auto-merge threshold
     ]);
     mockPrisma.memory.findUnique.mockResolvedValue({ userId: 'user1' });
     mockPrisma.memoryMergeEvent.create.mockResolvedValue({});
@@ -123,8 +177,22 @@ describe('DreamCycleDedupStage', () => {
 
   it('should respect dryRun mode', async () => {
     const memories = [
-      { id: '1', raw: 'a', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
-      { id: '2', raw: 'a', importanceScore: 3, effectiveScore: 3, memoryType: 'FACT', createdAt: new Date() },
+      {
+        id: '1',
+        raw: 'a',
+        importanceScore: 5,
+        effectiveScore: 5,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        raw: 'a',
+        importanceScore: 3,
+        effectiveScore: 3,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1]' }]);
@@ -138,8 +206,20 @@ describe('DreamCycleDedupStage', () => {
 
   it('should handle embedding query errors gracefully', async () => {
     mockPrisma.memory.findMany.mockResolvedValue([
-      { id: '1', raw: 'a', importanceScore: 1, effectiveScore: 1, memoryType: 'FACT' },
-      { id: '2', raw: 'b', importanceScore: 1, effectiveScore: 1, memoryType: 'FACT' },
+      {
+        id: '1',
+        raw: 'a',
+        importanceScore: 1,
+        effectiveScore: 1,
+        memoryType: 'FACT',
+      },
+      {
+        id: '2',
+        raw: 'b',
+        importanceScore: 1,
+        effectiveScore: 1,
+        memoryType: 'FACT',
+      },
     ]);
     mockPrisma.$queryRawUnsafe.mockRejectedValue(new Error('db error'));
     const result = await stage.run('user1', false);
@@ -148,8 +228,22 @@ describe('DreamCycleDedupStage', () => {
 
   it('should handle LLM errors gracefully (default to no merge)', async () => {
     const memories = [
-      { id: '1', raw: 'x', importanceScore: 5, effectiveScore: 5, memoryType: 'FACT', createdAt: new Date() },
-      { id: '2', raw: 'y', importanceScore: 3, effectiveScore: 3, memoryType: 'FACT', createdAt: new Date() },
+      {
+        id: '1',
+        raw: 'x',
+        importanceScore: 5,
+        effectiveScore: 5,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        raw: 'y',
+        importanceScore: 3,
+        effectiveScore: 3,
+        memoryType: 'FACT',
+        createdAt: new Date(),
+      },
     ];
     mockPrisma.memory.findMany.mockResolvedValue(memories);
     mockPrisma.$queryRawUnsafe.mockResolvedValue([{ embedding: '[0.1]' }]);

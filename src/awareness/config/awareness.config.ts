@@ -26,14 +26,16 @@ export const AwarenessConfig = {
   insightTtlDays: int('AWARENESS_INSIGHT_TTL_DAYS', 14),
 
   // ── Signal sources ────────────────────────────────────────────────────
-  signals: (process.env.AWARENESS_SIGNALS || 'memory,github').split(',').map(s => s.trim()),
+  signals: (process.env.AWARENESS_SIGNALS || 'memory,github')
+    .split(',')
+    .map((s) => s.trim()),
 
   // ── GitHub signal config ──────────────────────────────────────────────
   github: {
     token: process.env.AWARENESS_GITHUB_TOKEN,
     repos: (process.env.AWARENESS_GITHUB_REPOS ?? '')
       .split(',')
-      .map(r => r.trim())
+      .map((r) => r.trim())
       .filter(Boolean),
   },
 

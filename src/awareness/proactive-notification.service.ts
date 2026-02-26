@@ -55,7 +55,8 @@ export class ProactiveNotificationService implements OnModuleDestroy {
   ): Promise<NotificationConfig> {
     const existing = await this.getConfig(accountId);
     const merged: NotificationConfig = {
-      confidenceThreshold: config.confidenceThreshold ?? existing.confidenceThreshold,
+      confidenceThreshold:
+        config.confidenceThreshold ?? existing.confidenceThreshold,
       enabled: config.enabled ?? existing.enabled,
       webhookUrl: config.webhookUrl ?? existing.webhookUrl,
       webhookSecret: config.webhookSecret ?? existing.webhookSecret,
@@ -84,7 +85,7 @@ export class ProactiveNotificationService implements OnModuleDestroy {
     this.configs.set(accountId, merged);
     this.logger.log(
       `Notification config updated for account ${accountId}: ` +
-      `threshold=${merged.confidenceThreshold}, enabled=${merged.enabled}`,
+        `threshold=${merged.confidenceThreshold}, enabled=${merged.enabled}`,
     );
 
     return merged;
@@ -168,7 +169,7 @@ export class ProactiveNotificationService implements OnModuleDestroy {
 
     if (results.length > 0) {
       this.logger.log(
-        `Sent ${results.filter(r => r.delivered).length}/${results.length} notifications for account ${accountId}`,
+        `Sent ${results.filter((r) => r.delivered).length}/${results.length} notifications for account ${accountId}`,
       );
     }
 

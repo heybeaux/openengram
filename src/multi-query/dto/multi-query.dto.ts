@@ -64,7 +64,10 @@ export class MultiQueryOptionsDto {
     enum: ['rrf', 'frequency', 'weighted', 'max'],
   })
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['rrf', 'frequency', 'weighted', 'max'], type: String })
+  @ApiPropertyOptional({
+    enum: ['rrf', 'frequency', 'weighted', 'max'],
+    type: String,
+  })
   @IsEnum(FusionStrategy)
   fusionStrategy?: string;
 

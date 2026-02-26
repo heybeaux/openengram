@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   DelegationContract,
@@ -21,7 +27,9 @@ const PERSISTENCE_FILE = 'delegation-contracts.json';
  * Contracts are persisted to disk via FileStoreService (HEY-346).
  */
 @Injectable()
-export class DelegationContractService implements OnModuleInit, OnModuleDestroy {
+export class DelegationContractService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(DelegationContractService.name);
   private contracts = new Map<string, DelegationContract>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
@@ -29,7 +37,13 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
   /** Callback to create a memory when a contract completes */
   private createMemoryFn?: (
     userId: string,
-    dto: { raw: string; layer: string; memoryType: string; agentId: string; source: string },
+    dto: {
+      raw: string;
+      layer: string;
+      memoryType: string;
+      agentId: string;
+      source: string;
+    },
   ) => Promise<any>;
 
   private challengeService?: ChallengeService;
@@ -37,16 +51,22 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
   constructor(private readonly fileStore: FileStoreService) {}
 
   onModuleInit(): void {
-    this.contracts = this.fileStore.load<string, DelegationContract>(PERSISTENCE_FILE);
+    this.contracts = this.fileStore.load<string, DelegationContract>(
+      PERSISTENCE_FILE,
+    );
     if (this.contracts.size > 0) {
-      this.logger.log(`Loaded ${this.contracts.size} delegation contracts from disk`);
+      this.logger.log(
+        `Loaded ${this.contracts.size} delegation contracts from disk`,
+      );
     }
   }
 
   private persist(): void {
-    this.fileStore.save(PERSISTENCE_FILE, this.contracts).catch((err) =>
-      this.logger.warn(`Failed to persist contracts: ${err.message}`),
-    );
+    this.fileStore
+      .save(PERSISTENCE_FILE, this.contracts)
+      .catch((err) =>
+        this.logger.warn(`Failed to persist contracts: ${err.message}`),
+      );
   }
 
   setChallengeService(challengeService: ChallengeService): void {
@@ -56,7 +76,13 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
   setCreateMemoryFn(
     fn: (
       userId: string,
-      dto: { raw: string; layer: string; memoryType: string; agentId: string; source: string },
+      dto: {
+        raw: string;
+        layer: string;
+        memoryType: string;
+        agentId: string;
+        source: string;
+      },
     ) => Promise<any>,
   ): void {
     this.createMemoryFn = fn;
@@ -78,10 +104,15 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
 
     this.contracts.set(contract.id, contract);
     this.persist();
-    this.logger.log(`Contract ${contract.id} created for agent ${contract.delegatedTo}`);
+    this.logger.log(
+      `Contract ${contract.id} created for agent ${contract.delegatedTo}`,
+    );
 
     // Schedule timeout
-    const timer = setTimeout(() => this.handleTimeout(contract.id), contract.timeout * 1000);
+    const timer = setTimeout(
+      () => this.handleTimeout(contract.id),
+      contract.timeout * 1000,
+    );
     timer.unref();
     this.timers.set(contract.id, timer);
 
@@ -99,11 +130,17 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
     return contract;
   }
 
-  update(id: string, dto: Partial<CreateContractDto> & { status?: ContractStatus }): DelegationContract {
+  update(
+    id: string,
+    dto: Partial<CreateContractDto> & { status?: ContractStatus },
+  ): DelegationContract {
     const contract = this.getById(id);
-    if (dto.taskDescription !== undefined) contract.taskDescription = dto.taskDescription;
-    if (dto.expectedOutputs !== undefined) contract.expectedOutputs = dto.expectedOutputs;
-    if (dto.successCriteria !== undefined) contract.successCriteria = dto.successCriteria;
+    if (dto.taskDescription !== undefined)
+      contract.taskDescription = dto.taskDescription;
+    if (dto.expectedOutputs !== undefined)
+      contract.expectedOutputs = dto.expectedOutputs;
+    if (dto.successCriteria !== undefined)
+      contract.successCriteria = dto.successCriteria;
     if (dto.constraints !== undefined) contract.constraints = dto.constraints;
     if (dto.status !== undefined) contract.status = dto.status;
     this.persist();
@@ -115,10 +152,19 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
     return Array.from(this.contracts.values());
   }
 
-  async complete(id: string, dto: CompleteContractDto): Promise<DelegationContract> {
+  async complete(
+    id: string,
+    dto: CompleteContractDto,
+  ): Promise<DelegationContract> {
     const contract = this.getById(id);
-    if (contract.status === 'completed' || contract.status === 'failed' || contract.status === 'timed_out') {
-      throw new Error(`Contract ${id} already finalized with status: ${contract.status}`);
+    if (
+      contract.status === 'completed' ||
+      contract.status === 'failed' ||
+      contract.status === 'timed_out'
+    ) {
+      throw new Error(
+        `Contract ${id} already finalized with status: ${contract.status}`,
+      );
     }
 
     contract.status = dto.status;
@@ -137,9 +183,13 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
     return contract;
   }
 
-  private async createTaskCompletionMemory(contract: DelegationContract): Promise<void> {
+  private async createTaskCompletionMemory(
+    contract: DelegationContract,
+  ): Promise<void> {
     if (!this.createMemoryFn) {
-      this.logger.warn('No createMemoryFn set — skipping TASK_COMPLETION memory');
+      this.logger.warn(
+        'No createMemoryFn set — skipping TASK_COMPLETION memory',
+      );
       return;
     }
 
@@ -163,7 +213,9 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
         source: 'SYSTEM_GENERATED',
       });
 
-      this.logger.log(`TASK_COMPLETION memory created for contract ${contract.id}`);
+      this.logger.log(
+        `TASK_COMPLETION memory created for contract ${contract.id}`,
+      );
     } catch (err) {
       this.logger.error(`Failed to create TASK_COMPLETION memory: ${err}`);
     }
@@ -172,7 +224,11 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
   private handleTimeout(id: string): void {
     this.timers.delete(id);
     const contract = this.contracts.get(id);
-    if (!contract || contract.status !== 'pending' && contract.status !== 'in_progress') return;
+    if (
+      !contract ||
+      (contract.status !== 'pending' && contract.status !== 'in_progress')
+    )
+      return;
 
     contract.status = 'timed_out';
     contract.completedAt = new Date();
@@ -201,13 +257,18 @@ export class DelegationContractService implements OnModuleInit, OnModuleDestroy 
 
   /** Get all contracts for a specific agent (for failure pattern analysis) */
   getByAgent(agentId: string): DelegationContract[] {
-    return Array.from(this.contracts.values()).filter((c) => c.delegatedTo === agentId);
+    return Array.from(this.contracts.values()).filter(
+      (c) => c.delegatedTo === agentId,
+    );
   }
 
   /** Get completed/failed contracts for analysis */
   getFinalized(): DelegationContract[] {
     return Array.from(this.contracts.values()).filter(
-      (c) => c.status === 'completed' || c.status === 'failed' || c.status === 'timed_out',
+      (c) =>
+        c.status === 'completed' ||
+        c.status === 'failed' ||
+        c.status === 'timed_out',
     );
   }
 }

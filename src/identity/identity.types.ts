@@ -4,7 +4,12 @@
 
 // ── Delegation Contracts (HEY-185) ──
 
-export type ContractStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'timed_out';
+export type ContractStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'timed_out';
 
 export interface DelegationContract {
   id: string;
@@ -38,8 +43,16 @@ export interface CompleteContractDto {
 
 // ── Challenge Protocol (HEY-186) ──
 
-export type ChallengeType = 'unsafe' | 'underspecified' | 'capability_mismatch' | 'resource_constraint';
-export type ChallengeResolution = 'accepted' | 'overridden' | 'modified' | 'dismissed';
+export type ChallengeType =
+  | 'unsafe'
+  | 'underspecified'
+  | 'capability_mismatch'
+  | 'resource_constraint';
+export type ChallengeResolution =
+  | 'accepted'
+  | 'overridden'
+  | 'modified'
+  | 'dismissed';
 
 export interface Challenge {
   id: string;
@@ -69,7 +82,10 @@ export interface ResolveChallengeDto {
 
 // ── Failure Pattern Detection (HEY-187) ──
 
-export type FailurePatternType = 'repeated_agent_failure' | 'cascading_failure' | 'timeout_pattern';
+export type FailurePatternType =
+  | 'repeated_agent_failure'
+  | 'cascading_failure'
+  | 'timeout_pattern';
 
 export interface FailurePattern {
   id: string;

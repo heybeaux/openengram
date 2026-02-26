@@ -61,14 +61,20 @@ export class UpdateDelegationContractDto {
   @IsString({ each: true })
   constraints?: string[];
 
-  @ApiPropertyOptional({ description: 'Contract status', enum: ['pending', 'in_progress', 'completed', 'failed', 'timed_out'] })
+  @ApiPropertyOptional({
+    description: 'Contract status',
+    enum: ['pending', 'in_progress', 'completed', 'failed', 'timed_out'],
+  })
   @IsOptional()
   @IsIn(['pending', 'in_progress', 'completed', 'failed', 'timed_out'])
   status?: ContractStatus;
 }
 
 export class CompleteContractRequestDto {
-  @ApiProperty({ description: 'Completion status', enum: ['completed', 'failed'] })
+  @ApiProperty({
+    description: 'Completion status',
+    enum: ['completed', 'failed'],
+  })
   @IsIn(['completed', 'failed'])
   status: 'completed' | 'failed';
 

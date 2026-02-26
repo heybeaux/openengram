@@ -49,7 +49,12 @@ describe('WorkStyleService', () => {
 
   describe('recordObservation', () => {
     it('should create a new numeric dimension', async () => {
-      await service.recordObservation('agent-1', 'user-1', 'response_time', 1500);
+      await service.recordObservation(
+        'agent-1',
+        'user-1',
+        'response_time',
+        1500,
+      );
 
       expect(prisma.agentWorkStyle.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -78,7 +83,12 @@ describe('WorkStyleService', () => {
     it('should update existing numeric dimension with running average', async () => {
       prisma.agentWorkStyle.findUnique.mockResolvedValue(mockStyle);
 
-      await service.recordObservation('agent-1', 'user-1', 'task_duration', 7000);
+      await service.recordObservation(
+        'agent-1',
+        'user-1',
+        'task_duration',
+        7000,
+      );
 
       expect(prisma.agentWorkStyle.update).toHaveBeenCalledWith(
         expect.objectContaining({

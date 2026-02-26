@@ -157,9 +157,7 @@ export class BehavioralConsistencyService {
         llmResults = llmAnalysis.inconsistencies;
         llmCallsUsed = 1;
       } catch (error) {
-        this.logger.warn(
-          `LLM consistency analysis failed: ${error.message}`,
-        );
+        this.logger.warn(`LLM consistency analysis failed: ${error.message}`);
       }
     }
 
@@ -186,8 +184,20 @@ export class BehavioralConsistencyService {
    * activity pattern changes.
    */
   private runHeuristicChecks(
-    recent: Array<{ id: string; raw: string; layer: string; source: string; createdAt: Date }>,
-    historical: Array<{ id: string; raw: string; layer: string; source: string; createdAt: Date }>,
+    recent: Array<{
+      id: string;
+      raw: string;
+      layer: string;
+      source: string;
+      createdAt: Date;
+    }>,
+    historical: Array<{
+      id: string;
+      raw: string;
+      layer: string;
+      source: string;
+      createdAt: Date;
+    }>,
   ): BehavioralInconsistency[] {
     const inconsistencies: BehavioralInconsistency[] = [];
 
@@ -199,7 +209,8 @@ export class BehavioralConsistencyService {
     if (layerDrift > 0.4) {
       inconsistencies.push({
         type: InconsistencyType.PATTERN_BREAK,
-        description: `Memory layer distribution has shifted significantly (drift: ${layerDrift.toFixed(2)}). ` +
+        description:
+          `Memory layer distribution has shifted significantly (drift: ${layerDrift.toFixed(2)}). ` +
           `Recent: ${JSON.stringify(recentLayers)}, Historical: ${JSON.stringify(historicalLayers)}`,
         confidence: Math.min(0.8, layerDrift),
         evidenceMemoryIds: recent.slice(0, 5).map((m) => m.id),
@@ -212,12 +223,16 @@ export class BehavioralConsistencyService {
     const historicalSources = this.distribution(
       historical.map((m) => m.source),
     );
-    const sourceDrift = this.distributionDrift(recentSources, historicalSources);
+    const sourceDrift = this.distributionDrift(
+      recentSources,
+      historicalSources,
+    );
 
     if (sourceDrift > 0.4) {
       inconsistencies.push({
         type: InconsistencyType.PATTERN_BREAK,
-        description: `Memory source distribution shifted (drift: ${sourceDrift.toFixed(2)}). ` +
+        description:
+          `Memory source distribution shifted (drift: ${sourceDrift.toFixed(2)}). ` +
           `This may indicate a change in how the agent is being used.`,
         confidence: Math.min(0.7, sourceDrift),
         evidenceMemoryIds: recent.slice(0, 5).map((m) => m.id),
@@ -237,7 +252,8 @@ export class BehavioralConsistencyService {
     if (lenRatio > 2.5) {
       inconsistencies.push({
         type: InconsistencyType.TONE_SHIFT,
-        description: `Content length has shifted significantly ` +
+        description:
+          `Content length has shifted significantly ` +
           `(recent avg: ${Math.round(recentAvgLen)} chars, historical avg: ${Math.round(historicalAvgLen)} chars). ` +
           `This may indicate a tone or verbosity change.`,
         confidence: Math.min(0.6, (lenRatio - 2) / 5),
@@ -265,15 +281,26 @@ export class BehavioralConsistencyService {
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
-    return existing.map(m => m.raw);
+    return existing.map((m) => m.raw);
   }
 
   /**
    * LLM-based deep analysis for semantic inconsistencies.
    */
   private async runLlmAnalysis(
-    recent: Array<{ id: string; raw: string; layer: string; createdAt: Date; userId?: string }>,
-    historical: Array<{ id: string; raw: string; layer: string; createdAt: Date }>,
+    recent: Array<{
+      id: string;
+      raw: string;
+      layer: string;
+      createdAt: Date;
+      userId?: string;
+    }>,
+    historical: Array<{
+      id: string;
+      raw: string;
+      layer: string;
+      createdAt: Date;
+    }>,
     existingInsights: string[] = [],
   ): Promise<{ inconsistencies: BehavioralInconsistency[] }> {
     const recentSummary = recent
@@ -328,9 +355,10 @@ Return empty array if no meaningful inconsistencies detected OR if all observati
         },
         {
           role: 'user',
-          content: `HISTORICAL BASELINE (established patterns):\n${historicalSummary}\n\nRECENT BEHAVIOR:\n${recentSummary}` +
+          content:
+            `HISTORICAL BASELINE (established patterns):\n${historicalSummary}\n\nRECENT BEHAVIOR:\n${recentSummary}` +
             (existingInsights.length > 0
-              ? `\n\nEXISTING INSIGHTS (do NOT repeat these — skip any observation that overlaps):\n${existingInsights.map(i => `- ${i.slice(0, 150)}`).join('\n')}`
+              ? `\n\nEXISTING INSIGHTS (do NOT repeat these — skip any observation that overlaps):\n${existingInsights.map((i) => `- ${i.slice(0, 150)}`).join('\n')}`
               : '') +
             `\n\nAre there meaningful behavioral inconsistencies that are NOT already captured above?`,
         },

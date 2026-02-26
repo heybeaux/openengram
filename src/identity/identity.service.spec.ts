@@ -123,8 +123,18 @@ describe('IdentityService', () => {
 
     it('should include trust signals with correct structure', async () => {
       prisma.memory.findMany.mockResolvedValue([
-        { layer: 'IDENTITY', memoryType: 'LESSON', confidence: 0.9, createdAt: new Date('2025-01-01') },
-        { layer: 'IDENTITY', memoryType: 'CONSTRAINT', confidence: 1.0, createdAt: new Date('2025-02-01') },
+        {
+          layer: 'IDENTITY',
+          memoryType: 'LESSON',
+          confidence: 0.9,
+          createdAt: new Date('2025-01-01'),
+        },
+        {
+          layer: 'IDENTITY',
+          memoryType: 'CONSTRAINT',
+          confidence: 1.0,
+          createdAt: new Date('2025-02-01'),
+        },
       ]);
 
       const profile = await service.getIdentityProfile('agent-1', 'user-1');

@@ -20,7 +20,9 @@ function deterministicStringify(value: any): string {
   if (value === null || value === undefined) return JSON.stringify(value);
   if (typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) {
-    return '[' + value.map((item) => deterministicStringify(item)).join(',') + ']';
+    return (
+      '[' + value.map((item) => deterministicStringify(item)).join(',') + ']'
+    );
   }
   const keys = Object.keys(value).sort();
   const pairs = keys.map(
@@ -48,15 +50,21 @@ export class PortableIdentityService {
   async exportIdentity(agentId: string): Promise<PortableIdentityExport> {
     this.logger.log(`Exporting identity for agent: ${agentId}`);
 
-    const [capabilities, preferences, trustProfile, workHistory, collaborationPatterns, agentName] =
-      await Promise.all([
-        this.buildCapabilityProfile(agentId),
-        this.buildPreferences(agentId),
-        this.buildTrustProfile(agentId),
-        this.buildWorkHistorySummary(agentId),
-        this.buildCollaborationPatterns(agentId),
-        this.getAgentName(agentId),
-      ]);
+    const [
+      capabilities,
+      preferences,
+      trustProfile,
+      workHistory,
+      collaborationPatterns,
+      agentName,
+    ] = await Promise.all([
+      this.buildCapabilityProfile(agentId),
+      this.buildPreferences(agentId),
+      this.buildTrustProfile(agentId),
+      this.buildWorkHistorySummary(agentId),
+      this.buildCollaborationPatterns(agentId),
+      this.getAgentName(agentId),
+    ]);
 
     const exportData: Omit<PortableIdentityExport, 'integrityHash'> = {
       schemaVersion: SCHEMA_VERSION,
@@ -144,7 +152,9 @@ export class PortableIdentityService {
   /**
    * Build capability profile from agent memories
    */
-  private async buildCapabilityProfile(agentId: string): Promise<CapabilityProfile[]> {
+  private async buildCapabilityProfile(
+    agentId: string,
+  ): Promise<CapabilityProfile[]> {
     const memories = await this.prisma.memory.findMany({
       where: {
         subjectType: SubjectType.AGENT,
@@ -179,7 +189,9 @@ export class PortableIdentityService {
   /**
    * Build preferences from agent memories
    */
-  private async buildPreferences(agentId: string): Promise<Record<string, any>> {
+  private async buildPreferences(
+    agentId: string,
+  ): Promise<Record<string, any>> {
     const memories = await this.prisma.memory.findMany({
       where: {
         subjectType: SubjectType.AGENT,
@@ -212,7 +224,9 @@ export class PortableIdentityService {
 
     const totalTasks = taskMemories.length;
     const successfulTasks = taskMemories.filter(
-      (m) => m.raw.toLowerCase().includes('success') || m.raw.toLowerCase().includes('completed'),
+      (m) =>
+        m.raw.toLowerCase().includes('success') ||
+        m.raw.toLowerCase().includes('completed'),
     ).length;
 
     const avgQuality =
@@ -225,7 +239,10 @@ export class PortableIdentityService {
 
     return {
       totalTasks,
-      successRate: totalTasks > 0 ? Math.round((successfulTasks / totalTasks) * 100) / 100 : 0,
+      successRate:
+        totalTasks > 0
+          ? Math.round((successfulTasks / totalTasks) * 100) / 100
+          : 0,
       avgResponseQuality: Math.round(avgQuality * 100) / 100,
       specializations,
     };
@@ -234,29 +251,44 @@ export class PortableIdentityService {
   /**
    * Build work history summary
    */
-  private async buildWorkHistorySummary(agentId: string): Promise<WorkHistorySummary> {
-    const [totalMemories, taskCompletions, reflections, oldest, typeCounts] = await Promise.all([
-      this.prisma.memory.count({
-        where: { subjectId: agentId, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { subjectId: agentId, source: MemorySource.SYSTEM, deletedAt: null },
-      }),
-      this.prisma.memory.count({
-        where: { subjectId: agentId, source: MemorySource.AGENT_REFLECTION, deletedAt: null },
-      }),
-      this.prisma.memory.findFirst({
-        where: { subjectId: agentId, deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-        select: { createdAt: true },
-      }),
-      this.prisma.memory.groupBy({
-        by: ['memoryType'],
-        where: { subjectId: agentId, deletedAt: null, memoryType: { not: null } },
-        _count: true,
-        orderBy: { _count: { memoryType: 'desc' } },
-      }),
-    ]);
+  private async buildWorkHistorySummary(
+    agentId: string,
+  ): Promise<WorkHistorySummary> {
+    const [totalMemories, taskCompletions, reflections, oldest, typeCounts] =
+      await Promise.all([
+        this.prisma.memory.count({
+          where: { subjectId: agentId, deletedAt: null },
+        }),
+        this.prisma.memory.count({
+          where: {
+            subjectId: agentId,
+            source: MemorySource.SYSTEM,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.memory.count({
+          where: {
+            subjectId: agentId,
+            source: MemorySource.AGENT_REFLECTION,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.memory.findFirst({
+          where: { subjectId: agentId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true },
+        }),
+        this.prisma.memory.groupBy({
+          by: ['memoryType'],
+          where: {
+            subjectId: agentId,
+            deletedAt: null,
+            memoryType: { not: null },
+          },
+          _count: true,
+          orderBy: { _count: { memoryType: 'desc' } },
+        }),
+      ]);
 
     return {
       totalMemories,
@@ -273,7 +305,9 @@ export class PortableIdentityService {
   /**
    * Build collaboration patterns
    */
-  private async buildCollaborationPatterns(agentId: string): Promise<CollaborationPattern[]> {
+  private async buildCollaborationPatterns(
+    agentId: string,
+  ): Promise<CollaborationPattern[]> {
     // Find memories that reference other agents
     const memories = await this.prisma.memory.findMany({
       where: {
@@ -286,7 +320,10 @@ export class PortableIdentityService {
     });
 
     // Extract partner agent IDs from memory text (simple heuristic)
-    const partnerStats = new Map<string, { count: number; totalScore: number }>();
+    const partnerStats = new Map<
+      string,
+      { count: number; totalScore: number }
+    >();
 
     for (const mem of memories) {
       const partners = this.extractPartnerAgents(mem.raw, agentId);

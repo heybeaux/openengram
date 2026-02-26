@@ -89,7 +89,9 @@ describe('DelegationTaskService', () => {
     const task = service.logTask(makeDto());
     const future = new Date(Date.now() + 60000).toISOString();
 
-    const { total: before } = service.getTasks({ since: new Date(0).toISOString() });
+    const { total: before } = service.getTasks({
+      since: new Date(0).toISOString(),
+    });
     expect(before).toBe(1);
 
     const { total: after } = service.getTasks({ since: future });
@@ -97,11 +99,17 @@ describe('DelegationTaskService', () => {
   });
 
   it('should return recall with contracts, tasks, patterns, and summary', () => {
-    mockContractService.listAll.mockReturnValue([{ id: 'c1', task: 'contract task' }]);
-    mockPatternService.getPatterns.mockReturnValue([{ pattern: 'test pattern' }]);
+    mockContractService.listAll.mockReturnValue([
+      { id: 'c1', task: 'contract task' },
+    ]);
+    mockPatternService.getPatterns.mockReturnValue([
+      { pattern: 'test pattern' },
+    ]);
 
     service.logTask(makeDto({ status: 'success', durationMs: 1000 }));
-    service.logTask(makeDto({ status: 'failure', durationMs: 3000, error: 'timeout' }));
+    service.logTask(
+      makeDto({ status: 'failure', durationMs: 3000, error: 'timeout' }),
+    );
 
     const recall = service.getRecall({});
     expect(recall.contracts).toHaveLength(1);
@@ -116,7 +124,9 @@ describe('DelegationTaskService', () => {
   it('should compute correct summary stats', () => {
     service.logTask(makeDto({ status: 'success', durationMs: 1000 }));
     service.logTask(makeDto({ status: 'success', durationMs: 2000 }));
-    service.logTask(makeDto({ status: 'failure', durationMs: 3000, error: 'err' }));
+    service.logTask(
+      makeDto({ status: 'failure', durationMs: 3000, error: 'err' }),
+    );
 
     const { summary } = service.getRecall({});
     expect(summary.totalTasks).toBe(3);

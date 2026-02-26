@@ -56,8 +56,12 @@ describe('CloudSyncIngestService', () => {
   });
 
   const setupAgentAndUserResolution = () => {
-    mockPrisma.syncAgentMap.findUnique.mockResolvedValue({ cloudAgentId: 'cloud-agent-1' });
-    mockPrisma.syncUserMap.findUnique.mockResolvedValue({ cloudUserId: 'cloud-user-1' });
+    mockPrisma.syncAgentMap.findUnique.mockResolvedValue({
+      cloudAgentId: 'cloud-agent-1',
+    });
+    mockPrisma.syncUserMap.findUnique.mockResolvedValue({
+      cloudUserId: 'cloud-user-1',
+    });
   };
 
   describe('handleSyncPush', () => {
@@ -166,7 +170,10 @@ describe('CloudSyncIngestService', () => {
 
       expect(mockPrisma.memoryExtraction.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ memoryId: 'cloud-mem-1', who: 'Beaux' }),
+          data: expect.objectContaining({
+            memoryId: 'cloud-mem-1',
+            who: 'Beaux',
+          }),
         }),
       );
     });
@@ -179,7 +186,12 @@ describe('CloudSyncIngestService', () => {
 
       const result = await service.handleSyncPush('acc-1', 'inst-1', {
         memories: [
-          { localId: 'local-1', raw: 'Fail', layer: 'SESSION', contentHash: 'h1' },
+          {
+            localId: 'local-1',
+            raw: 'Fail',
+            layer: 'SESSION',
+            contentHash: 'h1',
+          },
         ],
       } as any);
 
@@ -189,8 +201,12 @@ describe('CloudSyncIngestService', () => {
 
     it('should handle multiple memories in one push', async () => {
       // Reset and set up fresh for each call in the loop
-      mockPrisma.syncAgentMap.findUnique.mockResolvedValue({ cloudAgentId: 'cloud-agent-1' });
-      mockPrisma.syncUserMap.findUnique.mockResolvedValue({ cloudUserId: 'cloud-user-1' });
+      mockPrisma.syncAgentMap.findUnique.mockResolvedValue({
+        cloudAgentId: 'cloud-agent-1',
+      });
+      mockPrisma.syncUserMap.findUnique.mockResolvedValue({
+        cloudUserId: 'cloud-user-1',
+      });
       mockPrisma.memory.findFirst.mockResolvedValue(null);
       mockPrisma.syncIdMap.findUnique.mockResolvedValue(null);
       mockPrisma.memory.create
@@ -208,7 +224,9 @@ describe('CloudSyncIngestService', () => {
       } as any);
 
       expect(result.results).toHaveLength(2);
-      expect(result.results.filter((r) => r.status === 'created')).toHaveLength(2);
+      expect(result.results.filter((r) => r.status === 'created')).toHaveLength(
+        2,
+      );
     });
   });
 
@@ -218,7 +236,12 @@ describe('CloudSyncIngestService', () => {
       await service.upsertSyncIdMap('inst-1', 'local-1', 'cloud-1', 'hash-1');
       expect(mockPrisma.syncIdMap.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { instanceId_localMemoryId: { instanceId: 'inst-1', localMemoryId: 'local-1' } },
+          where: {
+            instanceId_localMemoryId: {
+              instanceId: 'inst-1',
+              localMemoryId: 'local-1',
+            },
+          },
         }),
       );
     });
@@ -249,7 +272,9 @@ describe('CloudSyncIngestService', () => {
       await service.updateCloudInstance('acc-1', 'inst-1', 'My Instance', 5);
       expect(mockPrisma.cloudInstance.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { accountId_instanceId: { accountId: 'acc-1', instanceId: 'inst-1' } },
+          where: {
+            accountId_instanceId: { accountId: 'acc-1', instanceId: 'inst-1' },
+          },
           create: expect.objectContaining({
             instanceName: 'My Instance',
             memoryCount: 42,
@@ -264,7 +289,9 @@ describe('CloudSyncIngestService', () => {
   describe('getInstances', () => {
     it('should return instances for account', async () => {
       const instances = [{ instanceId: 'inst-1', status: 'active' }];
-      mockPrisma.cloudInstance.findMany = jest.fn().mockResolvedValue(instances);
+      mockPrisma.cloudInstance.findMany = jest
+        .fn()
+        .mockResolvedValue(instances);
 
       const result = await service.getInstances('acc-1');
       expect(result).toEqual(instances);

@@ -281,13 +281,21 @@ export class DeduplicationController {
   @Post('candidates/expire-stale')
   @ApiOperation({ summary: 'Auto-resolve PENDING candidates older than TTL' })
   @ApiHeader({ name: 'x-am-user-id', required: true, description: 'User ID' })
-  @ApiQuery({ name: 'ttlDays', required: false, type: Number, description: 'TTL in days (default 14)' })
+  @ApiQuery({
+    name: 'ttlDays',
+    required: false,
+    type: Number,
+    description: 'TTL in days (default 14)',
+  })
   @ApiResponse({ status: 200 })
   async expireStale(
     @UserId() userId: string,
     @Query('ttlDays') ttlDays?: number,
   ): Promise<{ resolved: number; errors: number }> {
-    return this.reviewService.expireStale(userId, ttlDays ? Number(ttlDays) : 14);
+    return this.reviewService.expireStale(
+      userId,
+      ttlDays ? Number(ttlDays) : 14,
+    );
   }
 
   // ==========================================================================

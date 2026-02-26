@@ -53,8 +53,18 @@ describe('PgVectorEnsembleProvider', () => {
       });
 
       await provider.upsertEmbeddings([
-        { memoryId: 'mem-1', modelId: 'bge-base' as any, embedding: [0.1], dimensions: 1 },
-        { memoryId: 'mem-2', modelId: 'bge-base' as any, embedding: [0.2], dimensions: 1 },
+        {
+          memoryId: 'mem-1',
+          modelId: 'bge-base' as any,
+          embedding: [0.1],
+          dimensions: 1,
+        },
+        {
+          memoryId: 'mem-2',
+          modelId: 'bge-base' as any,
+          embedding: [0.2],
+          dimensions: 1,
+        },
       ]);
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();

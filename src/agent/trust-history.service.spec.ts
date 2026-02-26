@@ -13,12 +13,14 @@ describe('TrustHistoryService', () => {
 
   it('should record and retrieve trust history', async () => {
     service.recordTrustScore('agent-1', 0.85, 'initial');
-    service.recordTrustScore('agent-1', 0.90, 'improved');
-    service.recordTrustScore('agent-2', 0.70);
+    service.recordTrustScore('agent-1', 0.9, 'improved');
+    service.recordTrustScore('agent-2', 0.7);
     const result = await service.getHistory('agent-1');
     expect(result.total).toBe(2);
     expect(result.data.length).toBe(2);
-    expect(result.data.map((d) => d.trustScore)).toEqual(expect.arrayContaining([0.85, 0.90]));
+    expect(result.data.map((d) => d.trustScore)).toEqual(
+      expect.arrayContaining([0.85, 0.9]),
+    );
   });
 
   it('should paginate history', async () => {

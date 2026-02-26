@@ -82,10 +82,7 @@ export class DreamCycleIdentityStage {
     });
 
     // 3. Extract identity data via LLM
-    const identityData = await this.extractIdentity(
-      memories,
-      previousSnapshot,
-    );
+    const identityData = await this.extractIdentity(memories, previousSnapshot);
 
     if (dryRun) {
       console.log(

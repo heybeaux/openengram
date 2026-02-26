@@ -16,7 +16,21 @@ describe('AgentsAliasController', () => {
   describe('listAgents', () => {
     it('should delegate to IdentityController.listAgents', async () => {
       const mockReq = { accountId: 'acc1' };
-      const mockResult = { agents: [{ id: '1', name: 'test', apiKeyHint: 'abc', createdAt: new Date(), updatedAt: new Date(), memoryCount: 0, lastActive: null, capabilities: [], trustSummary: null }] };
+      const mockResult = {
+        agents: [
+          {
+            id: '1',
+            name: 'test',
+            apiKeyHint: 'abc',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            memoryCount: 0,
+            lastActive: null,
+            capabilities: [],
+            trustSummary: null,
+          },
+        ],
+      };
       identityController.listAgents.mockResolvedValue(mockResult);
 
       const result = await controller.listAgents(mockReq);
@@ -29,12 +43,23 @@ describe('AgentsAliasController', () => {
   describe('getAgent', () => {
     it('should delegate to IdentityController.getAgent', async () => {
       const mockReq = { accountId: 'acc1' };
-      const mockResult = { id: 'agent1', name: 'test', apiKeyHint: 'abc', createdAt: new Date(), updatedAt: new Date(), capabilities: [] as any[], trustSummary: null };
+      const mockResult = {
+        id: 'agent1',
+        name: 'test',
+        apiKeyHint: 'abc',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        capabilities: [] as any[],
+        trustSummary: null,
+      };
       identityController.getAgent.mockResolvedValue(mockResult);
 
       const result = await controller.getAgent('agent1', mockReq);
 
-      expect(identityController.getAgent).toHaveBeenCalledWith('agent1', mockReq);
+      expect(identityController.getAgent).toHaveBeenCalledWith(
+        'agent1',
+        mockReq,
+      );
       expect(result).toEqual(mockResult);
     });
   });

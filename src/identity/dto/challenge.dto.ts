@@ -12,8 +12,21 @@ export class CreateChallengeRequestDto {
   @IsString()
   taskDescription: string;
 
-  @ApiProperty({ description: 'Challenge type', enum: ['unsafe', 'underspecified', 'capability_mismatch', 'resource_constraint'] })
-  @IsIn(['unsafe', 'underspecified', 'capability_mismatch', 'resource_constraint'])
+  @ApiProperty({
+    description: 'Challenge type',
+    enum: [
+      'unsafe',
+      'underspecified',
+      'capability_mismatch',
+      'resource_constraint',
+    ],
+  })
+  @IsIn([
+    'unsafe',
+    'underspecified',
+    'capability_mismatch',
+    'resource_constraint',
+  ])
   challengeType: ChallengeType;
 
   @ApiProperty({ description: 'Reasoning for the challenge' })
@@ -27,7 +40,10 @@ export class CreateChallengeRequestDto {
 }
 
 export class ResolveChallengeRequestDto {
-  @ApiProperty({ description: 'Resolution', enum: ['accepted', 'overridden', 'modified'] })
+  @ApiProperty({
+    description: 'Resolution',
+    enum: ['accepted', 'overridden', 'modified'],
+  })
   @IsIn(['accepted', 'overridden', 'modified'])
   resolution: ChallengeResolution;
 

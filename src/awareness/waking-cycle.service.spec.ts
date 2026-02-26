@@ -39,7 +39,9 @@ describe('WakingCycleService', () => {
       },
       memory: {
         update: jest.fn().mockResolvedValue({}),
-        findUnique: jest.fn().mockResolvedValue({ createdAt: new Date(), deletedAt: null }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ createdAt: new Date(), deletedAt: null }),
         findFirst: jest.fn().mockResolvedValue(null),
       },
       dreamCycleRun: {
@@ -57,7 +59,12 @@ describe('WakingCycleService', () => {
       name: 'memory',
       collect: jest.fn().mockResolvedValue({
         observations: [
-          { id: 'obs-1', source: 'memory', content: 'User talks about cooking often', observedAt: new Date() },
+          {
+            id: 'obs-1',
+            source: 'memory',
+            content: 'User talks about cooking often',
+            observedAt: new Date(),
+          },
         ],
         checkpoint: { lastId: 'mem-100' },
       }),
@@ -73,7 +80,11 @@ describe('WakingCycleService', () => {
 
     patternDetector = {
       detect: jest.fn().mockReturnValue([
-        { type: 'recurring_topic', description: 'Cooking mentioned frequently', observations: ['obs-1'] },
+        {
+          type: 'recurring_topic',
+          description: 'Cooking mentioned frequently',
+          observations: ['obs-1'],
+        },
       ]),
     };
 
@@ -205,7 +216,9 @@ describe('WakingCycleService', () => {
     it('should trigger proactive notifications after storing (HEY-154)', async () => {
       await service.runCycle();
 
-      expect(proactiveNotification.checkAndNotify).toHaveBeenCalledWith('acc-1');
+      expect(proactiveNotification.checkAndNotify).toHaveBeenCalledWith(
+        'acc-1',
+      );
     });
 
     it('should skip storing if no user found for account', async () => {
@@ -223,7 +236,12 @@ describe('WakingCycleService', () => {
 
       const [first, second] = await Promise.all([firstCycle, secondCycle]);
 
-      expect(second).toEqual({ observations: 0, patterns: 0, insights: 0, durationMs: 0 });
+      expect(second).toEqual({
+        observations: 0,
+        patterns: 0,
+        insights: 0,
+        durationMs: 0,
+      });
       expect(first.observations).toBe(1);
     });
 
@@ -283,14 +301,18 @@ describe('WakingCycleService', () => {
     });
 
     it('should handle proactive notification failure gracefully', async () => {
-      proactiveNotification.checkAndNotify.mockRejectedValue(new Error('Webhook failed'));
+      proactiveNotification.checkAndNotify.mockRejectedValue(
+        new Error('Webhook failed'),
+      );
 
       const result = await service.runCycle();
       expect(result.insights).toBe(1);
     });
 
     it('should handle insight dedup rejection gracefully', async () => {
-      memoryService.remember.mockRejectedValue(new Error('Duplicate memory detected'));
+      memoryService.remember.mockRejectedValue(
+        new Error('Duplicate memory detected'),
+      );
 
       const result = await service.runCycle();
       expect(result.insights).toBe(1);
@@ -407,7 +429,12 @@ describe('WakingCycleService', () => {
         status: 'COMPLETED',
         startedAt: new Date('2026-01-15T10:00:00Z'),
         endedAt: new Date('2026-01-15T10:00:02Z'),
-        error: JSON.stringify({ observations: 10, patterns: 5, insights: 3, durationMs: 2000 }),
+        error: JSON.stringify({
+          observations: 10,
+          patterns: 5,
+          insights: 3,
+          durationMs: 2000,
+        }),
       });
 
       const status = await service.getLastCycleRun();

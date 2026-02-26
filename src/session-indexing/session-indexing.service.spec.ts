@@ -38,7 +38,7 @@ describe('SessionIndexingService', () => {
     }).compile();
 
     service = module.get(SessionIndexingService);
-    memoryService = module.get(MemoryService) as any;
+    memoryService = module.get(MemoryService);
     prisma = module.get(PrismaService);
   });
 
@@ -46,7 +46,8 @@ describe('SessionIndexingService', () => {
     it('should chunk and store a transcript', async () => {
       const result = await service.indexSession('user-1', {
         sessionId: 'sess-1',
-        transcript: 'Hello, how are you? I am fine. Let us talk about the project. The project is going well.',
+        transcript:
+          'Hello, how are you? I am fine. Let us talk about the project. The project is going well.',
       });
 
       expect(result.sessionId).toBe('sess-1');

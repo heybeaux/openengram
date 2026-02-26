@@ -19,4 +19,3 @@ export class UpdateContractDto {
   @IsString()
   result?: string;
 }
-
