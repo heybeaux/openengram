@@ -28,6 +28,24 @@ function toConstName(route) {
     .toUpperCase();
 }
 
+// Detect and resolve duplicate constant names
+const routeEntries = routes.map(route => ({ route, name: toConstName(route) }));
+const nameCounts = {};
+for (const entry of routeEntries) {
+  nameCounts[entry.name] = (nameCounts[entry.name] || 0) + 1;
+}
+// For duplicates, append a suffix based on the original route to disambiguate
+const nameUsed = {};
+for (const entry of routeEntries) {
+  if (nameCounts[entry.name] > 1) {
+    const idx = (nameUsed[entry.name] || 0);
+    nameUsed[entry.name] = idx + 1;
+    if (idx > 0) {
+      entry.name = entry.name + '_' + idx;
+    }
+  }
+}
+
 const lines = [
   '// Auto-generated from api-spec.json — do not edit manually',
   `// Generated at ${new Date().toISOString()}`,
@@ -35,8 +53,8 @@ const lines = [
   'export const API_ROUTES = {',
 ];
 
-for (const route of routes) {
-  lines.push(`  ${toConstName(route)}: '${route}',`);
+for (const entry of routeEntries) {
+  lines.push(`  ${entry.name}: '${entry.route}',`);
 }
 
 lines.push('} as const;');
