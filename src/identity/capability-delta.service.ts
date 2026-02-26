@@ -102,7 +102,11 @@ export class CapabilityDeltaService {
     });
 
     if (checkpoints.length === 0) {
-      return { gained: [], improved: [], period: { from: new Date(), to: new Date() } };
+      return {
+        gained: [],
+        improved: [],
+        period: { from: new Date(), to: new Date() },
+      };
     }
 
     const current = checkpoints[0];

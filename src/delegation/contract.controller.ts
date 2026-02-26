@@ -25,10 +25,7 @@ export class ContractController {
   }
 
   @Get()
-  findAll(
-    @UserId() userId: string,
-    @Query('status') status?: string,
-  ) {
+  findAll(@UserId() userId: string, @Query('status') status?: string) {
     return this.contractService.findAll(userId, status as any);
   }
 

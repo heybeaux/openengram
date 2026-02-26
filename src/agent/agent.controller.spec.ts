@@ -46,7 +46,12 @@ describe('AgentController', () => {
       const expected = {
         memoriesCreated: ['mem-1'],
         insightsExtracted: 1,
-        categories: { identity: 1, lessons: 0, preferences: 0, workingStyle: 0 },
+        categories: {
+          identity: 1,
+          lessons: 0,
+          preferences: 0,
+          workingStyle: 0,
+        },
       };
       mockAgentService.reflect.mockResolvedValue(expected);
 
@@ -65,10 +70,13 @@ describe('AgentController', () => {
       const result = await controller.getMemories('agent-1');
 
       expect(result).toEqual(memories);
-      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith('agent-1', {
-        layer: undefined,
-        limit: undefined,
-      });
+      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith(
+        'agent-1',
+        {
+          layer: undefined,
+          limit: undefined,
+        },
+      );
     });
 
     it('should pass layer filter', async () => {
@@ -76,10 +84,13 @@ describe('AgentController', () => {
 
       await controller.getMemories('agent-1', MemoryLayer.IDENTITY);
 
-      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith('agent-1', {
-        layer: MemoryLayer.IDENTITY,
-        limit: undefined,
-      });
+      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith(
+        'agent-1',
+        {
+          layer: MemoryLayer.IDENTITY,
+          limit: undefined,
+        },
+      );
     });
 
     it('should parse limit as integer', async () => {
@@ -87,30 +98,45 @@ describe('AgentController', () => {
 
       await controller.getMemories('agent-1', undefined, 10);
 
-      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith('agent-1', {
-        layer: undefined,
-        limit: 10,
-      });
+      expect(mockAgentService.getAgentMemories).toHaveBeenCalledWith(
+        'agent-1',
+        {
+          layer: undefined,
+          limit: 10,
+        },
+      );
     });
   });
 
   describe('getContext', () => {
     it('should return formatted context', async () => {
-      const context = { context: '## Agent Self-Knowledge\n- I am Rook', memoriesIncluded: 1 };
+      const context = {
+        context: '## Agent Self-Knowledge\n- I am Rook',
+        memoriesIncluded: 1,
+      };
       mockAgentService.getAgentContext.mockResolvedValue(context);
 
       const result = await controller.getContext('agent-1');
 
       expect(result).toEqual(context);
-      expect(mockAgentService.getAgentContext).toHaveBeenCalledWith('agent-1', undefined);
+      expect(mockAgentService.getAgentContext).toHaveBeenCalledWith(
+        'agent-1',
+        undefined,
+      );
     });
 
     it('should pass maxTokens when provided', async () => {
-      mockAgentService.getAgentContext.mockResolvedValue({ context: '', memoriesIncluded: 0 });
+      mockAgentService.getAgentContext.mockResolvedValue({
+        context: '',
+        memoriesIncluded: 0,
+      });
 
       await controller.getContext('agent-1', 500);
 
-      expect(mockAgentService.getAgentContext).toHaveBeenCalledWith('agent-1', 500);
+      expect(mockAgentService.getAgentContext).toHaveBeenCalledWith(
+        'agent-1',
+        500,
+      );
     });
   });
 });

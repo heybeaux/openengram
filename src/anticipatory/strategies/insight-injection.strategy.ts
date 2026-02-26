@@ -68,10 +68,7 @@ export class InsightInjectionStrategy implements AnticipatoryStrategy {
           },
         },
         include: { extraction: true },
-        orderBy: [
-          { confidence: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ confidence: 'desc' }, { createdAt: 'desc' }],
         take: 20, // Fetch more than needed, then score and filter
       });
 
@@ -82,18 +79,22 @@ export class InsightInjectionStrategy implements AnticipatoryStrategy {
         .map((insight) => {
           const metadata = (insight.metadata as Record<string, any>) || {};
           const content = insight.raw.toLowerCase();
-          const topics = (insight.extraction?.topics || []).map((t: string) => t.toLowerCase());
+          const topics = (insight.extraction?.topics || []).map((t: string) =>
+            t.toLowerCase(),
+          );
 
           // Topic/entity overlap score
           let relevanceScore = 0;
           for (const term of searchTerms) {
             const lower = term.toLowerCase();
             if (content.includes(lower)) relevanceScore += 0.3;
-            if (topics.some((t: string) => t.includes(lower))) relevanceScore += 0.2;
+            if (topics.some((t: string) => t.includes(lower)))
+              relevanceScore += 0.2;
           }
 
           // Freshness boost (newer insights more relevant)
-          const ageDays = (Date.now() - insight.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+          const ageDays =
+            (Date.now() - insight.createdAt.getTime()) / (1000 * 60 * 60 * 24);
           const freshnessBoost = Math.max(0.1, 1 - ageDays / 14); // 14-day decay
 
           // Surfacing decay (shown too many times = lower priority)
@@ -112,7 +113,8 @@ export class InsightInjectionStrategy implements AnticipatoryStrategy {
           }
 
           const confidence = insight.confidence ?? 0.5;
-          const salience = relevanceScore * confidence * freshnessBoost * surfacingDecay;
+          const salience =
+            relevanceScore * confidence * freshnessBoost * surfacingDecay;
 
           return { insight, salience, metadata };
         })
@@ -123,7 +125,9 @@ export class InsightInjectionStrategy implements AnticipatoryStrategy {
       // Mark insights as surfaced (fire-and-forget, don't block response)
       for (const { insight, metadata } of scored) {
         this.markSurfaced(insight.id, metadata).catch((err) =>
-          this.logger.warn(`Failed to mark insight ${insight.id} as surfaced: ${err.message}`),
+          this.logger.warn(
+            `Failed to mark insight ${insight.id} as surfaced: ${err.message}`,
+          ),
         );
       }
 

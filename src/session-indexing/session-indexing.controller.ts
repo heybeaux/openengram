@@ -35,10 +35,7 @@ export class SessionIndexingController {
     description:
       'Split a conversation transcript into chunks, embed, and store as SESSION memories.',
   })
-  async indexSession(
-    @UserId() userId: string,
-    @Body() dto: IndexSessionDto,
-  ) {
+  async indexSession(@UserId() userId: string, @Body() dto: IndexSessionDto) {
     return this.service.indexSession(userId, dto);
   }
 
@@ -77,10 +74,7 @@ export class SessionIndexingController {
     description:
       'Urgently store key memories/summaries before context window compaction.',
   })
-  async flushMemories(
-    @UserId() userId: string,
-    @Body() dto: FlushMemoriesDto,
-  ) {
+  async flushMemories(@UserId() userId: string, @Body() dto: FlushMemoriesDto) {
     return this.service.flushMemories(userId, dto);
   }
 }

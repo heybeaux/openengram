@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { FailurePattern, FailurePatternType, DelegationContract } from './identity.types';
+import {
+  FailurePattern,
+  FailurePatternType,
+  DelegationContract,
+} from './identity.types';
 import { DelegationContractService } from './delegation-contract.service';
 
 /**
@@ -26,13 +30,25 @@ export class FailurePatternService {
   /** Callback to create insight memories */
   private createMemoryFn?: (
     userId: string,
-    dto: { raw: string; layer: string; memoryType: string; agentId?: string; source: string },
+    dto: {
+      raw: string;
+      layer: string;
+      memoryType: string;
+      agentId?: string;
+      source: string;
+    },
   ) => Promise<any>;
 
   setCreateMemoryFn(
     fn: (
       userId: string,
-      dto: { raw: string; layer: string; memoryType: string; agentId?: string; source: string },
+      dto: {
+        raw: string;
+        layer: string;
+        memoryType: string;
+        agentId?: string;
+        source: string;
+      },
     ) => Promise<any>,
   ): void {
     this.createMemoryFn = fn;
@@ -42,7 +58,9 @@ export class FailurePatternService {
    * Analyze contracts from a DelegationContractService for failure patterns.
    * Called during Waking Cycle or on-demand.
    */
-  async analyze(contractService: DelegationContractService): Promise<FailurePattern[]> {
+  async analyze(
+    contractService: DelegationContractService,
+  ): Promise<FailurePattern[]> {
     const finalized = contractService.getFinalized();
     const newPatterns: FailurePattern[] = [];
 
@@ -59,7 +77,8 @@ export class FailurePatternService {
     for (const [agentId, failures] of byAgent) {
       if (failures.length >= FailurePatternService.REPEATED_FAILURE_THRESHOLD) {
         const existing = this.detectedPatterns.find(
-          (p) => p.patternType === 'repeated_agent_failure' && p.agentId === agentId,
+          (p) =>
+            p.patternType === 'repeated_agent_failure' && p.agentId === agentId,
         );
         if (!existing) {
           const pattern: FailurePattern = {
@@ -81,7 +100,8 @@ export class FailurePatternService {
     const timeoutsByAgent = new Map<string, DelegationContract[]>();
     for (const c of finalized) {
       if (c.status === 'timed_out') {
-        if (!timeoutsByAgent.has(c.delegatedTo)) timeoutsByAgent.set(c.delegatedTo, []);
+        if (!timeoutsByAgent.has(c.delegatedTo))
+          timeoutsByAgent.set(c.delegatedTo, []);
         timeoutsByAgent.get(c.delegatedTo)!.push(c);
       }
     }
@@ -108,11 +128,15 @@ export class FailurePatternService {
     }
 
     // 3. Cascading failures (multiple different agents failing on similar tasks)
-    const allFailures = finalized.filter((c) => c.status === 'failed' || c.status === 'timed_out');
+    const allFailures = finalized.filter(
+      (c) => c.status === 'failed' || c.status === 'timed_out',
+    );
     if (allFailures.length >= FailurePatternService.CASCADE_THRESHOLD) {
       const uniqueAgents = new Set(allFailures.map((f) => f.delegatedTo));
       if (uniqueAgents.size >= 2) {
-        const existing = this.detectedPatterns.find((p) => p.patternType === 'cascading_failure');
+        const existing = this.detectedPatterns.find(
+          (p) => p.patternType === 'cascading_failure',
+        );
         if (!existing) {
           const pattern: FailurePattern = {
             id: randomUUID(),

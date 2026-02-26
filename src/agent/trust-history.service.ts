@@ -40,15 +40,22 @@ export class TrustHistoryService {
       select: { subjectId: true },
       distinct: ['subjectId'],
     });
-    const agentIds = agents.map((a) => a.subjectId).filter((id): id is string => id !== null);
+    const agentIds = agents
+      .map((a) => a.subjectId)
+      .filter((id): id is string => id !== null);
     for (const agentId of agentIds) {
       const memories = await this.prisma.memory.findMany({
         where: { subjectType: 'AGENT', subjectId: agentId, deletedAt: null },
         select: { importanceScore: true },
       });
       if (memories.length === 0) continue;
-      const avg = memories.reduce((s, m) => s + m.importanceScore, 0) / memories.length;
-      this.recordTrustScore(agentId, Math.min(1, Math.max(0, avg)), 'bulk-recompute');
+      const avg =
+        memories.reduce((s, m) => s + m.importanceScore, 0) / memories.length;
+      this.recordTrustScore(
+        agentId,
+        Math.min(1, Math.max(0, avg)),
+        'bulk-recompute',
+      );
     }
     this.logger.log(`Bulk recomputed trust for ${agentIds.length} agents`);
     return { recomputed: agentIds.length, agents: agentIds };

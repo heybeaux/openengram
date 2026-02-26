@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SyncReconciliationService, ReconciliationPlan } from './sync-reconciliation.service';
+import {
+  SyncReconciliationService,
+  ReconciliationPlan,
+} from './sync-reconciliation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 
@@ -38,7 +41,10 @@ describe('SyncReconciliationService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(0),
-        create: jest.fn().mockImplementation(({ data }) => ({ id: `new-${Date.now()}`, ...data })),
+        create: jest.fn().mockImplementation(({ data }) => ({
+          id: `new-${Date.now()}`,
+          ...data,
+        })),
         update: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
@@ -73,8 +79,20 @@ describe('SyncReconciliationService', () => {
     it('should identify local-only, cloud-only, and shared memories', async () => {
       // Local memories
       prisma.memory.findMany.mockResolvedValue([
-        { id: 'local-1', raw: 'shared memory', contentHash: 'hash-shared', layer: 'SEMANTIC', createdAt: new Date() },
-        { id: 'local-2', raw: 'local only memory', contentHash: 'hash-local', layer: 'SEMANTIC', createdAt: new Date() },
+        {
+          id: 'local-1',
+          raw: 'shared memory',
+          contentHash: 'hash-shared',
+          layer: 'SEMANTIC',
+          createdAt: new Date(),
+        },
+        {
+          id: 'local-2',
+          raw: 'local only memory',
+          contentHash: 'hash-local',
+          layer: 'SEMANTIC',
+          createdAt: new Date(),
+        },
       ]);
 
       // Cloud returns shared + cloud-only via pull endpoint
@@ -82,8 +100,24 @@ describe('SyncReconciliationService', () => {
         ok: true,
         json: async () => ({
           memories: [
-            { cloudId: 'cloud-1', raw: 'shared memory', contentHash: 'hash-shared', layer: 'SEMANTIC', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z', deletedAt: null },
-            { cloudId: 'cloud-2', raw: 'cloud only memory', contentHash: 'hash-cloud', layer: 'SEMANTIC', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-02T00:00:00Z', deletedAt: null },
+            {
+              cloudId: 'cloud-1',
+              raw: 'shared memory',
+              contentHash: 'hash-shared',
+              layer: 'SEMANTIC',
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-01T00:00:00Z',
+              deletedAt: null,
+            },
+            {
+              cloudId: 'cloud-2',
+              raw: 'cloud only memory',
+              contentHash: 'hash-cloud',
+              layer: 'SEMANTIC',
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-02T00:00:00Z',
+              deletedAt: null,
+            },
           ],
           hasMore: false,
         }),
@@ -101,7 +135,13 @@ describe('SyncReconciliationService', () => {
 
     it('should handle empty cloud (all local-only)', async () => {
       prisma.memory.findMany.mockResolvedValue([
-        { id: 'local-1', raw: 'mem 1', contentHash: 'hash-1', layer: 'SEMANTIC', createdAt: new Date() },
+        {
+          id: 'local-1',
+          raw: 'mem 1',
+          contentHash: 'hash-1',
+          layer: 'SEMANTIC',
+          createdAt: new Date(),
+        },
       ]);
 
       mockFetch.mockResolvedValue({
@@ -122,7 +162,15 @@ describe('SyncReconciliationService', () => {
         ok: true,
         json: async () => ({
           memories: [
-            { cloudId: 'c-1', raw: 'cloud mem', contentHash: 'hash-c1', layer: 'SEMANTIC', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z', deletedAt: null },
+            {
+              cloudId: 'c-1',
+              raw: 'cloud mem',
+              contentHash: 'hash-c1',
+              layer: 'SEMANTIC',
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-01T00:00:00Z',
+              deletedAt: null,
+            },
           ],
           hasMore: false,
         }),
@@ -139,26 +187,57 @@ describe('SyncReconciliationService', () => {
     it('should push local-only and pull cloud-only memories', async () => {
       const plan: ReconciliationPlan = {
         localOnly: [
-          { contentHash: 'hash-local', raw: 'local mem', localId: 'local-1', layer: 'SEMANTIC', createdAt: '2024-01-01T00:00:00Z' },
+          {
+            contentHash: 'hash-local',
+            raw: 'local mem',
+            localId: 'local-1',
+            layer: 'SEMANTIC',
+            createdAt: '2024-01-01T00:00:00Z',
+          },
         ],
         cloudOnly: [
-          { contentHash: 'hash-cloud', raw: 'cloud mem', cloudId: 'cloud-1', layer: 'SEMANTIC', createdAt: '2024-01-01T00:00:00Z' },
+          {
+            contentHash: 'hash-cloud',
+            raw: 'cloud mem',
+            cloudId: 'cloud-1',
+            layer: 'SEMANTIC',
+            createdAt: '2024-01-01T00:00:00Z',
+          },
         ],
         shared: [
-          { contentHash: 'hash-shared', raw: 'shared', localId: 'local-2', cloudId: 'cloud-2' },
+          {
+            contentHash: 'hash-shared',
+            raw: 'shared',
+            localId: 'local-2',
+            cloudId: 'cloud-2',
+          },
         ],
         summary: {
-          localOnlyCount: 1, cloudOnlyCount: 1, sharedCount: 1,
-          totalLocal: 2, totalCloud: 2, wouldPush: 1, wouldPull: 1, alreadySynced: 1,
+          localOnlyCount: 1,
+          cloudOnlyCount: 1,
+          sharedCount: 1,
+          totalLocal: 2,
+          totalCloud: 2,
+          wouldPush: 1,
+          wouldPull: 1,
+          alreadySynced: 1,
         },
       };
 
       // Mock local memory fetch for push
       prisma.memory.findMany.mockResolvedValue([
         {
-          id: 'local-1', raw: 'local mem', layer: 'SEMANTIC', source: 'EXPLICIT_STATEMENT',
-          contentHash: 'hash-local', importanceScore: 0.5, effectiveScore: 0.5,
-          priority: 3, createdAt: new Date(), extraction: null, entities: [],
+          id: 'local-1',
+          raw: 'local mem',
+          layer: 'SEMANTIC',
+          source: 'EXPLICIT_STATEMENT',
+          contentHash: 'hash-local',
+          importanceScore: 0.5,
+          effectiveScore: 0.5,
+          priority: 3,
+          createdAt: new Date(),
+          extraction: null,
+          entities: [],
         },
       ]);
 
@@ -167,14 +246,23 @@ describe('SyncReconciliationService', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            results: [{ sourceMemoryId: 'local-1', cloudMemoryId: 'cloud-new-1', status: 'created' }],
+            results: [
+              {
+                sourceMemoryId: 'local-1',
+                cloudMemoryId: 'cloud-new-1',
+                status: 'created',
+              },
+            ],
           }),
         })
         // Mock cloud memory fetch for pull
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            raw: 'cloud mem', layer: 'SEMANTIC', source: 'EXPLICIT_STATEMENT', createdAt: '2024-01-01T00:00:00Z',
+            raw: 'cloud mem',
+            layer: 'SEMANTIC',
+            source: 'EXPLICIT_STATEMENT',
+            createdAt: '2024-01-01T00:00:00Z',
           }),
         });
 
@@ -194,12 +282,23 @@ describe('SyncReconciliationService', () => {
       const plan: ReconciliationPlan = {
         localOnly: [],
         cloudOnly: [
-          { contentHash: 'hash-dup', raw: 'dup mem', cloudId: 'cloud-dup', layer: 'SEMANTIC' },
+          {
+            contentHash: 'hash-dup',
+            raw: 'dup mem',
+            cloudId: 'cloud-dup',
+            layer: 'SEMANTIC',
+          },
         ],
         shared: [],
         summary: {
-          localOnlyCount: 0, cloudOnlyCount: 1, sharedCount: 0,
-          totalLocal: 0, totalCloud: 1, wouldPush: 0, wouldPull: 1, alreadySynced: 0,
+          localOnlyCount: 0,
+          cloudOnlyCount: 1,
+          sharedCount: 0,
+          totalLocal: 0,
+          totalCloud: 1,
+          wouldPush: 0,
+          wouldPull: 1,
+          alreadySynced: 0,
         },
       };
 
@@ -242,7 +341,11 @@ describe('CloudLinkService - identity mapping', () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'cloud-acct', email: 'rook@test.com', plan: 'pro' }),
+        json: async () => ({
+          id: 'cloud-acct',
+          email: 'rook@test.com',
+          plan: 'pro',
+        }),
       })
       // Mock sync key creation
       .mockResolvedValueOnce({

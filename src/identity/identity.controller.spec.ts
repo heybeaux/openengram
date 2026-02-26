@@ -13,13 +13,28 @@ describe('IdentityController', () => {
   beforeEach(() => {
     teamProfileService = {
       createTeam: jest.fn().mockResolvedValue({ id: 'team_1', name: 'Test' }),
-      getTeam: jest.fn().mockResolvedValue({ id: 'team_1', name: 'Test', agentIds: ['a', 'b'] }),
-      getTeamCapabilities: jest.fn().mockResolvedValue([{ name: 'coding', score: 0.8, contributors: ['a'] }]),
+      getTeam: jest.fn().mockResolvedValue({
+        id: 'team_1',
+        name: 'Test',
+        agentIds: ['a', 'b'],
+      }),
+      getTeamCapabilities: jest
+        .fn()
+        .mockResolvedValue([
+          { name: 'coding', score: 0.8, contributors: ['a'] },
+        ]),
       listTeams: jest.fn().mockResolvedValue([{ id: 'team_1', name: 'Test' }]),
-      getCollaborationPairs: jest.fn().mockResolvedValue([{ agentA: 'a', agentB: 'b', taskCount: 5, successRate: 0.9 }]),
+      getCollaborationPairs: jest
+        .fn()
+        .mockResolvedValue([
+          { agentA: 'a', agentB: 'b', taskCount: 5, successRate: 0.9 },
+        ]),
     };
     const delegationRecallService = { recall: jest.fn() } as any;
-    const portableIdentityService = { exportIdentity: jest.fn(), importIdentity: jest.fn() } as any;
+    const portableIdentityService = {
+      exportIdentity: jest.fn(),
+      importIdentity: jest.fn(),
+    } as any;
 
     taskCompletionService = {
       create: jest.fn().mockResolvedValue({ id: 'tc_1' }),
@@ -40,23 +55,35 @@ describe('IdentityController', () => {
     };
 
     delegationContractService = {
-      create: jest.fn().mockResolvedValue({ id: 'contract_1', status: 'pending' }),
+      create: jest
+        .fn()
+        .mockResolvedValue({ id: 'contract_1', status: 'pending' }),
       listAll: jest.fn().mockReturnValue([
         { id: 'c1', status: 'pending', delegatedTo: 'agent-a' },
         { id: 'c2', status: 'completed', delegatedTo: 'agent-b' },
       ]),
-      getById: jest.fn().mockReturnValue({ id: 'contract_1', status: 'pending' }),
-      complete: jest.fn().mockResolvedValue({ id: 'contract_1', status: 'completed' }),
+      getById: jest
+        .fn()
+        .mockReturnValue({ id: 'contract_1', status: 'pending' }),
+      complete: jest
+        .fn()
+        .mockResolvedValue({ id: 'contract_1', status: 'completed' }),
     };
 
     challengeService = {
-      create: jest.fn().mockResolvedValue({ id: 'challenge_1', challengeType: 'unsafe' }),
-      getById: jest.fn().mockReturnValue({ id: 'challenge_1', challengeType: 'unsafe' }),
+      create: jest
+        .fn()
+        .mockResolvedValue({ id: 'challenge_1', challengeType: 'unsafe' }),
+      getById: jest
+        .fn()
+        .mockReturnValue({ id: 'challenge_1', challengeType: 'unsafe' }),
       listAll: jest.fn().mockReturnValue([
         { id: 'ch1', contractId: 'c1', resolution: null },
         { id: 'ch2', contractId: 'c2', resolution: 'accepted' },
       ]),
-      resolve: jest.fn().mockResolvedValue({ id: 'challenge_1', resolution: 'accepted' }),
+      resolve: jest
+        .fn()
+        .mockResolvedValue({ id: 'challenge_1', resolution: 'accepted' }),
     };
 
     controller = new IdentityController(
@@ -108,10 +135,24 @@ describe('IdentityController', () => {
 
     it('should filter by isTemplate', async () => {
       delegationContractService.listAll.mockReturnValue([
-        { id: 'c1', status: 'pending', delegatedTo: 'agent-a', isTemplate: true },
-        { id: 'c2', status: 'completed', delegatedTo: 'agent-b', isTemplate: false },
+        {
+          id: 'c1',
+          status: 'pending',
+          delegatedTo: 'agent-a',
+          isTemplate: true,
+        },
+        {
+          id: 'c2',
+          status: 'completed',
+          delegatedTo: 'agent-b',
+          isTemplate: false,
+        },
       ]);
-      const result = await controller.listContracts(undefined, undefined, 'true');
+      const result = await controller.listContracts(
+        undefined,
+        undefined,
+        'true',
+      );
       expect(result.contracts).toHaveLength(1);
       expect(result.contracts[0].id).toBe('c1');
     });
@@ -126,10 +167,17 @@ describe('IdentityController', () => {
 
   describe('PUT /contracts/:id', () => {
     it('should update a contract', async () => {
-      delegationContractService.update = jest.fn().mockReturnValue({ id: 'contract_1', taskDescription: 'Updated' });
-      const result = await controller.updateContract('contract_1', { taskDescription: 'Updated' });
+      delegationContractService.update = jest
+        .fn()
+        .mockReturnValue({ id: 'contract_1', taskDescription: 'Updated' });
+      const result = await controller.updateContract('contract_1', {
+        taskDescription: 'Updated',
+      });
       expect(result.taskDescription).toBe('Updated');
-      expect(delegationContractService.update).toHaveBeenCalledWith('contract_1', { taskDescription: 'Updated' });
+      expect(delegationContractService.update).toHaveBeenCalledWith(
+        'contract_1',
+        { taskDescription: 'Updated' },
+      );
     });
   });
 
@@ -167,7 +215,9 @@ describe('IdentityController', () => {
         { id: 'ch1', contractId: 'c1', resolution: null },
       ]);
       const result = await controller.listChallenges('c1');
-      expect(challengeService.listAll).toHaveBeenCalledWith({ contractId: 'c1' });
+      expect(challengeService.listAll).toHaveBeenCalledWith({
+        contractId: 'c1',
+      });
     });
 
     it('should filter by resolved status', async () => {
@@ -185,9 +235,17 @@ describe('IdentityController', () => {
     it('should filter by type', async () => {
       challengeService.listAll.mockReturnValue([
         { id: 'ch1', challengeType: 'unsafe', resolution: null },
-        { id: 'ch2', challengeType: 'capability_mismatch', resolution: 'accepted' },
+        {
+          id: 'ch2',
+          challengeType: 'capability_mismatch',
+          resolution: 'accepted',
+        },
       ]);
-      const result = await controller.listChallenges(undefined, undefined, 'unsafe');
+      const result = await controller.listChallenges(
+        undefined,
+        undefined,
+        'unsafe',
+      );
       expect(result.challenges).toHaveLength(1);
       expect(result.challenges[0].id).toBe('ch1');
     });
@@ -195,7 +253,10 @@ describe('IdentityController', () => {
 
   describe('GET /challenges/:id', () => {
     it('should get a challenge by ID', async () => {
-      challengeService.getById.mockReturnValue({ id: 'challenge_1', challengeType: 'unsafe' });
+      challengeService.getById.mockReturnValue({
+        id: 'challenge_1',
+        challengeType: 'unsafe',
+      });
       const result = await controller.getChallenge('challenge_1');
       expect(result.id).toBe('challenge_1');
     });
@@ -235,7 +296,10 @@ describe('IdentityController', () => {
       expect(result).toHaveLength(1);
       expect(result[0].successRate).toBe(0.9);
       expect(teamProfileService.getTeam).toHaveBeenCalledWith('team_1');
-      expect(teamProfileService.getCollaborationPairs).toHaveBeenCalledWith(['a', 'b']);
+      expect(teamProfileService.getCollaborationPairs).toHaveBeenCalledWith([
+        'a',
+        'b',
+      ]);
     });
   });
 
@@ -259,10 +323,14 @@ describe('IdentityController', () => {
 
   describe('GET /task-completions', () => {
     it('should query completions', async () => {
-      const result = await controller.queryTaskCompletions({ agentId: 'agent-a' });
+      const result = await controller.queryTaskCompletions({
+        agentId: 'agent-a',
+      });
 
       expect(result).toEqual([]);
-      expect(taskCompletionService.query).toHaveBeenCalledWith({ agentId: 'agent-a' });
+      expect(taskCompletionService.query).toHaveBeenCalledWith({
+        agentId: 'agent-a',
+      });
     });
   });
 
@@ -270,14 +338,20 @@ describe('IdentityController', () => {
     it('should return delegation template', async () => {
       const result = await controller.getDelegationTemplates('Build auth');
 
-      expect('suggestedAgent' in result && result.suggestedAgent).toBe('agent-a');
-      expect(delegationTemplateService.suggest).toHaveBeenCalledWith('Build auth');
+      expect('suggestedAgent' in result && result.suggestedAgent).toBe(
+        'agent-a',
+      );
+      expect(delegationTemplateService.suggest).toHaveBeenCalledWith(
+        'Build auth',
+      );
     });
 
     it('should return error when no taskDescription', async () => {
       const result = await controller.getDelegationTemplates('');
 
-      expect(result).toEqual({ error: 'taskDescription query parameter is required' });
+      expect(result).toEqual({
+        error: 'taskDescription query parameter is required',
+      });
     });
   });
 

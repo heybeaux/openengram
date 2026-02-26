@@ -58,7 +58,9 @@ export class IdentityController {
   // === Agents list with capability & trust summaries ===
 
   @Get('agents')
-  @ApiOperation({ summary: 'List all agents with capability profiles and trust summaries' })
+  @ApiOperation({
+    summary: 'List all agents with capability profiles and trust summaries',
+  })
   async listAgents(@Req() req: any) {
     const accountId = req.accountId;
     const agentFromReq = req.agent;
@@ -78,13 +80,15 @@ export class IdentityController {
         },
       });
     } else if (agentFromReq) {
-      agents = [{
-        id: agentFromReq.id,
-        name: agentFromReq.name,
-        apiKeyHint: agentFromReq.apiKeyHint,
-        createdAt: agentFromReq.createdAt,
-        updatedAt: agentFromReq.updatedAt,
-      }];
+      agents = [
+        {
+          id: agentFromReq.id,
+          name: agentFromReq.name,
+          apiKeyHint: agentFromReq.apiKeyHint,
+          createdAt: agentFromReq.createdAt,
+          updatedAt: agentFromReq.updatedAt,
+        },
+      ];
     } else {
       return { agents: [] };
     }
@@ -161,7 +165,9 @@ export class IdentityController {
   // === Get single agent by ID ===
 
   @Get('agents/:id')
-  @ApiOperation({ summary: 'Get a single agent with capability profiles and trust summary' })
+  @ApiOperation({
+    summary: 'Get a single agent with capability profiles and trust summary',
+  })
   @ApiParam({ name: 'id', description: 'Agent ID' })
   async getAgent(@Param('id') id: string, @Req() req: any) {
     const accountId = req.accountId;
@@ -234,9 +240,21 @@ export class IdentityController {
 
   @Get('contracts')
   @ApiOperation({ summary: 'List delegation contracts' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by status' })
-  @ApiQuery({ name: 'agentId', required: false, description: 'Filter by delegated agent ID' })
-  @ApiQuery({ name: 'isTemplate', required: false, description: 'Filter by template flag' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'agentId',
+    required: false,
+    description: 'Filter by delegated agent ID',
+  })
+  @ApiQuery({
+    name: 'isTemplate',
+    required: false,
+    description: 'Filter by template flag',
+  })
   async listContracts(
     @Query('status') status?: string,
     @Query('agentId') agentId?: string,
@@ -294,9 +312,21 @@ export class IdentityController {
 
   @Get('challenges')
   @ApiOperation({ summary: 'List challenges' })
-  @ApiQuery({ name: 'contractId', required: false, description: 'Filter by contract ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by resolution status (open/resolved/dismissed)' })
-  @ApiQuery({ name: 'type', required: false, description: 'Filter by challenge type' })
+  @ApiQuery({
+    name: 'contractId',
+    required: false,
+    description: 'Filter by contract ID',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by resolution status (open/resolved/dismissed)',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description: 'Filter by challenge type',
+  })
   async listChallenges(
     @Query('contractId') contractId?: string,
     @Query('status') status?: string,
@@ -420,7 +450,12 @@ export class IdentityController {
   @Get('agents/:id/trust-history')
   @ApiOperation({ summary: 'Get trust score history for an agent over time' })
   @ApiParam({ name: 'id', description: 'Agent ID' })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days of history (default 30)' })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Number of days of history (default 30)',
+  })
   async getTrustHistory(
     @Param('id') agentId: string,
     @Query('days') days?: string,
@@ -433,9 +468,18 @@ export class IdentityController {
 
   @Get('trust/bulk')
   @ApiOperation({ summary: 'Get trust profiles for multiple agents' })
-  @ApiQuery({ name: 'agentIds', required: true, description: 'Comma-separated agent IDs' })
+  @ApiQuery({
+    name: 'agentIds',
+    required: true,
+    description: 'Comma-separated agent IDs',
+  })
   async getBulkTrust(@Query('agentIds') agentIds: string) {
-    const ids = agentIds ? agentIds.split(',').map((id) => id.trim()).filter(Boolean) : [];
+    const ids = agentIds
+      ? agentIds
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
     return this.trustProfileService.getBulkProfiles(ids);
   }
 

@@ -96,10 +96,7 @@ export class EntityRadiationStrategy implements AnticipatoryStrategy {
               },
             },
             include: { extraction: true },
-            orderBy: [
-              { effectiveScore: 'desc' },
-              { createdAt: 'desc' },
-            ],
+            orderBy: [{ effectiveScore: 'desc' }, { createdAt: 'desc' }],
             take: 1,
           });
 
@@ -112,7 +109,8 @@ export class EntityRadiationStrategy implements AnticipatoryStrategy {
             (e) => e.targetId === adjEntity.id || e.sourceId === adjEntity.id,
           );
           const edgeWeight = edge?.weight ?? 0.5;
-          const recencyDays = (Date.now() - memory.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+          const recencyDays =
+            (Date.now() - memory.createdAt.getTime()) / (1000 * 60 * 60 * 24);
           const recencyDecay = Math.max(0.1, 1 - recencyDays / 90); // Decay over 90 days
           const salience = edgeWeight * memory.effectiveScore * recencyDecay;
 
@@ -127,7 +125,9 @@ export class EntityRadiationStrategy implements AnticipatoryStrategy {
           });
         }
       } catch (err) {
-        this.logger.warn(`Entity radiation failed for "${entityName}": ${(err as Error).message}`);
+        this.logger.warn(
+          `Entity radiation failed for "${entityName}": ${(err as Error).message}`,
+        );
       }
     }
 

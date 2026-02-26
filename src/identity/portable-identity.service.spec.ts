@@ -114,7 +114,9 @@ describe('PortableIdentityService', () => {
       const exported = await service.exportIdentity('agent-1');
       exported.agentName = 'TAMPERED';
 
-      await expect(service.importIdentity(exported)).rejects.toThrow(BadRequestException);
+      await expect(service.importIdentity(exported)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should reject incompatible schema versions', async () => {
@@ -129,7 +131,9 @@ describe('PortableIdentityService', () => {
       const { integrityHash: _, ...dataWithoutHash } = tampered;
       tampered.integrityHash = service.computeHash(dataWithoutHash);
 
-      await expect(service.importIdentity(tampered)).rejects.toThrow(BadRequestException);
+      await expect(service.importIdentity(tampered)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should use original agentId if no target specified', async () => {

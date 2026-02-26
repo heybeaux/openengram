@@ -27,7 +27,9 @@ describe('TemplateService', () => {
         create: jest.fn().mockResolvedValue(mockTemplate),
         findMany: jest.fn().mockResolvedValue([mockTemplate]),
         findFirst: jest.fn().mockResolvedValue(mockTemplate),
-        update: jest.fn().mockResolvedValue({ ...mockTemplate, name: 'Updated' }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...mockTemplate, name: 'Updated' }),
         delete: jest.fn().mockResolvedValue(mockTemplate),
       },
     };
@@ -62,7 +64,9 @@ describe('TemplateService', () => {
 
   describe('update', () => {
     it('should update a template', async () => {
-      const result = await service.update('user-1', 'tmpl-1', { name: 'Updated' });
+      const result = await service.update('user-1', 'tmpl-1', {
+        name: 'Updated',
+      });
       expect(result.name).toBe('Updated');
     });
 

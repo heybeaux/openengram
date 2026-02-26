@@ -34,9 +34,9 @@ describe('NightlyReembedService', () => {
       }),
     };
     driftService = {
-      measureBatchDrift: jest.fn().mockResolvedValue([
-        { cosineDrift: 0.05, flagged: false },
-      ]),
+      measureBatchDrift: jest
+        .fn()
+        .mockResolvedValue([{ cosineDrift: 0.05, flagged: false }]),
     };
     checkpointService = {
       findActiveCheckpoint: jest.fn().mockResolvedValue(null),
@@ -185,12 +185,12 @@ describe('NightlyReembedService', () => {
       const memories = [{ id: 'm1', raw: 'test', userId: 'user-1' }];
       prisma.memory.findMany.mockResolvedValue(memories);
       ensembleService.embedBatch.mockResolvedValue({
-        embeddings: [
-          { model: 'bge-base', embedding: [0.1], dimensions: 1536 },
-        ],
+        embeddings: [{ model: 'bge-base', embedding: [0.1], dimensions: 1536 }],
       });
 
-      await service.executeReembedJob(makeConfig({ dryRun: true, batchSize: 10 }));
+      await service.executeReembedJob(
+        makeConfig({ dryRun: true, batchSize: 10 }),
+      );
 
       expect(pgvectorProvider.upsertEmbeddings).not.toHaveBeenCalled();
     });
@@ -257,9 +257,7 @@ describe('NightlyReembedService', () => {
       const memories = [{ id: 'm1', raw: 'test', userId: 'user-1' }];
       prisma.memory.findMany.mockResolvedValue(memories);
       ensembleService.embedBatch.mockResolvedValue({
-        embeddings: [
-          { model: 'bge-base', embedding: [0.1], dimensions: 1536 },
-        ],
+        embeddings: [{ model: 'bge-base', embedding: [0.1], dimensions: 1536 }],
       });
       driftService.measureBatchDrift.mockResolvedValue([
         { cosineDrift: 0.2, flagged: true },
@@ -340,14 +338,10 @@ describe('NightlyReembedService', () => {
     });
 
     it('should embed specific memories', async () => {
-      const memories = [
-        { id: 'm1', raw: 'test memory', userId: 'user-1' },
-      ];
+      const memories = [{ id: 'm1', raw: 'test memory', userId: 'user-1' }];
       prisma.memory.findMany.mockResolvedValue(memories);
       ensembleService.embedBatch.mockResolvedValue({
-        embeddings: [
-          { model: 'bge-base', embedding: [0.1], dimensions: 1536 },
-        ],
+        embeddings: [{ model: 'bge-base', embedding: [0.1], dimensions: 1536 }],
       });
 
       await service.reembedMemories(['m1']);

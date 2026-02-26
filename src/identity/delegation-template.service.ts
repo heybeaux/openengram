@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TaskCompletionService, TaskCompletion } from './task-completion.service';
+import {
+  TaskCompletionService,
+  TaskCompletion,
+} from './task-completion.service';
 
 export interface DelegationTemplate {
   suggestedAgent: string;
@@ -43,7 +46,12 @@ export class DelegationTemplateService {
     // Aggregate agent performance from similar tasks
     const agentStats = new Map<
       string,
-      { successes: number; total: number; totalDuration: number; totalSimilarity: number }
+      {
+        successes: number;
+        total: number;
+        totalDuration: number;
+        totalSimilarity: number;
+      }
     >();
 
     for (const task of similar) {
@@ -80,9 +88,7 @@ export class DelegationTemplateService {
     );
 
     // Extract common domain from similar tasks
-    const domains = similar
-      .filter((t) => t.domain)
-      .map((t) => t.domain!);
+    const domains = similar.filter((t) => t.domain).map((t) => t.domain!);
     const domainCounts = new Map<string, number>();
     for (const d of domains) {
       domainCounts.set(d, (domainCounts.get(d) || 0) + 1);

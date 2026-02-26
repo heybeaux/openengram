@@ -97,28 +97,46 @@ describe('Auth Flow (e2e)', () => {
 
   afterAll(async () => {
     // Clean up in correct order
-    const testExternalIds = [userIdA, userIdB, 'auth-e2e-user-a2', 'default', accountId];
-    
-    await prisma.memoryChainLink.deleteMany({
-      where: {
-        source: { user: { externalId: { in: testExternalIds } } },
-      },
-    }).catch(() => {});
-    await prisma.memoryExtraction.deleteMany({
-      where: { memory: { user: { externalId: { in: testExternalIds } } } },
-    }).catch(() => {});
-    await prisma.memory.deleteMany({
-      where: { user: { externalId: { in: testExternalIds } } },
-    }).catch(() => {});
-    await prisma.user.deleteMany({
-      where: { externalId: { in: testExternalIds } },
-    }).catch(() => {});
-    await prisma.agent.deleteMany({
-      where: { id: { in: [agentAId, agentBId].filter(Boolean) } },
-    }).catch(() => {});
-    await prisma.account.deleteMany({
-      where: { id: accountId },
-    }).catch(() => {});
+    const testExternalIds = [
+      userIdA,
+      userIdB,
+      'auth-e2e-user-a2',
+      'default',
+      accountId,
+    ];
+
+    await prisma.memoryChainLink
+      .deleteMany({
+        where: {
+          source: { user: { externalId: { in: testExternalIds } } },
+        },
+      })
+      .catch(() => {});
+    await prisma.memoryExtraction
+      .deleteMany({
+        where: { memory: { user: { externalId: { in: testExternalIds } } } },
+      })
+      .catch(() => {});
+    await prisma.memory
+      .deleteMany({
+        where: { user: { externalId: { in: testExternalIds } } },
+      })
+      .catch(() => {});
+    await prisma.user
+      .deleteMany({
+        where: { externalId: { in: testExternalIds } },
+      })
+      .catch(() => {});
+    await prisma.agent
+      .deleteMany({
+        where: { id: { in: [agentAId, agentBId].filter(Boolean) } },
+      })
+      .catch(() => {});
+    await prisma.account
+      .deleteMany({
+        where: { id: accountId },
+      })
+      .catch(() => {});
 
     // Restore env
     if (origTrustLocal !== undefined) {

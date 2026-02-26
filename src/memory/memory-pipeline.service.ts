@@ -185,23 +185,34 @@ export class MemoryPipelineService {
     }
 
     // 3b. Store capability/preference signals in metadata (HEY-169, HEY-171)
-    if (extracted.capabilities.length > 0 || extracted.preferenceSignals.length > 0) {
+    if (
+      extracted.capabilities.length > 0 ||
+      extracted.preferenceSignals.length > 0
+    ) {
       let existingMeta: Record<string, any> = {};
       try {
-        const existingMem = await this.prisma.memory.findUnique?.({ where: { id: memoryId }, select: { metadata: true } });
+        const existingMem = await this.prisma.memory.findUnique?.({
+          where: { id: memoryId },
+          select: { metadata: true },
+        });
         existingMeta = (existingMem?.metadata as Record<string, any>) || {};
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       const metadataUpdate: Record<string, any> = { ...existingMeta };
 
       if (extracted.capabilities.length > 0) {
         metadataUpdate.capabilities = extracted.capabilities;
       }
       if (extracted.preferenceSignals.length > 0) {
-        metadataUpdate.preferenceCategory = extracted.preferenceSignals[0].category;
+        metadataUpdate.preferenceCategory =
+          extracted.preferenceSignals[0].category;
         metadataUpdate.preference = extracted.preferenceSignals[0].preference;
-        metadataUpdate.preferenceStrength = extracted.preferenceSignals[0].strength;
+        metadataUpdate.preferenceStrength =
+          extracted.preferenceSignals[0].strength;
         if (extracted.preferenceSignals.length > 1) {
-          metadataUpdate.additionalPreferences = extracted.preferenceSignals.slice(1);
+          metadataUpdate.additionalPreferences =
+            extracted.preferenceSignals.slice(1);
         }
       }
 
@@ -409,7 +420,12 @@ export class MemoryPipelineService {
       }
     }
 
-    return { withEmbedding, withoutEmbedding, retryQueueSize, exhaustedRetries };
+    return {
+      withEmbedding,
+      withoutEmbedding,
+      retryQueueSize,
+      exhaustedRetries,
+    };
   }
 
   /**

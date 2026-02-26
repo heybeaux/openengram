@@ -6,7 +6,10 @@ import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
-import { AnticipatoryService, AnticipatoryRunResult } from '../anticipatory/anticipatory.service';
+import {
+  AnticipatoryService,
+  AnticipatoryRunResult,
+} from '../anticipatory/anticipatory.service';
 import {
   MultiQueryMetadataDto,
   ResultExplanationDto,
@@ -216,7 +219,10 @@ export class MemoryQueryService {
           },
         });
       } catch (updateError) {
-        this.logger.warn('[Recall] Failed to update retrieval counts:', updateError?.message);
+        this.logger.warn(
+          '[Recall] Failed to update retrieval counts:',
+          updateError?.message,
+        );
       }
 
       if (dto.agentSessionKey && this.memoryAccessLogService) {
@@ -227,7 +233,9 @@ export class MemoryQueryService {
     }
 
     // v1.6: Anticipatory Recall — run in parallel-ish (after standard recall)
-    let anticipatoryMeta: import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta | undefined;
+    let anticipatoryMeta:
+      | import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta
+      | undefined;
     if (dto.anticipatory?.enabled && this.anticipatoryService) {
       try {
         const excludeIds = new Set(result.map((m) => m.id));
@@ -242,7 +250,9 @@ export class MemoryQueryService {
         }
         anticipatoryMeta = areResult.meta;
       } catch (err) {
-        this.logger.warn(`Anticipatory recall failed: ${(err as Error).message}`);
+        this.logger.warn(
+          `Anticipatory recall failed: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -302,7 +312,8 @@ export class MemoryQueryService {
       if (insights.length === 0) return existingResults;
 
       // HEY-135: Reuse cached query embedding to avoid redundant API call (~500ms saved)
-      const queryEmbedding = cachedQueryEmbedding ?? await this.embedding.generate(query);
+      const queryEmbedding =
+        cachedQueryEmbedding ?? (await this.embedding.generate(query));
 
       // HEY-135: Use vector search to find semantic similarity instead of
       // re-embedding each insight individually (saves N embedding API calls, ~1-2s)
@@ -323,7 +334,7 @@ export class MemoryQueryService {
 
       // Filter by relevance using vector search scores
       const relevantInsights: MemoryWithScore[] = [];
-      const existingIds = new Set(existingResults.map(r => r.id));
+      const existingIds = new Set(existingResults.map((r) => r.id));
 
       for (const insight of insights) {
         // Skip if already in results
@@ -335,7 +346,7 @@ export class MemoryQueryService {
         // Only surface if moderately relevant (> 0.3 similarity)
         if (similarity > 0.3) {
           // Boost score: base similarity + confidence bonus
-          const boostedScore = similarity + (insight.importanceScore * 0.3);
+          const boostedScore = similarity + insight.importanceScore * 0.3;
           relevantInsights.push({
             ...insight,
             score: boostedScore,
@@ -357,7 +368,10 @@ export class MemoryQueryService {
       return merged;
     } catch (error) {
       // Never let insight surfacing break recall
-      this.logger.warn(`[Recall] Insight surfacing failed, skipping: ${(error as Error)?.message || error}`, (error as Error)?.stack);
+      this.logger.warn(
+        `[Recall] Insight surfacing failed, skipping: ${(error as Error)?.message || error}`,
+        (error as Error)?.stack,
+      );
       return existingResults;
     }
   }
@@ -440,7 +454,10 @@ export class MemoryQueryService {
           },
         });
       } catch (updateError) {
-        this.logger.warn('[Recall] Failed to update retrieval counts:', updateError?.message);
+        this.logger.warn(
+          '[Recall] Failed to update retrieval counts:',
+          updateError?.message,
+        );
       }
 
       if (dto.agentSessionKey && this.memoryAccessLogService) {
@@ -464,7 +481,9 @@ export class MemoryQueryService {
     }
 
     // v1.6: Anticipatory Recall — also runs on multi-query path
-    let anticipatoryMeta2: import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta | undefined;
+    let anticipatoryMeta2:
+      | import('../anticipatory/dto/anticipatory.dto').AnticipatoryMeta
+      | undefined;
     if (dto.anticipatory?.enabled && this.anticipatoryService) {
       try {
         const excludeIds = new Set(result.map((m) => m.id));
@@ -479,7 +498,9 @@ export class MemoryQueryService {
         }
         anticipatoryMeta2 = areResult.meta;
       } catch (err) {
-        this.logger.warn(`Anticipatory recall failed: ${(err as Error).message}`);
+        this.logger.warn(
+          `Anticipatory recall failed: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -595,8 +616,17 @@ export class MemoryQueryService {
         })
       : Promise.resolve([]);
 
-    const [identityCandidates, projectCandidates, sessionCandidates, agentMemories] =
-      await Promise.all([identityPromise, projectPromise, sessionPromise, agentPromise]);
+    const [
+      identityCandidates,
+      projectCandidates,
+      sessionCandidates,
+      agentMemories,
+    ] = await Promise.all([
+      identityPromise,
+      projectPromise,
+      sessionPromise,
+      agentPromise,
+    ]);
 
     // 1. Process IDENTITY layer
     const { selected: identityMemories, evicted: identityEvicted } =

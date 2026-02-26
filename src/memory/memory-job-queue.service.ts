@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  BadRequestException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 export const MAX_BATCH_SIZE = 10_000;
@@ -6,7 +11,12 @@ export const MAX_BATCH_SIZE = 10_000;
 /**
  * Job status for individual memory processing jobs.
  */
-export type JobStatus = 'pending' | 'extracting' | 'embedding' | 'completed' | 'failed';
+export type JobStatus =
+  | 'pending'
+  | 'extracting'
+  | 'embedding'
+  | 'completed'
+  | 'failed';
 
 export interface MemoryJob {
   id: string;
@@ -65,7 +75,10 @@ export class MemoryJobQueueService implements OnModuleDestroy {
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor() {
-    this.cleanupInterval = setInterval(() => this.cleanupOldBatches(), this.BATCH_TTL_MS);
+    this.cleanupInterval = setInterval(
+      () => this.cleanupOldBatches(),
+      this.BATCH_TTL_MS,
+    );
     this.cleanupInterval.unref();
   }
 
@@ -124,7 +137,9 @@ export class MemoryJobQueueService implements OnModuleDestroy {
       createdAt: new Date(),
     });
 
-    this.logger.log(`[Queue] Batch ${batchId} created with ${memories.length} jobs`);
+    this.logger.log(
+      `[Queue] Batch ${batchId} created with ${memories.length} jobs`,
+    );
     this.processNext();
 
     return batchId;
@@ -176,7 +191,10 @@ export class MemoryJobQueueService implements OnModuleDestroy {
           break;
         case 'failed':
           failed++;
-          errors.push({ memoryId: job.memoryId, error: job.error || 'Unknown error' });
+          errors.push({
+            memoryId: job.memoryId,
+            error: job.error || 'Unknown error',
+          });
           break;
         default:
           pending++;
@@ -226,7 +244,9 @@ export class MemoryJobQueueService implements OnModuleDestroy {
       job.updatedAt = new Date();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`[Queue] Job ${job.id} failed (attempt ${job.attempts}/${job.maxAttempts}): ${message}`);
+      this.logger.error(
+        `[Queue] Job ${job.id} failed (attempt ${job.attempts}/${job.maxAttempts}): ${message}`,
+      );
 
       if (job.attempts < job.maxAttempts) {
         // Exponential backoff: 1s, 4s, 9s...

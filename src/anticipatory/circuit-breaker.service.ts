@@ -54,7 +54,7 @@ export class CircuitBreakerService {
       if (p95 > AnticipatoryConfig.circuitBreaker.p95ThresholdMs) {
         this.logger.warn(
           `Circuit breaker TRIPPED — p95 latency ${p95}ms > ${AnticipatoryConfig.circuitBreaker.p95ThresholdMs}ms threshold. ` +
-          `ARE disabled for ${AnticipatoryConfig.circuitBreaker.cooldownMs / 1000}s`,
+            `ARE disabled for ${AnticipatoryConfig.circuitBreaker.cooldownMs / 1000}s`,
         );
         this.openedAt = now;
       }

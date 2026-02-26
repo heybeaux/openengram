@@ -64,7 +64,10 @@ export class MemoryGraphService {
     });
 
     const entityMap = new Map<string, any>();
-    const memoryEntityMap = new Map<string, Array<{ id: string; name: string; type: string }>>();
+    const memoryEntityMap = new Map<
+      string,
+      Array<{ id: string; name: string; type: string }>
+    >();
     // Inverted index: entityId → [memoryIds that mention it]
     const entityToMemories = new Map<string, string[]>();
 
@@ -113,8 +116,10 @@ export class MemoryGraphService {
         const ma = memories.find((m) => m.id === a);
         const mb = memories.find((m) => m.id === b);
         // Primary: importance (desc), secondary: recency (desc)
-        const scoreA = (ma?.importanceScore ?? 0) + (ma ? ma.createdAt.getTime() / 1e15 : 0);
-        const scoreB = (mb?.importanceScore ?? 0) + (mb ? mb.createdAt.getTime() / 1e15 : 0);
+        const scoreA =
+          (ma?.importanceScore ?? 0) + (ma ? ma.createdAt.getTime() / 1e15 : 0);
+        const scoreB =
+          (mb?.importanceScore ?? 0) + (mb ? mb.createdAt.getTime() / 1e15 : 0);
         return scoreB - scoreA;
       });
       const cappedMemIds = sortedMemIds.slice(0, 10);
@@ -138,20 +143,23 @@ export class MemoryGraphService {
 
     // ── Entity relationships ────────────────────────────────────────────
     const entityIds = Array.from(entityMap.keys());
-    const relationships = entityIds.length > 0
-      ? await this.prisma.graphRelationship.findMany({
-          where: {
-            OR: [
-              { sourceEntityId: { in: entityIds } },
-              { targetEntityId: { in: entityIds } },
-            ],
-          },
-        })
-      : [];
+    const relationships =
+      entityIds.length > 0
+        ? await this.prisma.graphRelationship.findMany({
+            where: {
+              OR: [
+                { sourceEntityId: { in: entityIds } },
+                { targetEntityId: { in: entityIds } },
+              ],
+            },
+          })
+        : [];
 
     const entityRelEdges = relationships
       .filter(
-        (r) => entityIds.includes(r.sourceEntityId) && entityIds.includes(r.targetEntityId),
+        (r) =>
+          entityIds.includes(r.sourceEntityId) &&
+          entityIds.includes(r.targetEntityId),
       )
       .map((r) => ({
         id: r.id,
@@ -170,7 +178,9 @@ export class MemoryGraphService {
     });
 
     const chainEdges = chainLinks
-      .filter((l) => memoryIds.includes(l.sourceId) && memoryIds.includes(l.targetId))
+      .filter(
+        (l) => memoryIds.includes(l.sourceId) && memoryIds.includes(l.targetId),
+      )
       .map((l) => ({
         id: l.id,
         source: l.sourceId,
@@ -188,7 +198,8 @@ export class MemoryGraphService {
         raw: m.raw,
         layer: m.layer,
         source: m.source,
-        memorySource: agentUserId && m.userId === agentUserId ? 'agent' : 'human',
+        memorySource:
+          agentUserId && m.userId === agentUserId ? 'agent' : 'human',
         importanceScore: m.importanceScore,
         effectiveScore: m.effectiveScore,
         safetyCritical: m.safetyCritical,
@@ -209,7 +220,8 @@ export class MemoryGraphService {
             }
           : null,
         entities: memEntities,
-        primaryEntityType: memEntities.length > 0 ? memEntities[0].type.toLowerCase() : 'other',
+        primaryEntityType:
+          memEntities.length > 0 ? memEntities[0].type.toLowerCase() : 'other',
       };
     });
 

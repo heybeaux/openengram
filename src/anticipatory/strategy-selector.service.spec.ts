@@ -16,7 +16,9 @@ describe('StrategySelectorService', () => {
     selector = new StrategySelectorService();
   });
 
-  function makeSignals(overrides: Partial<ContextSignals> = {}): ContextSignals {
+  function makeSignals(
+    overrides: Partial<ContextSignals> = {},
+  ): ContextSignals {
     return {
       query: 'test',
       userId: 'user1',
@@ -58,26 +60,25 @@ describe('StrategySelectorService', () => {
     (AnticipatoryConfig.strategies as any).behavioralSequence = true;
 
     const result = selector.select(
-      makeSignals({ entities: ['Engram', 'Railway'], topics: ['projects', 'technical'] }),
+      makeSignals({
+        entities: ['Engram', 'Railway'],
+        topics: ['projects', 'technical'],
+      }),
     );
     expect(result.length).toBeLessThanOrEqual(2);
   });
 
   it('should respect override strategies', () => {
-    const result = selector.select(
-      makeSignals({ entities: ['Engram'] }),
-      ['insight_injection'],
-    );
+    const result = selector.select(makeSignals({ entities: ['Engram'] }), [
+      'insight_injection',
+    ]);
     expect(result).toEqual(['insight_injection']);
     expect(result).not.toContain('entity_radiation');
   });
 
   it('should filter disabled strategies from overrides', () => {
     (AnticipatoryConfig.strategies as any).contradictionSurfacing = false;
-    const result = selector.select(
-      makeSignals(),
-      ['contradiction_surfacing'],
-    );
+    const result = selector.select(makeSignals(), ['contradiction_surfacing']);
     expect(result).toHaveLength(0);
   });
 

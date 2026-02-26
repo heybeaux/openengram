@@ -74,10 +74,7 @@ export class TaskCompletionService {
   async query(dto: QueryTaskCompletionsDto): Promise<TaskCompletion[]> {
     const where: any = {};
     if (dto.agentId) {
-      where.OR = [
-        { delegatedTo: dto.agentId },
-        { delegatedBy: dto.agentId },
-      ];
+      where.OR = [{ delegatedTo: dto.agentId }, { delegatedBy: dto.agentId }];
     }
     if (dto.taskId) {
       where.taskId = dto.taskId;

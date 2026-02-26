@@ -179,9 +179,7 @@ export class MemoryController {
     summary: 'Get async batch job status',
     description: 'Poll for the status of an async batch memory creation job.',
   })
-  async getBatchJobStatus(
-    @Param('jobId') jobId: string,
-  ): Promise<{
+  async getBatchJobStatus(@Param('jobId') jobId: string): Promise<{
     jobId: string;
     status: string;
     total: number;
@@ -524,7 +522,12 @@ export class MemoryController {
     @Req() req: any,
     @Res() res: Response,
   ): Promise<void> {
-    const result = { imported: 0, skipped: 0, errors: 0, errorDetails: [] as string[] };
+    const result = {
+      imported: 0,
+      skipped: 0,
+      errors: 0,
+      errorDetails: [] as string[],
+    };
 
     // Read raw body as stream, split on newlines
     const chunks: Buffer[] = [];
@@ -539,7 +542,9 @@ export class MemoryController {
     for (const line of lines) {
       try {
         const memory = JSON.parse(line);
-        const importResult = await this.memoryService.importMemories(userId, [memory]);
+        const importResult = await this.memoryService.importMemories(userId, [
+          memory,
+        ]);
         result.imported += importResult.imported;
         result.skipped += importResult.skipped;
         result.errors += importResult.errors;
@@ -568,7 +573,10 @@ export class MemoryController {
     description:
       'Import memories in background via the job queue. Returns immediately with a job ID for status polling.',
   })
-  @ApiResponse({ status: 202, description: 'Import enqueued for background processing.' })
+  @ApiResponse({
+    status: 202,
+    description: 'Import enqueued for background processing.',
+  })
   async importMemoriesAsync(
     @UserId() userId: string,
     @Body() dto: ImportMemoriesDto,
@@ -593,11 +601,10 @@ export class MemoryController {
   @Get('memories/embedding-status')
   @ApiOperation({
     summary: 'Embedding status',
-    description: 'Show counts of memories with and without embeddings, plus retry queue status.',
+    description:
+      'Show counts of memories with and without embeddings, plus retry queue status.',
   })
-  async getEmbeddingStatus(
-    @UserId() userId: string,
-  ): Promise<{
+  async getEmbeddingStatus(@UserId() userId: string): Promise<{
     withEmbedding: number;
     withoutEmbedding: number;
     retryQueueSize: number;
@@ -613,7 +620,8 @@ export class MemoryController {
   @Post('memories/embedding-retry')
   @ApiOperation({
     summary: 'Retry failed embeddings',
-    description: 'Retry generating embeddings for memories that previously failed.',
+    description:
+      'Retry generating embeddings for memories that previously failed.',
   })
   async retryFailedEmbeddings(): Promise<{
     retried: number;
@@ -664,7 +672,12 @@ export class MemoryController {
   ): Promise<MemoryWithExtraction | null> {
     const accountUserIds = await this.resolveAccountUserIds(req);
     const accountId = req.accountId ?? req.agent?.accountId;
-    return this.memoryService.getById(id, userId, accountUserIds ?? undefined, accountId);
+    return this.memoryService.getById(
+      id,
+      userId,
+      accountUserIds ?? undefined,
+      accountId,
+    );
   }
 
   /**

@@ -65,24 +65,40 @@ describe('Cross-Agent Verification E2E (HEY-131)', () => {
 
     // Clean up leftover test data
     const testExternalIds = [userIdA, userIdB, userIdC];
-    await prisma.memoryChainLink.deleteMany({
-      where: { source: { user: { externalId: { in: testExternalIds } } } },
-    }).catch(() => {});
-    await prisma.memoryExtraction.deleteMany({
-      where: { memory: { user: { externalId: { in: testExternalIds } } } },
-    }).catch(() => {});
-    await prisma.memory.deleteMany({
-      where: { user: { externalId: { in: testExternalIds } } },
-    }).catch(() => {});
-    await prisma.user.deleteMany({
-      where: { externalId: { in: testExternalIds } },
-    }).catch(() => {});
-    await prisma.agent.deleteMany({
-      where: { apiKeyHash: { in: [agentAKeyHash, agentBKeyHash, agentCKeyHash] } },
-    }).catch(() => {});
-    await prisma.account.deleteMany({
-      where: { email: { in: ['hey131-acct1@test.local', 'hey131-acct2@test.local'] } },
-    }).catch(() => {});
+    await prisma.memoryChainLink
+      .deleteMany({
+        where: { source: { user: { externalId: { in: testExternalIds } } } },
+      })
+      .catch(() => {});
+    await prisma.memoryExtraction
+      .deleteMany({
+        where: { memory: { user: { externalId: { in: testExternalIds } } } },
+      })
+      .catch(() => {});
+    await prisma.memory
+      .deleteMany({
+        where: { user: { externalId: { in: testExternalIds } } },
+      })
+      .catch(() => {});
+    await prisma.user
+      .deleteMany({
+        where: { externalId: { in: testExternalIds } },
+      })
+      .catch(() => {});
+    await prisma.agent
+      .deleteMany({
+        where: {
+          apiKeyHash: { in: [agentAKeyHash, agentBKeyHash, agentCKeyHash] },
+        },
+      })
+      .catch(() => {});
+    await prisma.account
+      .deleteMany({
+        where: {
+          email: { in: ['hey131-acct1@test.local', 'hey131-acct2@test.local'] },
+        },
+      })
+      .catch(() => {});
 
     // Create Account 1 with two agents
     const account1 = await prisma.account.create({
@@ -95,12 +111,22 @@ describe('Cross-Agent Verification E2E (HEY-131)', () => {
     account1Id = account1.id;
 
     const agentA = await prisma.agent.create({
-      data: { name: 'Agent A', apiKeyHash: agentAKeyHash, apiKeyHint: 'a131', accountId: account1Id },
+      data: {
+        name: 'Agent A',
+        apiKeyHash: agentAKeyHash,
+        apiKeyHint: 'a131',
+        accountId: account1Id,
+      },
     });
     agentAId = agentA.id;
 
     const agentB = await prisma.agent.create({
-      data: { name: 'Agent B', apiKeyHash: agentBKeyHash, apiKeyHint: 'b131', accountId: account1Id },
+      data: {
+        name: 'Agent B',
+        apiKeyHash: agentBKeyHash,
+        apiKeyHint: 'b131',
+        accountId: account1Id,
+      },
     });
     agentBId = agentB.id;
 
@@ -115,33 +141,51 @@ describe('Cross-Agent Verification E2E (HEY-131)', () => {
     account2Id = account2.id;
 
     const agentC = await prisma.agent.create({
-      data: { name: 'Agent C', apiKeyHash: agentCKeyHash, apiKeyHint: 'c131', accountId: account2Id },
+      data: {
+        name: 'Agent C',
+        apiKeyHash: agentCKeyHash,
+        apiKeyHint: 'c131',
+        accountId: account2Id,
+      },
     });
     agentCId = agentC.id;
   });
 
   afterAll(async () => {
     const testExternalIds = [userIdA, userIdB, userIdC, 'default'];
-    await prisma.memoryChainLink.deleteMany({
-      where: { source: { user: { externalId: { in: testExternalIds } } } },
-    }).catch(() => {});
-    await prisma.memoryExtraction.deleteMany({
-      where: { memory: { user: { externalId: { in: testExternalIds } } } },
-    }).catch(() => {});
-    await prisma.memory.deleteMany({
-      where: { user: { externalId: { in: testExternalIds } } },
-    }).catch(() => {});
-    await prisma.user.deleteMany({
-      where: { externalId: { in: testExternalIds } },
-    }).catch(() => {});
-    await prisma.agent.deleteMany({
-      where: { id: { in: [agentAId, agentBId, agentCId].filter(Boolean) } },
-    }).catch(() => {});
-    await prisma.account.deleteMany({
-      where: { id: { in: [account1Id, account2Id].filter(Boolean) } },
-    }).catch(() => {});
+    await prisma.memoryChainLink
+      .deleteMany({
+        where: { source: { user: { externalId: { in: testExternalIds } } } },
+      })
+      .catch(() => {});
+    await prisma.memoryExtraction
+      .deleteMany({
+        where: { memory: { user: { externalId: { in: testExternalIds } } } },
+      })
+      .catch(() => {});
+    await prisma.memory
+      .deleteMany({
+        where: { user: { externalId: { in: testExternalIds } } },
+      })
+      .catch(() => {});
+    await prisma.user
+      .deleteMany({
+        where: { externalId: { in: testExternalIds } },
+      })
+      .catch(() => {});
+    await prisma.agent
+      .deleteMany({
+        where: { id: { in: [agentAId, agentBId, agentCId].filter(Boolean) } },
+      })
+      .catch(() => {});
+    await prisma.account
+      .deleteMany({
+        where: { id: { in: [account1Id, account2Id].filter(Boolean) } },
+      })
+      .catch(() => {});
 
-    if (origTrustLocal !== undefined) process.env.TRUST_LOCAL_NETWORK = origTrustLocal;
+    if (origTrustLocal !== undefined)
+      process.env.TRUST_LOCAL_NETWORK = origTrustLocal;
     else delete process.env.TRUST_LOCAL_NETWORK;
     if (origLanBypass !== undefined) process.env.LAN_BYPASS = origLanBypass;
     else delete process.env.LAN_BYPASS;

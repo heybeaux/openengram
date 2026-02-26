@@ -289,7 +289,9 @@ export class ContextualRecallService {
       }
     }
     if (evicted > 0) {
-      this.logger.debug(`[SessionTTL] Evicted ${evicted} stale sessions, ${this.sessions.size} remaining`);
+      this.logger.debug(
+        `[SessionTTL] Evicted ${evicted} stale sessions, ${this.sessions.size} remaining`,
+      );
     }
   }
 

@@ -270,7 +270,9 @@ export class MemoryAccessLogService {
     // Get pool memberships
     let pools: any[] = [];
     try {
-      const memberships = await (this.prisma as any).memoryPoolMembership.findMany({
+      const memberships = await (
+        this.prisma as any
+      ).memoryPoolMembership.findMany({
         where: { memoryId },
         include: {
           pool: true,
@@ -286,7 +288,9 @@ export class MemoryAccessLogService {
         updatedAt: m.pool.updatedAt,
       }));
     } catch (err) {
-      this.logger.warn(`Failed to fetch pool memberships: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to fetch pool memberships: ${(err as Error).message}`,
+      );
     }
 
     return {

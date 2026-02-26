@@ -217,12 +217,12 @@ describe('MemoryQueryService', () => {
 
   describe('surfaceInsights (HEY-135)', () => {
     it('should reuse cached query embedding instead of re-generating', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
-      prisma.memory.findMany = jest.fn()
-        .mockResolvedValueOnce([ // standard recall
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([
+          // standard recall
           { id: 'm1', raw: 'memory 1', effectiveScore: 0.8, extraction: {} },
         ])
         .mockResolvedValueOnce([]); // insight query returns none
@@ -236,9 +236,15 @@ describe('MemoryQueryService', () => {
 
     it('should use vector search for insight relevance instead of re-embedding each', async () => {
       const insightMemory = {
-        id: 'insight-1', raw: 'user prefers dark mode', layer: 'INSIGHT',
-        importanceScore: 0.8, effectiveScore: 0.8, createdAt: new Date(),
-        extraction: {}, deletedAt: null, supersededById: null,
+        id: 'insight-1',
+        raw: 'user prefers dark mode',
+        layer: 'INSIGHT',
+        importanceScore: 0.8,
+        effectiveScore: 0.8,
+        createdAt: new Date(),
+        extraction: {},
+        deletedAt: null,
+        supersededById: null,
       };
 
       // Mock findMany to return insights when queried with INSIGHT layer

@@ -62,7 +62,10 @@ export class InsightFeedbackService {
 
     // 3. Calculate new confidence based on direct feedback
     const adjustment = InsightFeedbackService.ADJUSTMENTS[action];
-    const newConfidence = Math.max(0, Math.min(1, previousConfidence + adjustment));
+    const newConfidence = Math.max(
+      0,
+      Math.min(1, previousConfidence + adjustment),
+    );
 
     // 4. Update the insight
     await this.prisma.memory.update({
@@ -97,7 +100,10 @@ export class InsightFeedbackService {
       if (simMeta.insightType !== insightType) continue;
       if (simMeta.acknowledged) continue; // Don't retroactively adjust acknowledged ones
 
-      const adjusted = Math.max(0, Math.min(1, similar.confidence + halfAdjustment));
+      const adjusted = Math.max(
+        0,
+        Math.min(1, similar.confidence + halfAdjustment),
+      );
       await this.prisma.memory.update({
         where: { id: similar.id },
         data: { confidence: adjusted },
@@ -107,7 +113,7 @@ export class InsightFeedbackService {
 
     this.logger.log(
       `Feedback '${action}' on insight ${insightId}: confidence ${previousConfidence.toFixed(2)} → ${newConfidence.toFixed(2)}, ` +
-      `${similarAdjusted} similar insights adjusted`,
+        `${similarAdjusted} similar insights adjusted`,
     );
 
     return {
@@ -152,17 +158,24 @@ export class InsightFeedbackService {
       const history = meta.feedbackHistory || [];
       for (const fb of history) {
         switch (fb.action) {
-          case InsightFeedbackAction.DISMISSED: dismissed++; break;
-          case InsightFeedbackAction.ACTED_ON: actedOn++; break;
-          case InsightFeedbackAction.HELPFUL: helpful++; break;
+          case InsightFeedbackAction.DISMISSED:
+            dismissed++;
+            break;
+          case InsightFeedbackAction.ACTED_ON:
+            actedOn++;
+            break;
+          case InsightFeedbackAction.HELPFUL:
+            helpful++;
+            break;
         }
       }
     }
 
     const total = dismissed + actedOn + helpful;
-    const avgAdjustment = total > 0
-      ? (actedOn * 0.15 + helpful * 0.1 - dismissed * 0.1) / total
-      : 0;
+    const avgAdjustment =
+      total > 0
+        ? (actedOn * 0.15 + helpful * 0.1 - dismissed * 0.1) / total
+        : 0;
 
     return {
       totalFeedback: total,

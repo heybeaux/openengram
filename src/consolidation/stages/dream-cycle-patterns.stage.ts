@@ -161,7 +161,10 @@ export class DreamCyclePatternsStage {
     try {
       this.eventEmitter?.emit(eventName, payload);
     } catch (err) {
-      this.logger.error(`[DreamCycle:Patterns] Failed to emit ${eventName}:`, err);
+      this.logger.error(
+        `[DreamCycle:Patterns] Failed to emit ${eventName}:`,
+        err,
+      );
     }
   }
 }

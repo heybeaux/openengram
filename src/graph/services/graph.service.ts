@@ -314,7 +314,13 @@ export class GraphService {
   async backfill(
     userId: string,
     options?: { limit?: number; priority?: 'high' | 'normal' | 'low' },
-  ): Promise<{ processed: number; skipped: number; failed: number; total: number; durationMs: number }> {
+  ): Promise<{
+    processed: number;
+    skipped: number;
+    failed: number;
+    total: number;
+    durationMs: number;
+  }> {
     const startTime = Date.now();
     this.logger.log(`Starting graph backfill for user ${userId}`);
 
@@ -329,14 +335,20 @@ export class GraphService {
       take: options?.limit || 50,
     });
 
-    const CONCURRENCY = parseInt(this.config.get('GRAPH_BACKFILL_CONCURRENCY') || '5', 10);
+    const CONCURRENCY = parseInt(
+      this.config.get('GRAPH_BACKFILL_CONCURRENCY') || '5',
+      10,
+    );
     let processed = 0;
     let skipped = 0;
     let failed = 0;
 
     for (let i = 0; i < memories.length; i += CONCURRENCY) {
       const batch = memories.slice(i, i + CONCURRENCY);
-      const backfillTimeout = parseInt(this.config.get('GRAPH_BACKFILL_TIMEOUT_MS') || '120000', 10);
+      const backfillTimeout = parseInt(
+        this.config.get('GRAPH_BACKFILL_TIMEOUT_MS') || '120000',
+        10,
+      );
       const results = await Promise.allSettled(
         batch.map(async (memory) => {
           const timeout = new Promise((_, reject) =>
@@ -348,12 +360,17 @@ export class GraphService {
 
       for (const r of results) {
         if (r.status === 'fulfilled') {
-          const res = r.value as { entitiesCreated: number; entitiesUpdated: number };
+          const res = r.value as {
+            entitiesCreated: number;
+            entitiesUpdated: number;
+          };
           if (res.entitiesCreated > 0 || res.entitiesUpdated > 0) processed++;
           else skipped++;
         } else {
           failed++;
-          this.logger.warn(`Failed to process memory in batch: ${r.reason?.message || r.reason}`);
+          this.logger.warn(
+            `Failed to process memory in batch: ${r.reason?.message || r.reason}`,
+          );
         }
       }
 

@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ChallengeService } from './challenge.service';
-import { CreateChallengeDto, ResolveChallengeDto, ChallengeResponseDto } from './dto/challenge.dto';
+import {
+  CreateChallengeDto,
+  ResolveChallengeDto,
+  ChallengeResponseDto,
+} from './dto/challenge.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { SanitizeInterceptor } from '../common/interceptors/sanitize.interceptor';

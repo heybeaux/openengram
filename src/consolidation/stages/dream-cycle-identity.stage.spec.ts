@@ -118,7 +118,9 @@ describe('HEY-176: Dream Cycle Identity Consolidation Stage', () => {
 
       mockLlm.chat.mockResolvedValue({
         content: JSON.stringify({
-          capabilities: [{ name: 'test', confidence: 0.5, lastSeen: '2025-01-01' }],
+          capabilities: [
+            { name: 'test', confidence: 0.5, lastSeen: '2025-01-01' },
+          ],
           preferences: {},
           trustScores: {},
           behavioralTraits: [],
@@ -149,7 +151,9 @@ describe('HEY-176: Dream Cycle Identity Consolidation Stage', () => {
 
       const previousSnapshot = {
         id: 'prev-snapshot',
-        capabilities: [{ name: 'Python', confidence: 0.7, lastSeen: '2024-12-01' }],
+        capabilities: [
+          { name: 'Python', confidence: 0.7, lastSeen: '2024-12-01' },
+        ],
         preferences: { language: 'Python' },
         behavioralTraits: [],
         createdAt: new Date('2025-01-01'),
@@ -157,7 +161,9 @@ describe('HEY-176: Dream Cycle Identity Consolidation Stage', () => {
 
       mockPrisma.memory.findMany.mockResolvedValue(memories);
       mockPrisma.identitySnapshot.findFirst.mockResolvedValue(previousSnapshot);
-      mockPrisma.identitySnapshot.create.mockResolvedValue({ id: 'new-snapshot' });
+      mockPrisma.identitySnapshot.create.mockResolvedValue({
+        id: 'new-snapshot',
+      });
 
       mockLlm.chat.mockResolvedValue({
         content: JSON.stringify({
@@ -199,7 +205,8 @@ describe('HEY-176: Dream Cycle Identity Consolidation Stage', () => {
       mockPrisma.identitySnapshot.create.mockResolvedValue({ id: 'snap-1' });
 
       mockLlm.chat.mockResolvedValue({
-        content: '```json\n{"capabilities":[],"preferences":{},"trustScores":{},"behavioralTraits":[]}\n```',
+        content:
+          '```json\n{"capabilities":[],"preferences":{},"trustScores":{},"behavioralTraits":[]}\n```',
       });
 
       const result = await stage.run('user-1', false, 5);

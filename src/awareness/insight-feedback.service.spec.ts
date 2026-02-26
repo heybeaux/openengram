@@ -42,7 +42,10 @@ describe('InsightFeedbackService', () => {
     });
 
     it('should throw NotFoundException for non-INSIGHT memory', async () => {
-      prisma.memory.findUnique.mockResolvedValue({ ...mockInsight, layer: 'SESSION' });
+      prisma.memory.findUnique.mockResolvedValue({
+        ...mockInsight,
+        layer: 'SESSION',
+      });
 
       await expect(
         service.recordFeedback('insight-1', InsightFeedbackAction.HELPFUL),
@@ -54,7 +57,10 @@ describe('InsightFeedbackService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       prisma.memory.update.mockResolvedValue({});
 
-      const result = await service.recordFeedback('insight-1', InsightFeedbackAction.HELPFUL);
+      const result = await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.HELPFUL,
+      );
 
       expect(result.previousConfidence).toBe(0.7);
       expect(result.newConfidence).toBeCloseTo(0.8, 5); // 0.7 + 0.1
@@ -65,9 +71,13 @@ describe('InsightFeedbackService', () => {
       expect(updateCall.where.id).toBe('insight-1');
       expect(updateCall.data.confidence).toBeCloseTo(0.8, 5);
       expect(updateCall.data.metadata.acknowledged).toBe(true);
-      expect(updateCall.data.metadata.lastFeedbackAction).toBe(InsightFeedbackAction.HELPFUL);
+      expect(updateCall.data.metadata.lastFeedbackAction).toBe(
+        InsightFeedbackAction.HELPFUL,
+      );
       expect(updateCall.data.metadata.feedbackHistory).toHaveLength(1);
-      expect(updateCall.data.metadata.feedbackHistory[0].action).toBe(InsightFeedbackAction.HELPFUL);
+      expect(updateCall.data.metadata.feedbackHistory[0].action).toBe(
+        InsightFeedbackAction.HELPFUL,
+      );
     });
 
     it('should increase confidence more when acted on', async () => {
@@ -75,7 +85,10 @@ describe('InsightFeedbackService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       prisma.memory.update.mockResolvedValue({});
 
-      const result = await service.recordFeedback('insight-1', InsightFeedbackAction.ACTED_ON);
+      const result = await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.ACTED_ON,
+      );
 
       expect(result.newConfidence).toBeCloseTo(0.85); // 0.7 + 0.15
     });
@@ -85,7 +98,10 @@ describe('InsightFeedbackService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       prisma.memory.update.mockResolvedValue({});
 
-      const result = await service.recordFeedback('insight-1', InsightFeedbackAction.DISMISSED);
+      const result = await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.DISMISSED,
+      );
 
       expect(result.newConfidence).toBeCloseTo(0.6); // 0.7 - 0.1
     });
@@ -96,7 +112,10 @@ describe('InsightFeedbackService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       prisma.memory.update.mockResolvedValue({});
 
-      const result = await service.recordFeedback('insight-1', InsightFeedbackAction.ACTED_ON);
+      const result = await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.ACTED_ON,
+      );
 
       expect(result.newConfidence).toBe(1); // clamped at 1
     });
@@ -125,13 +144,18 @@ describe('InsightFeedbackService', () => {
       ]);
       prisma.memory.update.mockResolvedValue({});
 
-      const result = await service.recordFeedback('insight-1', InsightFeedbackAction.DISMISSED);
+      const result = await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.DISMISSED,
+      );
 
       expect(result.similarInsightsAdjusted).toBe(1); // only insight-2
 
       // insight-2 should be adjusted: 0.6 + (-0.1 * 0.5) = 0.55
       const updateCalls = prisma.memory.update.mock.calls;
-      const insight2Update = updateCalls.find((c: any) => c[0].where.id === 'insight-2');
+      const insight2Update = updateCalls.find(
+        (c: any) => c[0].where.id === 'insight-2',
+      );
       expect(insight2Update).toBeDefined();
       expect(insight2Update![0].data.confidence).toBeCloseTo(0.55, 5);
     });
@@ -141,7 +165,11 @@ describe('InsightFeedbackService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       prisma.memory.update.mockResolvedValue({});
 
-      await service.recordFeedback('insight-1', InsightFeedbackAction.DISMISSED, 'Not relevant to me');
+      await service.recordFeedback(
+        'insight-1',
+        InsightFeedbackAction.DISMISSED,
+        'Not relevant to me',
+      );
 
       expect(prisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'insight-1' },
@@ -165,10 +193,7 @@ describe('InsightFeedbackService', () => {
         {
           metadata: {
             insightType: 'pattern_connection',
-            feedbackHistory: [
-              { action: 'dismissed' },
-              { action: 'helpful' },
-            ],
+            feedbackHistory: [{ action: 'dismissed' }, { action: 'helpful' }],
           },
         },
         {
@@ -185,7 +210,10 @@ describe('InsightFeedbackService', () => {
         },
       ]);
 
-      const stats = await service.getFeedbackStats('user-1', 'pattern_connection');
+      const stats = await service.getFeedbackStats(
+        'user-1',
+        'pattern_connection',
+      );
 
       expect(stats.totalFeedback).toBe(3);
       expect(stats.dismissed).toBe(1);

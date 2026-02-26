@@ -33,7 +33,9 @@ export class MemoryJobProcessorService implements OnModuleInit {
    * but we wrap it for status tracking and RLS context.
    */
   async processJob(job: MemoryJob): Promise<void> {
-    this.logger.log(`[JobProcessor] Processing memory ${job.memoryId} (attempt ${job.attempts})`);
+    this.logger.log(
+      `[JobProcessor] Processing memory ${job.memoryId} (attempt ${job.attempts})`,
+    );
 
     job.status = 'extracting';
     job.updatedAt = new Date();

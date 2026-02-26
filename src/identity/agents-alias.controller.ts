@@ -20,7 +20,9 @@ export class AgentsAliasController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single agent (alias for /v1/identity/agents/:id)' })
+  @ApiOperation({
+    summary: 'Get a single agent (alias for /v1/identity/agents/:id)',
+  })
   @ApiParam({ name: 'id', description: 'Agent ID' })
   async getAgent(@Param('id') id: string, @Req() req: any) {
     return this.identityController.getAgent(id, req);

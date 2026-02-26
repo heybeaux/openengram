@@ -163,8 +163,7 @@ export class TrustSignalService {
       what?: string | null;
     } | null;
   }): Promise<void> {
-    const category =
-      memory.extraction?.topics?.[0]?.toLowerCase() ?? undefined;
+    const category = memory.extraction?.topics?.[0]?.toLowerCase() ?? undefined;
 
     // Corrections are explicit trust signals
     if (memory.source === 'CORRECTION') {

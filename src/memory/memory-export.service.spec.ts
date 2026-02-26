@@ -59,7 +59,9 @@ describe('MemoryExportService', () => {
       const result = await service.exportMemories('user-1');
       expect(result).toEqual([]);
       expect(prisma.memory.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId: 'user-1', deletedAt: null } }),
+        expect.objectContaining({
+          where: { userId: 'user-1', deletedAt: null },
+        }),
       );
     });
 
@@ -75,7 +77,15 @@ describe('MemoryExportService', () => {
         subjectId: null,
         projectId: null,
         sessionId: null,
-        extraction: { topics: ['test'], who: 'user', what: 'testing', when: null, whereCtx: null, why: null, how: null },
+        extraction: {
+          topics: ['test'],
+          who: 'user',
+          what: 'testing',
+          when: null,
+          whereCtx: null,
+          why: null,
+          how: null,
+        },
         createdAt: new Date('2026-01-01'),
         updatedAt: new Date('2026-01-01'),
       };
@@ -108,7 +118,10 @@ describe('MemoryExportService', () => {
       ]);
 
       const result = await service.exportMemories('user-1');
-      expect(result[0].ensembleEmbeddings).toEqual({ 'model-a': true, 'model-b': true });
+      expect(result[0].ensembleEmbeddings).toEqual({
+        'model-a': true,
+        'model-b': true,
+      });
     });
   });
 
@@ -117,7 +130,11 @@ describe('MemoryExportService', () => {
       prisma.memory.findMany.mockResolvedValue([]);
       await service.exportMemoriesBatch('user-1', 10, 'cursor-id');
       expect(prisma.memory.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10, skip: 1, cursor: { id: 'cursor-id' } }),
+        expect.objectContaining({
+          take: 10,
+          skip: 1,
+          cursor: { id: 'cursor-id' },
+        }),
       );
     });
 
@@ -140,7 +157,10 @@ describe('MemoryExportService', () => {
 
     beforeEach(() => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.memory.create.mockResolvedValue({ id: 'new-mem-1', layer: MemoryLayer.SESSION });
+      prisma.memory.create.mockResolvedValue({
+        id: 'new-mem-1',
+        layer: MemoryLayer.SESSION,
+      });
     });
 
     it('should import a single memory', async () => {
@@ -187,7 +207,12 @@ describe('MemoryExportService', () => {
     });
 
     it('should handle user with no agent/account', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', externalId: 'ext-1', displayName: null, agent: null });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        externalId: 'ext-1',
+        displayName: null,
+        agent: null,
+      });
       const result = await service.importMemories('user-1', [
         { raw: 'memory 1' },
         { raw: 'memory 2' },

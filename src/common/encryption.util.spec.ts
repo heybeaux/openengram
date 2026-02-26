@@ -19,17 +19,23 @@ describe('encryption.util', () => {
 
     it('should throw when ENCRYPTION_KEY is missing', () => {
       delete process.env.ENCRYPTION_KEY;
-      expect(() => validateEncryptionKey()).toThrow('ENCRYPTION_KEY environment variable is required');
+      expect(() => validateEncryptionKey()).toThrow(
+        'ENCRYPTION_KEY environment variable is required',
+      );
     });
 
     it('should throw when ENCRYPTION_KEY is the default insecure value', () => {
       process.env.ENCRYPTION_KEY = 'engram-default-encryption-key-change-me';
-      expect(() => validateEncryptionKey()).toThrow('ENCRYPTION_KEY environment variable is required');
+      expect(() => validateEncryptionKey()).toThrow(
+        'ENCRYPTION_KEY environment variable is required',
+      );
     });
 
     it('should throw when ENCRYPTION_KEY is empty string', () => {
       process.env.ENCRYPTION_KEY = '';
-      expect(() => validateEncryptionKey()).toThrow('ENCRYPTION_KEY environment variable is required');
+      expect(() => validateEncryptionKey()).toThrow(
+        'ENCRYPTION_KEY environment variable is required',
+      );
     });
   });
 
@@ -83,18 +89,24 @@ describe('encryption.util', () => {
 
   describe('decrypt error handling', () => {
     it('should throw on invalid format (1 part)', () => {
-      expect(() => decrypt('invaliddata')).toThrow('Invalid encrypted value format');
+      expect(() => decrypt('invaliddata')).toThrow(
+        'Invalid encrypted value format',
+      );
     });
 
     it('should throw on invalid format (5 parts)', () => {
-      expect(() => decrypt('a:b:c:d:e')).toThrow('Invalid encrypted value format');
+      expect(() => decrypt('a:b:c:d:e')).toThrow(
+        'Invalid encrypted value format',
+      );
     });
 
     it('should throw on corrupted ciphertext', () => {
       const encrypted = encrypt('test');
       const parts = encrypted.split(':');
       parts[2] = Buffer.from('corrupted').toString('base64');
-      expect(() => decrypt(parts.join(':'))).toThrow('HMAC verification failed');
+      expect(() => decrypt(parts.join(':'))).toThrow(
+        'HMAC verification failed',
+      );
     });
 
     it('should throw when decrypting with wrong key', () => {
@@ -118,7 +130,8 @@ describe('encryption.util', () => {
         cipher.update('legacy test', 'utf8'),
         cipher.final(),
       ]);
-      const legacyEncrypted = iv.toString('hex') + ':' + encrypted.toString('hex');
+      const legacyEncrypted =
+        iv.toString('hex') + ':' + encrypted.toString('hex');
 
       expect(decrypt(legacyEncrypted)).toBe('legacy test');
     });

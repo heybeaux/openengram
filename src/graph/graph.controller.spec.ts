@@ -101,7 +101,11 @@ describe('GraphController', () => {
       const entities = [{ id: 'e1', name: 'Test' }];
       mockEntityService.list.mockResolvedValue(entities);
 
-      const result = await controller.listEntities({} as any, 'user-1', 'person');
+      const result = await controller.listEntities(
+        {} as any,
+        'user-1',
+        'person',
+      );
       expect(mockEntityService.list).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'user-1', type: 'person' }),
       );
@@ -127,7 +131,14 @@ describe('GraphController', () => {
 
     it('should parse limit and offset as integers', async () => {
       mockEntityService.list.mockResolvedValue([]);
-      await controller.listEntities({} as any, 'user-1', undefined, undefined, '10', '5');
+      await controller.listEntities(
+        {} as any,
+        'user-1',
+        undefined,
+        undefined,
+        '10',
+        '5',
+      );
       expect(mockEntityService.list).toHaveBeenCalledWith(
         expect.objectContaining({ limit: 10, offset: 5 }),
       );
@@ -180,10 +191,14 @@ describe('GraphController', () => {
         type: 'person',
         limit: 5,
       });
-      expect(mockGraphService.searchEntities).toHaveBeenCalledWith('u1', 'test', {
-        type: 'person',
-        limit: 5,
-      });
+      expect(mockGraphService.searchEntities).toHaveBeenCalledWith(
+        'u1',
+        'test',
+        {
+          type: 'person',
+          limit: 5,
+        },
+      );
       expect(result).toHaveLength(1);
     });
 
@@ -238,15 +253,19 @@ describe('GraphController', () => {
 
     it('should throw when no userId and no account', async () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
-      await expect(
-        controller.listRelationships({} as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.listRelationships({} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('createRelationship', () => {
     it('should create relationship', async () => {
-      const dto = { sourceEntityId: 'e1', targetEntityId: 'e2', type: 'KNOWS' } as any;
+      const dto = {
+        sourceEntityId: 'e1',
+        targetEntityId: 'e2',
+        type: 'KNOWS',
+      } as any;
       mockRelationshipService.create.mockResolvedValue({ id: 'r1', ...dto });
       const result = await controller.createRelationship(dto);
       expect(result.id).toBe('r1');
@@ -266,7 +285,10 @@ describe('GraphController', () => {
   describe('traverseGraph', () => {
     it('should traverse with valid dto', async () => {
       const dto = { userId: 'u1', startEntityId: 'e1' } as any;
-      mockRelationshipService.traverse.mockResolvedValue({ nodes: [], edges: [] });
+      mockRelationshipService.traverse.mockResolvedValue({
+        nodes: [],
+        edges: [],
+      });
       const result = await controller.traverseGraph(dto);
       expect(result).toEqual({ nodes: [], edges: [] });
     });
@@ -287,7 +309,11 @@ describe('GraphController', () => {
   describe('findPath', () => {
     it('should find path between entities', async () => {
       mockGraphService.findPath.mockResolvedValue({ path: ['e1', 'e2'] });
-      const result = await controller.findPath({ userId: 'u1', from: 'e1', to: 'e2' });
+      const result = await controller.findPath({
+        userId: 'u1',
+        from: 'e1',
+        to: 'e2',
+      });
       expect(result).toEqual({ path: ['e1', 'e2'] });
     });
 
@@ -326,13 +352,19 @@ describe('GraphController', () => {
     it('should get memories with default limit', async () => {
       mockGraphService.getMemoriesForEntity.mockResolvedValue([]);
       await controller.getEntityMemories('e1');
-      expect(mockGraphService.getMemoriesForEntity).toHaveBeenCalledWith('e1', 20);
+      expect(mockGraphService.getMemoriesForEntity).toHaveBeenCalledWith(
+        'e1',
+        20,
+      );
     });
 
     it('should parse custom limit', async () => {
       mockGraphService.getMemoriesForEntity.mockResolvedValue([]);
       await controller.getEntityMemories('e1', '50');
-      expect(mockGraphService.getMemoriesForEntity).toHaveBeenCalledWith('e1', 50);
+      expect(mockGraphService.getMemoriesForEntity).toHaveBeenCalledWith(
+        'e1',
+        50,
+      );
     });
   });
 
@@ -371,15 +403,28 @@ describe('GraphController', () => {
 
   describe('backfill', () => {
     it('should backfill with explicit userId', async () => {
-      mockGraphService.backfill.mockResolvedValue({ processed: 5, skipped: 0, failed: 0 });
-      const result = await controller.backfill({} as any, { userId: 'u1', limit: 10 });
-      expect(mockGraphService.backfill).toHaveBeenCalledWith('u1', { limit: 10 });
+      mockGraphService.backfill.mockResolvedValue({
+        processed: 5,
+        skipped: 0,
+        failed: 0,
+      });
+      const result = await controller.backfill({} as any, {
+        userId: 'u1',
+        limit: 10,
+      });
+      expect(mockGraphService.backfill).toHaveBeenCalledWith('u1', {
+        limit: 10,
+      });
       expect(result.processed).toBe(5);
     });
 
     it('should backfill all account users when no userId', async () => {
       mockPrisma.user.findMany.mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]);
-      mockGraphService.backfill.mockResolvedValue({ processed: 3, skipped: 1, failed: 0 });
+      mockGraphService.backfill.mockResolvedValue({
+        processed: 3,
+        skipped: 1,
+        failed: 0,
+      });
       const result = await controller.backfill(
         { accountId: 'acc-1' } as any,
         {},
@@ -390,16 +435,22 @@ describe('GraphController', () => {
     });
 
     it('should clamp limit to valid range', async () => {
-      mockGraphService.backfill.mockResolvedValue({ processed: 0, skipped: 0, failed: 0 });
+      mockGraphService.backfill.mockResolvedValue({
+        processed: 0,
+        skipped: 0,
+        failed: 0,
+      });
       await controller.backfill({} as any, { userId: 'u1', limit: 99999 });
-      expect(mockGraphService.backfill).toHaveBeenCalledWith('u1', { limit: 5000 });
+      expect(mockGraphService.backfill).toHaveBeenCalledWith('u1', {
+        limit: 5000,
+      });
     });
 
     it('should throw when no userId and no account users', async () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
-      await expect(
-        controller.backfill({} as any, {}),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.backfill({} as any, {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

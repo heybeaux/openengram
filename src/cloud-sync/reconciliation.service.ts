@@ -52,7 +52,9 @@ export class ReconciliationService {
     accountId: string,
     strategy: string,
   ): Promise<ReconciliationResult> {
-    this.logger.log(`Executing reconciliation for ${accountId} with strategy: ${strategy}`);
+    this.logger.log(
+      `Executing reconciliation for ${accountId} with strategy: ${strategy}`,
+    );
 
     const preview = await this.preview(accountId);
 
@@ -79,7 +81,9 @@ export class ReconciliationService {
       }
     }
 
-    this.logger.log(`Reconciliation complete: ${resolved} resolved, ${errors.length} errors`);
+    this.logger.log(
+      `Reconciliation complete: ${resolved} resolved, ${errors.length} errors`,
+    );
 
     return {
       accountId,

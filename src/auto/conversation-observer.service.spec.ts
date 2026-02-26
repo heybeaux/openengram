@@ -49,7 +49,10 @@ describe('ConversationObserverService', () => {
         ConversationObserverService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: MemoryService, useValue: mockMemoryService },
-        { provide: ImportanceDetectorService, useValue: mockImportanceDetector },
+        {
+          provide: ImportanceDetectorService,
+          useValue: mockImportanceDetector,
+        },
         { provide: AutoExtractorService, useValue: mockAutoExtractor },
         { provide: SummarizationService, useValue: mockSummarizationService },
       ],
@@ -71,7 +74,7 @@ describe('ConversationObserverService', () => {
         { role: MessageRole.USER, content: 'My name is Alice' },
         {
           role: MessageRole.ASSISTANT,
-          content: "Nice to meet you, Alice!",
+          content: 'Nice to meet you, Alice!',
         },
       ],
     };
@@ -284,7 +287,9 @@ describe('ConversationObserverService', () => {
 
         const result = await service.observe(userId, basicDto);
 
-        expect(mockSummarizationService.addTurnsToBuffer).not.toHaveBeenCalled();
+        expect(
+          mockSummarizationService.addTurnsToBuffer,
+        ).not.toHaveBeenCalled();
         expect(mockAutoExtractor.extract).toHaveBeenCalled();
       });
     });
@@ -305,7 +310,9 @@ describe('ConversationObserverService', () => {
       mockImportanceDetector.calculateImportance.mockReturnValue(0.85);
 
       const dto: ObserveDto = {
-        turns: [{ role: MessageRole.USER, content: 'Remember this: important fact' }],
+        turns: [
+          { role: MessageRole.USER, content: 'Remember this: important fact' },
+        ],
       };
 
       const result = service.analyzeSignals(dto);
@@ -321,7 +328,15 @@ describe('ConversationObserverService', () => {
         {
           content: 'I always use dark mode',
           importance: 0.8,
-          signals: [{ type: 'preference', trigger: 'always', content: 'dark mode', turnIndex: 0, confidence: 0.8 }],
+          signals: [
+            {
+              type: 'preference',
+              trigger: 'always',
+              content: 'dark mode',
+              turnIndex: 0,
+              confidence: 0.8,
+            },
+          ],
           source: { turnIndex: 0, role: MessageRole.USER },
         },
       ];
@@ -351,7 +366,12 @@ describe('ConversationObserverService', () => {
       mockAutoExtractor.extract.mockResolvedValue(extracted);
 
       await service.observe('user-1', {
-        turns: [{ role: MessageRole.USER, content: 'The project deadline is next Friday' }],
+        turns: [
+          {
+            role: MessageRole.USER,
+            content: 'The project deadline is next Friday',
+          },
+        ],
       });
 
       expect(mockMemoryService.remember).toHaveBeenCalledWith(
@@ -374,7 +394,9 @@ describe('ConversationObserverService', () => {
       mockAutoExtractor.extract.mockResolvedValue(extracted);
 
       await service.observe('user-1', {
-        turns: [{ role: MessageRole.USER, content: 'The weather is nice today' }],
+        turns: [
+          { role: MessageRole.USER, content: 'The weather is nice today' },
+        ],
       });
 
       expect(mockMemoryService.remember).toHaveBeenCalledWith(
@@ -392,28 +414,31 @@ describe('ConversationObserverService', () => {
       [0.75, ImportanceHint.HIGH],
       [0.55, ImportanceHint.MEDIUM],
       [0.3, ImportanceHint.LOW],
-    ])('should map importance %s to %s hint', async (importance, expectedHint) => {
-      const extracted = [
-        {
-          content: 'A fact',
-          importance,
-          signals: [],
-          source: { turnIndex: 0, role: MessageRole.USER },
-        },
-      ];
-      mockAutoExtractor.extract.mockResolvedValue(extracted);
+    ])(
+      'should map importance %s to %s hint',
+      async (importance, expectedHint) => {
+        const extracted = [
+          {
+            content: 'A fact',
+            importance,
+            signals: [],
+            source: { turnIndex: 0, role: MessageRole.USER },
+          },
+        ];
+        mockAutoExtractor.extract.mockResolvedValue(extracted);
 
-      await service.observe('user-1', {
-        turns: [{ role: MessageRole.USER, content: 'test' }],
-        minImportance: 0,
-      });
+        await service.observe('user-1', {
+          turns: [{ role: MessageRole.USER, content: 'test' }],
+          minImportance: 0,
+        });
 
-      expect(mockMemoryService.remember).toHaveBeenCalledWith(
-        'user-1',
-        expect.objectContaining({
-          importanceHint: expectedHint,
-        }),
-      );
-    });
+        expect(mockMemoryService.remember).toHaveBeenCalledWith(
+          'user-1',
+          expect.objectContaining({
+            importanceHint: expectedHint,
+          }),
+        );
+      },
+    );
   });
 });

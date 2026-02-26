@@ -53,9 +53,28 @@ describe('MemoryController', () => {
       consolidationService,
       contextualRecallService,
       prismaService,
-      { enqueue: jest.fn().mockReturnValue('job-123'), getStatus: jest.fn() } as any,
-      { createBatch: jest.fn().mockReturnValue('batch-123'), getBatchStatus: jest.fn() } as any,
-      { getEmbeddingStatus: jest.fn().mockResolvedValue({ withEmbedding: 10, withoutEmbedding: 2, retryQueueSize: 1, exhaustedRetries: 0 }), retryFailedEmbeddings: jest.fn().mockResolvedValue({ retried: 2, succeeded: 1, failed: 1, discovered: 0 }) } as any,
+      {
+        enqueue: jest.fn().mockReturnValue('job-123'),
+        getStatus: jest.fn(),
+      } as any,
+      {
+        createBatch: jest.fn().mockReturnValue('batch-123'),
+        getBatchStatus: jest.fn(),
+      } as any,
+      {
+        getEmbeddingStatus: jest.fn().mockResolvedValue({
+          withEmbedding: 10,
+          withoutEmbedding: 2,
+          retryQueueSize: 1,
+          exhaustedRetries: 0,
+        }),
+        retryFailedEmbeddings: jest.fn().mockResolvedValue({
+          retried: 2,
+          succeeded: 1,
+          failed: 1,
+          discovered: 0,
+        }),
+      } as any,
     );
   });
 
@@ -155,7 +174,12 @@ describe('MemoryController', () => {
       const result = await controller.getMemory(req, userId, 'mem-1');
 
       expect(result).toEqual(expected);
-      expect(memoryService.getById).toHaveBeenCalledWith('mem-1', userId, undefined, 'acc-1');
+      expect(memoryService.getById).toHaveBeenCalledWith(
+        'mem-1',
+        userId,
+        undefined,
+        'acc-1',
+      );
     });
   });
 

@@ -203,7 +203,8 @@ export class StripeService implements OnModuleInit {
   }
 
   private async syncSubscription(customerId: string, subscriptionId: string) {
-    const sub = await this.requireStripe().subscriptions.retrieve(subscriptionId);
+    const sub =
+      await this.requireStripe().subscriptions.retrieve(subscriptionId);
     await this.syncSubscriptionFromObject(sub);
   }
 

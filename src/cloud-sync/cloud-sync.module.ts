@@ -16,7 +16,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [AccountModule, CloudLinkModule, ConfigModule, PrismaModule],
-  controllers: [CloudSyncController, SyncIngestController, ReconciliationController],
+  controllers: [
+    CloudSyncController,
+    SyncIngestController,
+    ReconciliationController,
+  ],
   providers: [
     CloudSyncService,
     CloudSyncPushService,

@@ -50,14 +50,32 @@ describe('ChallengeService', () => {
   });
 
   it('should list all challenges', async () => {
-    await service.create({ taskDescription: 'a', challengeType: 'unsafe', reasoning: 'r' });
-    await service.create({ taskDescription: 'b', challengeType: 'underspecified', reasoning: 'r' });
+    await service.create({
+      taskDescription: 'a',
+      challengeType: 'unsafe',
+      reasoning: 'r',
+    });
+    await service.create({
+      taskDescription: 'b',
+      challengeType: 'underspecified',
+      reasoning: 'r',
+    });
     expect(service.listAll()).toHaveLength(2);
   });
 
   it('should filter challenges by contractId', async () => {
-    await service.create({ contractId: 'c1', taskDescription: 'a', challengeType: 'unsafe', reasoning: 'r' });
-    await service.create({ contractId: 'c2', taskDescription: 'b', challengeType: 'unsafe', reasoning: 'r' });
+    await service.create({
+      contractId: 'c1',
+      taskDescription: 'a',
+      challengeType: 'unsafe',
+      reasoning: 'r',
+    });
+    await service.create({
+      contractId: 'c2',
+      taskDescription: 'b',
+      challengeType: 'unsafe',
+      reasoning: 'r',
+    });
     expect(service.listAll({ contractId: 'c1' })).toHaveLength(1);
   });
 
@@ -82,9 +100,15 @@ describe('ChallengeService', () => {
       challengeType: 'unsafe',
       reasoning: 'risky',
     });
-    await service.resolve(challenge.id, { resolution: 'accepted', resolvedBy: 'agent' });
+    await service.resolve(challenge.id, {
+      resolution: 'accepted',
+      resolvedBy: 'agent',
+    });
     await expect(
-      service.resolve(challenge.id, { resolution: 'overridden', resolvedBy: 'agent' }),
+      service.resolve(challenge.id, {
+        resolution: 'overridden',
+        resolvedBy: 'agent',
+      }),
     ).rejects.toThrow('already resolved');
   });
 
@@ -165,9 +189,18 @@ describe('ChallengeService', () => {
   });
 
   it('should support all challenge types', async () => {
-    const types = ['unsafe', 'underspecified', 'capability_mismatch', 'resource_constraint'] as const;
+    const types = [
+      'unsafe',
+      'underspecified',
+      'capability_mismatch',
+      'resource_constraint',
+    ] as const;
     for (const type of types) {
-      const c = await service.create({ taskDescription: 't', challengeType: type, reasoning: 'r' });
+      const c = await service.create({
+        taskDescription: 't',
+        challengeType: type,
+        reasoning: 'r',
+      });
       expect(c.challengeType).toBe(type);
     }
     expect(service.listAll()).toHaveLength(4);
@@ -176,8 +209,15 @@ describe('ChallengeService', () => {
   it('should support all resolution types', async () => {
     const resolutions = ['accepted', 'overridden', 'modified'] as const;
     for (const resolution of resolutions) {
-      const c = await service.create({ taskDescription: 't', challengeType: 'unsafe', reasoning: 'r' });
-      const resolved = await service.resolve(c.id, { resolution, resolvedBy: 'agent' });
+      const c = await service.create({
+        taskDescription: 't',
+        challengeType: 'unsafe',
+        reasoning: 'r',
+      });
+      const resolved = await service.resolve(c.id, {
+        resolution,
+        resolvedBy: 'agent',
+      });
       expect(resolved.resolution).toBe(resolution);
     }
   });

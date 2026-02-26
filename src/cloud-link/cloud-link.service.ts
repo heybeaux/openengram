@@ -234,9 +234,7 @@ export class CloudLinkService {
         externalId,
       },
     });
-    this.logger.log(
-      `Created user mapping: ${localUserId} → ${cloudUserId}`,
-    );
+    this.logger.log(`Created user mapping: ${localUserId} → ${cloudUserId}`);
   }
 
   async unlinkCloud(accountId: string): Promise<void> {

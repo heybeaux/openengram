@@ -55,10 +55,17 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
 
   describe('generateAndStoreEmbedding', () => {
     it('should generate and store embedding successfully', async () => {
-      const result = await service.generateAndStoreEmbedding('mem-1', 'hello', 'user-1');
+      const result = await service.generateAndStoreEmbedding(
+        'mem-1',
+        'hello',
+        'user-1',
+      );
       expect(result).toBe(true);
       expect(mockEmbedding.generate).toHaveBeenCalledWith('hello');
-      expect(mockEmbedding.store).toHaveBeenCalledWith('mem-1', [0.1, 0.2, 0.3]);
+      expect(mockEmbedding.store).toHaveBeenCalledWith(
+        'mem-1',
+        [0.1, 0.2, 0.3],
+      );
       expect(mockPrisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'mem-1' },
         data: { embeddingId: 'emb-1' },
@@ -68,7 +75,11 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
     it('should queue for retry when embedding fails', async () => {
       mockEmbedding.generate.mockRejectedValue(new Error('Provider down'));
 
-      const result = await service.generateAndStoreEmbedding('mem-1', 'hello', 'user-1');
+      const result = await service.generateAndStoreEmbedding(
+        'mem-1',
+        'hello',
+        'user-1',
+      );
       expect(result).toBe(false);
       expect(mockPrisma.memory.update).not.toHaveBeenCalled();
     });
@@ -80,7 +91,11 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
 
       // Second call succeeds
       mockEmbedding.generate.mockResolvedValueOnce([0.1, 0.2]);
-      const result = await service.generateAndStoreEmbedding('mem-1', 'hello', 'user-1');
+      const result = await service.generateAndStoreEmbedding(
+        'mem-1',
+        'hello',
+        'user-1',
+      );
       expect(result).toBe(true);
     });
   });
@@ -96,7 +111,9 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
       expect(mockPrisma.memoryExtraction.create).toHaveBeenCalled();
       // Phase 2 failed gracefully (no throw)
       expect(mockPrisma.memory.update).not.toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ embeddingId: expect.anything() }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ embeddingId: expect.anything() }),
+        }),
       );
     });
   });

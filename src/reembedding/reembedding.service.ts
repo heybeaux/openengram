@@ -251,7 +251,9 @@ export class ReembeddingService implements OnModuleDestroy {
     job.status = ReembeddingJobStatus.RUNNING;
     job.startedAt = new Date();
 
-    this.logger.log(`Starting job ${jobId} (provider: ${this.embeddingProvider.getProviderName()})`);
+    this.logger.log(
+      `Starting job ${jobId} (provider: ${this.embeddingProvider.getProviderName()})`,
+    );
 
     try {
       // Pre-flight check: verify embedding provider is reachable

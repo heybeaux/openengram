@@ -30,7 +30,9 @@ describe('FileStoreService', () => {
 
     await service.save('test.json', original);
 
-    const loaded = service.load<string, { name: string; value: number }>('test.json');
+    const loaded = service.load<string, { name: string; value: number }>(
+      'test.json',
+    );
     expect(loaded.size).toBe(2);
     expect(loaded.get('a')).toEqual({ name: 'Alice', value: 1 });
     expect(loaded.get('b')).toEqual({ name: 'Bob', value: 2 });
@@ -40,7 +42,10 @@ describe('FileStoreService', () => {
     const map1 = new Map([['x', 1]]);
     await service.save('overwrite.json', map1);
 
-    const map2 = new Map([['y', 2], ['z', 3]]);
+    const map2 = new Map([
+      ['y', 2],
+      ['z', 3],
+    ]);
     await service.save('overwrite.json', map2);
 
     const loaded = service.load<string, number>('overwrite.json');
@@ -50,7 +55,11 @@ describe('FileStoreService', () => {
   });
 
   it('should handle corrupted files gracefully', () => {
-    fs.writeFileSync(path.join(tmpDir, 'bad.json'), '{not valid json[[[', 'utf-8');
+    fs.writeFileSync(
+      path.join(tmpDir, 'bad.json'),
+      '{not valid json[[[',
+      'utf-8',
+    );
     const map = service.load('bad.json');
     expect(map.size).toBe(0);
   });

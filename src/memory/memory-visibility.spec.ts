@@ -46,7 +46,6 @@ describe('HEY-174: Scoped Memory Visibility', () => {
   });
 
   describe('CreateMemoryDto visibility field', () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { CreateMemoryDto } = require('./dto/create-memory.dto');
 
     it('should accept valid visibility values', () => {

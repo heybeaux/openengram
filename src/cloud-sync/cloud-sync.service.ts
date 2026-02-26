@@ -11,7 +11,6 @@ import {
   SyncPushResultItem,
 } from './dto/sync-push.dto';
 
-
 // Delegate services
 import { CloudSyncPushService, SyncResult } from './cloud-sync-push.service';
 import { CloudSyncPullService } from './cloud-sync-pull.service';
@@ -49,9 +48,9 @@ export class CloudSyncService {
    * Returns true if the lock was acquired, false if another instance holds it.
    */
   private async acquireAdvisoryLock(): Promise<boolean> {
-    const result = await this.prisma.$queryRawUnsafe<[{ pg_try_advisory_lock: boolean }]>(
-      `SELECT pg_try_advisory_lock(hashtext('engram_cloud_sync'))`,
-    );
+    const result = await this.prisma.$queryRawUnsafe<
+      [{ pg_try_advisory_lock: boolean }]
+    >(`SELECT pg_try_advisory_lock(hashtext('engram_cloud_sync'))`);
     return result[0]?.pg_try_advisory_lock === true;
   }
 
@@ -74,8 +73,12 @@ export class CloudSyncService {
     // Acquire distributed lock — if another instance is syncing, bail out
     const lockAcquired = await this.acquireAdvisoryLock();
     if (!lockAcquired) {
-      this.logger.log('Another instance is syncing — advisory lock held, skipping');
-      throw new BadRequestException('Sync already in progress on another instance');
+      this.logger.log(
+        'Another instance is syncing — advisory lock held, skipping',
+      );
+      throw new BadRequestException(
+        'Sync already in progress on another instance',
+      );
     }
 
     this.syncAbortController = new AbortController();
@@ -132,7 +135,9 @@ export class CloudSyncService {
           } finally {
             this.syncAbortController = null;
             await this.releaseAdvisoryLock().catch((err) =>
-              this.logger.warn(`Failed to release advisory lock: ${err.message}`),
+              this.logger.warn(
+                `Failed to release advisory lock: ${err.message}`,
+              ),
             );
           }
         })(),
@@ -235,7 +240,11 @@ export class CloudSyncService {
         (memory as any).contentHash = contentHash;
       }
 
-      await this.pushService.syncBatchToCloud([memory], apiKey, link.instanceId);
+      await this.pushService.syncBatchToCloud(
+        [memory],
+        apiKey,
+        link.instanceId,
+      );
     } catch (error: any) {
       this.logger.warn(
         `Auto-sync failed for memory ${event.memoryId}: ${error.message}`,

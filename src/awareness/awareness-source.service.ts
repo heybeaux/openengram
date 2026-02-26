@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 export interface SignalSourceConfig {
@@ -67,12 +72,21 @@ export class AwarenessSourceService implements OnModuleDestroy {
     const source = this.getById(id);
     if (dto.name !== undefined) source.name = dto.name;
     if (dto.enabled !== undefined) source.enabled = dto.enabled;
-    if (dto.config !== undefined) source.config = { ...source.config, ...dto.config };
+    if (dto.config !== undefined)
+      source.config = { ...source.config, ...dto.config };
     source.updatedAt = new Date();
     return source;
   }
 
-  getStatus(id: string): { id: string; name: string; type: string; enabled: boolean; healthy: boolean; lastChecked: string; message: string } {
+  getStatus(id: string): {
+    id: string;
+    name: string;
+    type: string;
+    enabled: boolean;
+    healthy: boolean;
+    lastChecked: string;
+    message: string;
+  } {
     const source = this.getById(id);
     // Basic health check — in production this would ping the actual integration
     return {
@@ -82,7 +96,9 @@ export class AwarenessSourceService implements OnModuleDestroy {
       enabled: source.enabled,
       healthy: source.enabled,
       lastChecked: new Date().toISOString(),
-      message: source.enabled ? 'Source is configured and active' : 'Source is disabled',
+      message: source.enabled
+        ? 'Source is configured and active'
+        : 'Source is disabled',
     };
   }
 

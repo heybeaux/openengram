@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TaskCompletionService } from './task-completion.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
-import { CreateTaskCompletionDto, TaskOutcome } from './dto/task-completion.dto';
+import {
+  CreateTaskCompletionDto,
+  TaskOutcome,
+} from './dto/task-completion.dto';
 
 describe('TaskCompletionService', () => {
   let service: TaskCompletionService;

@@ -58,7 +58,10 @@ export function classifyLayer(
 
   for (const pattern of identityPatterns) {
     if (pattern.test(raw)) {
-      logger.log('[classifyLayer] Matched IDENTITY pattern:', pattern.toString());
+      logger.log(
+        '[classifyLayer] Matched IDENTITY pattern:',
+        pattern.toString(),
+      );
       return MemoryLayer.IDENTITY;
     }
   }
@@ -78,7 +81,10 @@ export function classifyLayer(
 
   for (const pattern of projectPatterns) {
     if (pattern.test(raw)) {
-      logger.log('[classifyLayer] Matched PROJECT pattern:', pattern.toString());
+      logger.log(
+        '[classifyLayer] Matched PROJECT pattern:',
+        pattern.toString(),
+      );
       return MemoryLayer.PROJECT;
     }
   }
@@ -93,10 +99,14 @@ export function classifyLayer(
       return MemoryLayer.PROJECT;
     }
 
-    const personEntities = extracted.entities.filter((e) => e.type === 'person');
+    const personEntities = extracted.entities.filter(
+      (e) => e.type === 'person',
+    );
     if (personEntities.length > 0 && extracted.who) {
       if (/\b(wife|husband|daughter|son|friend|colleague)\b/i.test(raw)) {
-        logger.log('[classifyLayer] Relationship-based classification: IDENTITY');
+        logger.log(
+          '[classifyLayer] Relationship-based classification: IDENTITY',
+        );
         return MemoryLayer.IDENTITY;
       }
     }
@@ -129,8 +139,14 @@ export function normalizeMemoryType(
 
   const normalized = type.toUpperCase().trim();
   const validTypes: MemoryType[] = [
-    'CONSTRAINT', 'PREFERENCE', 'FACT', 'TASK', 'EVENT', 'LESSON',
-    'TASK_OUTCOME', 'SELF_ASSESSMENT',
+    'CONSTRAINT',
+    'PREFERENCE',
+    'FACT',
+    'TASK',
+    'EVENT',
+    'LESSON',
+    'TASK_OUTCOME',
+    'SELF_ASSESSMENT',
   ];
 
   if (validTypes.includes(normalized as MemoryType)) {
@@ -151,7 +167,11 @@ export function normalizeMemoryType(
     return mappings[normalized];
   }
 
-  logger.warn('[Extraction] Unknown memory type:', type, '-> defaulting to FACT');
+  logger.warn(
+    '[Extraction] Unknown memory type:',
+    type,
+    '-> defaulting to FACT',
+  );
   return 'FACT';
 }
 
@@ -181,7 +201,14 @@ export function normalizeEntities(
 }
 
 export function validateEntityType(type: string): EntityWithType['type'] {
-  const validTypes = ['person', 'organization', 'project', 'product', 'location', 'other'];
+  const validTypes = [
+    'person',
+    'organization',
+    'project',
+    'product',
+    'location',
+    'other',
+  ];
   const normalized = type?.toLowerCase().trim();
   return validTypes.includes(normalized)
     ? (normalized as EntityWithType['type'])
@@ -202,7 +229,12 @@ export function normalizeLessonSeverity(
 ): LessonFields['lessonSeverity'] {
   if (!severity) return null;
   const normalized = severity.toLowerCase().trim();
-  const valid: LessonFields['lessonSeverity'][] = ['low', 'medium', 'high', 'critical'];
+  const valid: LessonFields['lessonSeverity'][] = [
+    'low',
+    'medium',
+    'high',
+    'critical',
+  ];
   return valid.includes(normalized as any)
     ? (normalized as LessonFields['lessonSeverity'])
     : 'medium';
@@ -214,7 +246,10 @@ export function normalizeLessonSource(
   if (!source) return null;
   const normalized = source.toLowerCase().trim().replace(/\s+/g, '_');
   const valid: LessonFields['lessonSource'][] = [
-    'user_correction', 'error_detection', 'self_reflection', 'explicit',
+    'user_correction',
+    'error_detection',
+    'self_reflection',
+    'explicit',
   ];
   return valid.includes(normalized as any)
     ? (normalized as LessonFields['lessonSource'])
@@ -226,7 +261,9 @@ export function normalizeLessonSource(
  */
 export function basicMemoryTypeClassification(raw: string): MemoryType {
   if (
-    /\b(allergic|allergy|allergies|intolerant|medication|medical|deadly|fatal)\b/i.test(raw)
+    /\b(allergic|allergy|allergies|intolerant|medication|medical|deadly|fatal)\b/i.test(
+      raw,
+    )
   ) {
     return 'CONSTRAINT';
   }
@@ -237,7 +274,9 @@ export function basicMemoryTypeClassification(raw: string): MemoryType {
     return 'CONSTRAINT';
   }
   if (
-    /\b(that's wrong|that was wrong|you made a mistake|lesson learned|don't do that again)\b/i.test(raw)
+    /\b(that's wrong|that was wrong|you made a mistake|lesson learned|don't do that again)\b/i.test(
+      raw,
+    )
   ) {
     return 'LESSON';
   }
@@ -247,10 +286,18 @@ export function basicMemoryTypeClassification(raw: string): MemoryType {
   ) {
     return 'LESSON';
   }
-  if (/\b(remind|todo|task|need to|should|must|deadline|by tomorrow|by next)\b/i.test(raw)) {
+  if (
+    /\b(remind|todo|task|need to|should|must|deadline|by tomorrow|by next)\b/i.test(
+      raw,
+    )
+  ) {
     return 'TASK';
   }
-  if (/\b(prefer|prefers|favorite|favourite|like|likes|love|loves|enjoy|enjoys|want|wants)\b/i.test(raw)) {
+  if (
+    /\b(prefer|prefers|favorite|favourite|like|likes|love|loves|enjoy|enjoys|want|wants)\b/i.test(
+      raw,
+    )
+  ) {
     return 'PREFERENCE';
   }
   if (
@@ -259,7 +306,11 @@ export function basicMemoryTypeClassification(raw: string): MemoryType {
   ) {
     return 'PREFERENCE';
   }
-  if (/\b(yesterday|today|last week|recently|just now|this morning|earlier)\b/i.test(raw)) {
+  if (
+    /\b(yesterday|today|last week|recently|just now|this morning|earlier)\b/i.test(
+      raw,
+    )
+  ) {
     return 'EVENT';
   }
   return 'FACT';

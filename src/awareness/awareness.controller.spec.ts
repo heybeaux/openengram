@@ -38,7 +38,9 @@ describe('AwarenessController', () => {
         schedule: AwarenessConfig.schedule,
         signals: AwarenessConfig.signals,
         github: {
-          configured: !!AwarenessConfig.github.token && AwarenessConfig.github.repos.length > 0,
+          configured:
+            !!AwarenessConfig.github.token &&
+            AwarenessConfig.github.repos.length > 0,
           repos: AwarenessConfig.github.repos,
         },
         cycleAvailable: true,
@@ -55,7 +57,12 @@ describe('AwarenessController', () => {
 
   describe('triggerCycle', () => {
     it('should run cycle and return results when service is available', async () => {
-      const cycleResult = { observations: 5, patterns: 2, insights: 1, durationMs: 1234 };
+      const cycleResult = {
+        observations: 5,
+        patterns: 2,
+        insights: 1,
+        durationMs: 1234,
+      };
       wakingCycle.runCycle.mockResolvedValue(cycleResult);
       controller = new AwarenessController(prisma, wakingCycle);
 
@@ -71,7 +78,8 @@ describe('AwarenessController', () => {
       const result = await controller.triggerCycle();
 
       expect(result).toEqual({
-        error: 'Waking Cycle not available. Set AWARENESS_ENABLED=true and redeploy.',
+        error:
+          'Waking Cycle not available. Set AWARENESS_ENABLED=true and redeploy.',
         enabled: AwarenessConfig.enabled,
       });
     });
@@ -83,7 +91,11 @@ describe('AwarenessController', () => {
         {
           id: 'ins1',
           raw: 'Test insight content',
-          metadata: { title: 'Test Insight', insightType: 'pattern', confidence: 0.85 },
+          metadata: {
+            title: 'Test Insight',
+            insightType: 'pattern',
+            confidence: 0.85,
+          },
           createdAt: new Date('2026-01-01'),
         },
       ];

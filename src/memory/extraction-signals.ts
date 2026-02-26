@@ -16,11 +16,28 @@ export function extractCapabilitySignals(raw: string): CapabilitySignal[] {
 
   const patterns = [
     { regex: /successfully\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.8 },
-    { regex: /(?:built|created|developed|implemented|deployed|shipped|launched)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
-    { regex: /(?:fixed|resolved|debugged|patched)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
-    { regex: /(?:configured|set up|integrated)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.6 },
-    { regex: /(?:migrated|upgraded|optimized)\s+(.{5,80}?)(?:\.|,|$)/i, confidence: 0.7 },
-    { regex: /(?:proficient|skilled|experienced|expert)\s+(?:in|with|at)\s+(.{3,80}?)(?:\.|,|$)/i, confidence: 0.9 },
+    {
+      regex:
+        /(?:built|created|developed|implemented|deployed|shipped|launched)\s+(.{5,80}?)(?:\.|,|$)/i,
+      confidence: 0.7,
+    },
+    {
+      regex: /(?:fixed|resolved|debugged|patched)\s+(.{5,80}?)(?:\.|,|$)/i,
+      confidence: 0.7,
+    },
+    {
+      regex: /(?:configured|set up|integrated)\s+(.{5,80}?)(?:\.|,|$)/i,
+      confidence: 0.6,
+    },
+    {
+      regex: /(?:migrated|upgraded|optimized)\s+(.{5,80}?)(?:\.|,|$)/i,
+      confidence: 0.7,
+    },
+    {
+      regex:
+        /(?:proficient|skilled|experienced|expert)\s+(?:in|with|at)\s+(.{3,80}?)(?:\.|,|$)/i,
+      confidence: 0.9,
+    },
   ];
 
   for (const { regex, confidence } of patterns) {
@@ -48,13 +65,31 @@ export function extractPreferenceSignals(
   const signals: PreferenceSignal[] = [];
   const seen = new Set<string>();
 
-  const patterns: Array<{ regex: RegExp; strength: PreferenceSignal['strength'] }> = [
+  const patterns: Array<{
+    regex: RegExp;
+    strength: PreferenceSignal['strength'];
+  }> = [
     { regex: /\bi\s+prefer\s+(.{3,100}?)(?:\.|,|$)/i, strength: 'strong' },
-    { regex: /\balways\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
-    { regex: /\bnever\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
-    { regex: /\bi?\s*(?:don't|doesn't|do not)\s+like\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'moderate' },
-    { regex: /\bi?\s*(?:like|enjoy)\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'moderate' },
-    { regex: /\bfavorite\s+(?:\w+\s+)?is\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'strong' },
+    {
+      regex: /\balways\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i,
+      strength: 'strong',
+    },
+    {
+      regex: /\bnever\s+(?:use|uses?)\s+(.{3,80}?)(?:\.|,|$)/i,
+      strength: 'strong',
+    },
+    {
+      regex: /\bi?\s*(?:don't|doesn't|do not)\s+like\s+(.{3,80}?)(?:\.|,|$)/i,
+      strength: 'moderate',
+    },
+    {
+      regex: /\bi?\s*(?:like|enjoy)\s+(.{3,80}?)(?:\.|,|$)/i,
+      strength: 'moderate',
+    },
+    {
+      regex: /\bfavorite\s+(?:\w+\s+)?is\s+(.{3,80}?)(?:\.|,|$)/i,
+      strength: 'strong',
+    },
     { regex: /\busually\s+(.{3,80}?)(?:\.|,|$)/i, strength: 'weak' },
   ];
 
@@ -90,11 +125,19 @@ export function extractPreferenceSignals(
  */
 export function inferPrefCategory(text: string): string {
   const lower = text.toLowerCase();
-  if (/\b(code|programming|language|framework|library|tool|editor|ide)\b/.test(lower)) return 'tooling';
-  if (/\b(ui|ux|design|theme|dark|light|color|font)\b/.test(lower)) return 'interface';
+  if (
+    /\b(code|programming|language|framework|library|tool|editor|ide)\b/.test(
+      lower,
+    )
+  )
+    return 'tooling';
+  if (/\b(ui|ux|design|theme|dark|light|color|font)\b/.test(lower))
+    return 'interface';
   if (/\b(coffee|tea|food|drink|meal)\b/.test(lower)) return 'food';
-  if (/\b(communicate|email|slack|message|call|meeting)\b/.test(lower)) return 'communication';
-  if (/\b(deploy|ci|cd|pipeline|workflow|process)\b/.test(lower)) return 'workflow';
+  if (/\b(communicate|email|slack|message|call|meeting)\b/.test(lower))
+    return 'communication';
+  if (/\b(deploy|ci|cd|pipeline|workflow|process)\b/.test(lower))
+    return 'workflow';
   return 'general';
 }
 
@@ -150,11 +193,36 @@ export function basicExtraction(
 // =========================================================================
 
 const COMMON_WORDS = new Set([
-  'The', 'This', 'That', 'I', 'We', 'They', 'It', 'He', 'She',
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-  'User', 'Assistant',
+  'The',
+  'This',
+  'That',
+  'I',
+  'We',
+  'They',
+  'It',
+  'He',
+  'She',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+  'User',
+  'Assistant',
 ]);
 
 function extractWho(raw: string): string | null {
@@ -172,7 +240,15 @@ function extractTopics(raw: string): string[] {
   const lowered = raw.toLowerCase();
 
   const topicKeywords: Record<string, string[]> = {
-    coding: ['code', 'programming', 'developer', 'api', 'function', 'bug', 'deploy'],
+    coding: [
+      'code',
+      'programming',
+      'developer',
+      'api',
+      'function',
+      'bug',
+      'deploy',
+    ],
     design: ['design', 'ui', 'ux', 'layout', 'color', 'font', 'style'],
     business: ['meeting', 'client', 'project', 'deadline', 'budget', 'pricing'],
     preferences: ['prefer', 'like', 'hate', 'favorite', 'always', 'never'],

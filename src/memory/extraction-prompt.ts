@@ -2,7 +2,10 @@
  * LLM prompt template for memory extraction.
  * Separated for maintainability — the prompt is large and changes independently.
  */
-export const EXTRACTION_PROMPT_TEMPLATE = (userName?: string, timestamp?: Date) => {
+export const EXTRACTION_PROMPT_TEMPLATE = (
+  userName?: string,
+  timestamp?: Date,
+) => {
   const now = timestamp ?? new Date();
   const isoNow = now.toISOString();
   const humanNow = now.toLocaleDateString('en-US', {

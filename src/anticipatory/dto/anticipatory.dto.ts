@@ -1,4 +1,12 @@
-import { IsOptional, IsBoolean, IsNumber, IsArray, IsString, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  IsString,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -24,7 +32,8 @@ export class AnticipatoryOptionsDto {
   maxResults?: number = 3;
 
   @ApiPropertyOptional({
-    description: 'Override strategy selection (e.g., ["entity_radiation", "insight_injection"])',
+    description:
+      'Override strategy selection (e.g., ["entity_radiation", "insight_injection"])',
   })
   @IsOptional()
   @IsArray()

@@ -93,9 +93,7 @@ export class AccountService {
       }
 
       if (plan && plan.toUpperCase() === 'FREE') {
-        throw new BadRequestException(
-          'Invalid plan selection.',
-        );
+        throw new BadRequestException('Invalid plan selection.');
       }
     }
 
@@ -116,9 +114,7 @@ export class AccountService {
     } else if (plan) {
       const upperPlan = plan.toUpperCase();
       if (!['STARTER', 'PRO', 'SCALE'].includes(upperPlan)) {
-        throw new BadRequestException(
-          'Invalid plan selection.',
-        );
+        throw new BadRequestException('Invalid plan selection.');
       }
       resolvedPlan = upperPlan;
     }

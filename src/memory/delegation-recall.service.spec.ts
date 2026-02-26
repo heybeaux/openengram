@@ -62,9 +62,7 @@ describe('ContextualRecallService — Delegation-Aware Recall (HEY-189)', () => 
 
   it('should boost scores for delegator memories', async () => {
     // mem-1 was accessed by delegator, so it should get boosted
-    prisma.memoryAccessLog.findMany.mockResolvedValue([
-      { memoryId: 'mem-1' },
-    ]);
+    prisma.memoryAccessLog.findMany.mockResolvedValue([{ memoryId: 'mem-1' }]);
     prisma.memory.findMany
       .mockResolvedValueOnce([]) // getDelegatorMemoryIds - createdBySession query
       .mockResolvedValue([
@@ -121,9 +119,7 @@ describe('ContextualRecallService — Delegation-Aware Recall (HEY-189)', () => 
   });
 
   it('should use default boost factor of 1.5 when not specified', async () => {
-    prisma.memoryAccessLog.findMany.mockResolvedValue([
-      { memoryId: 'mem-1' },
-    ]);
+    prisma.memoryAccessLog.findMany.mockResolvedValue([{ memoryId: 'mem-1' }]);
     prisma.memory.findMany.mockResolvedValue([]);
 
     const result = await service.recall(userId, {

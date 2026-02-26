@@ -720,7 +720,9 @@ export class EnsembleController {
         // Call the batch embedding method which handles storage
         await this.ensembleService.embedBatchForMemories(batchIds, models);
         processed += batchIds.length;
-        this.logger.log(`[${jobId}] Processed ${processed}/${memoryIds.length}`);
+        this.logger.log(
+          `[${jobId}] Processed ${processed}/${memoryIds.length}`,
+        );
       } catch (error) {
         this.logger.error(`[${jobId}] Batch error:`, error);
         errors += batchIds.length;

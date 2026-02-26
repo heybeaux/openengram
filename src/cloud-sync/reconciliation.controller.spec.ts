@@ -1,6 +1,9 @@
 import { ReconciliationController } from './reconciliation.controller';
 import { SyncReconciliationService } from './sync-reconciliation.service';
-import { ReconciliationPlan, ReconciliationResult } from './sync-reconciliation.service';
+import {
+  ReconciliationPlan,
+  ReconciliationResult,
+} from './sync-reconciliation.service';
 
 const mockPlan: ReconciliationPlan = {
   localOnly: [],
@@ -35,7 +38,9 @@ describe('ReconciliationController', () => {
       reconcile: jest.fn().mockResolvedValue(mockPlan),
       executeReconciliation: jest.fn().mockResolvedValue(mockResult),
     };
-    controller = new ReconciliationController(service as SyncReconciliationService);
+    controller = new ReconciliationController(
+      service as SyncReconciliationService,
+    );
   });
 
   it('should preview reconciliation', async () => {
@@ -48,6 +53,9 @@ describe('ReconciliationController', () => {
     const result = await controller.execute({ accountId: 'acc-1' });
     expect(result).toEqual(mockResult);
     expect(service.reconcile).toHaveBeenCalledWith('acc-1');
-    expect(service.executeReconciliation).toHaveBeenCalledWith('acc-1', mockPlan);
+    expect(service.executeReconciliation).toHaveBeenCalledWith(
+      'acc-1',
+      mockPlan,
+    );
   });
 });

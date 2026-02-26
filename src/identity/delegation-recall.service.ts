@@ -39,7 +39,11 @@ export class DelegationRecallService {
     const queryEmbedding = embedding[0];
 
     // 2. Find similar TASK_COMPLETION memories via vector search
-    const similarTasks = await this.findSimilarTasks(queryEmbedding, userId, limit);
+    const similarTasks = await this.findSimilarTasks(
+      queryEmbedding,
+      userId,
+      limit,
+    );
 
     // 3. Extract failure patterns from low-scoring similar tasks
     const failurePatterns = this.extractFailurePatterns(similarTasks);
@@ -101,9 +105,7 @@ export class DelegationRecallService {
     }));
 
     // Sort by relevance and return top results
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    return scored.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
   /**
@@ -115,7 +117,10 @@ export class DelegationRecallService {
     for (const task of tasks) {
       if (task.outcome && this.isFailureOutcome(task.outcome)) {
         const pattern = this.categorizeFailure(task.outcome);
-        const existing = patterns.get(pattern) || { count: 0, lastDate: task.createdAt };
+        const existing = patterns.get(pattern) || {
+          count: 0,
+          lastDate: task.createdAt,
+        };
         existing.count++;
         if (task.createdAt > existing.lastDate) {
           existing.lastDate = task.createdAt;
@@ -134,16 +139,25 @@ export class DelegationRecallService {
   /**
    * Recommend the best agent for a task based on historical success
    */
-  private recommendAgent(
-    tasks: SimilarTask[],
-  ): { agent: string | null; reason: string | null } {
-    const agentStats = new Map<string, { successes: number; total: number; avgScore: number }>();
+  private recommendAgent(tasks: SimilarTask[]): {
+    agent: string | null;
+    reason: string | null;
+  } {
+    const agentStats = new Map<
+      string,
+      { successes: number; total: number; avgScore: number }
+    >();
 
     for (const task of tasks) {
       if (!task.agentId) continue;
-      const stats = agentStats.get(task.agentId) || { successes: 0, total: 0, avgScore: 0 };
+      const stats = agentStats.get(task.agentId) || {
+        successes: 0,
+        total: 0,
+        avgScore: 0,
+      };
       stats.total++;
-      stats.avgScore = (stats.avgScore * (stats.total - 1) + task.score) / stats.total;
+      stats.avgScore =
+        (stats.avgScore * (stats.total - 1) + task.score) / stats.total;
       if (!this.isFailureOutcome(task.outcome || '')) {
         stats.successes++;
       }
@@ -161,7 +175,10 @@ export class DelegationRecallService {
 
     for (const [agent, stats] of agentStats) {
       const rate = stats.successes / stats.total;
-      if (rate > bestRate || (rate === bestRate && stats.avgScore > bestScore)) {
+      if (
+        rate > bestRate ||
+        (rate === bestRate && stats.avgScore > bestScore)
+      ) {
         bestAgent = agent;
         bestRate = rate;
         bestScore = stats.avgScore;
@@ -178,9 +195,16 @@ export class DelegationRecallService {
 
   private extractOutcome(text: string): string | null {
     const lower = text.toLowerCase();
-    if (lower.includes('completed') || lower.includes('success')) return 'success';
-    if (lower.includes('failed') || lower.includes('error') || lower.includes('failure')) return 'failure';
-    if (lower.includes('partial') || lower.includes('incomplete')) return 'partial';
+    if (lower.includes('completed') || lower.includes('success'))
+      return 'success';
+    if (
+      lower.includes('failed') ||
+      lower.includes('error') ||
+      lower.includes('failure')
+    )
+      return 'failure';
+    if (lower.includes('partial') || lower.includes('incomplete'))
+      return 'partial';
     return null;
   }
 

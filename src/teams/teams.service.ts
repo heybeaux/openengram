@@ -140,9 +140,7 @@ export class TeamsService {
       .map((c) => c.score)
       .filter((s): s is number => s != null);
     const avgScore =
-      scores.length > 0
-        ? scores.reduce((a, b) => a + b, 0) / scores.length
-        : 0;
+      scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
     await this.prisma.agentTeam.update({
       where: { id: teamId },
