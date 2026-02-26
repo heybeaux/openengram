@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DelegationContractController } from './delegation-contract.controller';
 import { DelegationContractService } from './delegation-contract.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
-  onModuleInit: jest.fn(),
+const mockPrisma = {
+  identityContract: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 };
 
 describe('DelegationContractController', () => {
@@ -18,7 +19,7 @@ describe('DelegationContractController', () => {
       controllers: [DelegationContractController],
       providers: [
         DelegationContractService,
-        { provide: FileStoreService, useValue: mockFileStore },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)

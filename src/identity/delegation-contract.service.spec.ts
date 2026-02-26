@@ -2,9 +2,20 @@ import { DelegationContractService } from './delegation-contract.service';
 import { ChallengeService } from './challenge.service';
 import { CreateContractDto } from './identity.types';
 
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
+const mockPrisma = {
+  identityContract: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+    create: jest.fn().mockResolvedValue({}),
+  },
+  identityChallenge: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
+  identityAgentProfile: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 } as any;
 
 describe('DelegationContractService', () => {
@@ -22,8 +33,8 @@ describe('DelegationContractService', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
-    service = new DelegationContractService(mockFileStore);
-    challengeService = new ChallengeService(mockFileStore);
+    service = new DelegationContractService(mockPrisma);
+    challengeService = new ChallengeService(mockPrisma);
     service.setChallengeService(challengeService);
     createMemoryFn = jest.fn().mockResolvedValue({ id: 'mem-1' });
     service.setCreateMemoryFn(createMemoryFn);
