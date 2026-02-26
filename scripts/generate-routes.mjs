@@ -28,21 +28,28 @@ function toConstName(route) {
     .toUpperCase();
 }
 
-// Detect and resolve duplicate constant names
+// Detect and resolve duplicate constant names.
+// When two routes like /a/b-c and /a/b/c collapse to the same key,
+// disambiguate by appending a segment-structure hint instead of a numeric suffix.
 const routeEntries = routes.map(route => ({ route, name: toConstName(route) }));
 const nameCounts = {};
 for (const entry of routeEntries) {
   nameCounts[entry.name] = (nameCounts[entry.name] || 0) + 1;
 }
-// For duplicates, append a suffix based on the original route to disambiguate
-const nameUsed = {};
 for (const entry of routeEntries) {
   if (nameCounts[entry.name] > 1) {
-    const idx = (nameUsed[entry.name] || 0);
-    nameUsed[entry.name] = idx + 1;
-    if (idx > 0) {
-      entry.name = entry.name + '_' + idx;
+    // Build a suffix from the last segment's original form to keep it readable.
+    // e.g. /v1/identity/delegation/recall → _NESTED (sub-resource style)
+    //      /v1/identity/delegation-recall → kept as-is (flat/hyphenated style)
+    const segments = entry.route.replace(/^\//, '').split('/');
+    const lastSeg = segments[segments.length - 1];
+    // If the last segment is a simple word (no hyphen) and there are more segments
+    // than the non-duplicate version, this is the nested variant.
+    const isNested = !lastSeg.includes('-') && segments.length > 3;
+    if (isNested) {
+      entry.name = entry.name + '_NESTED';
     }
+    // Otherwise keep the original name (the hyphenated/flat route gets priority)
   }
 }
 
