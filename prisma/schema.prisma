@@ -163,6 +163,7 @@ model Memory {
   sessionPosition  Int?                   @map("session_position")
   embeddingId      String?                @unique @map("embedding_id")
   embeddingModel   String?                @map("embedding_model")
+  embeddingStatus  EmbeddingStatus        @default(PENDING) @map("embedding_status")
   retrievalCount   Int                    @default(0) @map("retrieval_count")
   lastRetrievedAt  DateTime?              @map("last_retrieved_at")
   usedCount        Int                    @default(0) @map("used_count")
@@ -233,6 +234,7 @@ model Memory {
   @@index([userId, effectiveScore(sort: Desc)]) // Memory Intelligence v2: score-based retrieval
   @@index([contentHash])
   @@index([visibility])
+  @@index([embeddingStatus])
   @@map("memories")
 }
 
@@ -1042,6 +1044,12 @@ model DriftSnapshot {
 }
 
 /// Re-embed job status
+enum EmbeddingStatus {
+  PENDING
+  COMPLETE
+  FAILED
+}
+
 enum EnsembleJobStatus {
   PENDING
   RUNNING

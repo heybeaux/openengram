@@ -68,7 +68,7 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
       );
       expect(mockPrisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'mem-1' },
-        data: { embeddingId: 'emb-1' },
+        data: { embeddingId: 'emb-1', embeddingStatus: 'COMPLETE' },
       });
     });
 
@@ -81,7 +81,10 @@ describe('MemoryPipelineService — Embedding Decoupling (HEY-345)', () => {
         'user-1',
       );
       expect(result).toBe(false);
-      expect(mockPrisma.memory.update).not.toHaveBeenCalled();
+      expect(mockPrisma.memory.update).toHaveBeenCalledWith({
+        where: { id: 'mem-1' },
+        data: { embeddingStatus: 'FAILED' },
+      });
     });
 
     it('should remove from retry queue on success after previous failure', async () => {

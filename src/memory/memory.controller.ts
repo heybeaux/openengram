@@ -625,6 +625,8 @@ export class MemoryController {
   async getEmbeddingStatus(@UserId() userId: string): Promise<{
     withEmbedding: number;
     withoutEmbedding: number;
+    failedEmbedding: number;
+    pendingEmbedding: number;
     retryQueueSize: number;
     exhaustedRetries: number;
   }> {
