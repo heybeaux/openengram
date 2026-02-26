@@ -1,5 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from '../memory/embedding.service';
 import { EmbeddingService as EmbeddingProviderService } from '../embedding/embedding.service';
@@ -14,6 +20,10 @@ import {
   EnrichedMemoryPreviewDto,
 } from './dto/reembedding.dto';
 import { randomUUID } from 'crypto';
+
+const REDIS_JOB_PREFIX = 'engram:reembed:job:';
+const REDIS_CURRENT_JOB_KEY = 'engram:reembed:currentJob';
+const JOB_TTL_SECONDS = 604_800; // 7 days
 
 /**
  * Internal job state (in-memory for MVP)
@@ -43,11 +53,11 @@ interface ReembeddingJob {
  * - Dry run support for previewing changes
  */
 @Injectable()
-export class ReembeddingService implements OnModuleDestroy {
+export class ReembeddingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ReembeddingService.name);
-  // In-memory job storage (MVP - would use DB/Redis in production)
   private jobs: Map<string, ReembeddingJob> = new Map();
   private currentJob: string | null = null;
+  private redis: Redis | null = null;
 
   constructor(
     private config: ConfigService,
@@ -55,7 +65,25 @@ export class ReembeddingService implements OnModuleDestroy {
     private embedding: EmbeddingService,
     private enricher: ContextEnricherService,
     private embeddingProvider: EmbeddingProviderService,
-  ) {}
+  ) {
+    const redisUrl = this.config.get<string>('REDIS_URL');
+    if (redisUrl && redisUrl.startsWith('redis')) {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+      });
+      this.redis.connect().catch((err) => {
+        this.logger.warn(
+          `[ReembeddingService] Redis connect failed, falling back to in-memory: ${err.message}`,
+        );
+        this.redis = null;
+      });
+    }
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.restoreAndRecoverJobs();
+  }
 
   onModuleDestroy(): void {
     const runningJobs = Array.from(this.jobs.values()).filter(
@@ -65,6 +93,14 @@ export class ReembeddingService implements OnModuleDestroy {
       this.logger.warn(
         `Shutting down with ${runningJobs.length} re-embedding job(s) still in progress: ${runningJobs.map((j) => j.id).join(', ')}`,
       );
+      for (const job of runningJobs) {
+        job.status = ReembeddingJobStatus.FAILED;
+        job.completedAt = new Date();
+        job.error =
+          (job.error ? job.error + '; ' : '') +
+          'Interrupted by server shutdown';
+        this.persistJob(job).catch(() => {});
+      }
     }
   }
 
@@ -114,6 +150,8 @@ export class ReembeddingService implements OnModuleDestroy {
     };
     this.jobs.set(jobId, job);
     this.currentJob = jobId;
+    this.persistJob(job).catch(() => {});
+    this.persistCurrentJob(jobId).catch(() => {});
 
     // Start processing asynchronously
     this.runJob(jobId).catch((error) => {
@@ -123,6 +161,7 @@ export class ReembeddingService implements OnModuleDestroy {
         failedJob.status = ReembeddingJobStatus.FAILED;
         failedJob.error = error.message;
         failedJob.completedAt = new Date();
+        this.persistJob(failedJob).catch(() => {});
       }
     });
 
@@ -316,6 +355,7 @@ export class ReembeddingService implements OnModuleDestroy {
 
       job.status = ReembeddingJobStatus.COMPLETED;
       job.completedAt = new Date();
+      await this.persistJob(job);
 
       this.logger.log(
         `[ReembeddingService] Job ${jobId} completed: ` +
@@ -325,6 +365,7 @@ export class ReembeddingService implements OnModuleDestroy {
       job.status = ReembeddingJobStatus.FAILED;
       job.error = error instanceof Error ? error.message : String(error);
       job.completedAt = new Date();
+      await this.persistJob(job);
       throw error;
     }
   }
@@ -422,5 +463,93 @@ export class ReembeddingService implements OnModuleDestroy {
       completedAt: job.completedAt,
       error: job.error,
     };
+  }
+
+  // ─── Redis-backed job persistence ──────────────────────────────────
+
+  private async persistJob(job: ReembeddingJob): Promise<void> {
+    if (!this.redis) return;
+    try {
+      // Omit non-serializable options field for storage
+      const serializable = { ...job, options: undefined };
+      await this.redis.set(
+        `${REDIS_JOB_PREFIX}${job.id}`,
+        JSON.stringify(serializable),
+        'EX',
+        JOB_TTL_SECONDS,
+      );
+    } catch {
+      // fallback to memory-only
+    }
+  }
+
+  private async persistCurrentJob(jobId: string | null): Promise<void> {
+    if (!this.redis) return;
+    try {
+      if (jobId) {
+        await this.redis.set(
+          REDIS_CURRENT_JOB_KEY,
+          jobId,
+          'EX',
+          JOB_TTL_SECONDS,
+        );
+      } else {
+        await this.redis.del(REDIS_CURRENT_JOB_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private deserializeJob(raw: string): ReembeddingJob {
+    const parsed = JSON.parse(raw);
+    parsed.startedAt = parsed.startedAt
+      ? new Date(parsed.startedAt)
+      : undefined;
+    parsed.completedAt = parsed.completedAt
+      ? new Date(parsed.completedAt)
+      : undefined;
+    parsed.options = parsed.options ?? {};
+    return parsed;
+  }
+
+  private async restoreAndRecoverJobs(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      const keys = await this.redis.keys(`${REDIS_JOB_PREFIX}*`);
+      for (const key of keys) {
+        const raw = await this.redis.get(key);
+        if (!raw) continue;
+        const job = this.deserializeJob(raw);
+        if (
+          job.status === ReembeddingJobStatus.RUNNING ||
+          job.status === ReembeddingJobStatus.PENDING
+        ) {
+          job.status = ReembeddingJobStatus.FAILED;
+          job.completedAt = new Date();
+          job.error =
+            (job.error ? job.error + '; ' : '') +
+            'Interrupted by server restart';
+          await this.persistJob(job);
+          this.logger.warn(
+            `[ReembeddingService] Marked stale job ${job.id} as failed (interrupted by restart)`,
+          );
+        }
+        this.jobs.set(job.id, job);
+      }
+      // Clear stale currentJob pointer
+      const currentJobId = await this.redis.get(REDIS_CURRENT_JOB_KEY);
+      if (currentJobId) {
+        const currentJob = this.jobs.get(currentJobId);
+        if (!currentJob || currentJob.status !== ReembeddingJobStatus.RUNNING) {
+          this.currentJob = null;
+          await this.persistCurrentJob(null);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[ReembeddingService] Failed to restore jobs from Redis: ${err}`,
+      );
+    }
   }
 }
