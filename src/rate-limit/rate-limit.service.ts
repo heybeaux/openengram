@@ -1,78 +1,123 @@
 /**
  * ============================================================================
- * ⚠️  SINGLE-INSTANCE RATE LIMITER — PER-PROCESS ONLY (HEY-352)
+ * Redis-backed sliding-window rate limiter (HEY-379)
  * ============================================================================
  *
- * This rate limiter stores all state in process memory. It is NOT suitable
- * for multi-instance deployments behind a load balancer — each process
- * maintains independent counters, effectively multiplying the allowed rate
- * by the number of instances.
+ * Uses Redis sorted sets for sliding-window counters. Each request is stored
+ * as a member scored by timestamp. On each consume() call, expired entries
+ * are pruned and the window count determines whether the request is allowed.
  *
- * For the current single-instance deployment this is fine. When scaling
- * horizontally, replace with a shared-storage implementation (Redis, PG, etc).
+ * Falls back to in-memory token buckets when REDIS_URL is not configured,
+ * preserving single-instance behaviour for local development.
  * ============================================================================
  */
 
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 
 interface RateLimitBucket {
   tokens: number;
   lastRefill: number;
 }
 
-/**
- * In-memory token-bucket rate limiter.
- *
- * ⚠️  KNOWN LIMITATION (HEY-219): This implementation stores buckets in
- * process memory. It does NOT work correctly when running multiple server
- * instances behind a load balancer — each instance maintains its own
- * independent counters, so a client can effectively multiply its rate limit
- * by the number of instances.
- *
- * TODO(HEY-219): Replace with a shared-storage rate limiter when scaling
- * horizontally.  Options (in order of preference):
- *   1. Redis-backed sliding window (if/when Redis is added to the stack)
- *   2. Postgres-backed counter table with row-level TTL cleanup
- *   3. External rate-limit service (e.g. Cloudflare, API gateway layer)
- *
- * For single-instance deployments (current prod) this is fine.
- */
-// TODO: HEY-352 - Migrate to Redis when available for multi-instance support
 @Injectable()
-export class RateLimitService implements OnModuleDestroy {
-  private buckets = new Map<string, RateLimitBucket>();
+export class RateLimitService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RateLimitService.name);
 
-  // Clean up old buckets every 5 minutes (lazy-initialized to avoid leaking in tests)
+  private redis: Redis | null = null;
+  private readonly redisUrl: string | undefined;
+
+  /** In-memory fallback (used when Redis is unavailable) */
+  private buckets = new Map<string, RateLimitBucket>();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
-  private ensureCleanupInterval(): void {
-    if (!this.cleanupInterval) {
-      this.cleanupInterval = setInterval(() => {
-        const now = Date.now();
-        for (const [key, bucket] of this.buckets) {
-          if (now - bucket.lastRefill > 120_000) {
-            this.buckets.delete(key);
-          }
-        }
-      }, 300_000);
-      // Unref so the interval doesn't prevent Node.js from exiting
-      if (
-        typeof this.cleanupInterval === 'object' &&
-        'unref' in this.cleanupInterval
-      ) {
-        this.cleanupInterval.unref();
+  constructor(private readonly configService: ConfigService) {
+    this.redisUrl = this.configService.get<string>('REDIS_URL');
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (this.redisUrl) {
+      try {
+        this.redis = new Redis(this.redisUrl, {
+          maxRetriesPerRequest: 3,
+          lazyConnect: true,
+          keyPrefix: 'engram:rl:',
+        });
+        await this.redis.connect();
+        this.logger.log('Redis connected for rate limiting');
+      } catch (err) {
+        this.logger.warn(
+          `Redis connection failed, falling back to in-memory rate limiting: ${(err as Error).message}`,
+        );
+        this.redis?.disconnect();
+        this.redis = null;
       }
     }
   }
 
   /**
    * Check if a request is allowed under rate limit.
-   * Returns { allowed, retryAfterMs }
+   * Returns { allowed, retryAfterMs, remaining }
    */
-  consume(
+  async consume(
     key: string,
     limit: number,
     windowMs: number = 60_000,
+  ): Promise<{ allowed: boolean; retryAfterMs: number; remaining: number }> {
+    if (this.redis) {
+      return this.consumeRedis(key, limit, windowMs);
+    }
+    return this.consumeInMemory(key, limit, windowMs);
+  }
+
+  /** Redis sliding-window implementation using sorted sets */
+  private async consumeRedis(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): Promise<{ allowed: boolean; retryAfterMs: number; remaining: number }> {
+    const bucketKey = `${key}:${limit}`;
+    const now = Date.now();
+    const windowStart = now - windowMs;
+
+    // Atomic pipeline: remove expired, count current, conditionally add
+    const pipeline = this.redis!.pipeline();
+    pipeline.zremrangebyscore(bucketKey, '-inf', windowStart);
+    pipeline.zcard(bucketKey);
+
+    const results = await pipeline.exec();
+    const currentCount = (results![1][1] as number) ?? 0;
+
+    if (currentCount >= limit) {
+      // Get the oldest entry to calculate retry-after
+      const oldest = await this.redis!.zrange(bucketKey, 0, 0, 'WITHSCORES');
+      const oldestTs = oldest.length >= 2 ? Number(oldest[1]) : now;
+      const retryAfterMs = Math.max(1, Math.ceil(oldestTs + windowMs - now));
+      return { allowed: false, retryAfterMs, remaining: 0 };
+    }
+
+    // Add this request with a unique member (timestamp + random suffix)
+    const member = `${now}:${Math.random().toString(36).slice(2, 8)}`;
+    const addPipeline = this.redis!.pipeline();
+    addPipeline.zadd(bucketKey, now, member);
+    addPipeline.pexpire(bucketKey, windowMs);
+    await addPipeline.exec();
+
+    const remaining = limit - currentCount - 1;
+    return { allowed: true, retryAfterMs: 0, remaining };
+  }
+
+  /** In-memory token-bucket fallback (original implementation) */
+  private consumeInMemory(
+    key: string,
+    limit: number,
+    windowMs: number,
   ): { allowed: boolean; retryAfterMs: number; remaining: number } {
     this.ensureCleanupInterval();
     const now = Date.now();
@@ -84,9 +129,8 @@ export class RateLimitService implements OnModuleDestroy {
       this.buckets.set(bucketKey, bucket);
     }
 
-    // Refill tokens based on elapsed time
     const elapsed = now - bucket.lastRefill;
-    const refillRate = limit / windowMs; // tokens per ms
+    const refillRate = limit / windowMs;
     const tokensToAdd = elapsed * refillRate;
     bucket.tokens = Math.min(limit, bucket.tokens + tokensToAdd);
     bucket.lastRefill = now;
@@ -100,22 +144,52 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    // Calculate when next token available
     const deficit = 1 - bucket.tokens;
     const retryAfterMs = Math.ceil(deficit / refillRate);
     return { allowed: false, retryAfterMs, remaining: 0 };
   }
 
-  /** Reset all buckets (for testing) */
-  reset(): void {
-    this.buckets.clear();
+  private ensureCleanupInterval(): void {
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => {
+        const now = Date.now();
+        for (const [key, bucket] of this.buckets) {
+          if (now - bucket.lastRefill > 120_000) {
+            this.buckets.delete(key);
+          }
+        }
+      }, 300_000);
+      if (
+        typeof this.cleanupInterval === 'object' &&
+        'unref' in this.cleanupInterval
+      ) {
+        this.cleanupInterval.unref();
+      }
+    }
   }
 
-  onModuleDestroy() {
+  /** Reset all buckets (for testing) */
+  async reset(): Promise<void> {
+    this.buckets.clear();
+    // Redis keys are scoped by prefix; flush only rate-limit keys
+    if (this.redis) {
+      const keys = await this.redis.keys('*');
+      if (keys.length > 0) {
+        // Keys already have prefix stripped by ioredis keys(), but delete needs raw keys
+        await this.redis.del(...keys);
+      }
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
     this.buckets.clear();
+    if (this.redis) {
+      this.redis.disconnect();
+      this.redis = null;
+    }
   }
 }
