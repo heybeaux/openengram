@@ -1737,6 +1737,97 @@ model SyncIdMap {
   @@map("sync_id_map")
 }
 
+// ============================================================================
+// IDENTITY MODULE PERSISTENCE (HEY-385)
+// Replaces FileStoreService JSON persistence with proper Prisma models.
+// ============================================================================
+
+/// In-memory delegation contract for identity verification (HEY-185/HEY-385)
+/// NOT the same as DelegationContract (which is the formal inter-agent contract).
+model IdentityContract {
+  id              String   @id @default(cuid())
+  taskDescription String   @map("task_description")
+  expectedOutputs String[] @map("expected_outputs")
+  successCriteria String[] @map("success_criteria")
+  timeout         Int // seconds
+  constraints     String[] @default([])
+  delegatedTo     String   @map("delegated_to")
+  status          String   @default("pending") // pending, in_progress, completed, failed, timed_out
+  result          String?
+  completedAt     DateTime? @map("completed_at")
+  accountId       String?   @map("account_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([delegatedTo])
+  @@index([status])
+  @@map("identity_contracts")
+}
+
+/// Task log entry for delegation tracking (HEY-385)
+/// NOT the same as TaskCompletion (which tracks formal task completions with embeddings).
+model IdentityTask {
+  id               String   @id @default(cuid())
+  sessionKey       String   @map("session_key")
+  parentSessionKey String?  @map("parent_session_key")
+  agentId          String?  @map("agent_id")
+  task             String
+  status           String // success, failure, timeout
+  durationMs       Int      @map("duration_ms")
+  error            String?
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("identity_tasks")
+}
+
+/// Team profile for multi-agent collaboration (HEY-385)
+/// Stores the in-memory team data previously in FileStoreService.
+model IdentityTeamProfile {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  agentIds           String[] @map("agent_ids")
+  capabilities       Json     @default("[]") // TeamCapability[]
+  collaborationScore Float    @default(0) @map("collaboration_score")
+  lastActive         DateTime @default(now()) @map("last_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("identity_team_profiles")
+}
+
+/// Challenge raised against a delegation contract (HEY-186/HEY-385)
+model IdentityChallenge {
+  id              String    @id @default(cuid())
+  contractId      String?   @map("contract_id")
+  taskDescription String    @map("task_description")
+  challengeType   String    @map("challenge_type") // unsafe, underspecified, capability_mismatch, resource_constraint
+  reasoning       String
+  resolution      String?   // accepted, overridden, modified, dismissed
+  resolvedBy      String?   @map("resolved_by")
+  resolvedAt      DateTime? @map("resolved_at")
+  accountId       String?   @map("account_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([contractId])
+  @@map("identity_challenges")
+}
+
+/// Agent capability profile for auto-challenge checks (HEY-386/HEY-385)
+model IdentityAgentProfile {
+  id                 String   @id @default(cuid())
+  agentId            String   @unique @map("agent_id")
+  domains            String[] @default([])
+  confidenceByDomain Json     @default("{}") @map("confidence_by_domain") // Record<string, number>
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("identity_agent_profiles")
+}
+
 /// Task completion records for identity framework delegation tracking
 model TaskCompletion {
   id              String                 @id @default(cuid())

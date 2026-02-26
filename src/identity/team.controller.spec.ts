@@ -2,20 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TeamController } from './team.controller';
 import { TeamProfileService } from './team-profile.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
-
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
-  onModuleInit: jest.fn(),
-};
 
 describe('TeamController', () => {
   let controller: TeamController;
 
   const mockPrisma = {
     memory: { findMany: jest.fn().mockResolvedValue([]) },
+    identityTeamProfile: {
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+    },
   };
 
   beforeEach(async () => {
@@ -24,7 +22,6 @@ describe('TeamController', () => {
       providers: [
         TeamProfileService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: FileStoreService, useValue: mockFileStore },
       ],
     })
       .overrideGuard(ApiKeyOrJwtGuard)

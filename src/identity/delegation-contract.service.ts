@@ -13,9 +13,7 @@ import {
   ContractStatus,
 } from './identity.types';
 import { ChallengeService } from './challenge.service';
-import { FileStoreService } from '../common/persistence/file-store.service';
-
-const PERSISTENCE_FILE = 'delegation-contracts.json';
+import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * DelegationContractService (HEY-185)
@@ -24,7 +22,7 @@ const PERSISTENCE_FILE = 'delegation-contracts.json';
  * required before spawning sub-agents. When a contract completes,
  * auto-creates a TASK_COMPLETION memory via the provided callback.
  *
- * Contracts are persisted to disk via FileStoreService (HEY-346).
+ * Contracts are persisted to PostgreSQL via Prisma (HEY-385).
  */
 @Injectable()
 export class DelegationContractService
@@ -48,24 +46,67 @@ export class DelegationContractService
 
   private challengeService?: ChallengeService;
 
-  constructor(private readonly fileStore: FileStoreService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  onModuleInit(): void {
-    this.contracts = this.fileStore.load<string, DelegationContract>(
-      PERSISTENCE_FILE,
-    );
-    if (this.contracts.size > 0) {
-      this.logger.log(
-        `Loaded ${this.contracts.size} delegation contracts from disk`,
-      );
+  async onModuleInit(): Promise<void> {
+    try {
+      const rows = await this.prisma.identityContract.findMany();
+      for (const row of rows) {
+        this.contracts.set(row.id, {
+          id: row.id,
+          taskDescription: row.taskDescription,
+          expectedOutputs: row.expectedOutputs,
+          successCriteria: row.successCriteria,
+          timeout: row.timeout,
+          constraints: row.constraints,
+          delegatedTo: row.delegatedTo,
+          status: row.status as ContractStatus,
+          result: row.result ?? undefined,
+          createdAt: row.createdAt,
+          completedAt: row.completedAt ?? undefined,
+          accountId: row.accountId ?? undefined,
+        });
+      }
+      if (this.contracts.size > 0) {
+        this.logger.log(
+          `Loaded ${this.contracts.size} delegation contracts from database`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to load contracts from database: ${err}`);
     }
   }
 
-  private persist(): void {
-    this.fileStore
-      .save(PERSISTENCE_FILE, this.contracts)
+  private persist(contract: DelegationContract): void {
+    this.prisma.identityContract
+      .upsert({
+        where: { id: contract.id },
+        create: {
+          id: contract.id,
+          taskDescription: contract.taskDescription,
+          expectedOutputs: contract.expectedOutputs,
+          successCriteria: contract.successCriteria,
+          timeout: contract.timeout,
+          constraints: contract.constraints,
+          delegatedTo: contract.delegatedTo,
+          status: contract.status,
+          result: contract.result ?? null,
+          completedAt: contract.completedAt ?? null,
+          accountId: contract.accountId ?? null,
+          createdAt: contract.createdAt,
+        },
+        update: {
+          taskDescription: contract.taskDescription,
+          expectedOutputs: contract.expectedOutputs,
+          successCriteria: contract.successCriteria,
+          constraints: contract.constraints,
+          status: contract.status,
+          result: contract.result ?? null,
+          completedAt: contract.completedAt ?? null,
+        },
+      })
       .catch((err) =>
-        this.logger.warn(`Failed to persist contracts: ${err.message}`),
+        this.logger.warn(`Failed to persist contract: ${err.message}`),
       );
   }
 
@@ -103,7 +144,7 @@ export class DelegationContractService
     };
 
     this.contracts.set(contract.id, contract);
-    this.persist();
+    this.persist(contract);
     this.logger.log(
       `Contract ${contract.id} created for agent ${contract.delegatedTo}`,
     );
@@ -143,7 +184,7 @@ export class DelegationContractService
       contract.successCriteria = dto.successCriteria;
     if (dto.constraints !== undefined) contract.constraints = dto.constraints;
     if (dto.status !== undefined) contract.status = dto.status;
-    this.persist();
+    this.persist(contract);
     this.logger.log(`Contract ${id} updated`);
     return contract;
   }
@@ -173,7 +214,7 @@ export class DelegationContractService
 
     // Clear the timeout timer
     this.clearTimer(id);
-    this.persist();
+    this.persist(contract);
 
     this.logger.log(`Contract ${id} completed with status: ${dto.status}`);
 
@@ -232,7 +273,7 @@ export class DelegationContractService
 
     contract.status = 'timed_out';
     contract.completedAt = new Date();
-    this.persist();
+    this.persist(contract);
     this.logger.warn(`Contract ${id} timed out`);
 
     this.createTaskCompletionMemory(contract).catch((err) =>

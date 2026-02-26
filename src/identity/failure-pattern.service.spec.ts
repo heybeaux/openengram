@@ -1,9 +1,11 @@
 import { FailurePatternService } from './failure-pattern.service';
 import { DelegationContractService } from './delegation-contract.service';
 
-const mockFileStore = {
-  load: jest.fn().mockReturnValue(new Map()),
-  save: jest.fn().mockResolvedValue(undefined),
+const mockPrisma = {
+  identityContract: {
+    findMany: jest.fn().mockResolvedValue([]),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
 } as any;
 
 describe('FailurePatternService', () => {
@@ -14,7 +16,7 @@ describe('FailurePatternService', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     service = new FailurePatternService();
-    contractService = new DelegationContractService(mockFileStore);
+    contractService = new DelegationContractService(mockPrisma);
     createMemoryFn = jest.fn().mockResolvedValue({ id: 'mem-1' });
     service.setCreateMemoryFn(createMemoryFn);
     contractService.setCreateMemoryFn(

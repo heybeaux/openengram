@@ -51,16 +51,16 @@ describe('RateLimitGuard', () => {
   }
 
   // Happy path: request allowed
-  it('should allow requests within limit', () => {
+  it('should allow requests within limit', async () => {
     createGuard();
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: true,
       remaining: 99,
       retryAfterMs: 0,
     });
 
-    expect(guard.canActivate(mockContext)).toBe(true);
+    await expect(guard.canActivate(mockContext)).resolves.toBe(true);
     expect(mockResponse.set).toHaveBeenCalledWith('X-RateLimit-Limit', '100');
     expect(mockResponse.set).toHaveBeenCalledWith(
       'X-RateLimit-Remaining',
@@ -69,18 +69,18 @@ describe('RateLimitGuard', () => {
   });
 
   // Rate limit exceeded
-  it('should throw 429 when rate limit exceeded', () => {
+  it('should throw 429 when rate limit exceeded', async () => {
     createGuard();
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: false,
       remaining: 0,
       retryAfterMs: 30000,
     });
 
-    expect(() => guard.canActivate(mockContext)).toThrow(HttpException);
+    await expect(guard.canActivate(mockContext)).rejects.toThrow(HttpException);
     try {
-      guard.canActivate(mockContext);
+      await guard.canActivate(mockContext);
     } catch (e: any) {
       expect(e.getStatus()).toBe(429);
       expect(mockResponse.set).toHaveBeenCalledWith('Retry-After', '30');
@@ -88,28 +88,27 @@ describe('RateLimitGuard', () => {
   });
 
   // Skip decorator
-  it('should skip rate limiting when @SkipRateLimit is applied', () => {
+  it('should skip rate limiting when @SkipRateLimit is applied', async () => {
     createGuard();
-    // First call returns skip=true, second would return route limit
-    reflector.getAllAndOverride.mockReturnValueOnce(true); // skip
+    reflector.getAllAndOverride.mockReturnValueOnce(true);
 
-    expect(guard.canActivate(mockContext)).toBe(true);
+    await expect(guard.canActivate(mockContext)).resolves.toBe(true);
     expect(rateLimitService.consume).not.toHaveBeenCalled();
   });
 
   // Custom route limit via decorator
-  it('should use route-specific limit from @RateLimit decorator', () => {
+  it('should use route-specific limit from @RateLimit decorator', async () => {
     createGuard();
     reflector.getAllAndOverride
-      .mockReturnValueOnce(false) // skip = false
-      .mockReturnValueOnce(20); // route limit = 20
-    rateLimitService.consume.mockReturnValue({
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(20);
+    rateLimitService.consume.mockResolvedValue({
       allowed: true,
       remaining: 19,
       retryAfterMs: 0,
     });
 
-    guard.canActivate(mockContext);
+    await guard.canActivate(mockContext);
 
     expect(rateLimitService.consume).toHaveBeenCalledWith(
       'test-key:/v1/memories',
@@ -119,17 +118,17 @@ describe('RateLimitGuard', () => {
   });
 
   // Falls back to IP when no API key
-  it('should use IP as identifier when no API key', () => {
+  it('should use IP as identifier when no API key', async () => {
     createGuard();
     delete mockRequest.headers['x-am-api-key'];
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: true,
       remaining: 99,
       retryAfterMs: 0,
     });
 
-    guard.canActivate(mockContext);
+    await guard.canActivate(mockContext);
 
     expect(rateLimitService.consume).toHaveBeenCalledWith(
       '127.0.0.1:/v1/memories',
@@ -139,19 +138,19 @@ describe('RateLimitGuard', () => {
   });
 
   // Falls back to 'unknown' when no API key and no IP
-  it('should use "unknown" when no API key or IP', () => {
+  it('should use "unknown" when no API key or IP', async () => {
     createGuard();
     delete mockRequest.headers['x-am-api-key'];
     mockRequest.ip = undefined;
     mockRequest.connection = undefined;
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: true,
       remaining: 99,
       retryAfterMs: 0,
     });
 
-    guard.canActivate(mockContext);
+    await guard.canActivate(mockContext);
 
     expect(rateLimitService.consume).toHaveBeenCalledWith(
       'unknown:/v1/memories',
@@ -161,18 +160,18 @@ describe('RateLimitGuard', () => {
   });
 
   // Uses request.url when no route.path
-  it('should fall back to request.url when route.path is unavailable', () => {
+  it('should fall back to request.url when route.path is unavailable', async () => {
     createGuard();
     mockRequest.route = undefined;
     mockRequest.url = '/v1/memories/query';
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: true,
       remaining: 99,
       retryAfterMs: 0,
     });
 
-    guard.canActivate(mockContext);
+    await guard.canActivate(mockContext);
 
     expect(rateLimitService.consume).toHaveBeenCalledWith(
       'test-key:/v1/memories/query',
@@ -182,15 +181,24 @@ describe('RateLimitGuard', () => {
   });
 
   // Retry-After header rounds up
-  it('should round up Retry-After to nearest second', () => {
+  it('should round up Retry-After to nearest second', async () => {
     createGuard();
     reflector.getAllAndOverride.mockReturnValue(null);
-    rateLimitService.consume.mockReturnValue({
+    rateLimitService.consume.mockResolvedValue({
       allowed: false,
       remaining: 0,
       retryAfterMs: 1500,
     });
 
-    expect(() => guard.canActivate(mockContext)).toThrow(HttpException);
+    await expect(guard.canActivate(mockContext)).rejects.toThrow(HttpException);
+  });
+
+  // Local edition skips rate limiting
+  it('should skip rate limiting for local edition', async () => {
+    configService.get.mockReturnValue('local');
+    createGuard();
+
+    await expect(guard.canActivate(mockContext)).resolves.toBe(true);
+    expect(rateLimitService.consume).not.toHaveBeenCalled();
   });
 });

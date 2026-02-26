@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { FileStoreService } from '../common/persistence/file-store.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { DelegationContractService } from './delegation-contract.service';
 import { FailurePatternService } from './failure-pattern.service';
 
@@ -46,7 +46,6 @@ export interface RecallQuery {
   limit?: number;
 }
 
-const PERSISTENCE_FILE = 'delegation-tasks.json';
 const MAX_TASKS = 1000;
 
 @Injectable()
@@ -57,34 +56,73 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
   private taskOrder: string[] = [];
 
   constructor(
-    private readonly fileStore: FileStoreService,
+    private readonly prisma: PrismaService,
     private readonly contractService: DelegationContractService,
     private readonly failurePatternService: FailurePatternService,
   ) {}
 
-  onModuleInit(): void {
-    this.tasks = this.fileStore.load<string, TaskCompletion>(PERSISTENCE_FILE);
-    // Rebuild order from createdAt
-    this.taskOrder = Array.from(this.tasks.values())
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      )
-      .map((t) => t.id);
-    if (this.tasks.size > 0) {
-      this.logger.log(`Loaded ${this.tasks.size} delegation tasks from disk`);
+  async onModuleInit(): Promise<void> {
+    try {
+      const rows = await this.prisma.identityTask.findMany({
+        orderBy: { createdAt: 'asc' },
+        take: MAX_TASKS,
+      });
+      for (const row of rows) {
+        const task: TaskCompletion = {
+          id: row.id,
+          sessionKey: row.sessionKey,
+          parentSessionKey: row.parentSessionKey ?? undefined,
+          agentId: row.agentId ?? undefined,
+          task: row.task,
+          status: row.status as TaskCompletion['status'],
+          durationMs: row.durationMs,
+          error: row.error ?? undefined,
+          metadata: (row.metadata as Record<string, any>) ?? undefined,
+          createdAt: row.createdAt.toISOString(),
+        };
+        this.tasks.set(task.id, task);
+        this.taskOrder.push(task.id);
+      }
+      if (this.tasks.size > 0) {
+        this.logger.log(
+          `Loaded ${this.tasks.size} delegation tasks from database`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to load tasks from database: ${err}`);
     }
   }
 
   onModuleDestroy(): void {
-    this.persist();
+    // No-op — all writes are persisted immediately
   }
 
-  private persist(): void {
-    this.fileStore
-      .save(PERSISTENCE_FILE, this.tasks)
+  private persistTask(task: TaskCompletion): void {
+    this.prisma.identityTask
+      .create({
+        data: {
+          id: task.id,
+          sessionKey: task.sessionKey,
+          parentSessionKey: task.parentSessionKey ?? null,
+          agentId: task.agentId ?? null,
+          task: task.task,
+          status: task.status,
+          durationMs: task.durationMs,
+          error: task.error ?? null,
+          metadata: task.metadata ?? undefined,
+          createdAt: new Date(task.createdAt),
+        },
+      })
       .catch((err) =>
-        this.logger.warn(`Failed to persist tasks: ${err.message}`),
+        this.logger.warn(`Failed to persist task: ${err.message}`),
+      );
+  }
+
+  private deleteTask(id: string): void {
+    this.prisma.identityTask
+      .delete({ where: { id } })
+      .catch((err) =>
+        this.logger.warn(`Failed to delete evicted task: ${err.message}`),
       );
   }
 
@@ -109,6 +147,7 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
     while (this.taskOrder.length > MAX_TASKS) {
       const oldId = this.taskOrder.shift()!;
       this.tasks.delete(oldId);
+      this.deleteTask(oldId);
     }
 
     // On failure, detect simple patterns
@@ -116,7 +155,7 @@ export class DelegationTaskService implements OnModuleInit, OnModuleDestroy {
       this.detectSimplePattern(task);
     }
 
-    this.persist();
+    this.persistTask(task);
     return task;
   }
 

@@ -1,11 +1,18 @@
 /**
  * Prefetch Cache Service
  *
- * In-memory LRU cache for pre-fetched memories with topic indexing.
- * Provides O(1) lookups and intelligent eviction.
+ * LRU cache for pre-fetched memories with topic indexing.
+ * Uses in-memory Maps for fast synchronous access with Redis
+ * write-through for persistence across restarts.
  */
 
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Optional,
+  Inject,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import {
   TopicId,
   CachedMemory,
@@ -13,6 +20,12 @@ import {
   CacheStats,
   CacheConfig,
 } from './prefetch.types';
+import Redis from 'ioredis';
+
+export const REDIS_CLIENT = 'REDIS_CLIENT';
+
+const CACHE_PREFIX = 'prefetch:cache:';
+const TOPIC_INDEX_PREFIX = 'prefetch:topic:';
 
 /**
  * Default cache configuration
@@ -25,8 +38,10 @@ export const DEFAULT_CACHE_CONFIG: CacheConfig = {
 };
 
 @Injectable()
-export class PrefetchCacheService {
-  // ⚠️ Ephemeral cache — OK to lose on restart. Not persisted. (HEY-346 triage)
+export class PrefetchCacheService implements OnModuleInit {
+  private readonly logger = new Logger(PrefetchCacheService.name);
+
+  // In-memory hot cache for synchronous O(1) access
   private cache: Map<string, CachedMemory> = new Map();
   private topicIndex: Map<TopicId, Set<string>> = new Map();
   private accessOrder: string[] = [];
@@ -38,8 +53,19 @@ export class PrefetchCacheService {
   private totalPrefetched = 0;
   private totalPrefetchedUsed = 0;
 
-  constructor() {
+  constructor(
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {
     this.config = { ...DEFAULT_CACHE_CONFIG };
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      await this.hydrateFromRedis();
+    } catch (err) {
+      this.logger.warn('Failed to hydrate prefetch cache from Redis', err);
+    }
   }
 
   /**
@@ -179,6 +205,9 @@ export class PrefetchCacheService {
     if (this.config.enableMetrics && memory.prefetchedFor) {
       this.totalPrefetched++;
     }
+
+    // Write-through to Redis
+    this.persistToRedis(memory);
   }
 
   /**
@@ -262,6 +291,7 @@ export class PrefetchCacheService {
     }
 
     this.topicIndex.delete(topic);
+    this.deleteRedisTopicIndex(topic);
     return evictedCount;
   }
 
@@ -281,6 +311,9 @@ export class PrefetchCacheService {
     this.cache.delete(memoryId);
     this.accessOrder = this.accessOrder.filter((id) => id !== memoryId);
 
+    // Remove from Redis
+    this.deleteFromRedis(memoryId, entry.topics);
+
     return true;
   }
 
@@ -292,6 +325,7 @@ export class PrefetchCacheService {
     this.topicIndex.clear();
     this.accessOrder = [];
     this.resetMetrics();
+    this.clearRedis();
   }
 
   /**
@@ -390,5 +424,103 @@ export class PrefetchCacheService {
   private promoteToHead(memoryId: string): void {
     this.accessOrder = this.accessOrder.filter((id) => id !== memoryId);
     this.accessOrder.push(memoryId);
+  }
+
+  // =========================================================================
+  // Redis Persistence (fire-and-forget write-through)
+  // =========================================================================
+
+  private persistToRedis(memory: CachedMemory): void {
+    if (!this.redis) return;
+    const ttlSec = Math.ceil(this.config.ttlMs / 1000);
+    const key = CACHE_PREFIX + memory.id;
+    this.redis
+      .set(key, JSON.stringify(memory), 'EX', ttlSec)
+      .catch((err) => this.logger.warn('Redis persist failed', err));
+
+    // Update topic index sets in Redis
+    for (const topic of memory.topics) {
+      const topicKey = TOPIC_INDEX_PREFIX + topic;
+      this.redis
+        .sadd(topicKey, memory.id)
+        .then(() => this.redis!.expire(topicKey, ttlSec * 2))
+        .catch((err) => this.logger.warn('Redis topic index failed', err));
+    }
+  }
+
+  private deleteFromRedis(memoryId: string, topics: TopicId[]): void {
+    if (!this.redis) return;
+    this.redis
+      .del(CACHE_PREFIX + memoryId)
+      .catch((err) => this.logger.warn('Redis delete failed', err));
+    for (const topic of topics) {
+      this.redis
+        .srem(TOPIC_INDEX_PREFIX + topic, memoryId)
+        .catch((err) => this.logger.warn('Redis srem failed', err));
+    }
+  }
+
+  private deleteRedisTopicIndex(topic: TopicId): void {
+    if (!this.redis) return;
+    this.redis
+      .del(TOPIC_INDEX_PREFIX + topic)
+      .catch((err) => this.logger.warn('Redis topic delete failed', err));
+  }
+
+  private clearRedis(): void {
+    if (!this.redis) return;
+    // Scan and delete all prefetch keys
+    const stream = this.redis.scanStream({ match: 'prefetch:*', count: 100 });
+    stream.on('data', (keys: string[]) => {
+      if (keys.length > 0) {
+        this.redis!.del(...keys).catch(() => {});
+      }
+    });
+  }
+
+  private async hydrateFromRedis(): Promise<void> {
+    if (!this.redis) return;
+    const keys: string[] = [];
+    const stream = this.redis.scanStream({
+      match: CACHE_PREFIX + '*',
+      count: 100,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      stream.on('data', (batch: string[]) => keys.push(...batch));
+      stream.on('end', resolve);
+      stream.on('error', reject);
+    });
+
+    if (keys.length === 0) return;
+
+    const pipeline = this.redis.pipeline();
+    for (const key of keys) pipeline.get(key);
+    const results = await pipeline.exec();
+    if (!results) return;
+
+    let hydrated = 0;
+    for (const [err, val] of results) {
+      if (err || !val) continue;
+      try {
+        const memory: CachedMemory = JSON.parse(val as string);
+        // Check if still within TTL
+        if (Date.now() - memory.cachedAt > this.config.ttlMs) continue;
+        // Insert into in-memory structures without re-persisting
+        this.cache.set(memory.id, memory);
+        this.accessOrder.push(memory.id);
+        for (const topic of memory.topics) {
+          if (!this.topicIndex.has(topic)) {
+            this.topicIndex.set(topic, new Set());
+          }
+          this.topicIndex.get(topic)!.add(memory.id);
+        }
+        hydrated++;
+      } catch {
+        // skip malformed entries
+      }
+    }
+
+    this.logger.log(`Hydrated ${hydrated} prefetch cache entries from Redis`);
   }
 }

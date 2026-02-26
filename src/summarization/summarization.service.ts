@@ -1,10 +1,17 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import { LLMService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
 import { MessageTurnDto } from '../auto/dto/observe.dto';
 import { SummaryFact, SummarizeResult } from './dto/summarize.dto';
 import { MemoryLayer, MemorySource } from '@prisma/client';
+
+const REDIS_KEY_PREFIX = 'engram:summ:';
+const TURNS_KEY = (sid: string) => `${REDIS_KEY_PREFIX}turns:${sid}`;
+const USER_KEY = (sid: string) => `${REDIS_KEY_PREFIX}user:${sid}`;
+/** TTL for turn buffer keys — 24 h (prevents orphan keys) */
+const BUFFER_TTL_SECONDS = 86_400;
 
 const SUMMARIZATION_PROMPT = `You are a conversation summarization system. Given conversation turns, extract key information worth remembering for future sessions.
 
@@ -44,11 +51,10 @@ export class SummarizationService implements OnModuleDestroy {
   private readonly logger = new Logger(SummarizationService.name);
   private enabled: boolean;
   private batchSize: number;
+  private redis: Redis | null = null;
 
-  // In-memory turn buffers keyed by sessionId
-  // ⚠️ Ephemeral — lost on restart. DB persistence planned in M-7 (Kit's ticket). (HEY-346 triage)
+  // In-memory fallback when Redis is unavailable
   private turnBuffers: Map<string, MessageTurnDto[]> = new Map();
-  // HEY-362: Track userId per session for flush-on-shutdown
   private sessionUserIds: Map<string, string> = new Map();
 
   constructor(
@@ -62,6 +68,20 @@ export class SummarizationService implements OnModuleDestroy {
       this.config.get<string>('SUMMARIZATION_BATCH_SIZE', '5'),
       10,
     );
+
+    const redisUrl = this.config.get<string>('REDIS_URL');
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+      });
+      this.redis.connect().catch((err) => {
+        this.logger.warn(
+          `[Summarization] Redis connect failed, falling back to in-memory: ${err.message}`,
+        );
+        this.redis = null;
+      });
+    }
   }
 
   get isEnabled(): boolean {
@@ -172,6 +192,75 @@ export class SummarizationService implements OnModuleDestroy {
     };
   }
 
+  // ─── Redis-backed buffer helpers ──────────────────────────────────
+
+  private async getRedisBuffer(sessionId: string): Promise<MessageTurnDto[]> {
+    if (!this.redis) return this.turnBuffers.get(sessionId) || [];
+    const raw = await this.redis.get(TURNS_KEY(sessionId));
+    return raw ? (JSON.parse(raw) as MessageTurnDto[]) : [];
+  }
+
+  private async setRedisBuffer(
+    sessionId: string,
+    turns: MessageTurnDto[],
+  ): Promise<void> {
+    if (!this.redis) {
+      this.turnBuffers.set(sessionId, turns);
+      return;
+    }
+    if (turns.length === 0) {
+      await this.redis.del(TURNS_KEY(sessionId), USER_KEY(sessionId));
+    } else {
+      const pipeline = this.redis.pipeline();
+      pipeline.set(
+        TURNS_KEY(sessionId),
+        JSON.stringify(turns),
+        'EX',
+        BUFFER_TTL_SECONDS,
+      );
+      // TTL refresh for user key handled in setRedisUserId
+      await pipeline.exec();
+    }
+  }
+
+  private async setRedisUserId(
+    sessionId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!this.redis) {
+      this.sessionUserIds.set(sessionId, userId);
+      return;
+    }
+    await this.redis.set(USER_KEY(sessionId), userId, 'EX', BUFFER_TTL_SECONDS);
+  }
+
+  private async getRedisUserId(sessionId: string): Promise<string | undefined> {
+    if (!this.redis) return this.sessionUserIds.get(sessionId);
+    const val = await this.redis.get(USER_KEY(sessionId));
+    return val ?? undefined;
+  }
+
+  private async deleteRedisBuffer(sessionId: string): Promise<void> {
+    if (!this.redis) {
+      this.turnBuffers.delete(sessionId);
+      return;
+    }
+    await this.redis.del(TURNS_KEY(sessionId), USER_KEY(sessionId));
+  }
+
+  /** Return all session ids that have non-empty buffers (for shutdown flush). */
+  private async allBufferedSessionIds(): Promise<string[]> {
+    if (!this.redis) {
+      return [...this.turnBuffers.entries()]
+        .filter(([, t]) => t.length > 0)
+        .map(([sid]) => sid);
+    }
+    const keys = await this.redis.keys(`${REDIS_KEY_PREFIX}turns:*`);
+    return keys.map((k) => k.slice(`${REDIS_KEY_PREFIX}turns:`.length));
+  }
+
+  // ─── Public API ─────────────────────────────────────────────────
+
   /**
    * Add turns to a session buffer. When buffer reaches batchSize, auto-summarize.
    * Returns summarization result if batch was triggered, null otherwise.
@@ -184,14 +273,14 @@ export class SummarizationService implements OnModuleDestroy {
   ): Promise<SummarizeResult | null> {
     if (!this.enabled) return null;
 
-    const buffer = this.turnBuffers.get(sessionId) || [];
+    const buffer = await this.getRedisBuffer(sessionId);
     buffer.push(...turns);
-    this.turnBuffers.set(sessionId, buffer);
-    this.sessionUserIds.set(sessionId, userId);
+    await this.setRedisBuffer(sessionId, buffer);
+    await this.setRedisUserId(sessionId, userId);
 
     if (buffer.length >= this.batchSize) {
       const batch = buffer.splice(0, this.batchSize);
-      this.turnBuffers.set(sessionId, buffer);
+      await this.setRedisBuffer(sessionId, buffer);
 
       return this.summarizeAndStore(userId, batch, {
         sessionId,
@@ -211,10 +300,10 @@ export class SummarizationService implements OnModuleDestroy {
     sessionId: string,
     options?: { projectId?: string; userName?: string },
   ): Promise<SummarizeResult | null> {
-    const buffer = this.turnBuffers.get(sessionId);
-    if (!buffer || buffer.length === 0) return null;
+    const buffer = await this.getRedisBuffer(sessionId);
+    if (buffer.length === 0) return null;
 
-    this.turnBuffers.delete(sessionId);
+    await this.deleteRedisBuffer(sessionId);
     return this.summarizeAndStore(userId, buffer, {
       sessionId,
       projectId: options?.projectId,
@@ -225,8 +314,9 @@ export class SummarizationService implements OnModuleDestroy {
   /**
    * Get current buffer size for a session
    */
-  getBufferSize(sessionId: string): number {
-    return this.turnBuffers.get(sessionId)?.length || 0;
+  async getBufferSize(sessionId: string): Promise<number> {
+    const buffer = await this.getRedisBuffer(sessionId);
+    return buffer.length;
   }
 
   /**
@@ -234,23 +324,24 @@ export class SummarizationService implements OnModuleDestroy {
    * Best-effort — errors are logged but don't prevent shutdown.
    */
   async onModuleDestroy(): Promise<void> {
-    const nonEmpty = [...this.turnBuffers.entries()].filter(
-      ([, turns]) => turns.length > 0,
-    );
-    if (nonEmpty.length === 0) return;
+    const sessionIds = await this.allBufferedSessionIds();
+    if (sessionIds.length === 0) {
+      if (this.redis) await this.redis.quit().catch(() => {});
+      return;
+    }
 
     this.logger.log(
-      `[Shutdown] Flushing ${nonEmpty.length} non-empty summarization buffers`,
+      `[Shutdown] Flushing ${sessionIds.length} non-empty summarization buffers`,
     );
 
     const results = await Promise.allSettled(
-      nonEmpty.map(([sessionId]) => {
-        const userId = this.sessionUserIds.get(sessionId);
+      sessionIds.map(async (sessionId) => {
+        const userId = await this.getRedisUserId(sessionId);
         if (!userId) {
           this.logger.warn(
             `[Shutdown] No userId for session ${sessionId}, skipping flush`,
           );
-          return Promise.resolve(null);
+          return null;
         }
         return this.flushBuffer(userId, sessionId);
       }),
@@ -263,6 +354,8 @@ export class SummarizationService implements OnModuleDestroy {
     this.logger.log(
       `[Shutdown] Summarization flush complete: ${flushed} flushed, ${failed} failed`,
     );
+
+    if (this.redis) await this.redis.quit().catch(() => {});
   }
 
   private normalizeCategory(category: string): SummaryFact['category'] {

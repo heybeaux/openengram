@@ -27,7 +27,7 @@ export class RateLimitGuard implements CanActivate {
       this.configService.get<string>('EDITION', 'cloud') === 'local';
   }
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Local edition: skip all rate limiting (single-user, no abuse risk)
     if (this.isLocalEdition) return true;
 
@@ -64,7 +64,7 @@ export class RateLimitGuard implements CanActivate {
     const routePath = request.route?.path || request.url;
     const key = `${rateLimitIdentifier}:${routePath}`;
 
-    const result = this.rateLimitService.consume(
+    const result = await this.rateLimitService.consume(
       key,
       limit,
       RateLimitGuard.WINDOW_MS,

@@ -157,7 +157,7 @@ describe('SummarizationService', () => {
         mockTurns.slice(0, 3),
       );
       expect(result1).toBeNull();
-      expect(service.getBufferSize('session-1')).toBe(3);
+      expect(await service.getBufferSize('session-1')).toBe(3);
 
       // Add 2 more to reach batch size
       const result2 = await service.addTurnsToBuffer(
@@ -175,11 +175,11 @@ describe('SummarizationService', () => {
         'session-1',
         mockTurns.slice(0, 2),
       );
-      expect(service.getBufferSize('session-1')).toBe(2);
+      expect(await service.getBufferSize('session-1')).toBe(2);
 
       const result = await service.flushBuffer('user-1', 'session-1');
       expect(result).not.toBeNull();
-      expect(service.getBufferSize('session-1')).toBe(0);
+      expect(await service.getBufferSize('session-1')).toBe(0);
     });
 
     it('should return null when flushing empty buffer', async () => {

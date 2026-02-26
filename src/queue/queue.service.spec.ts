@@ -1,12 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { QueueService, JobStatus } from './queue.service';
 
 describe('QueueService', () => {
   let service: QueueService;
 
+  const mockConfig = {
+    get: jest.fn().mockReturnValue(undefined),
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [QueueService],
+      providers: [
+        QueueService,
+        { provide: ConfigService, useValue: mockConfig },
+      ],
     }).compile();
 
     service = module.get<QueueService>(QueueService);

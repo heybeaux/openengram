@@ -30,20 +30,15 @@ export class ProactiveNotificationService implements OnModuleDestroy {
   private readonly logger = new Logger(ProactiveNotificationService.name);
 
   /**
-   * In-memory notification configs per account.
-   * In production, these would be persisted — for MVP, stored in metadata
-   * on a well-known AwarenessState row.
+   * Write-through cache of notification configs per account.
+   * Authoritative data lives in AwarenessState (signalSource = 'notification_config').
    */
   private readonly configs = new Map<string, NotificationConfig>();
 
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleDestroy(): void {
-    if (this.configs.size > 0) {
-      this.logger.warn(
-        `Shutting down with ${this.configs.size} notification config(s) in memory`,
-      );
-    }
+    this.configs.clear();
   }
 
   /**
