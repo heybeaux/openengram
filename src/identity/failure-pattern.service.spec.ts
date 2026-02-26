@@ -41,7 +41,7 @@ describe('FailurePatternService', () => {
       taskDescription: task,
       expectedOutputs: ['output'],
       successCriteria: ['pass'],
-      timeout: 100,
+      timeout: 0.1,
       delegatedTo: agentId,
     });
     jest.advanceTimersByTime(200);
