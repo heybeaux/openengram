@@ -105,6 +105,70 @@ describe('PgVectorProvider', () => {
   });
 
   describe('search', () => {
+    beforeEach(() => {
+      // Default: runtime check returns 0 unmigrated (skip fallback)
+      mockPrisma.$queryRawUnsafe.mockImplementation(
+        (sql: string, ...args: any[]) => {
+          if (sql.includes('COUNT(*)') && sql.includes('NOT IN')) {
+            return Promise.resolve([{ count: BigInt(0) }]);
+          }
+          return Promise.resolve([]);
+        },
+      );
+    });
+
+    it('should skip legacy fallback when DISABLE_LEGACY_EMBEDDING_FALLBACK is set', async () => {
+      const originalEnv = process.env.DISABLE_LEGACY_EMBEDDING_FALLBACK;
+      process.env.DISABLE_LEGACY_EMBEDDING_FALLBACK = 'true';
+
+      // Re-create provider to pick up env
+      const module2: TestingModule = await Test.createTestingModule({
+        providers: [
+          PgVectorProvider,
+          { provide: PrismaService, useValue: mockPrisma },
+        ],
+      }).compile();
+      const flagProvider = module2.get<PgVectorProvider>(PgVectorProvider);
+
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+      await flagProvider.search([0.1], { userId: 'user-123' });
+
+      const query = mockPrisma.$queryRawUnsafe.mock.calls.find(
+        (c: any[]) =>
+          typeof c[0] === 'string' && c[0].includes('memory_embeddings'),
+      );
+      expect(query).toBeDefined();
+      expect(query[0]).not.toContain('UNION ALL');
+
+      process.env.DISABLE_LEGACY_EMBEDDING_FALLBACK = originalEnv || '';
+      if (!originalEnv) delete process.env.DISABLE_LEGACY_EMBEDDING_FALLBACK;
+    });
+
+    it('should include legacy fallback when unmigrated memories exist', async () => {
+      mockPrisma.$queryRawUnsafe.mockImplementation((sql: string) => {
+        if (sql.includes('COUNT(*)') && sql.includes('NOT IN')) {
+          return Promise.resolve([{ count: BigInt(5) }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      // Reset cache by creating fresh provider
+      const module2: TestingModule = await Test.createTestingModule({
+        providers: [
+          PgVectorProvider,
+          { provide: PrismaService, useValue: mockPrisma },
+        ],
+      }).compile();
+      const freshProvider = module2.get<PgVectorProvider>(PgVectorProvider);
+
+      await freshProvider.search([0.1], { userId: 'user-123' });
+
+      const query = mockPrisma.$queryRawUnsafe.mock.calls.find(
+        (c: any[]) => typeof c[0] === 'string' && c[0].includes('UNION ALL'),
+      );
+      expect(query).toBeDefined();
+    });
+
     it('should search for similar vectors', async () => {
       const mockResults: Array<{ id: string; score: number }> = [
         { id: 'mem-1', score: 0.95 },

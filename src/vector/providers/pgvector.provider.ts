@@ -18,9 +18,13 @@ export class PgVectorProvider implements VectorProvider {
   private readonly logger = new Logger(PgVectorProvider.name);
   readonly name = 'pgvector';
   private readonly searchModel: string;
+  private readonly disableLegacyFallback: boolean;
+  private legacyCheckCache: boolean | null = null;
 
   constructor(private prisma: PrismaService) {
     this.searchModel = process.env.VECTOR_SEARCH_MODEL || 'bge-base';
+    this.disableLegacyFallback =
+      process.env.DISABLE_LEGACY_EMBEDDING_FALLBACK === 'true';
   }
 
   async upsert(record: VectorRecord): Promise<void> {
@@ -131,12 +135,10 @@ export class PgVectorProvider implements VectorProvider {
       `[PgVector] search: model=${this.searchModel}, userId=${Array.isArray(options.userId) ? options.userId.join(',') : options.userId}, embDim=${embedding.length}, limit=${limit}, params=${params.length}, poolFilter=${!!options.filter?.poolIds}`,
     );
 
-    // Search ensemble embeddings first, fall back to inline column
-    const results = await this.prisma.$queryRawUnsafe<
-      Array<{ id: string; score: number }>
-    >(
-      `
-      (
+    // Determine whether to include legacy fallback (UNION ALL on memories.embedding)
+    const skipFallback = await this.shouldSkipLegacyFallback();
+
+    const primaryQuery = `
         SELECT 
           m.id,
           1 - (me.embedding <=> $1::vector) as score
@@ -147,8 +149,9 @@ export class PgVectorProvider implements VectorProvider {
           AND ${memoryWhereClause}
           AND me.embedding IS NOT NULL
         ORDER BY me.embedding <=> $1::vector
-        LIMIT ${limit}
-      )
+        LIMIT ${limit}`;
+
+    const fallbackQuery = `
       UNION ALL
       (
         SELECT
@@ -164,12 +167,16 @@ export class PgVectorProvider implements VectorProvider {
           )
         ORDER BY m.embedding <=> $1::vector
         LIMIT ${limit}
-      )
-      ORDER BY score DESC
-      LIMIT ${limit}
-    `,
-      ...params,
-    );
+      )`;
+
+    const query = skipFallback
+      ? `${primaryQuery} `
+      : `(${primaryQuery}) ${fallbackQuery} ORDER BY score DESC LIMIT ${limit}`;
+
+    // Search ensemble embeddings first, optionally fall back to inline column
+    const results = await this.prisma.$queryRawUnsafe<
+      Array<{ id: string; score: number }>
+    >(query, ...params);
 
     this.logger.log(
       `[PgVector] search results: ${results.length}`,
@@ -192,6 +199,40 @@ export class PgVectorProvider implements VectorProvider {
     await this.prisma.$executeRaw`
       UPDATE memories SET embedding = NULL WHERE user_id = ${userId}
     `;
+  }
+
+  /**
+   * Determines whether to skip the legacy UNION ALL fallback on memories.embedding.
+   * Feature flag (DISABLE_LEGACY_EMBEDDING_FALLBACK=true) takes priority.
+   * Otherwise, performs a one-time runtime check to see if any memories still
+   * lack memory_embeddings rows; caches the result for the process lifetime.
+   */
+  async shouldSkipLegacyFallback(): Promise<boolean> {
+    if (this.disableLegacyFallback) {
+      return true;
+    }
+
+    if (this.legacyCheckCache !== null) {
+      return this.legacyCheckCache;
+    }
+
+    try {
+      const result = await this.prisma.$queryRawUnsafe<
+        Array<{ count: bigint }>
+      >(
+        `SELECT COUNT(*) as count FROM memories WHERE embedding IS NOT NULL AND id NOT IN (SELECT memory_id FROM memory_embeddings)`,
+      );
+      const unmigrated = Number(result[0]?.count ?? 1);
+      this.legacyCheckCache = unmigrated === 0;
+      this.logger.log(
+        `[PgVector] legacy fallback check: ${unmigrated} unmigrated memories, skipFallback=${this.legacyCheckCache}`,
+      );
+    } catch {
+      // If the check fails, keep the fallback for safety
+      this.legacyCheckCache = false;
+    }
+
+    return this.legacyCheckCache;
   }
 
   isConfigured(): boolean {

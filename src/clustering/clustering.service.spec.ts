@@ -62,7 +62,7 @@ describe('ClusteringService', () => {
     });
 
     it('should support dry run mode', async () => {
-      // 4 memories, all close to each other
+      // Query 1: fetch memory IDs
       (prisma.$queryRawUnsafe as jest.Mock)
         .mockResolvedValueOnce([
           { memory_id: 'm1' },
@@ -70,29 +70,12 @@ describe('ClusteringService', () => {
           { memory_id: 'm3' },
           { memory_id: 'm4' },
         ])
-        // findNeighbors for m1 -> returns m2, m3, m4
+        // Query 2: batch fetch all embeddings (close vectors -> same cluster)
         .mockResolvedValueOnce([
-          { memory_id: 'm2', distance: 0.1 },
-          { memory_id: 'm3', distance: 0.15 },
-          { memory_id: 'm4', distance: 0.2 },
-        ])
-        // findNeighbors for m2 -> returns m1, m3, m4
-        .mockResolvedValueOnce([
-          { memory_id: 'm1', distance: 0.1 },
-          { memory_id: 'm3', distance: 0.12 },
-          { memory_id: 'm4', distance: 0.18 },
-        ])
-        // findNeighbors for m3 -> returns m1, m2, m4
-        .mockResolvedValueOnce([
-          { memory_id: 'm1', distance: 0.15 },
-          { memory_id: 'm2', distance: 0.12 },
-          { memory_id: 'm4', distance: 0.14 },
-        ])
-        // findNeighbors for m4 -> returns m1, m2, m3
-        .mockResolvedValueOnce([
-          { memory_id: 'm1', distance: 0.2 },
-          { memory_id: 'm2', distance: 0.18 },
-          { memory_id: 'm3', distance: 0.14 },
+          { memory_id: 'm1', embedding: '[1,0,0]' },
+          { memory_id: 'm2', embedding: '[0.99,0.1,0]' },
+          { memory_id: 'm3', embedding: '[0.98,0.15,0]' },
+          { memory_id: 'm4', embedding: '[0.97,0.2,0]' },
         ]);
 
       const result = await service.run({
@@ -107,6 +90,32 @@ describe('ClusteringService', () => {
       expect(result.noisePoints).toBe(0);
       // No DB writes in dry run
       expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+      // Only 2 queries: memory IDs + embeddings (no per-point queries)
+      expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+    });
+
+    it('should identify noise points when embeddings are far apart', async () => {
+      (prisma.$queryRawUnsafe as jest.Mock)
+        .mockResolvedValueOnce([
+          { memory_id: 'm1' },
+          { memory_id: 'm2' },
+          { memory_id: 'm3' },
+        ])
+        // Orthogonal vectors = cosine distance 1.0, all noise
+        .mockResolvedValueOnce([
+          { memory_id: 'm1', embedding: '[1,0,0]' },
+          { memory_id: 'm2', embedding: '[0,1,0]' },
+          { memory_id: 'm3', embedding: '[0,0,1]' },
+        ]);
+
+      const result = await service.run({
+        userId: 'user1',
+        minPoints: 2,
+        eps: 0.35,
+      });
+
+      expect(result.clustersCreated).toBe(0);
+      expect(result.noisePoints).toBe(3);
     });
   });
 
