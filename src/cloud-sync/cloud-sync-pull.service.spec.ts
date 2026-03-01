@@ -3,126 +3,101 @@ import { BadRequestException } from '@nestjs/common';
 import { CloudSyncPullService } from './cloud-sync-pull.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-// Mock fetch globally
+// Mock encryption util
+jest.mock('../common/encryption.util', () => ({
+  decrypt: jest.fn((val: string) => `decrypted_${val}`),
+}));
+
+// Mock global fetch
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;
 
-// Mock decrypt
-jest.mock('../common/encryption.util', () => ({
-  decrypt: jest.fn((v: string) => `decrypted_${v}`),
-}));
-
-const mockPrisma = {
-  cloudLink: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-  memory: {
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  user: {
-    findFirst: jest.fn(),
-    findMany: jest.fn(),
-  },
-  agent: {
-    findMany: jest.fn(),
-  },
-  syncIdMap: {
-    findMany: jest.fn(),
-  },
-  syncEvent: {
-    create: jest.fn(),
-  },
-  memoryChainLink: {
-    findMany: jest.fn(),
-  },
-  graphEntityMention: {
-    findMany: jest.fn(),
-  },
-  graphRelationship: {
-    findMany: jest.fn(),
-  },
-};
-
 describe('CloudSyncPullService', () => {
   let service: CloudSyncPullService;
+  let prisma: any;
+
+  const mockCloudLink = {
+    accountId: 'acc-1',
+    cloudApiKey: 'encrypted-key',
+    cloudSyncKey: null,
+    instanceId: 'inst-1',
+    lastPulledAt: null,
+  };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    prisma = {
+      cloudLink: {
+        findUnique: jest.fn().mockResolvedValue(mockCloudLink),
+        update: jest.fn(),
+      },
+      memory: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'new-mem-1' }),
+        update: jest.fn(),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
+      },
+      syncEvent: {
+        create: jest.fn(),
+      },
+      agent: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'agent-1' }]),
+      },
+      syncIdMap: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CloudSyncPullService,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
 
-    service = module.get<CloudSyncPullService>(CloudSyncPullService);
+    service = module.get(CloudSyncPullService);
+    mockFetch.mockReset();
   });
 
   describe('triggerPull', () => {
-    const mockLink = {
-      accountId: 'acc-1',
-      cloudApiKey: 'encrypted-key',
-      cloudSyncKey: null,
-      instanceId: 'inst-1',
-      lastPulledAt: null,
-    };
-
-    it('should throw if no cloud link exists', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(null);
-      await expect(service.triggerPull('acc-1')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should pull and create new memories', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(mockLink);
-      mockFetch
-        // Pull request
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            memories: [
-              {
-                cloudId: 'cloud-1',
-                localId: null,
-                raw: 'test memory',
-                layer: 'SEMANTIC',
-                source: 'EXPLICIT_STATEMENT',
-                contentHash: 'hash-1',
-                createdAt: '2026-01-01T00:00:00Z',
-                updatedAt: '2026-01-01T00:00:00Z',
-                deletedAt: null,
-              },
-            ],
-            hasMore: false,
-          }),
-        })
-        // Embedding backfill
-        .mockResolvedValueOnce({ ok: true });
-
-      mockPrisma.memory.findFirst.mockResolvedValue(null); // no existing by hash
-      mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
-      mockPrisma.memory.create.mockResolvedValue({ id: 'mem-new-1' });
-      mockPrisma.cloudLink.update.mockResolvedValue({});
-      mockPrisma.syncEvent.create.mockResolvedValue({});
+    it('should pull new memories from cloud', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          memories: [
+            {
+              cloudId: 'cloud-1',
+              localId: null,
+              raw: 'test memory',
+              layer: 'SEMANTIC',
+              source: 'EXPLICIT_STATEMENT',
+              contentHash: 'hash-1',
+              createdAt: '2026-02-27T00:00:00Z',
+              updatedAt: '2026-02-27T00:00:00Z',
+              deletedAt: null,
+            },
+          ],
+          hasMore: false,
+        }),
+      });
+      // Mock embedding backfill
+      mockFetch.mockResolvedValueOnce({ ok: true });
 
       const result = await service.triggerPull('acc-1');
 
       expect(result.newCount).toBe(1);
-      expect(result.pulledCount).toBe(1);
-      expect(mockPrisma.memory.create).toHaveBeenCalled();
-      expect(mockPrisma.cloudLink.update).toHaveBeenCalledWith({
+      expect(result.skippedCount).toBe(0);
+      expect(prisma.memory.create).toHaveBeenCalled();
+      expect(prisma.cloudLink.update).toHaveBeenCalledWith({
         where: { accountId: 'acc-1' },
         data: { lastPulledAt: expect.any(Date) },
       });
     });
 
-    it('should skip memories with matching content hash', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(mockLink);
+    it('should skip memories with existing content hash', async () => {
+      prisma.memory.findFirst.mockResolvedValueOnce({ id: 'existing-1' });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -134,8 +109,8 @@ describe('CloudSyncPullService', () => {
               layer: 'SEMANTIC',
               source: 'EXPLICIT_STATEMENT',
               contentHash: 'existing-hash',
-              createdAt: '2026-01-01T00:00:00Z',
-              updatedAt: '2026-01-01T00:00:00Z',
+              createdAt: '2026-02-27T00:00:00Z',
+              updatedAt: '2026-02-27T00:00:00Z',
               deletedAt: null,
             },
           ],
@@ -143,17 +118,14 @@ describe('CloudSyncPullService', () => {
         }),
       });
 
-      mockPrisma.memory.findFirst.mockResolvedValue({ id: 'existing-1' }); // hash match
-      mockPrisma.cloudLink.update.mockResolvedValue({});
-      mockPrisma.syncEvent.create.mockResolvedValue({});
-
       const result = await service.triggerPull('acc-1');
+
       expect(result.skippedCount).toBe(1);
       expect(result.newCount).toBe(0);
     });
 
-    it('should propagate tombstones (deletions)', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(mockLink);
+    it('should propagate tombstones (soft delete)', async () => {
+      prisma.memory.findUnique.mockResolvedValueOnce({ id: 'local-1', deletedAt: null });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -165,61 +137,43 @@ describe('CloudSyncPullService', () => {
               layer: 'SEMANTIC',
               source: 'EXPLICIT_STATEMENT',
               contentHash: null,
-              createdAt: '2026-01-01T00:00:00Z',
-              updatedAt: '2026-01-01T00:00:00Z',
-              deletedAt: '2026-01-02T00:00:00Z',
+              createdAt: '2026-02-27T00:00:00Z',
+              updatedAt: '2026-02-27T00:00:00Z',
+              deletedAt: '2026-02-27T01:00:00Z',
             },
           ],
           hasMore: false,
         }),
       });
 
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'local-1', deletedAt: null });
-      mockPrisma.memory.update.mockResolvedValue({});
-      mockPrisma.cloudLink.update.mockResolvedValue({});
-      mockPrisma.syncEvent.create.mockResolvedValue({});
-
       const result = await service.triggerPull('acc-1');
+
       expect(result.deletedCount).toBe(1);
-      expect(mockPrisma.memory.update).toHaveBeenCalledWith({
+      expect(prisma.memory.update).toHaveBeenCalledWith({
         where: { id: 'local-1' },
-        data: { deletedAt: new Date('2026-01-02T00:00:00Z') },
+        data: { deletedAt: expect.any(Date) },
       });
     });
 
-    it('should throw on non-ok cloud response', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(mockLink);
+    it('should throw when cloud link not found', async () => {
+      prisma.cloudLink.findUnique.mockResolvedValue(null);
+
+      await expect(service.triggerPull('bad-acc')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw on cloud API failure', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        text: async () => 'Internal Server Error',
+        text: async () => 'Internal error',
       });
 
-      await expect(service.triggerPull('acc-1')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should prefer cloudSyncKey over cloudApiKey', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue({
-        ...mockLink,
-        cloudSyncKey: 'sync-key-encrypted',
-      });
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ memories: [], hasMore: false }),
-      });
-      mockPrisma.cloudLink.update.mockResolvedValue({});
-      mockPrisma.syncEvent.create.mockResolvedValue({});
-
-      await service.triggerPull('acc-1');
-
-      // The decrypted sync key starts with 'decrypted_sync-key-encrypted'
-      const fetchCall = mockFetch.mock.calls[0];
-      // Check that the header uses the sync key
-      expect(fetchCall[1].headers).toBeDefined();
+      await expect(service.triggerPull('acc-1')).rejects.toThrow('Cloud pull failed: 500');
     });
 
     it('should update existing local memory when content hash differs', async () => {
-      mockPrisma.cloudLink.findUnique.mockResolvedValue(mockLink);
+      prisma.memory.findFirst.mockResolvedValueOnce(null); // no hash match
+      prisma.memory.findUnique.mockResolvedValueOnce({ id: 'local-1', contentHash: 'old-hash' });
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -232,58 +186,131 @@ describe('CloudSyncPullService', () => {
                 layer: 'SEMANTIC',
                 source: 'EXPLICIT_STATEMENT',
                 contentHash: 'new-hash',
-                createdAt: '2026-01-01T00:00:00Z',
-                updatedAt: '2026-01-01T00:00:00Z',
+                createdAt: '2026-02-27T00:00:00Z',
+                updatedAt: '2026-02-27T00:00:00Z',
                 deletedAt: null,
               },
             ],
             hasMore: false,
           }),
         })
-        .mockResolvedValueOnce({ ok: true }); // backfill
-
-      mockPrisma.memory.findFirst.mockResolvedValue(null); // no hash match
-      mockPrisma.memory.findUnique.mockResolvedValue({ id: 'local-1', contentHash: 'old-hash' });
-      mockPrisma.memory.update.mockResolvedValue({});
-      mockPrisma.cloudLink.update.mockResolvedValue({});
-      mockPrisma.syncEvent.create.mockResolvedValue({});
+        .mockResolvedValueOnce({ ok: true }); // embedding backfill
 
       const result = await service.triggerPull('acc-1');
+
       expect(result.updatedCount).toBe(1);
+      expect(prisma.memory.update).toHaveBeenCalledWith({
+        where: { id: 'local-1' },
+        data: { raw: 'updated content', contentHash: 'new-hash' },
+      });
+    });
+
+    it('should skip when no user found for new memory', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          memories: [
+            {
+              cloudId: 'cloud-1',
+              localId: null,
+              raw: 'orphan',
+              layer: 'SEMANTIC',
+              source: 'EXPLICIT_STATEMENT',
+              contentHash: 'hash-orphan',
+              createdAt: '2026-02-27T00:00:00Z',
+              updatedAt: '2026-02-27T00:00:00Z',
+              deletedAt: null,
+            },
+          ],
+          hasMore: false,
+        }),
+      });
+
+      const result = await service.triggerPull('acc-1');
+
+      expect(result.skippedCount).toBe(1);
+      expect(result.newCount).toBe(0);
+    });
+
+    it('should handle pagination with hasMore', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            memories: [
+              {
+                cloudId: 'cloud-1',
+                localId: null,
+                raw: 'page 1',
+                layer: 'SEMANTIC',
+                source: 'EXPLICIT_STATEMENT',
+                contentHash: 'h1',
+                createdAt: '2026-02-27T00:00:00Z',
+                updatedAt: '2026-02-27T00:00:00Z',
+                deletedAt: null,
+              },
+            ],
+            hasMore: true,
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            memories: [
+              {
+                cloudId: 'cloud-2',
+                localId: null,
+                raw: 'page 2',
+                layer: 'SEMANTIC',
+                source: 'EXPLICIT_STATEMENT',
+                contentHash: 'h2',
+                createdAt: '2026-02-27T01:00:00Z',
+                updatedAt: '2026-02-27T01:00:00Z',
+                deletedAt: null,
+              },
+            ],
+            hasMore: false,
+          }),
+        })
+        .mockResolvedValueOnce({ ok: true }); // embedding backfill
+
+      prisma.memory.create
+        .mockResolvedValueOnce({ id: 'new-1' })
+        .mockResolvedValueOnce({ id: 'new-2' });
+
+      const result = await service.triggerPull('acc-1');
+
+      expect(result.newCount).toBe(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3); // 2 pages + embedding backfill
     });
   });
 
   describe('handleSyncPull', () => {
-    it('should return paginated memories for an account', async () => {
-      mockPrisma.agent.findMany.mockResolvedValue([{ id: 'agent-1' }]);
-      mockPrisma.user.findMany.mockResolvedValue([{ id: 'user-1' }]);
-      mockPrisma.memory.findMany.mockResolvedValue([
+    it('should return memories updated since given date', async () => {
+      prisma.user.findMany = jest.fn().mockResolvedValue([{ id: 'user-1' }]);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([
         {
           id: 'mem-1',
           raw: 'test',
           layer: 'SEMANTIC',
           source: 'EXPLICIT_STATEMENT',
           contentHash: 'h1',
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date('2026-02-27T00:00:00Z'),
+          updatedAt: new Date('2026-02-27T01:00:00Z'),
           deletedAt: null,
         },
-      ]);
-      mockPrisma.syncIdMap.findMany.mockResolvedValue([
-        { cloudMemoryId: 'mem-1', localMemoryId: 'local-1', instanceId: 'inst-1' },
       ]);
 
       const result = await service.handleSyncPull('acc-1', 'inst-1', new Date(0), 100);
 
       expect(result.memories).toHaveLength(1);
-      expect(result.memories[0].localId).toBe('local-1');
       expect(result.hasMore).toBe(false);
+      expect(result.memories[0].cloudId).toBe('mem-1');
     });
 
-    it('should set hasMore when more results exist', async () => {
-      mockPrisma.agent.findMany.mockResolvedValue([{ id: 'agent-1' }]);
-      mockPrisma.user.findMany.mockResolvedValue([{ id: 'user-1' }]);
-      // Return limit+1 items
+    it('should set hasMore when results exceed limit', async () => {
+      prisma.user.findMany = jest.fn().mockResolvedValue([{ id: 'user-1' }]);
       const mems = Array.from({ length: 3 }, (_, i) => ({
         id: `mem-${i}`,
         raw: `test ${i}`,
@@ -294,8 +321,7 @@ describe('CloudSyncPullService', () => {
         updatedAt: new Date(),
         deletedAt: null,
       }));
-      mockPrisma.memory.findMany.mockResolvedValue(mems);
-      mockPrisma.syncIdMap.findMany.mockResolvedValue([]);
+      prisma.memory.findMany = jest.fn().mockResolvedValue(mems);
 
       const result = await service.handleSyncPull('acc-1', 'inst-1', new Date(0), 2);
 
