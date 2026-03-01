@@ -1,11 +1,13 @@
 import { InboundEmailService } from './inbound-email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('InboundEmailService', () => {
   let service: InboundEmailService;
   let prisma: jest.Mocked<PrismaService>;
   let memoryService: jest.Mocked<MemoryService>;
+  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(() => {
     prisma = {
@@ -26,7 +28,11 @@ describe('InboundEmailService', () => {
       remember: jest.fn().mockResolvedValue({}),
     } as any;
 
-    service = new InboundEmailService(prisma, memoryService);
+    configService = {
+      get: jest.fn().mockReturnValue(''),
+    } as any;
+
+    service = new InboundEmailService(prisma, memoryService, configService);
   });
 
   const sampleData = {
@@ -148,7 +154,7 @@ describe('InboundEmailService', () => {
         where: { id: 'uuid-1' },
         data: { status: 'processed', processedAt: expect.any(Date) },
       });
-      expect(result.id).toBe('uuid-1');
+      expect(result!.id).toBe('uuid-1');
     });
 
     it('should set status to unrouted when agent not found', async () => {
@@ -234,7 +240,7 @@ describe('InboundEmailService', () => {
 
       const result = await service.handleInboundEmail(sampleData, 'evt-fail');
 
-      expect(result.id).toBe('uuid-1');
+      expect(result!.id).toBe('uuid-1');
       // Should update status to 'failed'
       expect(prisma.inboundEmail.update as jest.Mock).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { InboundEmailDataDto } from './dto/inbound-email-webhook.dto';
@@ -14,10 +15,36 @@ export interface ResolvedAgent {
 export class InboundEmailService {
   private readonly logger = new Logger(InboundEmailService.name);
 
+  private readonly senderAllowlist: string[];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly memoryService: MemoryService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    // Parse INBOUND_EMAIL_SENDER_ALLOWLIST — comma-separated emails or domains
+    // e.g. "trevan@generositycatalyst.com,matt@generositycatalyst.com" or "@generositycatalyst.com"
+    const raw = this.configService.get<string>('INBOUND_EMAIL_SENDER_ALLOWLIST') || '';
+    this.senderAllowlist = raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  /**
+   * Check if a sender is allowed. If no allowlist is configured, all senders are allowed.
+   * Supports exact email matches and domain matches (prefixed with @).
+   */
+  isSenderAllowed(from: string): boolean {
+    if (this.senderAllowlist.length === 0) return true;
+    const sender = from.toLowerCase().trim();
+    return this.senderAllowlist.some((entry) => {
+      if (entry.startsWith('@')) {
+        return sender.endsWith(entry);
+      }
+      return sender === entry;
+    });
+  }
 
   /**
    * Extract the local part from an email address.
@@ -61,6 +88,12 @@ export class InboundEmailService {
     if (existing) {
       this.logger.log(`Duplicate event ${resendEventId}, skipping`);
       return existing;
+    }
+
+    // Sender allowlist check
+    if (!this.isSenderAllowed(data.from)) {
+      this.logger.warn(`Rejected email from ${data.from} — not on sender allowlist`);
+      return null;
     }
 
     // Truncate content
