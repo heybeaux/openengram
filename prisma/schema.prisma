@@ -1946,3 +1946,24 @@ model DelegationContract {
   @@index([delegate])
   @@map("delegation_contracts")
 }
+
+model InboundEmail {
+  id            String    @id @default(uuid())
+  from          String
+  to            String
+  subject       String?
+  textBody      String?   @map("text_body")
+  htmlBody      String?   @map("html_body")
+  rawHeaders    Json?     @map("raw_headers")
+  resendEventId String?   @unique @map("resend_event_id")
+  status        String    @default("received")
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("inbound_emails")
+  @@index([from])
+  @@index([to])
+  @@index([createdAt])
+  @@index([status])
+}
