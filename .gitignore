@@ -43,3 +43,7 @@ prisma/engram.db
 backups/
 package-lock.json
 data/
+
+# Factory transient files
+.factory-prompt.md
+.factory-debugger-prompt.md
