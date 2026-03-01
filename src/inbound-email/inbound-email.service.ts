@@ -230,7 +230,7 @@ export class InboundEmailService {
       );
       // Create memory with the resolved user — use fetched content
       await this.createMemoryFromEmail(
-        { ...record, textBody, htmlBody },
+        record,
         { ...data, text: textBody ?? data.text, html: htmlBody ?? data.html },
         resolved,
       );
