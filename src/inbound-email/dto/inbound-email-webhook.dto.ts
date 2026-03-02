@@ -6,6 +6,10 @@ export class InboundEmailDataDto {
   @IsString()
   id?: string;
 
+  @IsOptional()
+  @IsString()
+  email_id?: string;
+
   @IsString()
   from: string;
 

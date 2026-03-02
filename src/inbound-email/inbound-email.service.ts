@@ -187,7 +187,7 @@ export class InboundEmailService {
 
     // If webhook payload didn't include body content, fetch from Resend API
     if (!textBody && !htmlBody) {
-      const emailId = data.id ?? null;
+      const emailId = data.email_id ?? data.id ?? null;
       if (emailId) {
         const fetched = await this.fetchEmailContent(emailId);
         if (fetched) {
@@ -262,7 +262,7 @@ export class InboundEmailService {
     }
 
     try {
-      const response = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      const response = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
