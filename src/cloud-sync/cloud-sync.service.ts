@@ -64,6 +64,15 @@ export class CloudSyncService {
   }
 
   async triggerSync(accountId: string): Promise<{ message: string }> {
+    if (!accountId) {
+      this.logger.warn(
+        'triggerSync called without accountId — this usually means the auth guard did not resolve account context. ' +
+          'Check that TRUST_LOCAL_NETWORK=true is set and the api-key guard resolves the default account for local requests.',
+      );
+      throw new BadRequestException(
+        'Missing accountId — cannot trigger sync without account context',
+      );
+    }
     const link = await this.getCloudLink(accountId);
     const syncKey = link.cloudSyncKey
       ? this.decryptApiKey(link.cloudSyncKey)
@@ -170,6 +179,12 @@ export class CloudSyncService {
   }
 
   async getSyncStatus(accountId: string): Promise<SyncStatus> {
+    if (!accountId) {
+      this.logger.warn(
+        'getSyncStatus called without accountId — auth guard may not have resolved account context',
+      );
+      throw new BadRequestException('Missing accountId');
+    }
     const link = await this.prisma.cloudLink.findUnique({
       where: { accountId },
     });
