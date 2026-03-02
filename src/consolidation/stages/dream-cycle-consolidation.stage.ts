@@ -88,8 +88,7 @@ export class DreamCycleConsolidationStage {
         result.consolidated++;
         result.archived += cluster.length;
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : String(err);
+        const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to consolidate cluster: ${msg}`);
         result.errors++;
       }
@@ -206,7 +205,9 @@ Write a single consolidated memory that captures all the information above.`;
       llmResponse.content?.trim() || cluster.map((m) => m.content).join(' ');
 
     // Generate embedding for the consolidated memory
-    const [embedding] = await this.embeddingService.embed([consolidatedContent]);
+    const [embedding] = await this.embeddingService.embed([
+      consolidatedContent,
+    ]);
 
     // Create consolidated memory and archive originals in a transaction
     await this.prisma.$transaction(async (tx) => {
