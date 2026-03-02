@@ -142,6 +142,10 @@ export class InboundEmailService {
   }
 
   async handleInboundEmail(data: InboundEmailDataDto, resendEventId: string) {
+    this.logger.log(
+      `Inbound email payload keys: ${Object.keys(data).join(', ')} | text: ${data.text ? `${data.text.length} chars` : 'null'} | html: ${data.html ? `${data.html.length} chars` : 'null'}`,
+    );
+
     // Idempotency check
     const existing = await this.prisma.inboundEmail.findUnique({
       where: { resendEventId },

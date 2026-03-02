@@ -65,6 +65,10 @@ export class InboundEmailController {
 
     const resendEventId = req.headers['svix-id'] as string;
 
+    this.logger.log(
+      `Webhook verified — type: ${payload.type}, data keys: ${Object.keys(payload.data || {}).join(', ')}, top-level keys: ${Object.keys(payload).join(', ')}`,
+    );
+
     // Process — always return 200 for valid signatures
     try {
       await this.inboundEmailService.handleInboundEmail(
