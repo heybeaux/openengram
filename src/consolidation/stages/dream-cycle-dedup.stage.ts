@@ -103,7 +103,7 @@ export class DreamCycleDedupStage {
         const raw = await this.prisma.$queryRawUnsafe<
           Array<{ embedding: string }>
         >(
-          `SELECT embedding::text FROM memory_embeddings WHERE memory_id = $1 AND embedding IS NOT NULL LIMIT 1`,
+          `SELECT embedding::text FROM memory_embeddings WHERE memory_id = $1 AND embedding IS NOT NULL AND dimensions = 768 LIMIT 1`,
           memory.id,
         );
         if (!raw.length || !raw[0].embedding) continue;
