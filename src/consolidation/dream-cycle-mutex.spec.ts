@@ -72,12 +72,21 @@ describe('DreamCycleService - Mutex', () => {
       run: jest.fn().mockResolvedValue({ processed: 0 }),
     };
 
+    const mockTieringStage = {
+      run: jest.fn().mockResolvedValue({ promoted: 0, demoted: 0 }),
+    };
+    const mockConsolidationStage = {
+      run: jest.fn().mockResolvedValue({ consolidated: 0 }),
+    };
+
     service = new DreamCycleService(
       mockPrisma,
       mockConfig as any,
       mockDedupStage as any,
       mockStalenessStage as any,
       mockPendingStage as any,
+      mockTieringStage as any,
+      mockConsolidationStage as any,
       mockPatternsStage as any,
       mockDriftStage as any,
       mockIdentityStage as any,

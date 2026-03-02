@@ -104,7 +104,7 @@ export class DreamCycleConsolidationStage {
     const memories = await this.prisma.$queryRaw<
       Array<{ id: string; content: string; embedding: string | null }>
     >`
-      SELECT id, content, embedding::text
+      SELECT id, raw AS content, embedding::text
       FROM memories
       WHERE user_id = ${userId}
         AND deleted_at IS NULL
@@ -214,8 +214,9 @@ Write a single consolidated memory that captures all the information above.`;
       const newMemory = await tx.memory.create({
         data: {
           userId,
-          content: consolidatedContent,
-          type: 'FACT',
+          raw: consolidatedContent,
+          layer: 'INSIGHT',
+          memoryType: 'FACT',
           tier: 'WARM',
           consolidated: false,
         },
