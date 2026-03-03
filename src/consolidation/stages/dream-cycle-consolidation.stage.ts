@@ -121,10 +121,7 @@ export class DreamCycleConsolidationStage {
 
   private parseVector(vectorStr: string): number[] {
     // pgvector format: [0.1,0.2,...]
-    return vectorStr
-      .replace(/[\[\]]/g, '')
-      .split(',')
-      .map(Number);
+    return vectorStr.replace(/[[\]]/g, '').split(',').map(Number);
   }
 
   /**

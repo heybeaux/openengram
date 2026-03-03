@@ -277,7 +277,7 @@ export class TemporalSamplingService {
           // This is a simplification - in real implementation, you might track dream count
         },
       }),
-      0, // Placeholder for multiple dreams - would need additional tracking
+      Promise.resolve(0), // Placeholder for multiple dreams - would need additional tracking
       this.prisma.memory.count({
         where: { ...baseWhere, createdAt: { gte: oneMonthAgo } },
       }),

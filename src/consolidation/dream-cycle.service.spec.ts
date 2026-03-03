@@ -13,6 +13,8 @@ import {
   DreamCycleDriftStage,
   DreamCycleIdentityStage,
   DreamCyclePendingStage,
+  DreamCycleTieringStage,
+  DreamCycleConsolidationStage,
 } from './stages';
 
 const mockPrisma = {
@@ -111,6 +113,22 @@ const mockDriftStage = {
   }),
 };
 
+const mockTieringStage = {
+  run: jest.fn().mockResolvedValue({
+    promoted: 0,
+    demoted: 0,
+    evaluated: 0,
+  }),
+};
+
+const mockConsolidationStage = {
+  run: jest.fn().mockResolvedValue({
+    consolidated: 0,
+    clusters: 0,
+    llmCalls: 0,
+  }),
+};
+
 describe('DreamCycleService', () => {
   let service: DreamCycleService;
 
@@ -149,6 +167,16 @@ describe('DreamCycleService', () => {
       snapshotsPersisted: 0,
       alerts: [],
     });
+    mockTieringStage.run.mockResolvedValue({
+      promoted: 0,
+      demoted: 0,
+      evaluated: 0,
+    });
+    mockConsolidationStage.run.mockResolvedValue({
+      consolidated: 0,
+      clusters: 0,
+      llmCalls: 0,
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -165,6 +193,8 @@ describe('DreamCycleService', () => {
         { provide: DreamCyclePatternsStage, useValue: mockPatternsStage },
         { provide: DreamCycleDriftStage, useValue: mockDriftStage },
         { provide: DreamCycleIdentityStage, useValue: mockIdentityStage },
+        { provide: DreamCycleTieringStage, useValue: mockTieringStage },
+        { provide: DreamCycleConsolidationStage, useValue: mockConsolidationStage },
       ],
     }).compile();
 
