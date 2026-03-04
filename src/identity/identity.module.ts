@@ -21,6 +21,10 @@ import { TrustProfileService } from './trust-profile.service';
 import { DelegationTaskService } from './delegation-task.service';
 import { DelegationController } from './delegation.controller';
 import { IdentityService } from './identity.service';
+import { TaskOutcomeService } from './task-outcome.service';
+import { SelfAssessmentService } from './self-assessment.service';
+import { CapabilityProfileService } from './capability-profile.service';
+import { WorkStyleService } from './work-style.service';
 
 @Module({
   imports: [PrismaModule, EmbeddingModule],
@@ -46,6 +50,10 @@ import { IdentityService } from './identity.service';
     DelegationTemplateService,
     TrustProfileService,
     DelegationTaskService,
+    TaskOutcomeService,
+    SelfAssessmentService,
+    CapabilityProfileService,
+    WorkStyleService,
   ],
   exports: [
     IdentityService,
@@ -59,6 +67,10 @@ import { IdentityService } from './identity.service';
     DelegationTemplateService,
     TrustProfileService,
     DelegationTaskService,
+    TaskOutcomeService,
+    SelfAssessmentService,
+    CapabilityProfileService,
+    WorkStyleService,
   ],
 })
 export class IdentityModule implements OnModuleInit {
