@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { EmbeddingService } from '../../embedding/embedding.service';
 import { LLMService } from '../../llm/llm.service';
 
@@ -26,7 +26,7 @@ export class DreamCycleConsolidationStage {
   private readonly maxConsolidations: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: ServicePrismaService,
     private readonly config: ConfigService,
     private readonly embeddingService: EmbeddingService,
     private readonly llmService: LLMService,

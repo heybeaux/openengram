@@ -4,7 +4,7 @@ import {
   TemporalSamplingService,
   TemporalSampleOptions,
 } from './temporal-sampling.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 
 const mockPrisma = {
   memory: {
@@ -44,7 +44,7 @@ describe('TemporalSamplingService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TemporalSamplingService,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ServicePrismaService, useValue: mockPrisma },
         { provide: ConfigService, useValue: mockConfig },
       ],
     }).compile();
@@ -180,7 +180,7 @@ describe('TemporalSamplingService', () => {
       // Use sampleSize=100 so all tiers get non-zero allocation (40/30/20/10)
       mockPrisma.memory.count
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValue(25);     // each tier has 25 available
+        .mockResolvedValue(25); // each tier has 25 available
 
       mockPrisma.memory.findMany
         .mockResolvedValueOnce([makeMemory({ id: 'r1' })])
@@ -249,11 +249,11 @@ describe('TemporalSamplingService', () => {
       // (dreamedMultiple is a Promise.resolve(0), not a prisma call)
       mockPrisma.memory.count
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(30)  // neverDreamed
-        .mockResolvedValueOnce(70)  // dreamedOnce
-        .mockResolvedValueOnce(25)  // recent
-        .mockResolvedValueOnce(30)  // midRange
-        .mockResolvedValueOnce(20)  // deep
+        .mockResolvedValueOnce(30) // neverDreamed
+        .mockResolvedValueOnce(70) // dreamedOnce
+        .mockResolvedValueOnce(25) // recent
+        .mockResolvedValueOnce(30) // midRange
+        .mockResolvedValueOnce(20) // deep
         .mockResolvedValueOnce(25); // random
 
       const stats = await service.getSamplingStats('user-1');

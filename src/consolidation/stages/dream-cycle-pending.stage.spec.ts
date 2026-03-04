@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { DreamCyclePendingStage, PendingStageResult } from './dream-cycle-pending.stage';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  DreamCyclePendingStage,
+  PendingStageResult,
+} from './dream-cycle-pending.stage';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { LLMService } from '../../llm/llm.service';
 
 const mockPrisma = {
@@ -62,7 +65,7 @@ describe('DreamCyclePendingStage', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DreamCyclePendingStage,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ServicePrismaService, useValue: mockPrisma },
         { provide: LLMService, useValue: mockLLM },
         { provide: ConfigService, useValue: mockConfig },
       ],
@@ -199,7 +202,7 @@ describe('DreamCyclePendingStage', () => {
     });
 
     it('should NOT update status in dry-run mode', async () => {
-      const candidate = makeCandidate({ similarity: 0.50 });
+      const candidate = makeCandidate({ similarity: 0.5 });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
 
       const result = await stage.run('user-1', true);
@@ -385,7 +388,9 @@ describe('DreamCyclePendingStage', () => {
       const candidate = makeCandidate({ similarity: 0.95 });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       // Only return 1 memory when 2 are expected
-      mockPrisma.memory.findMany.mockResolvedValue([makeMemory({ id: 'mem-a' })]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+      ]);
 
       const result = await stage.run('user-1', false);
 
@@ -398,7 +403,7 @@ describe('DreamCyclePendingStage', () => {
       const candidates = [
         makeCandidate({ id: 'c-high', similarity: 0.95 }),
         makeCandidate({ id: 'c-mid', similarity: 0.85 }),
-        makeCandidate({ id: 'c-low', similarity: 0.70 }),
+        makeCandidate({ id: 'c-low', similarity: 0.7 }),
       ];
       mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
       mockPrisma.memory.findMany.mockResolvedValue([

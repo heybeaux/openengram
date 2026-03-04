@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DreamCycleTieringStage } from './dream-cycle-tiering.stage';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 
 describe('DreamCycleTieringStage', () => {
   let stage: DreamCycleTieringStage;
@@ -18,7 +18,7 @@ describe('DreamCycleTieringStage', () => {
     const module = await Test.createTestingModule({
       providers: [
         DreamCycleTieringStage,
-        { provide: PrismaService, useValue: prisma },
+        { provide: ServicePrismaService, useValue: prisma },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(undefined) },

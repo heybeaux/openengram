@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DreamCycleDedupStage } from './dream-cycle-dedup.stage';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { EmbeddingService } from '../../memory/embedding.service';
 import { LLMService } from '../../llm/llm.service';
 import { TemporalSamplingService } from '../temporal-sampling.service';
@@ -67,7 +67,7 @@ describe('DreamCycleDedupStage', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DreamCycleDedupStage,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ServicePrismaService, useValue: mockPrisma },
         { provide: EmbeddingService, useValue: mockEmbedding },
         { provide: LLMService, useValue: mockLlm },
         { provide: ConfigService, useValue: mockConfig },

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 
 export interface TemporalSampleOptions {
   userId: string;
@@ -33,7 +33,7 @@ export class TemporalSamplingService {
   private readonly defaultSampleSize: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: ServicePrismaService,
     private readonly config: ConfigService,
   ) {
     this.defaultSampleSize = parseInt(

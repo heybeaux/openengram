@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DreamCycleService } from './dream-cycle.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 import { ConsolidationService } from '../memory/consolidation.service';
 import { ImportanceScorerService } from '../memory/intelligence/importance-scorer.service';
 import { EmbeddingService } from '../memory/embedding.service';
@@ -16,6 +16,7 @@ import {
   DreamCycleTieringStage,
   DreamCycleConsolidationStage,
 } from './stages';
+import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
 
 const mockPrisma = {
   $queryRawUnsafe: jest.fn(),
@@ -181,7 +182,7 @@ describe('DreamCycleService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DreamCycleService,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ServicePrismaService, useValue: mockPrisma },
         { provide: ConsolidationService, useValue: mockConsolidation },
         { provide: ImportanceScorerService, useValue: mockScorer },
         { provide: EmbeddingService, useValue: mockEmbedding },
@@ -197,6 +198,20 @@ describe('DreamCycleService', () => {
         {
           provide: DreamCycleConsolidationStage,
           useValue: mockConsolidationStage,
+        },
+        {
+          provide: DreamCycleRunTrackerService,
+          useValue: {
+            getTotalMemoryCount: jest.fn().mockResolvedValue(0),
+            startStage: jest.fn().mockResolvedValue({
+              id: 'stage-1',
+              runId: 'run-1',
+              stage: 'test',
+            }),
+            completeStage: jest.fn().mockResolvedValue(undefined),
+            abortStage: jest.fn().mockResolvedValue(undefined),
+            errorStage: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

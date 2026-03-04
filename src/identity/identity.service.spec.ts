@@ -19,17 +19,27 @@ describe('IdentityService', () => {
     };
 
     const mockTaskOutcome = {
-      create: jest.fn().mockResolvedValue({ id: 'stub-outcome', taskDescription: 'deploy', outcome: 'success' }),
+      create: jest.fn().mockResolvedValue({
+        id: 'stub-outcome',
+        taskDescription: 'deploy',
+        outcome: 'success',
+      }),
       list: jest.fn().mockResolvedValue([]),
     } as any;
 
     const mockSelfAssessment = {
-      create: jest.fn().mockResolvedValue({ id: 'stub-assessment', area: 'coding', selfRating: 8 }),
+      create: jest.fn().mockResolvedValue({
+        id: 'stub-assessment',
+        area: 'coding',
+        selfRating: 8,
+      }),
       getLatestByArea: jest.fn().mockResolvedValue([]),
     } as any;
 
     const mockCapabilityProfile = {
-      getProfile: jest.fn().mockResolvedValue({ agentId: 'agent-1', capabilities: [] }),
+      getProfile: jest
+        .fn()
+        .mockResolvedValue({ agentId: 'agent-1', capabilities: [] }),
       updateFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
     } as any;
 

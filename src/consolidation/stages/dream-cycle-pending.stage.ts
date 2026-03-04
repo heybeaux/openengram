@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { LLMService } from '../../llm/llm.service';
 
 export interface PendingStageResult {
@@ -20,7 +20,7 @@ export class DreamCyclePendingStage {
   private readonly batchSize: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: ServicePrismaService,
     private readonly llm: LLMService,
     private readonly config: ConfigService,
   ) {
