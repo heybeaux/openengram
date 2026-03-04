@@ -49,7 +49,7 @@ describe('IdentityService', () => {
     it('should return stub result for test compatibility', async () => {
       const dto = {
         taskDescription: 'deploy',
-        outcome: 'success',
+        outcome: 'success' as const,
         durationMs: 5000,
       };
 
