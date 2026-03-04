@@ -1,5 +1,4 @@
 import { IdentityService } from './identity.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 describe('IdentityService', () => {
   let service: IdentityService;
@@ -19,10 +18,25 @@ describe('IdentityService', () => {
       },
     };
 
-    const mockTaskOutcome = {} as any;
-    const mockSelfAssessment = {} as any;
-    const mockCapabilityProfile = {} as any;
-    const mockWorkStyle = {} as any;
+    const mockTaskOutcome = {
+      create: jest.fn().mockResolvedValue({ id: 'stub-outcome', taskDescription: 'deploy', outcome: 'success' }),
+      list: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    const mockSelfAssessment = {
+      create: jest.fn().mockResolvedValue({ id: 'stub-assessment', area: 'coding', selfRating: 8 }),
+      getLatestByArea: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    const mockCapabilityProfile = {
+      getProfile: jest.fn().mockResolvedValue({ agentId: 'agent-1', capabilities: [] }),
+      updateFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
+    const mockWorkStyle = {
+      getWorkStyle: jest.fn().mockResolvedValue([]),
+      extractFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
+    } as any;
 
     service = new IdentityService(
       prisma,
