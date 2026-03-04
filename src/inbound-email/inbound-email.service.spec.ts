@@ -40,7 +40,12 @@ describe('InboundEmailService', () => {
       parse: jest.fn().mockReturnValue({ isLinkedIn: false }),
     } as any;
 
-    service = new InboundEmailService(prisma, memoryService, configService, linkedInParser);
+    service = new InboundEmailService(
+      prisma,
+      memoryService,
+      configService,
+      linkedInParser,
+    );
   });
 
   const sampleData = {
