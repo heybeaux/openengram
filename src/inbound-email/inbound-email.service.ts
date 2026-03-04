@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MemoryService } from '../memory/memory.service';
 import { InboundEmailDataDto } from './dto/inbound-email-webhook.dto';
 import { EmailQueryDto } from './dto/email-query.dto';
+import { LinkedInEmailParserService } from './linkedin-email-parser.service';
 
 const MAX_CONTENT_LENGTH = 500_000;
 
@@ -22,6 +23,7 @@ export class InboundEmailService {
     private readonly prisma: PrismaService,
     private readonly memoryService: MemoryService,
     private readonly configService: ConfigService,
+    private readonly linkedInParser: LinkedInEmailParserService,
   ) {
     // Parse INBOUND_EMAIL_SENDER_ALLOWLIST — comma-separated emails or domains
     // e.g. "trevan@generositycatalyst.com,matt@generositycatalyst.com" or "@generositycatalyst.com"
@@ -294,8 +296,6 @@ export class InboundEmailService {
     resolved: ResolvedAgent,
   ): Promise<void> {
     try {
-      const memoryContent = `Email from ${data.from}: ${data.subject || '(no subject)'}\n\n${data.text || ''}`;
-
       if (!resolved.userId) {
         this.logger.warn(
           `No user found for memory creation from email ${record.id}`,
@@ -304,14 +304,43 @@ export class InboundEmailService {
         return;
       }
 
-      await this.memoryService.remember(resolved.userId, {
-        content: memoryContent,
-        layer: 'SESSION',
-        source: 'AGENT_OBSERVATION',
-      });
+      // Check if this is a LinkedIn engagement notification
+      const linkedIn = this.linkedInParser.parse(
+        data.subject || '',
+        data.text || '',
+        data.from,
+      );
+
+      if (linkedIn.isLinkedIn && linkedIn.engagerName && linkedIn.type !== 'unknown') {
+        // Store structured LinkedIn engagement memory
+        const engagementContent = linkedIn.commentPreview
+          ? `${linkedIn.engagerName} ${linkedIn.action}: "${linkedIn.commentPreview}"`
+          : `${linkedIn.engagerName} ${linkedIn.action}`;
+
+        await this.memoryService.remember(resolved.userId, {
+          content: engagementContent,
+          layer: 'PROJECT',
+          source: 'AGENT_OBSERVATION',
+          tags: ['linkedin:engagement', 'auto:true', 'source:email'],
+        });
+
+        this.logger.log(
+          `Created LinkedIn engagement memory from email ${record.id}: ${linkedIn.type} by ${linkedIn.engagerName}`,
+        );
+      } else {
+        // Standard email memory
+        const memoryContent = `Email from ${data.from}: ${data.subject || '(no subject)'}\n\n${data.text || ''}`;
+
+        await this.memoryService.remember(resolved.userId, {
+          content: memoryContent,
+          layer: 'SESSION',
+          source: 'AGENT_OBSERVATION',
+        });
+
+        this.logger.log(`Created memory from email ${record.id}`);
+      }
 
       await this.updateEmailStatus(record.id, 'processed');
-      this.logger.log(`Created memory from email ${record.id}`);
     } catch (error) {
       this.logger.error(
         `Failed to create memory from email ${record.id}: ${error.message}`,
