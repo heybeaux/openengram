@@ -1,5 +1,4 @@
 import { IdentityService } from './identity.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 describe('IdentityService', () => {
   let service: IdentityService;
@@ -19,7 +18,33 @@ describe('IdentityService', () => {
       },
     };
 
-    service = new IdentityService(prisma);
+    const mockTaskOutcome = {
+      create: jest.fn().mockResolvedValue({ id: 'stub-outcome', taskDescription: 'deploy', outcome: 'success' }),
+      list: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    const mockSelfAssessment = {
+      create: jest.fn().mockResolvedValue({ id: 'stub-assessment', area: 'coding', selfRating: 8 }),
+      getLatestByArea: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    const mockCapabilityProfile = {
+      getProfile: jest.fn().mockResolvedValue({ agentId: 'agent-1', capabilities: [] }),
+      updateFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
+    const mockWorkStyle = {
+      getWorkStyle: jest.fn().mockResolvedValue([]),
+      extractFromTaskOutcome: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
+    service = new IdentityService(
+      prisma,
+      mockTaskOutcome,
+      mockSelfAssessment,
+      mockCapabilityProfile,
+      mockWorkStyle,
+    );
   });
 
   describe('bootstrap', () => {
@@ -38,7 +63,7 @@ describe('IdentityService', () => {
     it('should return stub result for test compatibility', async () => {
       const dto = {
         taskDescription: 'deploy',
-        outcome: 'success',
+        outcome: 'success' as const,
         durationMs: 5000,
       };
 
@@ -59,7 +84,7 @@ describe('IdentityService', () => {
       expect(profile.capabilities).toEqual([]);
       expect(profile.preferences).toEqual([]);
       expect(profile.trustSignals).toBeDefined();
-      expect(profile.trustSignals.totalMemories).toBe(0);
+      expect(profile.trustSignals?.totalMemories).toBe(0);
     });
   });
 

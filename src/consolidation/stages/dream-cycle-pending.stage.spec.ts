@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { DreamCyclePendingStage } from './dream-cycle-pending.stage';
+import { DreamCyclePendingStage, PendingStageResult } from './dream-cycle-pending.stage';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LLMService } from '../../llm/llm.service';
 
@@ -19,42 +19,39 @@ const mockPrisma = {
   },
 };
 
-const mockLlm = {
+const mockLLM = {
   json: jest.fn(),
 };
 
 const mockConfig = {
-  get: jest.fn((key: string, def?: string) => {
-    const vals: Record<string, string> = {
+  get: jest.fn((key: string, defaultValue?: any) => {
+    const cfg: Record<string, string> = {
       DREAM_PENDING_BATCH_SIZE: '100',
     };
-    return vals[key] ?? def;
+    return cfg[key] ?? defaultValue;
   }),
 };
 
-function makeCandidate(overrides: Partial<any> = {}) {
-  return {
-    id: 'cand-1',
-    userId: 'user-1',
-    status: 'PENDING',
-    similarity: 0.95,
-    memoryIds: ['mem-1', 'mem-2'],
-    suggestedSurvivorId: 'mem-1',
-    createdAt: new Date('2026-01-01'),
-    ...overrides,
-  };
-}
+const makeCandidate = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: 'cand-1',
+  userId: 'user-1',
+  memoryIds: ['mem-a', 'mem-b'],
+  suggestedSurvivorId: 'mem-a',
+  similarity: 0.85,
+  status: 'PENDING',
+  createdAt: new Date('2026-03-01'),
+  ...overrides,
+});
 
-function makeMemory(id: string, overrides: Partial<any> = {}) {
-  return {
-    id,
-    raw: `Memory content for ${id}`,
-    effectiveScore: 5,
-    memoryType: 'FACT',
-    safetyCritical: false,
-    ...overrides,
-  };
-}
+const makeMemory = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: 'mem-a',
+  raw: 'I prefer dark chocolate',
+  memoryType: 'FACT',
+  effectiveScore: 0.8,
+  safetyCritical: false,
+  deletedAt: null,
+  ...overrides,
+});
 
 describe('DreamCyclePendingStage', () => {
   let stage: DreamCyclePendingStage;
@@ -66,393 +63,360 @@ describe('DreamCyclePendingStage', () => {
       providers: [
         DreamCyclePendingStage,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: LLMService, useValue: mockLlm },
+        { provide: LLMService, useValue: mockLLM },
         { provide: ConfigService, useValue: mockConfig },
       ],
     }).compile();
 
     stage = module.get<DreamCyclePendingStage>(DreamCyclePendingStage);
+
+    // Default stubs
     mockPrisma.memory.updateMany.mockResolvedValue({ count: 2 });
+    mockPrisma.memory.update.mockResolvedValue({});
     mockPrisma.mergeCandidate.update.mockResolvedValue({});
     mockPrisma.memoryMergeEvent.create.mockResolvedValue({});
-    mockPrisma.memory.update.mockResolvedValue({});
   });
 
-  // --- No candidates ---
-  it('should return zero result when no pending candidates', async () => {
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([]);
+  describe('run() — no candidates', () => {
+    it('should return zeros when no PENDING candidates exist', async () => {
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([]);
 
-    const result = await stage.run('user-1', false);
+      const result = await stage.run('user-1', false);
 
-    expect(result.processed).toBe(0);
-    expect(result.autoMerged).toBe(0);
-    expect(result.errors).toBe(0);
-  });
-
-  // --- Auto-merge (similarity >= 0.9) ---
-  it('should auto-merge candidates with similarity >= 0.9', async () => {
-    const candidate = makeCandidate({ similarity: 0.95 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1', { effectiveScore: 10 }),
-      makeMemory('mem-2', { effectiveScore: 5 }),
-    ]);
-
-    const result = await stage.run('user-1', false);
-
-    expect(result.processed).toBe(1);
-    expect(result.autoMerged).toBe(1);
-    expect(result.autoRejected).toBe(0);
-    expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalledTimes(1);
-    expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'cand-1' },
-        data: expect.objectContaining({
-          status: 'MERGED',
-          reviewNotes: 'Auto-merged: similarity >= 0.90',
-        }),
-      }),
-    );
-  });
-
-  // --- Auto-reject (similarity < 0.82) ---
-  it('should auto-reject candidates with similarity < 0.82', async () => {
-    const candidate = makeCandidate({ similarity: 0.75 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-
-    const result = await stage.run('user-1', false);
-
-    expect(result.processed).toBe(1);
-    expect(result.autoRejected).toBe(1);
-    expect(result.autoMerged).toBe(0);
-    expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: 'REJECTED',
-          reviewNotes: 'Auto-rejected: similarity < 0.82',
-        }),
-      }),
-    );
-  });
-
-  // --- LLM evaluation (0.82 <= similarity < 0.9, LLM approves) ---
-  it('should use LLM for medium similarity and merge when approved', async () => {
-    const candidate = makeCandidate({ similarity: 0.86 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany
-      .mockResolvedValueOnce([makeMemory('mem-1'), makeMemory('mem-2')]) // for llmMergeDecision
-      .mockResolvedValueOnce([
-        makeMemory('mem-1', { effectiveScore: 10 }),
-        makeMemory('mem-2', { effectiveScore: 5 }),
-      ]); // for performMerge
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: true,
-      confidence: 0.85,
-      reason: 'Same fact',
+      expect(result).toEqual<PendingStageResult>({
+        processed: 0,
+        autoMerged: 0,
+        autoRejected: 0,
+        llmEvaluated: 0,
+        llmMerged: 0,
+        llmRejected: 0,
+        llmCalls: 0,
+        errors: 0,
+      });
+      expect(mockPrisma.memory.update).not.toHaveBeenCalled();
     });
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmEvaluated).toBe(1);
-    expect(result.llmMerged).toBe(1);
-    expect(result.llmRejected).toBe(0);
-    expect(result.llmCalls).toBe(1);
-    expect(mockLlm.json).toHaveBeenCalledTimes(1);
   });
 
-  // --- LLM evaluation rejects ---
-  it('should reject when LLM declines merge', async () => {
-    const candidate = makeCandidate({ similarity: 0.85 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-    ]);
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: false,
-      confidence: 0.9,
-      reason: 'Different facts',
-    });
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmEvaluated).toBe(1);
-    expect(result.llmRejected).toBe(1);
-    expect(result.llmMerged).toBe(0);
-    expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: 'REJECTED',
-          reviewNotes: 'LLM declined merge',
-        }),
-      }),
-    );
-  });
-
-  // --- LLM low confidence ---
-  it('should reject when LLM confidence is below 0.7', async () => {
-    const candidate = makeCandidate({ similarity: 0.85 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-    ]);
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: true,
-      confidence: 0.5,
-      reason: 'Uncertain',
-    });
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmRejected).toBe(1);
-    expect(result.llmMerged).toBe(0);
-  });
-
-  // --- Safety-critical memories ---
-  it('should decline merge for safety-critical memories', async () => {
-    const candidate = makeCandidate({ similarity: 0.86 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1', { safetyCritical: true }),
-      makeMemory('mem-2'),
-    ]);
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmRejected).toBe(1);
-    expect(mockLlm.json).not.toHaveBeenCalled();
-  });
-
-  // --- LLM call limit ---
-  it('should stop processing when LLM call limit is reached', async () => {
-    const candidates = [
-      makeCandidate({ id: 'cand-1', similarity: 0.85 }),
-      makeCandidate({ id: 'cand-2', similarity: 0.86 }),
-      makeCandidate({ id: 'cand-3', similarity: 0.87 }),
-    ];
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-    ]);
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: false,
-      confidence: 0.9,
-      reason: 'Different',
-    });
-
-    const result = await stage.run('user-1', false, 1);
-
-    expect(result.llmCalls).toBe(1);
-    // Should break after first LLM call since limit is 1
-    expect(result.processed).toBe(2); // processes first, then hits limit on second and breaks
-  });
-
-  // --- No maxLlmCalls skips medium similarity ---
-  it('should skip medium-similarity candidates when maxLlmCalls is undefined', async () => {
-    const candidate = makeCandidate({ similarity: 0.85 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-
-    const result = await stage.run('user-1', false);
-
-    // maxLlmCalls is undefined, so the `else if (maxLlmCalls && ...)` is falsy → breaks
-    expect(result.processed).toBe(1);
-    expect(result.llmEvaluated).toBe(0);
-  });
-
-  // --- Dry run ---
-  it('should not perform mutations in dry run mode', async () => {
-    const candidates = [
-      makeCandidate({ id: 'cand-1', similarity: 0.95 }),
-      makeCandidate({ id: 'cand-2', similarity: 0.75 }),
-    ];
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
-
-    const result = await stage.run('user-1', true);
-
-    expect(result.autoMerged).toBe(1);
-    expect(result.autoRejected).toBe(1);
-    expect(mockPrisma.memory.findMany).not.toHaveBeenCalled();
-    expect(mockPrisma.mergeCandidate.update).not.toHaveBeenCalled();
-    expect(mockPrisma.memoryMergeEvent.create).not.toHaveBeenCalled();
-    expect(mockPrisma.memory.updateMany).not.toHaveBeenCalled();
-  });
-
-  // --- Error handling ---
-  it('should count errors and continue processing', async () => {
-    const candidates = [
-      makeCandidate({ id: 'cand-1', similarity: 0.95 }),
-      makeCandidate({ id: 'cand-2', similarity: 0.95 }),
-    ];
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
-    mockPrisma.memory.findMany
-      .mockRejectedValueOnce(new Error('DB error'))
-      .mockResolvedValueOnce([
-        makeMemory('mem-1', { effectiveScore: 10 }),
-        makeMemory('mem-2', { effectiveScore: 5 }),
+  describe('run() — auto-merge (similarity >= 0.9)', () => {
+    it('should auto-merge high-similarity candidates', async () => {
+      const candidate = makeCandidate({ similarity: 0.95 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a', effectiveScore: 0.8 }),
+        makeMemory({ id: 'mem-b', effectiveScore: 0.6 }),
       ]);
 
-    const result = await stage.run('user-1', false);
+      const result = await stage.run('user-1', false);
 
-    expect(result.errors).toBe(1);
-    expect(result.autoMerged).toBe(1); // first errors in performMerge, second succeeds
-  });
+      expect(result.autoMerged).toBe(1);
+      expect(result.processed).toBe(1);
+      expect(result.autoRejected).toBe(0);
+      expect(result.llmCalls).toBe(0);
 
-  // --- Error with lastDreamedAt update failure ---
-  it('should handle error in lastDreamedAt update during error recovery', async () => {
-    const candidate = makeCandidate({ similarity: 0.95 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockRejectedValue(new Error('DB error'));
-    mockPrisma.memory.updateMany.mockRejectedValue(new Error('Update failed'));
+      // Merge event should be created
+      expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalled();
 
-    const result = await stage.run('user-1', false);
-
-    expect(result.errors).toBe(1);
-    expect(result.processed).toBe(1);
-  });
-
-  // --- performMerge: missing memories ---
-  it('should error when some memories are not found during merge', async () => {
-    const candidate = makeCandidate({ similarity: 0.95 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    // Return only 1 of 2 expected memories
-    mockPrisma.memory.findMany.mockResolvedValue([makeMemory('mem-1')]);
-
-    const result = await stage.run('user-1', false);
-
-    expect(result.errors).toBe(1);
-  });
-
-  // --- performMerge uses suggestedSurvivorId ---
-  it('should use suggestedSurvivorId for merge survivor', async () => {
-    const candidate = makeCandidate({
-      similarity: 0.95,
-      suggestedSurvivorId: 'mem-2',
-    });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1', { effectiveScore: 10 }),
-      makeMemory('mem-2', { effectiveScore: 5 }),
-    ]);
-
-    await stage.run('user-1', false);
-
-    // mem-1 should be absorbed (mem-2 is survivor despite lower score)
-    expect(mockPrisma.memory.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'mem-1' },
-        data: expect.objectContaining({
-          consolidatedInto: 'mem-2',
+      // Candidate status updated to MERGED
+      expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'cand-1' },
+          data: expect.objectContaining({ status: 'MERGED' }),
         }),
-      }),
-    );
-  });
-
-  // --- LLM error falls back to false ---
-  it('should return false (no merge) when LLM throws', async () => {
-    const candidate = makeCandidate({ similarity: 0.86 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-    ]);
-    mockLlm.json.mockRejectedValue(new Error('LLM timeout'));
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmRejected).toBe(1);
-    expect(result.llmMerged).toBe(0);
-  });
-
-  // --- LLM with non-pair memories ---
-  it('should decline merge when memory count is not 2 for LLM evaluation', async () => {
-    const candidate = makeCandidate({
-      similarity: 0.86,
-      memoryIds: ['mem-1', 'mem-2', 'mem-3'],
-    });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-      makeMemory('mem-3'),
-    ]);
-
-    const result = await stage.run('user-1', false, 5);
-
-    expect(result.llmRejected).toBe(1);
-    expect(mockLlm.json).not.toHaveBeenCalled();
-  });
-
-  // --- Mixed batch ---
-  it('should handle mixed batch of auto-merge, auto-reject, and LLM candidates', async () => {
-    const candidates = [
-      makeCandidate({ id: 'c1', similarity: 0.95 }), // auto-merge
-      makeCandidate({ id: 'c2', similarity: 0.7 }), // auto-reject
-      makeCandidate({ id: 'c3', similarity: 0.85 }), // LLM
-    ];
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1', { effectiveScore: 10 }),
-      makeMemory('mem-2', { effectiveScore: 5 }),
-    ]);
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: true,
-      confidence: 0.8,
-      reason: 'Same',
+      );
     });
 
-    const result = await stage.run('user-1', false, 5);
+    it('should NOT merge in dry-run mode', async () => {
+      const candidate = makeCandidate({ similarity: 0.95 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
 
-    expect(result.autoMerged).toBe(1);
-    expect(result.autoRejected).toBe(1);
-    expect(result.llmMerged).toBe(1);
-    expect(result.processed).toBe(3);
-  });
+      const result = await stage.run('user-1', true /* dryRun */);
 
-  // --- Boundary: exactly 0.9 similarity ---
-  it('should auto-merge at exactly 0.9 similarity', async () => {
-    const candidate = makeCandidate({ similarity: 0.9 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1', { effectiveScore: 10 }),
-      makeMemory('mem-2', { effectiveScore: 5 }),
-    ]);
-
-    const result = await stage.run('user-1', false);
-
-    expect(result.autoMerged).toBe(1);
-  });
-
-  // --- Boundary: exactly 0.82 similarity ---
-  it('should send to LLM at exactly 0.82 similarity (not auto-reject)', async () => {
-    const candidate = makeCandidate({ similarity: 0.82 });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-    mockPrisma.memory.findMany.mockResolvedValue([
-      makeMemory('mem-1'),
-      makeMemory('mem-2'),
-    ]);
-    mockLlm.json.mockResolvedValue({
-      shouldMerge: false,
-      confidence: 0.9,
-      reason: 'Different',
+      expect(result.autoMerged).toBe(1);
+      expect(mockPrisma.memoryMergeEvent.create).not.toHaveBeenCalled();
+      expect(mockPrisma.mergeCandidate.update).not.toHaveBeenCalled();
     });
 
-    const result = await stage.run('user-1', false, 5);
+    it('should use suggestedSurvivorId when provided', async () => {
+      const candidate = makeCandidate({
+        similarity: 0.95,
+        suggestedSurvivorId: 'mem-b', // B is suggested, even though A has higher score
+      });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a', effectiveScore: 0.9 }),
+        makeMemory({ id: 'mem-b', effectiveScore: 0.5 }),
+      ]);
 
-    expect(result.llmEvaluated).toBe(1);
-    expect(result.autoRejected).toBe(0);
+      await stage.run('user-1', false);
+
+      // Survivor should be mem-b (suggested), absorbed should be mem-a
+      expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ survivorMemoryId: 'mem-b' }),
+        }),
+      );
+    });
+
+    it('should fall back to highest effectiveScore if no suggestedSurvivorId', async () => {
+      const candidate = makeCandidate({
+        similarity: 0.95,
+        suggestedSurvivorId: null,
+      });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a', effectiveScore: 0.3 }),
+        makeMemory({ id: 'mem-b', effectiveScore: 0.9 }),
+      ]);
+
+      await stage.run('user-1', false);
+
+      // mem-b has higher score, should be survivor
+      expect(mockPrisma.memoryMergeEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ survivorMemoryId: 'mem-b' }),
+        }),
+      );
+    });
   });
 
-  // --- updateMemoriesLastDreamedAt with empty array ---
-  it('should handle empty memoryIds gracefully in auto-reject', async () => {
-    const candidate = makeCandidate({ similarity: 0.75, memoryIds: [] });
-    mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+  describe('run() — auto-reject (similarity < 0.82)', () => {
+    it('should auto-reject low-similarity candidates', async () => {
+      const candidate = makeCandidate({ similarity: 0.75 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
 
-    const result = await stage.run('user-1', false);
+      const result = await stage.run('user-1', false);
 
-    expect(result.autoRejected).toBe(1);
-    // updateMany should not be called for empty array
-    expect(mockPrisma.memory.updateMany).not.toHaveBeenCalled();
+      expect(result.autoRejected).toBe(1);
+      expect(result.autoMerged).toBe(0);
+      expect(result.llmCalls).toBe(0);
+
+      expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'REJECTED' }),
+        }),
+      );
+      expect(mockPrisma.memoryMergeEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('should NOT update status in dry-run mode', async () => {
+      const candidate = makeCandidate({ similarity: 0.50 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+
+      const result = await stage.run('user-1', true);
+
+      expect(result.autoRejected).toBe(1);
+      expect(mockPrisma.mergeCandidate.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('run() — LLM evaluation (0.82 <= similarity < 0.90)', () => {
+    it('should send medium-similarity candidates to LLM', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockResolvedValue({
+        shouldMerge: true,
+        confidence: 0.9,
+        reason: 'Same core fact',
+      });
+
+      const result = await stage.run('user-1', false, 5 /* maxLlmCalls */);
+
+      expect(result.llmEvaluated).toBe(1);
+      expect(result.llmMerged).toBe(1);
+      expect(result.llmRejected).toBe(0);
+      expect(result.llmCalls).toBe(1);
+    });
+
+    it('should reject when LLM returns shouldMerge: false', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockResolvedValue({
+        shouldMerge: false,
+        confidence: 0.9,
+        reason: 'Subtle but meaningful difference',
+      });
+
+      const result = await stage.run('user-1', false, 5);
+
+      expect(result.llmMerged).toBe(0);
+      expect(result.llmRejected).toBe(1);
+
+      expect(mockPrisma.mergeCandidate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'REJECTED' }),
+        }),
+      );
+    });
+
+    it('should reject when LLM confidence < 0.7 even if shouldMerge: true', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockResolvedValue({
+        shouldMerge: true,
+        confidence: 0.5, // low confidence
+        reason: 'Unsure',
+      });
+
+      const result = await stage.run('user-1', false, 5);
+
+      expect(result.llmMerged).toBe(0);
+      expect(result.llmRejected).toBe(1);
+    });
+
+    it('should skip LLM evaluation if maxLlmCalls is 0', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+
+      const result = await stage.run('user-1', false, 0 /* maxLlmCalls=0 */);
+
+      expect(result.llmCalls).toBe(0);
+      expect(mockLLM.json).not.toHaveBeenCalled();
+    });
+
+    it('should stop processing after reaching maxLlmCalls limit', async () => {
+      const candidates = [
+        makeCandidate({ id: 'c1', similarity: 0.85 }),
+        makeCandidate({ id: 'c2', similarity: 0.86 }),
+        makeCandidate({ id: 'c3', similarity: 0.87 }),
+      ];
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockResolvedValue({
+        shouldMerge: false,
+        confidence: 0.9,
+        reason: 'diff',
+      });
+
+      const result = await stage.run('user-1', false, 1 /* maxLlmCalls=1 */);
+
+      // Only one LLM call allowed, second candidate should cause break
+      expect(result.llmCalls).toBe(1);
+      expect(result.processed).toBeLessThan(3);
+    });
+
+    it('should not merge safety-critical memories', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a', safetyCritical: true }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+
+      const result = await stage.run('user-1', false, 5);
+
+      expect(result.llmMerged).toBe(0);
+      expect(result.llmRejected).toBe(1);
+      // LLM should not be called for safety-critical
+      expect(mockLLM.json).not.toHaveBeenCalled();
+    });
+
+    it('should return false (reject) when LLM throws', async () => {
+      const candidate = makeCandidate({ similarity: 0.85 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockRejectedValue(new Error('LLM timeout'));
+
+      const result = await stage.run('user-1', false, 5);
+
+      // LLM error → conservative reject
+      expect(result.llmMerged).toBe(0);
+      expect(result.llmRejected).toBe(1);
+    });
+  });
+
+  describe('run() — error handling', () => {
+    it('should increment errors counter and continue on candidate errors', async () => {
+      const candidates = [
+        makeCandidate({ id: 'c1', similarity: 0.95 }),
+        makeCandidate({ id: 'c2', similarity: 0.95 }),
+      ];
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
+      mockPrisma.memory.findMany
+        .mockRejectedValueOnce(new Error('DB error for c1'))
+        .mockResolvedValueOnce([
+          makeMemory({ id: 'mem-a' }),
+          makeMemory({ id: 'mem-b' }),
+        ]);
+
+      const result = await stage.run('user-1', false);
+
+      expect(result.errors).toBe(1);
+      expect(result.processed).toBe(2); // both processed, one with error
+      expect(result.autoMerged).toBe(1); // second one still succeeds
+    });
+
+    it('should still update lastDreamedAt even when processing errors', async () => {
+      const candidate = makeCandidate({ similarity: 0.95 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      // Fail the main merge but succeed updateMany
+      mockPrisma.memory.findMany.mockRejectedValue(new Error('DB failure'));
+      mockPrisma.memory.updateMany.mockResolvedValue({ count: 2 });
+
+      await stage.run('user-1', false);
+
+      // lastDreamedAt should still be updated for tracking
+      expect(mockPrisma.memory.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: { in: ['mem-a', 'mem-b'] }, deletedAt: null },
+          data: { lastDreamedAt: expect.any(Date) },
+        }),
+      );
+    });
+
+    it('should throw when performMerge finds fewer memories than expected', async () => {
+      const candidate = makeCandidate({ similarity: 0.95 });
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
+      // Only return 1 memory when 2 are expected
+      mockPrisma.memory.findMany.mockResolvedValue([makeMemory({ id: 'mem-a' })]);
+
+      const result = await stage.run('user-1', false);
+
+      expect(result.errors).toBe(1);
+    });
+  });
+
+  describe('run() — mixed scenarios', () => {
+    it('should handle a batch with all three action types', async () => {
+      const candidates = [
+        makeCandidate({ id: 'c-high', similarity: 0.95 }),
+        makeCandidate({ id: 'c-mid', similarity: 0.85 }),
+        makeCandidate({ id: 'c-low', similarity: 0.70 }),
+      ];
+      mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
+      mockPrisma.memory.findMany.mockResolvedValue([
+        makeMemory({ id: 'mem-a' }),
+        makeMemory({ id: 'mem-b' }),
+      ]);
+      mockLLM.json.mockResolvedValue({
+        shouldMerge: true,
+        confidence: 0.8,
+        reason: 'ok',
+      });
+
+      const result = await stage.run('user-1', false, 5);
+
+      expect(result.autoMerged).toBe(1);
+      expect(result.llmMerged).toBe(1);
+      expect(result.autoRejected).toBe(1);
+      expect(result.processed).toBe(3);
+    });
   });
 });

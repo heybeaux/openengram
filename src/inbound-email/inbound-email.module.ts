@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MemoryModule } from '../memory/memory.module';
 import { InboundEmailController } from './inbound-email.controller';
 import { InboundEmailService } from './inbound-email.service';
+import { LinkedInEmailParserService } from './linkedin-email-parser.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { InboundEmailService } from './inbound-email.service';
     ]),
   ],
   controllers: [InboundEmailController],
-  providers: [InboundEmailService],
+  providers: [InboundEmailService, LinkedInEmailParserService],
 })
 export class InboundEmailModule {}
