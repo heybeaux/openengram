@@ -71,9 +71,7 @@ export class MemoryDedupService {
     const savepointName = `dedup_${Date.now()}`;
     if (txClient) {
       try {
-        await (txClient as any).$executeRawUnsafe(
-          `SAVEPOINT ${savepointName}`,
-        );
+        await (txClient as any).$executeRawUnsafe(`SAVEPOINT ${savepointName}`);
       } catch {
         // If SAVEPOINT fails (e.g. already aborted), skip dedup safely
         return { action: 'create' };

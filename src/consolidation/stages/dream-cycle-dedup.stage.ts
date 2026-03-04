@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { EmbeddingService } from '../../memory/embedding.service';
 import { LLMService } from '../../llm/llm.service';
 import {
@@ -33,7 +33,7 @@ export class DreamCycleDedupStage {
   private readonly sampleSize: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: ServicePrismaService,
     private readonly embedding: EmbeddingService,
     private readonly llm: LLMService,
     private readonly config: ConfigService,

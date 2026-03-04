@@ -21,6 +21,8 @@ import { FogIndexModule } from '../fog-index/fog-index.module';
 import { AccountModule } from '../account/account.module';
 import { IdentityModule } from '../identity/identity.module';
 import { TemporalSamplingService } from './temporal-sampling.service';
+import { ServicePrismaModule } from '../prisma/service-prisma.module';
+import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { TemporalSamplingService } from './temporal-sampling.service';
     ClusteringModule,
     FogIndexModule,
     IdentityModule,
+    ServicePrismaModule,
   ],
   controllers: [ConsolidationController],
   providers: [
@@ -46,6 +49,7 @@ import { TemporalSamplingService } from './temporal-sampling.service';
     GenerateContextService,
     ImportanceScorerService,
     TemporalSamplingService,
+    DreamCycleRunTrackerService,
   ],
   exports: [DreamCycleService, GenerateContextService],
 })

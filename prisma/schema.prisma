@@ -1971,3 +1971,22 @@ model InboundEmail {
   @@index([status])
   @@map("inbound_emails")
 }
+
+/// Audit log for every Dream Cycle stage execution.
+model DreamCycleStageRun {
+  id          String    @id @default(cuid())
+  runId       String    @map("run_id")
+  stage       String
+  status      String    @default("STARTED")
+  rowsTouched Int?      @map("rows_touched")
+  totalRows   Int?      @map("total_rows")
+  errorMsg    String?   @map("error_msg")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  durationMs  Int?      @map("duration_ms")
+
+  @@index([runId])
+  @@index([stage, startedAt])
+  @@index([startedAt])
+  @@map("dream_cycle_stage_runs")
+}

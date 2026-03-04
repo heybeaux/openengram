@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DreamCycleConsolidationStage } from './dream-cycle-consolidation.stage';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { EmbeddingService } from '../../embedding/embedding.service';
 import { LLMService } from '../../llm/llm.service';
 
 describe('DreamCycleConsolidationStage', () => {
   let stage: DreamCycleConsolidationStage;
-  let prisma: jest.Mocked<PrismaService>;
+  let prisma: jest.Mocked<ServicePrismaService>;
   let llmService: jest.Mocked<LLMService>;
   let embeddingService: jest.Mocked<EmbeddingService>;
 
@@ -22,7 +22,7 @@ describe('DreamCycleConsolidationStage', () => {
       providers: [
         DreamCycleConsolidationStage,
         {
-          provide: PrismaService,
+          provide: ServicePrismaService,
           useValue: {
             $queryRaw: jest.fn().mockResolvedValue([]),
             $transaction: jest.fn(),
@@ -57,7 +57,7 @@ describe('DreamCycleConsolidationStage', () => {
     }).compile();
 
     stage = module.get(DreamCycleConsolidationStage);
-    prisma = module.get(PrismaService);
+    prisma = module.get(ServicePrismaService);
     llmService = module.get(LLMService);
     embeddingService = module.get(EmbeddingService);
   });
@@ -202,7 +202,7 @@ describe('DreamCycleConsolidationStage', () => {
       const module = await Test.createTestingModule({
         providers: [
           DreamCycleConsolidationStage,
-          { provide: PrismaService, useValue: prisma },
+          { provide: ServicePrismaService, useValue: prisma },
           {
             provide: ConfigService,
             useValue: {
@@ -268,7 +268,7 @@ describe('DreamCycleConsolidationStage', () => {
       const module = await Test.createTestingModule({
         providers: [
           DreamCycleConsolidationStage,
-          { provide: PrismaService, useValue: prisma },
+          { provide: ServicePrismaService, useValue: prisma },
           {
             provide: ConfigService,
             useValue: { get: () => undefined },

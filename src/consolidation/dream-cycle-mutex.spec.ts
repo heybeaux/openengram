@@ -79,6 +79,16 @@ describe('DreamCycleService - Mutex', () => {
       run: jest.fn().mockResolvedValue({ consolidated: 0 }),
     };
 
+    const mockTracker = {
+      startStage: jest
+        .fn()
+        .mockResolvedValue({ id: 'mock-id', runId: 'mock-run', stage: 'mock' }),
+      completeStage: jest.fn().mockResolvedValue(undefined),
+      abortStage: jest.fn().mockResolvedValue(undefined),
+      errorStage: jest.fn().mockResolvedValue(undefined),
+      getTotalMemoryCount: jest.fn().mockResolvedValue(0),
+    };
+
     service = new DreamCycleService(
       mockPrisma,
       mockConfig as any,
@@ -90,6 +100,7 @@ describe('DreamCycleService - Mutex', () => {
       mockPatternsStage as any,
       mockDriftStage as any,
       mockIdentityStage as any,
+      mockTracker as any,
     );
   });
 
