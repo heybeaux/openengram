@@ -19,7 +19,18 @@ describe('IdentityService', () => {
       },
     };
 
-    service = new IdentityService(prisma);
+    const mockTaskOutcome = {} as any;
+    const mockSelfAssessment = {} as any;
+    const mockCapabilityProfile = {} as any;
+    const mockWorkStyle = {} as any;
+
+    service = new IdentityService(
+      prisma,
+      mockTaskOutcome,
+      mockSelfAssessment,
+      mockCapabilityProfile,
+      mockWorkStyle,
+    );
   });
 
   describe('bootstrap', () => {
@@ -59,7 +70,7 @@ describe('IdentityService', () => {
       expect(profile.capabilities).toEqual([]);
       expect(profile.preferences).toEqual([]);
       expect(profile.trustSignals).toBeDefined();
-      expect(profile.trustSignals.totalMemories).toBe(0);
+      expect(profile.trustSignals?.totalMemories).toBe(0);
     });
   });
 

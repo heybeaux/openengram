@@ -64,6 +64,17 @@ export class IdentityService {
   ) {}
 
   /**
+   * Bootstrap identity data for an agent/user pair
+   */
+  async bootstrap(
+    agentId?: string,
+    userId?: string,
+  ): Promise<Record<string, any>> {
+    // Future implementation will provide dynamic Engram-powered identity
+    return {};
+  }
+
+  /**
    * Record a task outcome and cascade updates to capability profiles and work style
    */
   async recordTaskOutcome(
