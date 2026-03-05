@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { ConsolidationController } from './consolidation.controller';
 import { DreamCycleService } from './dream-cycle.service';
 import { DreamCycleSchedulerService } from './dream-cycle-scheduler.service';
+import { DREAM_CYCLE_QUEUE } from './dream-cycle.queue';
+import { DreamCycleQueueProducer } from './dream-cycle-queue.producer';
+import { DreamCycleQueueProcessor } from './dream-cycle-queue.processor';
 import { GenerateContextService } from './generate-context.service';
 import {
   DreamCycleDedupStage,
@@ -34,11 +38,15 @@ import { HealthMetricsService } from '../health/health-metrics.service';
     FogIndexModule,
     IdentityModule,
     ServicePrismaModule,
+    BullModule.registerQueue({ name: DREAM_CYCLE_QUEUE }),
+    BullModule.registerFlowProducer({ name: DREAM_CYCLE_QUEUE }),
   ],
   controllers: [ConsolidationController],
   providers: [
     DreamCycleService,
     DreamCycleSchedulerService,
+    DreamCycleQueueProducer,
+    DreamCycleQueueProcessor,
     DreamCycleDedupStage,
     DreamCycleStalenessStage,
     DreamCyclePendingStage,
@@ -53,6 +61,6 @@ import { HealthMetricsService } from '../health/health-metrics.service';
     DreamCycleRunTrackerService,
     HealthMetricsService,
   ],
-  exports: [DreamCycleService, GenerateContextService],
+  exports: [DreamCycleService, GenerateContextService, DreamCycleQueueProducer],
 })
 export class ConsolidationModule {}
