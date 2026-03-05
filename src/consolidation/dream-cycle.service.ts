@@ -20,6 +20,7 @@ import {
 import * as os from 'os';
 import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
 import { assertSanityGate } from './dream-cycle-sanity-gate';
+import { HealthMetricsService } from '../health/health-metrics.service';
 
 // Advisory lock key for Dream Cycle (arbitrary unique int)
 const DREAM_CYCLE_LOCK_KEY = 294967;
@@ -93,6 +94,7 @@ export class DreamCycleService {
     @Optional() private fogIndexService?: FogIndexService,
     @Optional() private trustProfileService?: TrustProfileService,
     @Optional() private eventEmitter?: EventEmitter2,
+    @Optional() private readonly healthMetrics?: HealthMetricsService,
   ) {
     this.maxLlmCalls = parseInt(
       this.config.get('DREAM_MAX_LLM_CALLS') ?? '50',
@@ -710,6 +712,17 @@ export class DreamCycleService {
           durationMs,
         ),
       );
+
+      if (this.healthMetrics && status === 'COMPLETED') {
+        try {
+          await this.healthMetrics.computeAndPersist();
+          this.logger.log('Health metrics refreshed after Dream Cycle');
+        } catch (err) {
+          this.logger.warn(
+            `Health metrics refresh failed: ${(err as Error).message}`,
+          );
+        }
+      }
 
       return {
         id: report.id,
