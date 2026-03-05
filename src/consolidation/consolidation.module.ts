@@ -23,6 +23,7 @@ import { IdentityModule } from '../identity/identity.module';
 import { TemporalSamplingService } from './temporal-sampling.service';
 import { ServicePrismaModule } from '../prisma/service-prisma.module';
 import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
+import { HealthMetricsService } from '../health/health-metrics.service';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
     ImportanceScorerService,
     TemporalSamplingService,
     DreamCycleRunTrackerService,
+    HealthMetricsService,
   ],
   exports: [DreamCycleService, GenerateContextService],
 })

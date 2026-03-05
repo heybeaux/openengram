@@ -1990,3 +1990,13 @@ model DreamCycleStageRun {
   @@index([startedAt])
   @@map("dream_cycle_stage_runs")
 }
+
+/// Key-value store for system-wide health metrics computed during Dream Cycle.
+model SystemMetric {
+  key         String   @id
+  value       Json
+  description String?
+  computedAt  DateTime @default(now()) @map("computed_at")
+
+  @@map("system_metrics")
+}
