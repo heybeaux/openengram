@@ -76,6 +76,6 @@ const bullProviders = hasRedis
     DreamCycleRunTrackerService,
     HealthMetricsService,
   ],
-  exports: [DreamCycleService, GenerateContextService],
+  exports: [DreamCycleService, GenerateContextService, DreamCycleQueueProducer],
 })
 export class ConsolidationModule {}

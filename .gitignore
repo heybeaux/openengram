@@ -47,3 +47,4 @@ data/
 # Factory transient files
 .factory-prompt.md
 .factory-debugger-prompt.md
+tsconfig.tsbuildinfo

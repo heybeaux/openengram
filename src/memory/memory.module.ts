@@ -93,6 +93,7 @@ const bullProviders = hasRedis
     TemporalParserService,
     MultiQueryService,
     ContextualRecallService,
+    EmbeddingQueueProducer,
   ],
 })
 export class MemoryModule {}
