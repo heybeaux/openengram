@@ -48,6 +48,8 @@ const bullProviders = hasRedis
   ? [EmbeddingQueueProducer, EmbeddingQueueProcessor]
   : [];
 
+const bullExports = hasRedis ? [EmbeddingQueueProducer] : [];
+
 @Module({
   imports: [
     AccountModule,
@@ -93,7 +95,7 @@ const bullProviders = hasRedis
     TemporalParserService,
     MultiQueryService,
     ContextualRecallService,
-    EmbeddingQueueProducer,
+    ...bullExports,
   ],
 })
 export class MemoryModule {}
