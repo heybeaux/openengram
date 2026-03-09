@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -44,8 +44,9 @@ export class DedupPipelineService implements OnModuleInit {
     private readonly detection: CandidateDetectionService,
     private readonly classification: DedupClassificationService,
     private readonly resolution: DedupResolutionService,
+    @Optional()
     @InjectQueue(DEDUP_AUTO_DETECTION_QUEUE)
-    private readonly detectionQueue: Queue,
+    private readonly detectionQueue?: Queue,
   ) {}
 
   onModuleInit(): void {
@@ -144,6 +145,13 @@ export class DedupPipelineService implements OnModuleInit {
    * Enqueue a detection job in BullMQ for async processing.
    */
   async enqueueDetection(): Promise<void> {
+    if (!this.detectionQueue) {
+      this.logger.warn(
+        '[DedupPipeline] BullMQ queue not available (no Redis) — running detection synchronously',
+      );
+      await this.detection.detectCandidates();
+      return;
+    }
     await this.detectionQueue.add(
       DEDUP_AUTO_JOBS.DETECT_CANDIDATES,
       {},
