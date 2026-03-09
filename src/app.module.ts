@@ -57,34 +57,48 @@ import { PersistenceModule } from './common/persistence/persistence.module';
 
 const EDITION = process.env.EDITION || 'local';
 
+const hasRedis = !!(
+  process.env.REDIS_URL ||
+  process.env.REDIS_HOST ||
+  process.env.BULL_REDIS_URL
+);
+
+const bullRootModule = hasRedis
+  ? [
+      BullModule.forRootAsync({
+        inject: [ConfigService],
+        useFactory: (config: ConfigService) => {
+          const redisUrl =
+            config.get<string>('REDIS_URL') ||
+            config.get<string>('BULL_REDIS_URL');
+          if (redisUrl) {
+            const url = new URL(redisUrl);
+            return {
+              connection: {
+                host: url.hostname,
+                port: parseInt(url.port || '6379', 10),
+                password: url.password || undefined,
+                tls: url.protocol === 'rediss:' ? {} : undefined,
+              },
+            };
+          }
+          return {
+            connection: {
+              host: config.get('REDIS_HOST', 'localhost'),
+              port: config.get<number>('REDIS_PORT', 6379),
+              password: config.get('REDIS_PASSWORD') || undefined,
+            },
+          };
+        },
+      }),
+    ]
+  : [];
+
 const coreModules = [
   ConfigModule.forRoot({
     isGlobal: true,
   }),
-  BullModule.forRootAsync({
-    inject: [ConfigService],
-    useFactory: (config: ConfigService) => {
-      const redisUrl = config.get<string>('REDIS_URL');
-      if (redisUrl) {
-        const url = new URL(redisUrl);
-        return {
-          connection: {
-            host: url.hostname,
-            port: parseInt(url.port || '6379', 10),
-            password: url.password || undefined,
-            tls: url.protocol === 'rediss:' ? {} : undefined,
-          },
-        };
-      }
-      return {
-        connection: {
-          host: config.get('REDIS_HOST', 'localhost'),
-          port: config.get<number>('REDIS_PORT', 6379),
-          password: config.get('REDIS_PASSWORD') || undefined,
-        },
-      };
-    },
-  }),
+  ...bullRootModule,
   AuthModule,
   PersistenceModule,
   ScheduleModule.forRoot(),
