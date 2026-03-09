@@ -208,8 +208,7 @@ export class ChallengeService {
         where: { id: targetMemoryId },
       });
       if (targetMemory) {
-        const targetMeta =
-          (targetMemory.metadata as any) ?? {};
+        const targetMeta = (targetMemory.metadata as any) ?? {};
         const challengeIds = (targetMeta.challengeIds as string[]) ?? [];
 
         if (resolution.status === ChallengeStatus.UPHELD) {
@@ -243,7 +242,7 @@ export class ChallengeService {
   }
 
   private toChallengeResult(memory: any): ChallengeResult {
-    const meta = memory.metadata as any;
+    const meta = memory.metadata;
     return {
       id: memory.id,
       challengerId: (meta.challengerId as string) ?? '',

@@ -164,6 +164,8 @@ model Memory {
   embeddingId      String?                @unique @map("embedding_id")
   embeddingModel   String?                @map("embedding_model")
   embeddingStatus  EmbeddingStatus        @default(PENDING) @map("embedding_status")
+  isDuplicateOf    String?                @map("is_duplicate_of")
+  ingestedAt       DateTime               @default(now()) @map("ingested_at")
   retrievalCount   Int                    @default(0) @map("retrieval_count")
   lastRetrievedAt  DateTime?              @map("last_retrieved_at")
   usedCount        Int                    @default(0) @map("used_count")
@@ -1052,6 +1054,7 @@ enum EmbeddingStatus {
   PENDING
   COMPLETE
   FAILED
+  DUPLICATE
 }
 
 enum EnsembleJobStatus {
@@ -1970,4 +1973,33 @@ model InboundEmail {
   @@index([createdAt])
   @@index([status])
   @@map("inbound_emails")
+}
+
+/// Audit log for every Dream Cycle stage execution.
+model DreamCycleStageRun {
+  id          String    @id @default(cuid())
+  runId       String    @map("run_id")
+  stage       String
+  status      String    @default("STARTED")
+  rowsTouched Int?      @map("rows_touched")
+  totalRows   Int?      @map("total_rows")
+  errorMsg    String?   @map("error_msg")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  durationMs  Int?      @map("duration_ms")
+
+  @@index([runId])
+  @@index([stage, startedAt])
+  @@index([startedAt])
+  @@map("dream_cycle_stage_runs")
+}
+
+/// Key-value store for system-wide health metrics computed during Dream Cycle.
+model SystemMetric {
+  key         String   @id
+  value       Json
+  description String?
+  computedAt  DateTime @default(now()) @map("computed_at")
+
+  @@map("system_metrics")
 }

@@ -54,6 +54,10 @@ import { WorkStyleService } from './work-style.service';
     DelegationTemplateService,
     TrustProfileService,
     DelegationTaskService,
+    TaskOutcomeService,
+    SelfAssessmentService,
+    CapabilityProfileService,
+    WorkStyleService,
   ],
   exports: [
     IdentityService,
@@ -67,6 +71,10 @@ import { WorkStyleService } from './work-style.service';
     DelegationTemplateService,
     TrustProfileService,
     DelegationTaskService,
+    TaskOutcomeService,
+    SelfAssessmentService,
+    CapabilityProfileService,
+    WorkStyleService,
   ],
 })
 export class IdentityModule implements OnModuleInit {

@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
-import { CorrectionController, ManualCorrectDto } from './correction.controller';
+import {
+  CorrectionController,
+  ManualCorrectDto,
+} from './correction.controller';
 import { CorrectionService } from './correction.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
@@ -49,7 +52,10 @@ describe('CorrectionController', () => {
       const dto: ManualCorrectDto = { correctedContent: 'Updated fact' };
       const result = await controller.correct(userId, memoryId, dto);
 
-      expect(result).toEqual({ correctionId: 'corr-1', supersededId: memoryId });
+      expect(result).toEqual({
+        correctionId: 'corr-1',
+        supersededId: memoryId,
+      });
     });
 
     it('should pass all parameters to CorrectionService', async () => {
@@ -139,7 +145,9 @@ describe('CorrectionController', () => {
 
       // Module creation succeeds — guard enforcement happens at the HTTP layer
       // This test confirms the guard is wired and can be overridden
-      expect(denyModule.get<CorrectionController>(CorrectionController)).toBeDefined();
+      expect(
+        denyModule.get<CorrectionController>(CorrectionController),
+      ).toBeDefined();
     });
   });
 

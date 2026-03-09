@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ServicePrismaService } from '../../prisma/service-prisma.service';
 
 export interface TieringStageResult {
   promoted: number;
@@ -16,7 +16,7 @@ export class DreamCycleTieringStage {
   private readonly batchSize: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: ServicePrismaService,
     private readonly config: ConfigService,
   ) {
     this.batchSize = parseInt(

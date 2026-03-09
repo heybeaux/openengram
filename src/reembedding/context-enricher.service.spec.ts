@@ -94,6 +94,8 @@ describe('ContextEnricherService', () => {
       patternSourceIds: [],
       cloudSyncedAt: null,
       contentHash: null,
+      isDuplicateOf: null,
+      ingestedAt: new Date('2025-10-15T10:00:00Z'),
       metadata: null,
       extraction: null,
       entities: [],
