@@ -61,6 +61,7 @@ const bullProviders = hasRedis
   providers: [
     DreamCycleService,
     DreamCycleSchedulerService,
+    ...bullProviders,
     DreamCycleDedupStage,
     DreamCycleStalenessStage,
     DreamCyclePendingStage,
@@ -74,12 +75,7 @@ const bullProviders = hasRedis
     TemporalSamplingService,
     DreamCycleRunTrackerService,
     HealthMetricsService,
-    ...bullProviders,
   ],
-  exports: [
-    DreamCycleService,
-    GenerateContextService,
-    ...(hasRedis ? [DreamCycleQueueProducer] : []),
-  ],
+  exports: [DreamCycleService, GenerateContextService],
 })
 export class ConsolidationModule {}
