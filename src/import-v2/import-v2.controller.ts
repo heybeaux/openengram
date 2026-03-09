@@ -9,6 +9,7 @@ import {
   Body,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -40,7 +41,9 @@ export class ImportV2Controller {
     private readonly previewService: ImportPreviewService,
     private readonly jobService: ImportJobService,
     private readonly profileService: EntityProfileService,
-    @InjectQueue(BULK_IMPORT_V2_QUEUE) private readonly importQueue: Queue,
+    @Optional()
+    @InjectQueue(BULK_IMPORT_V2_QUEUE)
+    private readonly importQueue?: Queue,
   ) {}
 
   private get hasRedis(): boolean {
@@ -152,7 +155,7 @@ export class ImportV2Controller {
     const { jobId } = this.jobService.createJob(userId);
 
     // Enqueue BullMQ job (if Redis is available)
-    if (this.hasRedis) {
+    if (this.hasRedis && this.importQueue) {
       const jobData: BulkImportV2JobData = {
         jobId,
         userId,
