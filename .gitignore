@@ -48,3 +48,4 @@ data/
 .factory-prompt.md
 .factory-debugger-prompt.md
 tsconfig.tsbuildinfo
+test/benchmark/results/benchmark-*.json

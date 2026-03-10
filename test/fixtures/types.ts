@@ -16,8 +16,7 @@ export interface FixtureMemory {
     | 'EXPLICIT_STATEMENT'
     | 'AGENT_OBSERVATION'
     | 'CORRECTION'
-    | 'PATTERN_DETECTED'
-    | 'CONVERSATION';
+    | 'PATTERN_DETECTED';
   /** Importance score 0-1 */
   importanceScore: number;
   /** Tags for filtering */
@@ -58,5 +57,7 @@ export interface GoldQuery {
     | 'temporal'
     | 'emotional'
     | 'edge_case'
-    | 'rls_isolation';
+    | 'rls_isolation'
+    | 'cross_feature'
+    | 'adversarial';
 }

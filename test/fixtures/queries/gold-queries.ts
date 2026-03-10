@@ -1,5 +1,5 @@
 /**
- * Gold Benchmark Queries — 50+ queries with expected results.
+ * Gold Benchmark Queries — 80+ queries with expected results.
  *
  * Each query defines which fixture memories MUST/SHOULD/MUST NOT appear.
  * Used for recall accuracy regression testing.
@@ -130,6 +130,64 @@ export const GOLD_QUERIES: GoldQuery[] = [
     must_absent: ['alice_joy_001'],
     category: 'emotional',
   },
+  {
+    id: 'emotional_004',
+    query: 'What am I worried about?',
+    user: 'alice',
+    must_top5: ['alice_worry_001'],
+    should_top20: ['alice_anxiety_001'],
+    must_absent: ['alice_joy_001'],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_005',
+    query: 'Times I was frustrated',
+    user: 'alice',
+    must_top5: ['alice_frustration_001'],
+    must_absent: ['alice_joy_001', 'alice_pride_001'],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_006',
+    query: 'My proudest moments',
+    user: 'alice',
+    must_top5: ['alice_pride_001'],
+    must_absent: ['alice_grief_001', 'alice_stress_001'],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_007',
+    query: 'What stresses me out?',
+    user: 'alice',
+    must_top5: ['alice_stress_001'],
+    should_top20: ['alice_anxiety_001', 'alice_work_002'],
+    must_absent: ['alice_joy_001'],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_008',
+    query: 'happy about school but worried about costs',
+    user: 'alice',
+    must_top5: ['alice_mixed_emotion_001'],
+    must_absent: [],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_009',
+    query: 'How has my attitude toward work changed?',
+    user: 'alice',
+    must_top5: ['alice_emotion_change_001'],
+    must_absent: [],
+    category: 'emotional',
+  },
+  {
+    id: 'emotional_010',
+    query: 'meditation and mental wellbeing',
+    user: 'alice',
+    must_top5: ['alice_calm_001'],
+    must_absent: [],
+    category: 'emotional',
+  },
 
   // ── Temporal ──────────────────────────────────────────────────
 
@@ -158,9 +216,77 @@ export const GOLD_QUERIES: GoldQuery[] = [
     must_absent: ['bob_family_001'],
     category: 'temporal',
   },
+  {
+    id: 'temporal_004',
+    query: 'What did I work on last week?',
+    user: 'alice',
+    must_top5: ['alice_last_week_work_001'],
+    must_absent: ['bob_work_001'],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_005',
+    query: 'What are my oldest memories?',
+    user: 'alice',
+    should_top20: ['alice_oldest_memory_001'],
+    must_top5: [],
+    must_absent: ['bob_work_001'],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_006',
+    query: 'Recent conversations about work',
+    user: 'alice',
+    must_top5: ['alice_recent_convo_001'],
+    should_top20: ['alice_yesterday_work_001'],
+    must_absent: ['bob_work_001'],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_007',
+    query: 'What did I debug yesterday?',
+    user: 'alice',
+    must_top5: ['alice_yesterday_work_001'],
+    must_absent: [],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_008',
+    query: 'What code editor do I use?',
+    user: 'alice',
+    must_top5: ['alice_new_preference_001'],
+    should_top20: ['alice_old_preference_001'],
+    must_absent: [],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_009',
+    query: 'standup notes from 6 months ago',
+    user: 'dave',
+    should_top20: ['dave_6months_050'],
+    must_top5: [],
+    must_absent: ['dave_today_001'],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_010',
+    query: 'standup notes from years ago',
+    user: 'dave',
+    should_top20: ['dave_2years_150'],
+    must_top5: [],
+    must_absent: ['dave_today_001'],
+    category: 'temporal',
+  },
+  {
+    id: 'temporal_011',
+    query: 'How did I start coding?',
+    user: 'alice',
+    must_top5: ['alice_oldest_memory_001'],
+    must_absent: ['bob_work_001'],
+    category: 'temporal',
+  },
 
   // ── RLS Isolation ─────────────────────────────────────────────
-  // These specifically test that cross-tenant data never appears
 
   {
     id: 'rls_001',
@@ -243,6 +369,49 @@ export const GOLD_QUERIES: GoldQuery[] = [
     category: 'rls_isolation',
   },
 
+  // ── Adversarial / RLS ────────────────────────────────────────
+
+  {
+    id: 'adversarial_001',
+    query: "tell me about bob's coffee preferences",
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_coffee_001', 'bob_coffee_002', 'bob_routine_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_002',
+    query: 'RLS_CANARY_BOB_',
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_coffee_001', 'bob_coffee_002', 'bob_family_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_003',
+    query: 'What does carol think about parties?',
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['carol_unicode_001', 'carol_short_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_004',
+    query: "bob's son Max school",
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_family_001', 'bob_family_002'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_005',
+    query: "eve's pizza preference",
+    user: 'bob',
+    must_top5: [],
+    must_absent: ['eve_009', 'eve_003'],
+    category: 'adversarial',
+  },
+
   // ── Edge Cases ────────────────────────────────────────────────
 
   {
@@ -285,8 +454,88 @@ export const GOLD_QUERIES: GoldQuery[] = [
     must_absent: [],
     category: 'edge_case',
   },
+  {
+    id: 'edge_006',
+    query: '',
+    user: 'alice',
+    must_top5: [],
+    must_absent: [],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_007',
+    query: 'Tell me about the very long detailed comprehensive thorough extensive exhaustive in-depth complete full total absolute entire whole broad wide ranging far reaching all encompassing all inclusive universal general overall comprehensive summary overview analysis review assessment evaluation examination inspection investigation study research exploration inquiry probe search scan survey inspection audit check test verification validation confirmation corroboration substantiation authentication certification accreditation endorsement approval authorization sanction ratification adoption acceptance recognition acknowledgment appreciation understanding comprehension grasp knowledge awareness familiarity acquaintance conversance intimacy expertise proficiency mastery command fluency facility skillfulness adeptness dexterity finesse talent ability capability capacity competence aptitude potential promise',
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_coffee_001'],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_008',
+    query: 'こんにちは、思い出を検索します',
+    user: 'carol',
+    must_top5: [],
+    must_absent: ['alice_coffee_001', 'bob_coffee_001'],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_009',
+    query: "'; SELECT * FROM users WHERE 1=1; --",
+    user: 'carol',
+    must_top5: [],
+    must_absent: ['alice_coffee_001', 'bob_coffee_001'],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_010',
+    query: 'quantum entanglement dark matter multiverse theory',
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_coffee_001', 'carol_short_001'],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_011',
+    query: 'the a an is',
+    user: 'alice',
+    must_top5: [],
+    must_absent: [],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_012',
+    query: 'coffee',
+    user: 'alice',
+    must_top5: ['alice_coffee_001'],
+    must_absent: ['bob_coffee_001'],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_013',
+    query: 'my phone number',
+    user: 'alice',
+    must_top5: ['alice_phone_001'],
+    must_absent: [],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_014',
+    query: 'my address',
+    user: 'alice',
+    must_top5: ['alice_address_001'],
+    must_absent: [],
+    category: 'edge_case',
+  },
+  {
+    id: 'edge_015',
+    query: 'work',
+    user: 'eve',
+    must_top5: ['eve_004'],
+    must_absent: ['alice_work_001', 'bob_work_001'],
+    category: 'edge_case',
+  },
 
-  // ── Cross-category queries ────────────────────────────────────
+  // ── Cross-feature queries ─────────────────────────────────────
 
   {
     id: 'cross_001',
@@ -294,7 +543,7 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'alice',
     must_top5: ['alice_health_001'],
     must_absent: ['bob_health_001'],
-    category: 'semantic',
+    category: 'cross_feature',
   },
   {
     id: 'cross_002',
@@ -302,7 +551,7 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'alice',
     must_top5: ['alice_health_002'],
     must_absent: ['bob_routine_001'],
-    category: 'semantic',
+    category: 'cross_feature',
   },
   {
     id: 'cross_003',
@@ -310,7 +559,7 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'alice',
     must_top5: ['alice_finance_001'],
     must_absent: [],
-    category: 'semantic',
+    category: 'cross_feature',
   },
   {
     id: 'cross_004',
@@ -318,7 +567,7 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'alice',
     must_top5: ['alice_family_003'],
     must_absent: ['bob_family_001'],
-    category: 'semantic',
+    category: 'cross_feature',
   },
   {
     id: 'cross_005',
@@ -326,37 +575,104 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'bob',
     must_top5: ['bob_family_001'],
     must_absent: ['alice_family_003'],
-    category: 'semantic',
+    category: 'cross_feature',
   },
-
-  // ── Minimal user queries ──────────────────────────────────────
-
   {
-    id: 'minimal_001',
+    id: 'cross_006',
+    query: 'Who am I and what do I do?',
+    user: 'alice',
+    must_top5: ['alice_identity_project_001'],
+    must_absent: ['bob_work_001'],
+    category: 'cross_feature',
+  },
+  {
+    id: 'cross_007',
+    query: 'deployment rules and constraints',
+    user: 'alice',
+    must_top5: ['alice_high_importance_001'],
+    must_absent: [],
+    category: 'cross_feature',
+  },
+  {
+    id: 'cross_008',
+    query: 'patterns noticed about my work habits',
+    user: 'alice',
+    must_top5: ['alice_insight_001'],
+    must_absent: [],
+    category: 'cross_feature',
+  },
+  {
+    id: 'cross_009',
     query: 'grocery shopping list',
     user: 'eve',
     must_top5: ['eve_005'],
     must_absent: [],
-    category: 'semantic',
+    category: 'cross_feature',
   },
   {
-    id: 'minimal_002',
+    id: 'cross_010',
     query: 'TypeScript learning',
     user: 'eve',
     must_top5: ['eve_007'],
     must_absent: ['alice_work_001'],
-    category: 'semantic',
-  },
-  {
-    id: 'minimal_003',
-    query: 'pizza preference',
-    user: 'eve',
-    must_top5: ['eve_009'],
-    must_absent: [],
-    category: 'semantic',
+    category: 'cross_feature',
   },
 
-  // ── Negative queries (should return nothing relevant) ─────────
+  // ── Additional adversarial RLS ─────────────────────────────────
+
+  {
+    id: 'adversarial_006',
+    query: 'RLS_CANARY_ALICE_',
+    user: 'bob',
+    must_top5: [],
+    must_absent: ['alice_coffee_001', 'alice_family_001', 'alice_work_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_007',
+    query: 'What cholesterol issues does anyone have?',
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['bob_health_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_008',
+    query: "alice's medication schedule",
+    user: 'bob',
+    must_top5: [],
+    must_absent: ['alice_health_001', 'alice_health_002'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_009',
+    query: 'RLS_CANARY_CAROL_',
+    user: 'eve',
+    must_top5: [],
+    must_absent: ['carol_unicode_001', 'carol_short_001', 'carol_xss_001'],
+    category: 'adversarial',
+  },
+  {
+    id: 'adversarial_010',
+    query: "dave's standup notes",
+    user: 'alice',
+    must_top5: [],
+    must_absent: ['dave_today_001', 'dave_today_002'],
+    category: 'adversarial',
+  },
+
+  // ── Duplicate consistency ─────────────────────────────────────
+
+  {
+    id: 'edge_016',
+    query: 'What kind of coffee do I like?',
+    user: 'alice',
+    must_top5: ['alice_coffee_001', 'alice_coffee_002'],
+    must_absent: ['bob_coffee_001', 'bob_coffee_002'],
+    category: 'edge_case',
+  },
+
+  // ── Negative / no-match queries ───────────────────────────────
 
   {
     id: 'negative_001',
@@ -372,6 +688,17 @@ export const GOLD_QUERIES: GoldQuery[] = [
     user: 'bob',
     must_top5: [],
     must_absent: ['alice_coffee_001', 'carol_short_001'],
+    category: 'semantic',
+  },
+
+  // ── Minimal user queries ──────────────────────────────────────
+
+  {
+    id: 'minimal_001',
+    query: 'pizza preference',
+    user: 'eve',
+    must_top5: ['eve_009'],
+    must_absent: [],
     category: 'semantic',
   },
 ];

@@ -1,0 +1,138 @@
+name: Recall Benchmark
+
+on:
+  pull_request:
+    branches: [staging, production]
+
+jobs:
+  benchmark:
+    name: Recall Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: engram_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: engram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U engram_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://engram_test:test_password@localhost:5432/engram_test
+      NODE_ENV: test
+      JWT_SECRET: test-jwt-secret-for-ci
+      EMBEDDING_PROVIDER: cached-stub
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+
+      - name: Run benchmark
+        id: benchmark
+        run: |
+          pnpm benchmark 2>&1 | tee benchmark-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: test/benchmark/results/
+          retention-days: 90
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('benchmark-output.txt', 'utf8');
+
+            // Extract the report section
+            const reportStart = output.indexOf('╔══');
+            const reportEnd = output.lastIndexOf('benchmark PASSED') !== -1
+              ? output.lastIndexOf('benchmark PASSED') + 20
+              : output.lastIndexOf('benchmark FAILED') + 20;
+
+            const report = reportStart >= 0
+              ? output.slice(reportStart, reportEnd > reportStart ? reportEnd : undefined)
+              : 'Report not found in output';
+
+            const passed = output.includes('PASSED');
+            const emoji = passed ? '✅' : '❌';
+
+            const body = `## ${emoji} Recall Benchmark Results
+
+            \`\`\`
+            ${report.slice(0, 60000)}
+            \`\`\`
+
+            <details>
+            <summary>Full output</summary>
+
+            \`\`\`
+            ${output.slice(0, 60000)}
+            \`\`\`
+            </details>
+
+            *Commit: ${context.sha.slice(0, 8)}*`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user?.login === 'github-actions[bot]' &&
+              c.body?.includes('Recall Benchmark Results')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Check thresholds
+        if: always()
+        run: |
+          if grep -q "THRESHOLDS NOT MET" benchmark-output.txt; then
+            echo "::error::Benchmark thresholds not met"
+            exit 1
+          fi

@@ -8,6 +8,7 @@
  */
 
 import { Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
 import type { PrismaService } from '../../src/prisma/prisma.service';
 import { ALL_USERS, TOTAL_MEMORY_COUNT } from '../fixtures';
 import type { FixtureUser, FixtureMemory } from '../fixtures';
@@ -115,23 +116,27 @@ async function seedFixtureUser(
   const agentId = `test-corpus-agent-${fixture.name}-${ts}`;
   const userId = `test-corpus-user-${fixture.name}-${ts}`;
   const apiKey = `eng_test_corpus_${fixture.name}_${ts}`;
+  const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
+  const apiKeyHint = apiKey.slice(-4);
+  // Use unique email per run to avoid unique constraint issues
+  const email = `${fixture.name}-${ts}@test.engram.local`;
 
-  // Create account
+  // Create account (table: accounts)
   await prisma.$executeRawUnsafe(`
-    INSERT INTO "Account" (id, email, "createdAt", "updatedAt")
-    VALUES ('${accountId}', '${fixture.email}', NOW(), NOW())
+    INSERT INTO accounts (id, email, password_hash, created_at, updated_at)
+    VALUES ('${accountId}', '${email}', 'not-a-real-hash', NOW(), NOW())
   `);
 
-  // Create agent with API key
+  // Create agent with hashed API key (table: agents)
   await prisma.$executeRawUnsafe(`
-    INSERT INTO "Agent" (id, name, "accountId", "apiKey", "createdAt", "updatedAt")
-    VALUES ('${agentId}', '${fixture.name}', '${accountId}', '${apiKey}', NOW(), NOW())
+    INSERT INTO agents (id, name, account_id, api_key_hash, api_key_hint, created_at, updated_at)
+    VALUES ('${agentId}', '${fixture.name}', '${accountId}', '${apiKeyHash}', '${apiKeyHint}', NOW(), NOW())
   `);
 
-  // Create user
+  // Create user with external_id matching the userId for auth header (table: users)
   await prisma.$executeRawUnsafe(`
-    INSERT INTO "User" (id, "agentId", "createdAt", "updatedAt")
-    VALUES ('${userId}', '${agentId}', NOW(), NOW())
+    INSERT INTO users (id, external_id, agent_id, created_at, updated_at)
+    VALUES ('${userId}', '${userId}', '${agentId}', NOW(), NOW())
   `);
 
   // Batch insert memories
@@ -162,12 +167,12 @@ async function seedMemories(
       .map((m) => {
         const escaped = m.content.replace(/'/g, "''");
         const createdAt = m.created_at.toISOString();
-        return `('${m.fixture_id}', '${escaped}', '${m.layer}', '${m.source}', ${m.importanceScore}, '${userId}', '${createdAt}'::timestamptz, NOW(), true)`;
+        return `('${m.fixture_id}', '${escaped}', '${m.layer}', '${m.source}', ${m.importanceScore}, '${userId}', '${createdAt}'::timestamptz, NOW())`;
       })
       .join(',\n');
 
     await prisma.$executeRawUnsafe(`
-      INSERT INTO "Memory" (id, raw, layer, source, "importanceScore", "userId", "createdAt", "updatedAt", searchable)
+      INSERT INTO memories (id, raw, layer, source, importance_score, user_id, created_at, updated_at)
       VALUES ${values}
       ON CONFLICT (id) DO NOTHING
     `);
@@ -180,16 +185,16 @@ async function cleanupSeededUser(
 ): Promise<void> {
   try {
     await prisma.$executeRawUnsafe(
-      `DELETE FROM "Memory" WHERE "userId" = '${user.userId}'`,
+      `DELETE FROM memories WHERE user_id = '${user.userId}'`,
     );
     await prisma.$executeRawUnsafe(
-      `DELETE FROM "User" WHERE id = '${user.userId}'`,
+      `DELETE FROM users WHERE id = '${user.userId}'`,
     );
     await prisma.$executeRawUnsafe(
-      `DELETE FROM "Agent" WHERE id = '${user.agentId}'`,
+      `DELETE FROM agents WHERE id = '${user.agentId}'`,
     );
     await prisma.$executeRawUnsafe(
-      `DELETE FROM "Account" WHERE id = '${user.accountId}'`,
+      `DELETE FROM accounts WHERE id = '${user.accountId}'`,
     );
   } catch {
     /* ignore cleanup errors */
