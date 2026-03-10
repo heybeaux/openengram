@@ -198,7 +198,7 @@ describe('RecallWeightService — Usage Weighting (ENG-27)', () => {
 
     it('should apply feedback boost for positive feedback', async () => {
       mockPrisma.feedback.groupBy.mockResolvedValue([
-        { memoryId: 'positive', _sum: { rating: 3 }, _count: { rating: 3 } },
+        { memoryId: 'positive', wasHelpful: true, _count: { wasHelpful: 3 } },
       ]);
 
       const memories = [
@@ -230,7 +230,7 @@ describe('RecallWeightService — Usage Weighting (ENG-27)', () => {
 
     it('should suppress negatively-rated memories', async () => {
       mockPrisma.feedback.groupBy.mockResolvedValue([
-        { memoryId: 'negative', _sum: { rating: -2 }, _count: { rating: 2 } },
+        { memoryId: 'negative', wasHelpful: false, _count: { wasHelpful: 2 } },
       ]);
 
       const memories = [

@@ -7,6 +7,7 @@
 import { JwtService } from '@nestjs/jwt';
 
 export interface ApiKeyHeaders {
+  [key: string]: string;
   'X-AM-API-Key': string;
   'X-AM-User-ID': string;
 }

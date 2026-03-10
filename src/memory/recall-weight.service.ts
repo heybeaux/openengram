@@ -202,16 +202,19 @@ export class RecallWeightService {
 
     try {
       const feedbacks = await this.prisma.feedback.groupBy({
-        by: ['memoryId'],
-        where: { memoryId: { in: memoryIds } },
-        _sum: { rating: true },
-        _count: { rating: true },
+        by: ['memoryId', 'wasHelpful'],
+        where: { memoryId: { in: memoryIds }, wasHelpful: { not: null } },
+        _count: { wasHelpful: true },
       });
 
+      // Aggregate: helpful (+1 each) vs not-helpful (-1 each)
       for (const fb of feedbacks) {
-        result.set(fb.memoryId, {
-          netPositive: fb._sum.rating ?? 0,
-        });
+        const prev = result.get(fb.memoryId)?.netPositive ?? 0;
+        const delta =
+          fb.wasHelpful === true
+            ? fb._count.wasHelpful
+            : -fb._count.wasHelpful;
+        result.set(fb.memoryId, { netPositive: prev + delta });
       }
     } catch (error) {
       this.logger.warn(

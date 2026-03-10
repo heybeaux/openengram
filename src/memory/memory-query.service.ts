@@ -203,8 +203,12 @@ export class MemoryQueryService {
     // Apply usage signal (retrievalCount + usedCount + recency + feedback)
     // to boost memories that are frequently used and recently accessed.
     try {
+      const withScores = scoredMemories.map((m) => ({
+        ...m,
+        score: m.score ?? 0,
+      }));
       const usageWeighted =
-        await this.recallWeightService.applyUsageWeighting(scoredMemories);
+        await this.recallWeightService.applyUsageWeighting(withScores);
       scoredMemories = usageWeighted as MemoryWithScore[];
     } catch (error) {
       this.logger.warn(
