@@ -21,12 +21,31 @@ import * as path from 'path';
 
 // Load fixtures via require to keep the script self-contained at runtime
 // (the test/ dir is outside src/ but ts-node handles cross-dir imports fine)
+// Note: We use an inline type instead of `typeof import('../../test/fixtures/index')`
+// because the test/ directory is excluded from tsconfig.build.json.
+interface FixtureMemory {
+  fixture_id: string;
+  content: string;
+  layer: string;
+  memoryType?: string;
+  source: string;
+  importanceScore: number;
+  tags: string[];
+  created_at: Date;
+  metadata?: Record<string, unknown>;
+}
+interface FixtureUser {
+  name: string;
+  email: string;
+  canaryPrefix: string;
+  memories: FixtureMemory[];
+}
 const fixtureRoot = path.resolve(__dirname, '../../test/fixtures');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ALL_USERS, TOTAL_MEMORY_COUNT } = require(path.join(
   fixtureRoot,
   'index',
-)) as typeof import('../../test/fixtures/index');
+)) as { ALL_USERS: FixtureUser[]; TOTAL_MEMORY_COUNT: number };
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
