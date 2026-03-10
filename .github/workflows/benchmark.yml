@@ -27,6 +27,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://engram_test:test_password@localhost:5432/engram_test
+      DIRECT_URL: postgresql://engram_test:test_password@localhost:5432/engram_test
       NODE_ENV: test
       JWT_SECRET: test-jwt-secret-for-ci
       EMBEDDING_PROVIDER: cached-stub
