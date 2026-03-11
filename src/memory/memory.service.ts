@@ -51,6 +51,7 @@ import { EmbeddingQueueProducer } from './embedding-queue.producer';
 import { rlsContext } from '../prisma/rls-context';
 import { MemoryGraphService } from './memory-graph.service';
 import { MemoryExportService } from './memory-export.service';
+import { HypeService } from './hype.service';
 import { DurabilityClassifierService } from './durability-classifier.service';
 
 // Re-export types for backward compatibility
@@ -87,6 +88,7 @@ export class MemoryService {
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private eventEmitter?: EventEmitter2,
     @Optional() private readonly embeddingQueue?: EmbeddingQueueProducer,
+    @Optional() private readonly hypeService?: HypeService,
   ) {}
 
   /**
@@ -201,6 +203,17 @@ export class MemoryService {
         contentHash,
       },
     });
+
+    // HyPE: generate hypothetical prompt embeddings (fire-and-forget)
+    if (this.hypeService) {
+      setImmediate(() => {
+        this.hypeService
+          ?.generateAndStore(memory.id, rawContent, userId)
+          .catch((err) =>
+            this.logger.warn(`[HyPE] Failed: ${err.message}`),
+          );
+      });
+    }
 
     // v0.7: Auto-add to global pool and log creation
     if (dto.agentSessionKey) {
