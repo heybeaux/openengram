@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Memory } from '@prisma/client';
+import { Memory, MemoryDurability } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -32,12 +32,27 @@ export class RecallWeightService {
   private readonly enabled: boolean;
   private readonly usageConfig: UsageWeightConfig;
 
+  // ENG-31: Durability boost configuration
+  private readonly durabilityBoostEnabled: boolean;
+  private readonly durableBoost: number;
+  private readonly ephemeralPenalty: number;
+
   constructor(
     private config: ConfigService,
     private prisma: PrismaService,
   ) {
     const raw = this.config.get<string>('RECALL_TIER_WEIGHT_ENABLED', 'true');
     this.enabled = raw !== 'false';
+
+    // ENG-31: Durability boost configuration
+    this.durabilityBoostEnabled =
+      this.config.get<string>('DURABILITY_BOOST_ENABLED', 'false') === 'true';
+    this.durableBoost = parseFloat(
+      this.config.get('DURABLE_BOOST_MULTIPLIER', '1.3'),
+    );
+    this.ephemeralPenalty = parseFloat(
+      this.config.get('EPHEMERAL_PENALTY_MULTIPLIER', '0.85'),
+    );
 
     // ENG-27: Usage-weighted retrieval configuration
     this.usageConfig = {
@@ -73,27 +88,51 @@ export class RecallWeightService {
    *  - COLD:     0.6
    */
   recallWeight(memory: Memory): number {
-    if (!this.enabled) return 1.0;
+    if (!this.enabled) return 1.0 * this.durabilityMultiplier(memory);
 
-    if (memory.userPinned) return 1.0;
+    let weight: number;
 
-    const now = Date.now();
-    const lastAccessed = memory.lastRetrievedAt
-      ? memory.lastRetrievedAt.getTime()
-      : 0;
-    const daysSinceAccess = lastAccessed
-      ? (now - lastAccessed) / DAY_MS
-      : Infinity;
+    if (memory.userPinned) {
+      weight = 1.0;
+    } else {
+      const now = Date.now();
+      const lastAccessed = memory.lastRetrievedAt
+        ? memory.lastRetrievedAt.getTime()
+        : 0;
+      const daysSinceAccess = lastAccessed
+        ? (now - lastAccessed) / DAY_MS
+        : Infinity;
 
-    if (daysSinceAccess <= 7) return 1.0;
-    if (daysSinceAccess <= 30) return 0.9;
-    if (daysSinceAccess <= 90) return 0.75;
+      if (daysSinceAccess <= 7) weight = 1.0;
+      else if (daysSinceAccess <= 30) weight = 0.9;
+      else if (daysSinceAccess <= 90) weight = 0.75;
+      else {
+        // Frequency boost
+        const ageInDays = Math.max(
+          1,
+          (now - memory.createdAt.getTime()) / DAY_MS,
+        );
+        weight = memory.retrievalCount / ageInDays > 0.1 ? 0.8 : 0.6;
+      }
+    }
 
-    // Frequency boost
-    const ageInDays = Math.max(1, (now - memory.createdAt.getTime()) / DAY_MS);
-    if (memory.retrievalCount / ageInDays > 0.1) return 0.8;
+    return weight * this.durabilityMultiplier(memory);
+  }
 
-    return 0.6;
+  /**
+   * ENG-31: Return a score multiplier based on memory durability classification.
+   * DURABLE → boost, EPHEMERAL → penalty, UNCLASSIFIED → neutral.
+   * Gated by DURABILITY_BOOST_ENABLED env var (default false).
+   */
+  durabilityMultiplier(memory: Memory): number {
+    if (!this.durabilityBoostEnabled) return 1.0;
+
+    const durability = (memory as any).durability as
+      | MemoryDurability
+      | undefined;
+    if (durability === MemoryDurability.DURABLE) return this.durableBoost;
+    if (durability === MemoryDurability.EPHEMERAL) return this.ephemeralPenalty;
+    return 1.0;
   }
 
   /**
