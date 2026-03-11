@@ -33,6 +33,7 @@ import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
 import { GraphModule } from '../graph/graph.module';
 import { QueueModule } from '../queue/queue.module';
 import { ServicePrismaModule } from '../prisma/service-prisma.module';
+import { GraphRecallService } from './graph-recall.service';
 import { EmbeddingQueueProducer } from './embedding-queue.producer';
 import { EmbeddingQueueProcessor } from './embedding-queue.processor';
 import { EMBEDDING_QUEUE } from './embedding.queue';
@@ -91,6 +92,7 @@ const bullExports = hasRedis ? [EmbeddingQueueProducer] : [];
     HypeService,
     DurabilityClassifierService,
     RerankService,
+    GraphRecallService,
     ...bullProviders,
   ],
   exports: [
@@ -104,6 +106,7 @@ const bullExports = hasRedis ? [EmbeddingQueueProducer] : [];
     TemporalParserService,
     MultiQueryService,
     ContextualRecallService,
+    GraphRecallService,
     ...bullExports,
   ],
 })

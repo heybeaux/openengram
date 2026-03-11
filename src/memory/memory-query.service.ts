@@ -23,6 +23,7 @@ import {
 } from './memory.types';
 import { RecallWeightService } from './recall-weight.service';
 import { RerankService } from '../embedding/rerank.service';
+import { GraphRecallService } from './graph-recall.service';
 
 @Injectable()
 export class MemoryQueryService {
@@ -37,6 +38,7 @@ export class MemoryQueryService {
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private anticipatoryService?: AnticipatoryService,
     @Optional() private rerankService?: RerankService,
+    @Optional() private graphRecallService?: GraphRecallService,
   ) {}
 
   /**
@@ -216,6 +218,36 @@ export class MemoryQueryService {
       this.logger.warn(
         `[Recall] Usage weighting failed, proceeding without: ${(error as Error)?.message}`,
       );
+    }
+
+    // ── ENG-32: Graph Recall Merge ─────────────────────────────────────
+    if (this.graphRecallService) {
+      try {
+        const graphMemories = await this.graphRecallService.recallViaGraph(
+          dto.query,
+          singleUserId,
+          limit,
+        );
+        if (graphMemories.length > 0) {
+          const existingIds = new Set(scoredMemories.map((m) => m.id));
+          for (const gm of graphMemories) {
+            if (existingIds.has(gm.id)) {
+              // Boost memories that appear in both vector and graph results
+              const idx = scoredMemories.findIndex((m) => m.id === gm.id);
+              if (idx !== -1 && scoredMemories[idx].score != null) {
+                scoredMemories[idx].score! *= 1.2;
+              }
+            } else {
+              scoredMemories.push(gm);
+            }
+          }
+          scoredMemories.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        }
+      } catch (error) {
+        this.logger.warn(
+          `[Recall] Graph recall merge failed: ${(error as Error)?.message}`,
+        );
+      }
     }
 
     // ── Active Insight Surfacing ──────────────────────────────────────
