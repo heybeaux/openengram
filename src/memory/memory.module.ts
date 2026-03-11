@@ -23,6 +23,7 @@ import { MemoryJobQueueService } from './memory-job-queue.service';
 import { MemoryJobProcessorService } from './memory-job-processor.service';
 import { EmbeddingRetryCron } from './embedding-retry.cron';
 import { RecallWeightService } from './recall-weight.service';
+import { RerankService } from '../embedding/rerank.service';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { AccountModule } from '../account/account.module';
@@ -85,10 +86,12 @@ const bullExports = hasRedis ? [EmbeddingQueueProducer] : [];
     MemoryJobProcessorService,
     EmbeddingRetryCron,
     RecallWeightService,
+    RerankService,
     ...bullProviders,
   ],
   exports: [
     MemoryService,
+    RerankService,
     BackfillService,
     ConsolidationService,
     EmbeddingService,
