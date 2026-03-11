@@ -4,7 +4,7 @@ import {
   MemoryWithRelations,
 } from './context-enricher.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
+import { MemoryDurability, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
 
 describe('ContextEnricherService', () => {
   let service: ContextEnricherService;
@@ -97,6 +97,8 @@ describe('ContextEnricherService', () => {
       isDuplicateOf: null,
       ingestedAt: new Date('2025-10-15T10:00:00Z'),
       metadata: null,
+      durability: MemoryDurability.UNCLASSIFIED,
+      durabilityClassifiedAt: null,
       extraction: null,
       entities: [],
       ...overrides,
