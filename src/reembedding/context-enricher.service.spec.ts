@@ -97,12 +97,12 @@ describe('ContextEnricherService', () => {
       isDuplicateOf: null,
       ingestedAt: new Date('2025-10-15T10:00:00Z'),
       metadata: null,
-      durability: MemoryDurability.UNCLASSIFIED,
       durabilityClassifiedAt: null,
       extraction: null,
       entities: [],
       ...overrides,
-    });
+      durability: overrides.durability ?? MemoryDurability.UNCLASSIFIED,
+    } as MemoryWithRelations);
 
     it('should enrich a basic memory with temporal context', async () => {
       const memory = createMockMemory();
