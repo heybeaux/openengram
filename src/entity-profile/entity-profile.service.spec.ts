@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { EntityProfileService } from './entity-profile.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { AttributeType } from '@prisma/client';
+import { AttributeType, EntityType } from '@prisma/client';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ describe('EntityProfileService', () => {
     it('should create a profile with attributes', async () => {
       const dto = {
         name: 'Alice',
-        type: 'PERSON',
+        type: EntityType.PERSON,
         description: 'A developer',
         attributes: [
           { key: 'role', value: 'developer', valueType: AttributeType.STRING, category: 'work' },
@@ -178,13 +178,13 @@ describe('EntityProfileService', () => {
     });
 
     it('should create a profile without attributes', async () => {
-      const dto = { name: 'Bob', type: 'PERSON' };
+      const dto = { name: 'Bob', type: EntityType.PERSON };
       await service.create(AGENT_ID, dto);
       expect(mockTx.entityAttribute.createMany).not.toHaveBeenCalled();
     });
 
     it('should normalize the name to lowercase + trimmed', async () => {
-      const dto = { name: '  Bob  ', type: 'PERSON' };
+      const dto = { name: '  Bob  ', type: EntityType.PERSON };
       await service.create(AGENT_ID, dto);
       expect(mockTx.entityProfile.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -194,7 +194,7 @@ describe('EntityProfileService', () => {
     });
 
     it('should default aliases and tags to empty arrays', async () => {
-      const dto = { name: 'Carol', type: 'PERSON' };
+      const dto = { name: 'Carol', type: EntityType.PERSON };
       await service.create(AGENT_ID, dto);
       expect(mockTx.entityProfile.create).toHaveBeenCalledWith(
         expect.objectContaining({

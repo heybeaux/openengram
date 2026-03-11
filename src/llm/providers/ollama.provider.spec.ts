@@ -28,7 +28,7 @@ describe('OllamaProvider', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    provider = new OllamaProvider({ model: 'llama3.2' });
+    provider = new OllamaProvider({ provider: 'ollama', model: 'llama3.2' });
   });
 
   // =========================================================================
@@ -37,22 +37,22 @@ describe('OllamaProvider', () => {
 
   describe('constructor', () => {
     it('should default baseUrl to http://localhost:11434', () => {
-      const p = new OllamaProvider({});
+      const p = new OllamaProvider({ provider: 'ollama', model: 'llama3.2' });
       expect((p as any).baseUrl).toBe('http://localhost:11434');
     });
 
     it('should default model to llama3.2', () => {
-      const p = new OllamaProvider({});
+      const p = new OllamaProvider({ provider: 'ollama', model: 'llama3.2' });
       expect((p as any).defaultModel).toBe('llama3.2');
     });
 
     it('should use custom baseUrl when provided', () => {
-      const p = new OllamaProvider({ baseUrl: 'http://my-gpu-box:11434' });
+      const p = new OllamaProvider({ provider: 'ollama', model: 'llama3.2', baseUrl: 'http://my-gpu-box:11434' });
       expect((p as any).baseUrl).toBe('http://my-gpu-box:11434');
     });
 
     it('should use custom model when provided', () => {
-      const p = new OllamaProvider({ model: 'mistral' });
+      const p = new OllamaProvider({ provider: 'ollama', model: 'mistral' });
       expect((p as any).defaultModel).toBe('mistral');
     });
 
@@ -97,9 +97,9 @@ describe('OllamaProvider', () => {
 
       expect(result.content).toBe('Hello!');
       expect(result.model).toBe('llama3.2');
-      expect(result.usage.promptTokens).toBe(10);
-      expect(result.usage.completionTokens).toBe(5);
-      expect(result.usage.totalTokens).toBe(15);
+      expect(result.usage!.promptTokens).toBe(10);
+      expect(result.usage!.completionTokens).toBe(5);
+      expect(result.usage!.totalTokens).toBe(15);
     });
 
     it('should use options.model when provided', async () => {
@@ -141,9 +141,9 @@ describe('OllamaProvider', () => {
       );
 
       const result = await provider.chat([{ role: 'user', content: 'test' }]);
-      expect(result.usage.promptTokens).toBe(0);
-      expect(result.usage.completionTokens).toBe(0);
-      expect(result.usage.totalTokens).toBe(0);
+      expect(result.usage!.promptTokens).toBe(0);
+      expect(result.usage!.completionTokens).toBe(0);
+      expect(result.usage!.totalTokens).toBe(0);
     });
 
     it('should handle empty message content', async () => {
@@ -328,7 +328,7 @@ describe('OllamaProvider', () => {
     });
 
     it('should use custom baseUrl for embeddings', async () => {
-      const customProvider = new OllamaProvider({ baseUrl: 'http://192.168.1.10:11434' });
+      const customProvider = new OllamaProvider({ provider: 'ollama', model: 'llama3.2', baseUrl: 'http://192.168.1.10:11434' });
       mockFetch.mockResolvedValue(makeOkResponse({ embedding: [0.1] }));
 
       await customProvider.embed('test');
