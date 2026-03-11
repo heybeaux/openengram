@@ -22,6 +22,7 @@ import {
   ContextResult,
 } from './memory.types';
 import { RecallWeightService } from './recall-weight.service';
+import { RerankService } from '../embedding/rerank.service';
 
 @Injectable()
 export class MemoryQueryService {
@@ -35,6 +36,7 @@ export class MemoryQueryService {
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private anticipatoryService?: AnticipatoryService,
+    @Optional() private rerankService?: RerankService,
   ) {}
 
   /**
@@ -228,6 +230,9 @@ export class MemoryQueryService {
       queryEmbedding,
     );
 
+    // ── ENG-29: Cross-Encoder Reranking ──────────────────────────
+    scoredMemories = await this.applyReranking(scoredMemories, searchQuery, limit);
+
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
       result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
@@ -398,6 +403,49 @@ export class MemoryQueryService {
         (error as Error)?.stack,
       );
       return existingResults;
+    }
+  }
+
+  /**
+   * ENG-29: Apply cross-encoder reranking to scored memories.
+   * Takes top-20 candidates, reranks via cross-encoder, returns top-K.
+   */
+  private async applyReranking(
+    memories: MemoryWithScore[],
+    query: string,
+    limit: number,
+  ): Promise<MemoryWithScore[]> {
+    if (!this.rerankService || memories.length === 0) {
+      return memories;
+    }
+
+    try {
+      const candidates = memories.slice(0, 20);
+      const texts = candidates.map((m) => m.raw);
+
+      const ranked = await this.rerankService.rerank(query, texts);
+
+      // If all scores are 0, reranking was skipped (disabled or failed) — keep original order
+      const hasScores = ranked.some((r) => r.score > 0);
+      if (!hasScores) return memories;
+
+      const reranked = ranked
+        .map((r) => ({
+          ...candidates[r.index],
+          score: r.score,
+        }))
+        .slice(0, limit);
+
+      this.logger.debug(
+        `[Recall] Cross-encoder reranked ${candidates.length} candidates → top ${reranked.length}`,
+      );
+
+      return reranked;
+    } catch (error) {
+      this.logger.warn(
+        `[Recall] Reranking failed, using original order: ${(error as Error).message}`,
+      );
+      return memories;
     }
   }
 

@@ -176,6 +176,10 @@ model Memory {
   supersededById   String?                @map("superseded_by_id")
   supersededAt     DateTime?              @map("superseded_at")
   consolidatedInto String?                @map("consolidated_into")
+  // ENG-31: Durability classification for retrieval scoring
+  durability             MemoryDurability  @default(UNCLASSIFIED)
+  durabilityClassifiedAt DateTime?         @map("durability_classified_at")
+
   createdAt        DateTime               @default(now()) @map("created_at")
   updatedAt        DateTime               @updatedAt @map("updated_at")
   deletedAt        DateTime?              @map("deleted_at")
@@ -603,6 +607,13 @@ enum MemoryVisibility {
   PRIVATE // Only the owning agent can see (default)
   TEAM // Agents in the same account can see
   PUBLIC // Any agent can see
+}
+
+/// Durability classification for retrieval scoring
+enum MemoryDurability {
+  UNCLASSIFIED
+  DURABLE
+  EPHEMERAL
 }
 
 /// Memory layer enum
