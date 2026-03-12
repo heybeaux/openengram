@@ -14,7 +14,9 @@ export class RerankService {
   private readonly rerankUrls: string[];
   private readonly modelWeights: number[];
   private readonly enabled: boolean;
-  private readonly timeoutMs = 2000;
+  // Generous timeout for CPU-based rerankers on shared CI runners.
+  // 120 candidates × 2 models on CPU can take 3–8 seconds.
+  private readonly timeoutMs = 10_000;
 
   constructor(private configService: ConfigService) {
     const multiUrls = this.configService.get<string>('RERANK_URLS', '');
@@ -163,7 +165,7 @@ export class RerankService {
       fetch(`${url}/rerank`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, texts }),
+        body: JSON.stringify({ query, texts, raw_scores: false }),
       }),
       new Promise<never>((_, reject) =>
         setTimeout(

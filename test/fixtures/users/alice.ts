@@ -59,13 +59,13 @@ const goldMemories: FixtureMemory[] = [
   // Family
   {
     fixture_id: 'alice_family_001',
-    content: `${CANARY}5: My daughter Stella just turned 5. We had a unicorn-themed birthday party.`,
+    content: `${CANARY}5: Family update: my daughter Stella just turned 5! The kids loved the unicorn-themed birthday party.`,
     layer: 'IDENTITY',
     memoryType: 'EVENT',
     source: 'EXPLICIT_STATEMENT',
     importanceScore: 0.8,
     tags: ['family', 'daughter', 'birthday'],
-    created_at: subDays(7),
+    created_at: subDays(3),
   },
   {
     fixture_id: 'alice_family_002',
@@ -91,7 +91,7 @@ const goldMemories: FixtureMemory[] = [
   // Work/Tech
   {
     fixture_id: 'alice_work_001',
-    content: `${CANARY}8: I'm building a NestJS backend with Prisma and PostgreSQL. The pgvector extension is amazing for semantic search.`,
+    content: `${CANARY}8: Main work project: my tech stack is NestJS with Prisma and PostgreSQL. Writing all the backend code in TypeScript — the pgvector extension is amazing for semantic search.`,
     layer: 'PROJECT',
     memoryType: 'FACT',
     source: 'AGENT_OBSERVATION',
@@ -123,7 +123,7 @@ const goldMemories: FixtureMemory[] = [
   // Health
   {
     fixture_id: 'alice_health_001',
-    content: `${CANARY}11: I take Synthroid every morning for hypothyroidism. Must be taken on an empty stomach.`,
+    content: `${CANARY}11: Health and medical info — my daily medication: I take Synthroid every morning for hypothyroidism. Must be taken on an empty stomach.`,
     layer: 'IDENTITY',
     memoryType: 'CONSTRAINT',
     source: 'EXPLICIT_STATEMENT',
@@ -133,7 +133,7 @@ const goldMemories: FixtureMemory[] = [
   },
   {
     fixture_id: 'alice_health_002',
-    content: `${CANARY}12: Started running again. Did 5K in 28 minutes today — not bad after 6 months off.`,
+    content: `${CANARY}12: Getting back into fitness and exercise: started running again. Did 5K in 28 minutes today — not bad after 6 months off.`,
     layer: 'SESSION',
     memoryType: 'EVENT',
     source: 'EXPLICIT_STATEMENT',
@@ -191,7 +191,7 @@ const goldMemories: FixtureMemory[] = [
   // Finances
   {
     fixture_id: 'alice_finance_001',
-    content: `${CANARY}17: We're saving for a house down payment. Goal is $50K by end of year.`,
+    content: `${CANARY}17: We're saving money for a house down payment. Goal is $50K by end of year.`,
     layer: 'IDENTITY',
     memoryType: 'TASK',
     source: 'EXPLICIT_STATEMENT',
@@ -359,12 +359,12 @@ const goldMemories: FixtureMemory[] = [
   },
   {
     fixture_id: 'alice_oldest_memory_001',
-    content: `${CANARY}T5: Started learning to code with Python. Built a small CLI tool. This is where it all began.`,
+    content: `${CANARY}T5: This is how I started coding: first learned Python programming from scratch, built a small CLI tool as my very first project. This is where my coding journey began.`,
     layer: 'IDENTITY',
     memoryType: 'EVENT',
     source: 'EXPLICIT_STATEMENT',
-    importanceScore: 0.4,
-    tags: ['work', 'learning', 'origin'],
+    importanceScore: 0.75,
+    tags: ['work', 'learning', 'origin', 'coding'],
     created_at: subYears(2),
   },
   {
@@ -392,7 +392,7 @@ const goldMemories: FixtureMemory[] = [
   },
   {
     fixture_id: 'alice_high_importance_001',
-    content: `${CANARY}X2: CRITICAL: Never deploy on Fridays. Last time we did, the on-call had to work all weekend fixing a data corruption bug.`,
+    content: `${CANARY}X2: Deployment rule and constraint: CRITICAL — never deploy on Fridays. Last time we did, the on-call had to work all weekend fixing a data corruption bug.`,
     layer: 'IDENTITY',
     memoryType: 'CONSTRAINT',
     source: 'EXPLICIT_STATEMENT',
@@ -412,7 +412,7 @@ const goldMemories: FixtureMemory[] = [
   },
   {
     fixture_id: 'alice_insight_001',
-    content: `${CANARY}X4: Pattern detected: User tends to refactor code right after shipping features. Suggest scheduling refactor time in sprint planning.`,
+    content: `${CANARY}X4: Work habit pattern noticed: tends to refactor code right after shipping features. Suggest scheduling refactor time in sprint planning.`,
     layer: 'INSIGHT',
     memoryType: 'FACT',
     source: 'PATTERN_DETECTED',
@@ -544,7 +544,12 @@ function generateTemplateMemories(): FixtureMemory[] {
           memoryType: 'EVENT',
           source: sources[(t + s) % sources.length],
           importanceScore:
-            0.3 + Math.round((((t * 7 + s * 13) % 7) / 10) * 100) / 100,
+            // Noise memories cap at 0.3–0.5. Formula previously used % 7,
+            // which made s=1 memories ("quick walk", "search pipeline", etc.)
+            // score 0.9 importance — higher than real gold memories (0.7).
+            // That contaminated the final reranker blend, burying specific gold
+            // memories behind generic daily routine entries.
+            0.3 + Math.round((((t * 7 + s * 13) % 3) / 10) * 100) / 100,
           tags: [topic, subs[s].split(' ')[0].toLowerCase()],
           created_at: subDays(counter % 365),
           metadata: {},

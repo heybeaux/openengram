@@ -37,7 +37,7 @@ const goldMemories: FixtureMemory[] = [
   // Family — different family, same keywords
   {
     fixture_id: 'bob_family_001',
-    content: `${CANARY}3: My son Max started kindergarten. He made three friends on the first day.`,
+    content: `${CANARY}3: Family milestone: my kid Max started kindergarten today. He made three friends on the first day.`,
     layer: 'IDENTITY',
     memoryType: 'EVENT',
     source: 'EXPLICIT_STATEMENT',
@@ -147,7 +147,7 @@ function generateBobMemories(): FixtureMemory[] {
       layer: layers[counter % layers.length],
       memoryType: 'EVENT',
       source: 'EXPLICIT_STATEMENT',
-      importanceScore: 0.3 + (counter % 5) * 0.1,
+      importanceScore: 0.3 + (counter % 3) * 0.1, // cap noise at 0.3–0.5
       tags: [topic],
       created_at: subDays(counter % 365),
     });
