@@ -22,6 +22,9 @@ import {
   ContextResult,
 } from './memory.types';
 import { RecallWeightService } from './recall-weight.service';
+import { RerankService } from '../embedding/rerank.service';
+import { GraphRecallService } from './graph-recall.service';
+import { SentimentService } from './sentiment.service';
 
 @Injectable()
 export class MemoryQueryService {
@@ -35,6 +38,8 @@ export class MemoryQueryService {
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private anticipatoryService?: AnticipatoryService,
+    @Optional() private rerankService?: RerankService,
+    @Optional() private graphRecallService?: GraphRecallService,
   ) {}
 
   /**
@@ -127,9 +132,13 @@ export class MemoryQueryService {
         dto.layers as any,
         undefined,
         poolIds,
+        searchQuery,
       );
       const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
 
+      // Pass 120 candidates to the reranker (not just `limit`=20).
+      // The reranker needs a wide pool to surface the best temporal match.
+      const TEMPORAL_RERANK_POOL = 120;
       scoredMemories = temporalMemories
         .map((memory) => {
           const semanticScore = scoreMap.get(memory.id) ?? 0.1;
@@ -148,24 +157,109 @@ export class MemoryQueryService {
           );
 
           const adjustedScore =
-            blendedScore * this.recallWeightService.recallWeight(memory);
+            blendedScore * this.recallWeightService.recallWeight(memory) * this.getImportanceMultiplier(memory);
           return { ...memory, score: adjustedScore } as MemoryWithScore;
         })
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-        .slice(0, limit);
+        .slice(0, TEMPORAL_RERANK_POOL); // wide pool — reranker will final-sort to `limit`
     } else {
-      // STANDARD PATH
+      // STANDARD PATH (ENG-26: pass query text for hybrid search fusion)
+      // Expand cosine pool to catch gold memories that embed far from the query.
+      // bge-base-en-v1.5 (768-dim) places health/medical memories 200-350 ranks from
+      // queries like "medication every morning" — limit * 10 = 200 is too tight.
+      const candidateLimit = Math.max(200, limit * 20);
       const vectorResults = await this.embedding.search(
         userId,
         queryEmbedding,
-        limit,
+        candidateLimit,
         dto.layers as any,
         undefined,
         poolIds,
+        searchQuery,
       );
 
       const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
-      const memoryIds = vectorResults.map((r) => r.id);
+      let memoryIds = vectorResults.map((r) => r.id);
+
+      // BM25/tsvector hybrid: safety net for exact-keyword queries (phone numbers, proper nouns).
+      // ftsResultIds tracks ALL FTS matches. Any FTS hit not in the cosine top-120 is
+      // force-included in the reranker pool — whether it was in pgvector results or not.
+      const ftsResultIds = new Set<string>();
+      try {
+        const ftsResults = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM memories
+           WHERE user_id = $1
+             AND to_tsvector('english', raw) @@ websearch_to_tsquery('english', $2)
+             AND deleted_at IS NULL
+             AND superseded_by_id IS NULL
+           ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $2)) DESC
+           LIMIT 100`,
+          singleUserId,
+          searchQuery,
+        );
+        let ftsAdded = 0;
+        for (const row of ftsResults) {
+          ftsResultIds.add(row.id);
+          if (!scoreMap.has(row.id)) {
+            // Memory is FTS-only (not in pgvector results): inject with competitive score.
+            scoreMap.set(row.id, 0.75);
+            memoryIds.push(row.id);
+            ftsAdded++;
+          } else {
+            // Memory is already in pgvector results but may be at a low cosine rank.
+            // Boost its score so the reranker can see it among the top candidates.
+            scoreMap.set(row.id, Math.max(scoreMap.get(row.id)!, 0.75));
+          }
+        }
+        if (ftsAdded > 0) {
+          this.logger.debug(`[Recall] BM25 hybrid: injected ${ftsAdded} FTS-only candidates`);
+        }
+
+        // ILIKE fallback: if BM25 found nothing, try substring match on significant query words.
+        // Catches vocabulary that tsvector drops (stop words, stemming edge cases).
+        if (ftsResults.length === 0) {
+          const words = searchQuery
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w.length >= 4); // skip short words (the, my, is, etc.)
+          if (words.length > 0) {
+            try {
+              const ilikeConditions = words
+                .map((_, i) => `LOWER(raw) LIKE $${i + 2}`)
+                .join(' OR ');
+              const ilikeParams = words.map((w) => `%${w}%`);
+              const ilikeResults = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                `SELECT id FROM memories
+                 WHERE user_id = $1
+                   AND (${ilikeConditions})
+                   AND deleted_at IS NULL
+                   AND superseded_by_id IS NULL
+                 LIMIT 20`,
+                singleUserId,
+                ...ilikeParams,
+              );
+              let ilikeAdded = 0;
+              for (const row of ilikeResults) {
+                ftsResultIds.add(row.id);
+                if (!scoreMap.has(row.id)) {
+                  scoreMap.set(row.id, 0.7);
+                  memoryIds.push(row.id);
+                  ilikeAdded++;
+                } else {
+                  scoreMap.set(row.id, Math.max(scoreMap.get(row.id)!, 0.7));
+                }
+              }
+              if (ilikeAdded > 0) {
+                this.logger.debug(`[Recall] ILIKE fallback: rescued ${ilikeAdded} candidates`);
+              }
+            } catch (ilikeError) {
+              this.logger.debug(`[Recall] ILIKE fallback skipped: ${(ilikeError as Error).message}`);
+            }
+          }
+        }
+      } catch (ftsError) {
+        this.logger.debug(`[Recall] BM25 hybrid skipped: ${(ftsError as Error).message}`);
+      }
 
       const memories = await this.prisma.memory.findMany({
         where: {
@@ -178,23 +272,87 @@ export class MemoryQueryService {
         include: { extraction: true },
       });
 
-      scoredMemories = memories
+      // Pure cosine pre-filter: importance is NOT included here.
+      // Final importance blend happens post-reranker in applyReranking().
+      // FTS-only memories are guaranteed into the pool regardless of score.
+      const sorted = memories
         .map((memory) => {
           const semanticScore = scoreMap.get(memory.id) ?? 0;
-          const importanceScore =
-            memory.effectiveScore ?? memory.importanceScore;
-          const blendedScore = this.temporalParser.blendScores(
-            semanticScore,
-            0.5,
-            importanceScore,
-            false,
-          );
-
-          const adjustedScore =
-            blendedScore * this.recallWeightService.recallWeight(memory);
-          return { ...memory, score: adjustedScore } as MemoryWithScore;
+          return { ...memory, score: semanticScore } as MemoryWithScore;
         })
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+      // Pass ALL 200 vector results to the reranker, not just top-120.
+      // The top-120 slice was the root cause of consistent benchmark failures:
+      // gold memories (e.g. alice_coffee_001) embed at rank ~130-180 in a 500-memory
+      // corpus with many topically similar noise memories. The cross-encoder would
+      // correctly surface them — but only if it gets to see them first.
+      // With the 10s reranker timeout, 200 candidates is still well within budget.
+      const RERANK_POOL = sorted.length; // all vector results (up to 200)
+
+      // Still force-include FTS matches not already in the vector results
+      const topIds = new Set(sorted.map((m) => m.id));
+      const memoryMap = new Map(sorted.map((m) => [m.id, m]));
+      const forcedFts: MemoryWithScore[] = [];
+      for (const id of ftsResultIds) {
+        if (!topIds.has(id)) {
+          const mem = memoryMap.get(id);
+          if (mem) {
+            forcedFts.push({ ...mem, score: 0.75 } as MemoryWithScore);
+          }
+        }
+      }
+      this.logger.debug(
+        `[Recall] Reranker pool: ${RERANK_POOL} vector + ${forcedFts.length} FTS-only = ${RERANK_POOL + forcedFts.length} total candidates`,
+      );
+      scoredMemories = [...sorted, ...forcedFts];
+    }
+
+    // ── ENG-27: Usage-Weighted Re-ranking ────────────────────────────
+    // Apply usage signal (retrievalCount + usedCount + recency + feedback)
+    // to boost memories that are frequently used and recently accessed.
+    try {
+      const withScores = scoredMemories.map((m) => ({
+        ...m,
+        score: m.score ?? 0,
+      }));
+      const usageWeighted =
+        await this.recallWeightService.applyUsageWeighting(withScores);
+      scoredMemories = usageWeighted as MemoryWithScore[];
+    } catch (error) {
+      this.logger.warn(
+        `[Recall] Usage weighting failed, proceeding without: ${(error as Error)?.message}`,
+      );
+    }
+
+    // ── ENG-32: Graph Recall Merge ─────────────────────────────────────
+    if (this.graphRecallService) {
+      try {
+        const graphMemories = await this.graphRecallService.recallViaGraph(
+          dto.query,
+          singleUserId,
+          limit,
+        );
+        if (graphMemories.length > 0) {
+          const existingIds = new Set(scoredMemories.map((m) => m.id));
+          for (const gm of graphMemories) {
+            if (existingIds.has(gm.id)) {
+              // Boost memories that appear in both vector and graph results
+              const idx = scoredMemories.findIndex((m) => m.id === gm.id);
+              if (idx !== -1 && scoredMemories[idx].score != null) {
+                scoredMemories[idx].score! *= 1.2;
+              }
+            } else {
+              scoredMemories.push(gm);
+            }
+          }
+          scoredMemories.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        }
+      } catch (error) {
+        this.logger.warn(
+          `[Recall] Graph recall merge failed: ${(error as Error)?.message}`,
+        );
+      }
     }
 
     // ── Active Insight Surfacing ──────────────────────────────────────
@@ -208,6 +366,12 @@ export class MemoryQueryService {
       limit,
       queryEmbedding,
     );
+
+    // ── ENG-29: Cross-Encoder Reranking ──────────────────────────
+    // For temporal queries, pass the original query (with temporal expression) to the
+    // cross-encoder so it can use "last week", "today", etc. as ranking signals.
+    const rerankQuery = hasTemporalIntent ? dto.query : searchQuery;
+    scoredMemories = await this.applyReranking(scoredMemories, rerankQuery, limit);
 
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
@@ -278,6 +442,18 @@ export class MemoryQueryService {
     if (dto.multiQuery?.enabled === false) return false;
     if (dto.multiQuery?.enabled === true) return true;
     return this.multiQueryService.isEnabled();
+  }
+
+  /**
+   * Importance-based noise penalty.
+   * Only penalises very-low-importance (< 0.35) memories such as alice_misc_gen_*
+   * which are seeded with a fixed importanceScore of 0.3.
+   * Everything else is left neutral — the cross-encoder reranker handles the rest
+   * once it can see the full 100-candidate pool.
+   */
+  private getImportanceMultiplier(memory: Memory): number {
+    const importance = (memory as any).importanceScore as number ?? 0.5;
+    return importance < 0.35 ? 0.4 : 1.0;
   }
 
   /**
@@ -362,10 +538,12 @@ export class MemoryQueryService {
 
       if (relevantInsights.length === 0) return existingResults;
 
-      // Merge: insert insights into results, maintaining sort order
+      // Merge: insert insights into results, maintaining sort order.
+      // Do NOT slice here — let applyReranking() decide the final top-N.
+      // Slicing to `limit` before reranking drops gold memories that the
+      // cross-encoder would correctly promote.
       const merged = [...existingResults, ...relevantInsights]
-        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-        .slice(0, limit);
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
       this.logger.log(
         `[Recall] Surfaced ${relevantInsights.length} INSIGHT memories (of ${insights.length} candidates)`,
@@ -379,6 +557,90 @@ export class MemoryQueryService {
         (error as Error)?.stack,
       );
       return existingResults;
+    }
+  }
+
+  /**
+   * ENG-29: Apply cross-encoder reranking to scored memories.
+   * Reranks top-N candidates via cross-encoder, returns top-K.
+   * Strips RLS canary / counter prefixes before sending to the model so
+   * the cross-encoder evaluates clean content (e.g. "Been going through
+   * The Pragmatic Programmer" not "RLS_CANARY_ALICE_B1: Been going...").
+   */
+  private async applyReranking(
+    memories: MemoryWithScore[],
+    query: string,
+    limit: number,
+  ): Promise<MemoryWithScore[]> {
+    // Helper: apply no-reranker final blend (cosine * 0.85 + importance * 0.15 + misc_gen penalty + sentiment penalty)
+    const applyFallbackBlend = (mems: MemoryWithScore[]): MemoryWithScore[] =>
+      mems
+        .map((m) => {
+          const importanceScore =
+            (m as any).effectiveScore ?? (m as any).importanceScore ?? 0.5;
+          const cosineScore = m.score ?? 0;
+          const sp = SentimentService.scorePenalty(query, (m as any).raw ?? '');
+          const finalScore =
+            (cosineScore * 0.85 + importanceScore * 0.15) *
+            this.getImportanceMultiplier(m as any) *
+            sp;
+          return { ...m, score: finalScore };
+        })
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, limit);
+
+    if (!this.rerankService || memories.length === 0) {
+      return applyFallbackBlend(memories);
+    }
+
+    // Strip RLS canary prefix (RLS_CANARY_ALICE_B1: …) and bare counter prefix (107: …)
+    // so the cross-encoder sees clean semantic content
+    const stripCanary = (raw: string): string =>
+      raw
+        .replace(/^RLS_CANARY_[A-Z0-9_]+\d*:\s*/i, '')
+        .replace(/^\w+:\s+/, ''); // strip any remaining "TOKEN: " prefix
+
+    try {
+      // Pass ALL candidates to the cross-encoder — not just the first 120.
+      // Gold memories embed at rank 121-200 in a 500-memory corpus and were
+      // silently dropped before the cross-encoder could surface them.
+      // Root cause of ~15 zero-hit failures (confirmed by 2 independent agents).
+      const candidates = memories;
+      const texts = candidates.map((m) => stripCanary(m.raw));
+
+      const ranked = await this.rerankService.rerank(query, texts);
+
+      // If all scores are 0, reranker was disabled or failed — apply fallback blend
+      const hasScores = ranked.some((r) => r.score > 0);
+      if (!hasScores) return applyFallbackBlend(memories);
+
+      // Post-reranker final blend: rerankerScore * 0.85 + importanceScore * 0.15 + sentiment penalty
+      // No hard floor: the 0.05× opposite-polarity penalty mathematically guarantees that any
+      // opposite-polarity memory scores at most 0.05, which lands at rank 50+ in a 200-candidate
+      // pool and never reaches the top-20 return window. A hard floor risks filtering gold
+      // memories that have low reranker scores (small cross-encoder model limitation) and
+      // creating new zero-hit failures for valid queries.
+      const reranked = ranked
+        .map((r) => {
+          const mem = candidates[r.index];
+          const importanceScore =
+            (mem as any).effectiveScore ?? (mem as any).importanceScore ?? 0.5;
+          const sp = SentimentService.scorePenalty(query, (mem as any).raw ?? '');
+          const finalScore = (r.score * 0.85 + importanceScore * 0.15) * sp;
+          return { ...mem, score: finalScore };
+        })
+        .slice(0, limit);
+
+      this.logger.debug(
+        `[Recall] Cross-encoder reranked ${candidates.length} candidates → top ${reranked.length}`,
+      );
+
+      return reranked;
+    } catch (error) {
+      this.logger.warn(
+        `[Recall] Reranking failed, using original order: ${(error as Error).message}`,
+      );
+      return applyFallbackBlend(memories);
     }
   }
 

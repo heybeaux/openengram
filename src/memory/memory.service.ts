@@ -32,7 +32,7 @@ import {
 } from './dto/bulk.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
-import { Memory, MemoryLayer, MemorySource, SubjectType } from '@prisma/client';
+import { Memory, MemoryLayer, MemorySource, MemoryDurability, SubjectType } from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 import { CorrectionService } from '../correction/correction.service';
 import {
@@ -51,6 +51,8 @@ import { EmbeddingQueueProducer } from './embedding-queue.producer';
 import { rlsContext } from '../prisma/rls-context';
 import { MemoryGraphService } from './memory-graph.service';
 import { MemoryExportService } from './memory-export.service';
+import { HypeService } from './hype.service';
+import { DurabilityClassifierService } from './durability-classifier.service';
 
 // Re-export types for backward compatibility
 export type {
@@ -80,11 +82,13 @@ export class MemoryService {
     private pipelineService: MemoryPipelineService,
     private graphService: MemoryGraphService,
     private exportService: MemoryExportService,
+    @Optional() private durabilityClassifier?: DurabilityClassifierService,
     @Optional() private correctionService?: CorrectionService,
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private eventEmitter?: EventEmitter2,
     @Optional() private readonly embeddingQueue?: EmbeddingQueueProducer,
+    @Optional() private readonly hypeService?: HypeService,
   ) {}
 
   /**
@@ -200,6 +204,17 @@ export class MemoryService {
       },
     });
 
+    // HyPE: generate hypothetical prompt embeddings (fire-and-forget)
+    if (this.hypeService) {
+      setImmediate(() => {
+        this.hypeService
+          ?.generateAndStore(memory.id, rawContent, userId)
+          .catch((err) =>
+            this.logger.warn(`[HyPE] Failed: ${err.message}`),
+          );
+      });
+    }
+
     // v0.7: Auto-add to global pool and log creation
     if (dto.agentSessionKey) {
       this.addToGlobalPoolAndLog(memory.id, userId, dto.agentSessionKey).catch(
@@ -270,6 +285,25 @@ export class MemoryService {
         rawContent.substring(0, 200),
       ),
     );
+
+    // 10b. ENG-31: Classify durability (fire-and-forget, non-blocking)
+    if (this.durabilityClassifier) {
+      const classifier = this.durabilityClassifier;
+      setImmediate(() => {
+        const durability = classifier.classify(rawContent);
+        this.prisma.memory
+          .update({
+            where: { id: memory.id },
+            data: { durability, durabilityClassifiedAt: new Date() },
+          })
+          .catch((err) =>
+            this.logger.error(
+              `[Memory] Durability classification failed for ${memory.id}:`,
+              err,
+            ),
+          );
+      });
+    }
 
     // 11. Check for contradictions
     if (this.correctionService) {

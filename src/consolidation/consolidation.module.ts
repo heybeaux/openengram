@@ -46,6 +46,8 @@ const bullProviders = hasRedis
   ? [DreamCycleQueueProducer, DreamCycleQueueProcessor]
   : [];
 
+const bullExports = hasRedis ? [DreamCycleQueueProducer] : [];
+
 @Module({
   imports: [
     AccountModule,
@@ -76,6 +78,6 @@ const bullProviders = hasRedis
     DreamCycleRunTrackerService,
     HealthMetricsService,
   ],
-  exports: [DreamCycleService, GenerateContextService, DreamCycleQueueProducer],
+  exports: [DreamCycleService, GenerateContextService, ...bullExports],
 })
 export class ConsolidationModule {}

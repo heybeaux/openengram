@@ -23,6 +23,9 @@ import { MemoryJobQueueService } from './memory-job-queue.service';
 import { MemoryJobProcessorService } from './memory-job-processor.service';
 import { EmbeddingRetryCron } from './embedding-retry.cron';
 import { RecallWeightService } from './recall-weight.service';
+import { HypeService } from './hype.service';
+import { DurabilityClassifierService } from './durability-classifier.service';
+import { RerankService } from '../embedding/rerank.service';
 import { MemoryPoolModule } from '../memory-pool/memory-pool.module';
 import { MemoryAccessLogModule } from '../memory-access-log/memory-access-log.module';
 import { AccountModule } from '../account/account.module';
@@ -30,6 +33,7 @@ import { AnticipatoryModule } from '../anticipatory/anticipatory.module';
 import { GraphModule } from '../graph/graph.module';
 import { QueueModule } from '../queue/queue.module';
 import { ServicePrismaModule } from '../prisma/service-prisma.module';
+import { GraphRecallService } from './graph-recall.service';
 import { EmbeddingQueueProducer } from './embedding-queue.producer';
 import { EmbeddingQueueProcessor } from './embedding-queue.processor';
 import { EMBEDDING_QUEUE } from './embedding.queue';
@@ -47,6 +51,8 @@ const bullImports = hasRedis
 const bullProviders = hasRedis
   ? [EmbeddingQueueProducer, EmbeddingQueueProcessor]
   : [];
+
+const bullExports = hasRedis ? [EmbeddingQueueProducer] : [];
 
 @Module({
   imports: [
@@ -83,17 +89,25 @@ const bullProviders = hasRedis
     MemoryJobProcessorService,
     EmbeddingRetryCron,
     RecallWeightService,
+    HypeService,
+    DurabilityClassifierService,
+    RerankService,
+    GraphRecallService,
     ...bullProviders,
   ],
   exports: [
     MemoryService,
+    HypeService,
+    DurabilityClassifierService,
+    RerankService,
     BackfillService,
     ConsolidationService,
     EmbeddingService,
     TemporalParserService,
     MultiQueryService,
     ContextualRecallService,
-    EmbeddingQueueProducer,
+    GraphRecallService,
+    ...bullExports,
   ],
 })
 export class MemoryModule {}
