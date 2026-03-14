@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
  * Dedicated Prisma client for internal background jobs (Dream Cycle, etc.).
@@ -20,16 +21,10 @@ export class ServicePrismaService
   private readonly logger = new Logger(ServicePrismaService.name);
 
   constructor() {
-    const serviceUrl = process.env.DATABASE_URL_SERVICE;
-    super(
-      serviceUrl
-        ? {
-            datasources: {
-              db: { url: serviceUrl },
-            },
-          }
-        : undefined,
-    );
+    const connectionString =
+      process.env.DATABASE_URL_SERVICE || process.env.DATABASE_URL;
+    const adapter = new PrismaPg({ connectionString });
+    super({ adapter });
   }
 
   async onModuleInit() {

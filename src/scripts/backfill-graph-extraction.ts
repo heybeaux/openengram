@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { PrismaClient, Memory } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const logger = new Logger('BackfillGraphExtraction');
 
@@ -124,7 +125,8 @@ async function main() {
   logger.log('Starting graph extraction backfill...');
   logger.log(`Options: ${JSON.stringify(options)}`);
 
-  const prisma = new PrismaClient();
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     // Count total memories to process
