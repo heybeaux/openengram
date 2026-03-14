@@ -5,7 +5,10 @@ export default defineConfig({
   migrations: {
     path: './prisma/migrations',
   },
-  // datasource.url intentionally omitted: Prisma v7's env() throws at build time
-  // when DATABASE_URL is not present (Docker build stage has no env vars).
-  // The schema.prisma datasource already reads env("DATABASE_URL") at runtime.
+  // datasource.url is conditionally set: Prisma v7 requires it for `migrate deploy`
+  // but the Docker build stage has no DATABASE_URL. Spreading undefined keys is a no-op,
+  // so `prisma generate` (build stage) works fine while `migrate deploy` (CI/runtime) gets the URL.
+  ...(process.env.DATABASE_URL
+    ? { datasource: { url: process.env.DATABASE_URL } }
+    : {}),
 });
