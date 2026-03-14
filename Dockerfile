@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npx prisma generate
+# pnpm build runs: prisma generate && nest build
 RUN pnpm build
 
 # Stage 2: Runtime
