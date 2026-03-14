@@ -55,7 +55,7 @@ export class DashboardService {
 
     // Scope all queries to the requesting account
     const accountUsers = await this.prisma.user.findMany({
-      where: { agent: { accountId }, deletedAt: null },
+      where: { accountId, deletedAt: null },
       select: { id: true },
     });
     const accountUserIds = accountUsers.map((u) => u.id);
@@ -94,13 +94,13 @@ export class DashboardService {
 
     // Total users (scoped to account)
     const totalUsers = await this.prisma.user.count({
-      where: { agent: { accountId }, deletedAt: null },
+      where: { accountId, deletedAt: null },
     });
 
     // Users from last week vs previous week (scoped to account)
     const usersLastWeek = await this.prisma.user.count({
       where: {
-        agent: { accountId },
+        accountId,
         deletedAt: null,
         createdAt: { gte: oneWeekAgo },
       },
@@ -108,7 +108,7 @@ export class DashboardService {
 
     const usersPreviousWeek = await this.prisma.user.count({
       where: {
-        agent: { accountId },
+        accountId,
         deletedAt: null,
         createdAt: { gte: twoWeeksAgo, lt: oneWeekAgo },
       },
@@ -239,12 +239,13 @@ export class DashboardService {
     agentId: string,
     accountId?: string,
   ): Promise<UsersListResponse> {
-    // If accountId is provided, return users across all agents under the account
+    // If accountId is provided, return users across the account directly
     const where: any = { deletedAt: null };
     if (accountId) {
-      where.agent = { accountId, deletedAt: null };
+      where.accountId = accountId;
     } else {
-      where.agentId = agentId;
+      // Scope to users from the account that owns this agent
+      where.account = { agents: { some: { id: agentId, deletedAt: null } } };
     }
 
     const users = await this.prisma.user.findMany({

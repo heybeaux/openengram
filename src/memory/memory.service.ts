@@ -141,10 +141,10 @@ export class MemoryService {
         id: true,
         externalId: true,
         displayName: true,
-        agent: { select: { accountId: true } },
+        accountId: true,
       },
     });
-    const accountId = user?.agent?.accountId ?? undefined;
+    const accountId = user?.accountId ?? undefined;
 
     // 2. Determine source type
     const source = dto.source ?? MemorySource.EXPLICIT_STATEMENT;
@@ -904,13 +904,13 @@ export class MemoryService {
             id: true,
             externalId: true,
             displayName: true,
-            agent: { select: { accountId: true } },
+            accountId: true,
           },
         },
       },
     });
     const correctionAccountId =
-      (original?.user as any)?.agent?.accountId ?? undefined;
+      (original?.user as any)?.accountId ?? undefined;
 
     if (!original) {
       throw new Error(`Memory not found: ${memoryId}`);
@@ -1016,9 +1016,9 @@ export class MemoryService {
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { agent: { select: { accountId: true } } },
+      select: { accountId: true },
     });
-    const accountId = user?.agent?.accountId;
+    const accountId = user?.accountId;
     if (!accountId) return;
 
     if (delta > 0) {

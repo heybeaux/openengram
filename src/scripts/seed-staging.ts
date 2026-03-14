@@ -16,6 +16,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as crypto from 'crypto';
 import * as path from 'path';
 
@@ -208,7 +209,7 @@ async function seed(prisma: PrismaClient) {
         id: userId,
         externalId: `fixture_${name}`,
         displayName: name.charAt(0).toUpperCase() + name.slice(1),
-        agentId,
+        accountId,
       },
     });
 
@@ -328,7 +329,8 @@ async function printSummaryFromExisting(prisma: PrismaClient) {
 
 async function main() {
   const isClean = process.argv.includes('--clean');
-  const prisma = new PrismaClient();
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     if (isClean) {

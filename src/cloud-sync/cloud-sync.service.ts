@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudLinkService } from '../cloud-link/cloud-link.service';
 import { MemoryCreatedEvent } from '../events/event-types';
@@ -101,7 +102,8 @@ export class CloudSyncService {
     // HTTP request's interceptor. By the time setImmediate fires, that transaction
     // is already committed, causing "Transaction already closed" errors.
     // Creating a standalone client bypasses the RLS proxy entirely.
-    const backgroundDb = new PrismaClient();
+    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+    const backgroundDb = new PrismaClient({ adapter });
 
     setImmediate(
       () =>

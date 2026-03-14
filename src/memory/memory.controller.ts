@@ -91,11 +91,12 @@ export class MemoryController {
     const accountId = req.accountId ?? req.agent?.accountId;
     if (!accountId) return null;
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (agentId) {
-      where.agentId = agentId;
+      // Scope to users from the account that owns this agent
+      where.account = { agents: { some: { id: agentId, deletedAt: null } } };
     } else {
-      where.agent = { accountId, deletedAt: null };
+      where.accountId = accountId;
     }
 
     const users = await this.prisma.user.findMany({
@@ -126,10 +127,12 @@ export class MemoryController {
     @Headers('x-am-agent-id') headerAgentId?: string,
     @Req() req?: any,
   ): Promise<MemoryWithExtraction> {
-    // Persist agentId from header, falling back to the agent resolved by the auth guard
-    if (!dto.agentId) {
-      dto.agentId = headerAgentId || req?.agent?.id;
-    }
+    // agentId is ALWAYS server-authoritative: use the authenticated agent's id.
+    // The x-am-agent-id header is accepted only as an optional hint for cross-agent
+    // attribution (e.g. a proxy writing on behalf of another agent), but the guard
+    // has already validated the actual calling agent via the API key.
+    // This prevents clients from falsely attributing memories to other agents.
+    dto.agentId = req?.agent?.id ?? headerAgentId ?? dto.agentId;
     return this.memoryService.remember(userId, dto);
   }
 
@@ -535,7 +538,7 @@ export class MemoryController {
       id: string;
       externalId: string;
       displayName: string | null;
-      agentId: string;
+      accountId: string;
       createdAt: Date;
     }>;
   }> {
@@ -558,7 +561,7 @@ export class MemoryController {
         id: true,
         externalId: true,
         displayName: true,
-        agentId: true,
+        accountId: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
