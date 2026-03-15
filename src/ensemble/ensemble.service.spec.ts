@@ -15,6 +15,7 @@ import { DriftDetectionService } from './drift-detection.service';
 import { ModelRegistryService } from './model-registry.service';
 import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
 import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { CloudEnsembleService } from '../embedding/cloud-ensemble.service';
 import {
@@ -1091,7 +1092,7 @@ describe('NightlyReembedService', () => {
       providers: [
         NightlyReembedService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ServicePrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
         { provide: EnsembleService, useValue: mockEnsembleService },
