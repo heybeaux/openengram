@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CheckpointService } from './checkpoint.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 import { ReembedCheckpoint } from './ensemble.types';
 
 describe('CheckpointService', () => {
@@ -29,7 +29,7 @@ describe('CheckpointService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CheckpointService,
-        { provide: PrismaService, useValue: prisma },
+        { provide: ServicePrismaService, useValue: prisma },
       ],
     }).compile();
 

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PgVectorEnsembleProvider } from './pgvector-ensemble.provider';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 
 const mockPrisma = {
   $executeRawUnsafe: jest.fn(),
@@ -29,7 +29,7 @@ describe('PgVectorEnsembleProvider', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PgVectorEnsembleProvider,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ServicePrismaService, useValue: mockPrisma },
       ],
     }).compile();
     provider = module.get<PgVectorEnsembleProvider>(PgVectorEnsembleProvider);

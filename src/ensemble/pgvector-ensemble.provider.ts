@@ -12,7 +12,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServicePrismaService } from '../prisma/service-prisma.service';
 import {
   ModelId,
   MODEL_CONFIGS,
@@ -50,7 +50,7 @@ export interface EnsembleSearchResult {
 export class PgVectorEnsembleProvider {
   private readonly logger = new Logger(PgVectorEnsembleProvider.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: ServicePrismaService) {}
 
   /**
    * Upsert a single embedding for a memory/model pair

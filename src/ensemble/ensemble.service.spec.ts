@@ -475,7 +475,7 @@ describe('DriftDetectionService', () => {
       providers: [
         DriftDetectionService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ServicePrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
@@ -698,7 +698,7 @@ describe('CheckpointService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CheckpointService,
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ServicePrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
@@ -834,7 +834,7 @@ describe('ModelRegistryService', () => {
       providers: [
         ModelRegistryService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ServicePrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
@@ -1173,7 +1173,7 @@ describe('PgVectorEnsembleProvider', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PgVectorEnsembleProvider,
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ServicePrismaService, useValue: mockPrismaService },
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: CloudEnsembleService, useValue: mockCloudEnsembleService },
       ],
