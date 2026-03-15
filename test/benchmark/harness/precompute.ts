@@ -88,7 +88,9 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
     }
     const data = (await res.json()) as number[][];
     all.push(...data);
-    process.stdout.write(`  Embedded ${Math.min(i + BATCH, texts.length)}/${texts.length}\r`);
+    process.stdout.write(
+      `  Embedded ${Math.min(i + BATCH, texts.length)}/${texts.length}\r`,
+    );
   }
   console.log();
   return all;
@@ -216,7 +218,10 @@ async function main() {
       for (const mem of mems) {
         for (const prefix of CANARY_PREFIXES) {
           if (mem.raw.startsWith(prefix)) {
-            const userName = prefix.replace('RLS_CANARY_', '').replace('_', '').toLowerCase();
+            const userName = prefix
+              .replace('RLS_CANARY_', '')
+              .replace('_', '')
+              .toLowerCase();
             canaryToUser.set(userName, userId);
             break;
           }
@@ -232,7 +237,9 @@ async function main() {
     for (const q of queries) {
       const userId = canaryToUser.get(q.user);
       if (!userId) {
-        console.warn(`  No userId found for user '${q.user}' — skipping query ${q.id}`);
+        console.warn(
+          `  No userId found for user '${q.user}' — skipping query ${q.id}`,
+        );
         cosineScores[q.id] = {};
         continue;
       }
@@ -261,7 +268,9 @@ async function main() {
     console.log(`\nWrote:`);
     console.log(`  ${corpusPath} (${corpus.length} memories)`);
     console.log(`  ${queriesPath} (${queries.length} queries)`);
-    console.log(`  ${cosinesPath} (${Object.keys(cosineScores).length} query entries)`);
+    console.log(
+      `  ${cosinesPath} (${Object.keys(cosineScores).length} query entries)`,
+    );
   } finally {
     await client.end();
   }

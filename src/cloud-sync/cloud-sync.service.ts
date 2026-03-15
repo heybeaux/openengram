@@ -102,7 +102,9 @@ export class CloudSyncService {
     // HTTP request's interceptor. By the time setImmediate fires, that transaction
     // is already committed, causing "Transaction already closed" errors.
     // Creating a standalone client bypasses the RLS proxy entirely.
-    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL,
+    });
     const backgroundDb = new PrismaClient({ adapter });
 
     setImmediate(

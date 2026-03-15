@@ -6,7 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { AttachMethod, AttributeType, MemoryLayer, MemorySource, ProfileSource } from '@prisma/client';
+import {
+  AttachMethod,
+  AttributeType,
+  MemoryLayer,
+  MemorySource,
+  ProfileSource,
+} from '@prisma/client';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CsvParserService } from './csv-parser.service';
@@ -41,7 +47,9 @@ export class ImportExecutionService {
     private readonly csvParser: CsvParserService,
     private readonly mappingService: ImportMappingService,
     private readonly jobService: ImportJobService,
-    @Optional() @InjectQueue(BULK_IMPORT_QUEUE) private readonly queue: Queue | null,
+    @Optional()
+    @InjectQueue(BULK_IMPORT_QUEUE)
+    private readonly queue: Queue | null,
   ) {}
 
   // ── Preview ─────────────────────────────────────────────────────────────────
@@ -65,7 +73,10 @@ export class ImportExecutionService {
       );
     }
 
-    const { records, errors } = this.mappingService.applyMapping(parsed.rows, config);
+    const { records, errors } = this.mappingService.applyMapping(
+      parsed.rows,
+      config,
+    );
 
     const profiles = records.map((r) => ({
       rowNumber: r.rowNumber,

@@ -93,7 +93,11 @@ describe('PlanService', () => {
     });
 
     it('returns limit=-1 and allows for unknown resource', async () => {
-      const result = await service.checkLimit('acc_free', 'unknownResource', 9999);
+      const result = await service.checkLimit(
+        'acc_free',
+        'unknownResource',
+        9999,
+      );
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(-1);
     });
@@ -113,7 +117,10 @@ describe('PlanService', () => {
     });
 
     it('returns false for unknown feature', async () => {
-      const allowed = await service.checkFeature('acc_dev', 'nonExistentFeature');
+      const allowed = await service.checkFeature(
+        'acc_dev',
+        'nonExistentFeature',
+      );
       expect(allowed).toBe(false);
     });
   });

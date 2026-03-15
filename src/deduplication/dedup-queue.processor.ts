@@ -49,7 +49,9 @@ export class DedupQueueProcessor extends WorkerHost {
     }
   }
 
-  private async processBatch(job: Job<DedupBatchJobData>): Promise<BatchRunStats> {
+  private async processBatch(
+    job: Job<DedupBatchJobData>,
+  ): Promise<BatchRunStats> {
     const batchSize = job.data.batchSize ?? 50;
     const startedAt = new Date();
     const stats: BatchRunStats = {
@@ -79,14 +81,22 @@ export class DedupQueueProcessor extends WorkerHost {
       }
 
       // Load configs per user (cache within batch)
-      const configCache = new Map<string, { autoMergeThreshold: number; autoResolveThreshold: number }>();
+      const configCache = new Map<
+        string,
+        { autoMergeThreshold: number; autoResolveThreshold: number }
+      >();
 
       for (const candidate of candidates) {
         try {
-          const config = await this.getConfigForUser(candidate.userId, configCache);
+          const config = await this.getConfigForUser(
+            candidate.userId,
+            configCache,
+          );
           await this.processCandidate(candidate, config, stats);
           stats.processed++;
-          await job.updateProgress(Math.round((stats.processed / candidates.length) * 100));
+          await job.updateProgress(
+            Math.round((stats.processed / candidates.length) * 100),
+          );
         } catch (err) {
           stats.errors++;
           const msg = `Failed to process candidate ${candidate.id}: ${(err as Error).message}`;
@@ -96,7 +106,12 @@ export class DedupQueueProcessor extends WorkerHost {
       }
 
       // Record batch run
-      await this.recordBatchRun(startedAt, stats, errorMessages, job.data.trigger);
+      await this.recordBatchRun(
+        startedAt,
+        stats,
+        errorMessages,
+        job.data.trigger,
+      );
     } catch (err) {
       this.logger.error(`Dedup batch failed: ${(err as Error).message}`);
       throw err;
@@ -165,10 +180,7 @@ export class DedupQueueProcessor extends WorkerHost {
     }
 
     // Medium confidence: auto-resolve threshold reached but below auto-merge
-    if (
-      candidate.similarity >= config.autoResolveThreshold &&
-      canAutoMerge
-    ) {
+    if (candidate.similarity >= config.autoResolveThreshold && canAutoMerge) {
       // Auto-approve via review service
       try {
         await this.reviewService.approve(
@@ -242,7 +254,10 @@ export class DedupQueueProcessor extends WorkerHost {
 
   private async getConfigForUser(
     userId: string,
-    cache: Map<string, { autoMergeThreshold: number; autoResolveThreshold: number }>,
+    cache: Map<
+      string,
+      { autoMergeThreshold: number; autoResolveThreshold: number }
+    >,
   ): Promise<{ autoMergeThreshold: number; autoResolveThreshold: number }> {
     if (cache.has(userId)) {
       return cache.get(userId)!;
@@ -284,7 +299,9 @@ export class DedupQueueProcessor extends WorkerHost {
         },
       });
     } catch (err) {
-      this.logger.error(`Failed to record batch run: ${(err as Error).message}`);
+      this.logger.error(
+        `Failed to record batch run: ${(err as Error).message}`,
+      );
     }
   }
 }

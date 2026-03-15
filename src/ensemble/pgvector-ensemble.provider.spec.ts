@@ -231,7 +231,9 @@ describe('PgVectorEnsembleProvider', () => {
           const tx = {
             $queryRawUnsafe: jest
               .fn()
-              .mockResolvedValue([{ memory_id: `mem-model-${idx}`, score: 0.9 }]),
+              .mockResolvedValue([
+                { memory_id: `mem-model-${idx}`, score: 0.9 },
+              ]),
           };
           return fn(tx);
         },

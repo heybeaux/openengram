@@ -211,9 +211,9 @@ describe('SyncIngestController', () => {
         memories: [],
         syncProtocolVersion: 3,
       };
-      await expect(
-        controller.pushBatch(dto as any, mockReq),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.pushBatch(dto as any, mockReq)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should allow undefined syncProtocolVersion', async () => {

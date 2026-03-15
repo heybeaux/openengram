@@ -67,16 +67,22 @@ describe('HierarchyController', () => {
         topK: 10,
       });
 
-      expect(mockHierarchyService.search).toHaveBeenCalledWith('test', USER_ID, {
-        levels: ['L0', 'L1'],
-        routing: 'explicit',
-        topK: 10,
-      });
+      expect(mockHierarchyService.search).toHaveBeenCalledWith(
+        'test',
+        USER_ID,
+        {
+          levels: ['L0', 'L1'],
+          routing: 'explicit',
+          topK: 10,
+        },
+      );
     });
 
     it('propagates service errors', async () => {
       mockHierarchyService.search.mockRejectedValue(new Error('DB error'));
-      await expect(controller.search(USER_ID, { query: 'fail' })).rejects.toThrow('DB error');
+      await expect(
+        controller.search(USER_ID, { query: 'fail' }),
+      ).rejects.toThrow('DB error');
     });
 
     it('handles empty results', async () => {
@@ -100,21 +106,30 @@ describe('HierarchyController', () => {
     it('returns query analysis from router', async () => {
       mockQueryRouter.analyze.mockResolvedValue(analysis);
 
-      const result = await controller.analyzeQuery({ query: 'What happened today?' });
+      const result = await controller.analyzeQuery({
+        query: 'What happened today?',
+      });
 
       expect(result).toEqual(analysis);
-      expect(mockQueryRouter.analyze).toHaveBeenCalledWith('What happened today?');
+      expect(mockQueryRouter.analyze).toHaveBeenCalledWith(
+        'What happened today?',
+      );
     });
 
     it('handles empty query string', async () => {
-      mockQueryRouter.analyze.mockResolvedValue({ recommendedLevel: 'L0', confidence: 0 });
+      mockQueryRouter.analyze.mockResolvedValue({
+        recommendedLevel: 'L0',
+        confidence: 0,
+      });
       const result = await controller.analyzeQuery({ query: '' });
       expect(result).toBeDefined();
     });
 
     it('propagates router errors', async () => {
       mockQueryRouter.analyze.mockRejectedValue(new Error('router down'));
-      await expect(controller.analyzeQuery({ query: 'test' })).rejects.toThrow('router down');
+      await expect(controller.analyzeQuery({ query: 'test' })).rejects.toThrow(
+        'router down',
+      );
     });
   });
 
@@ -138,7 +153,11 @@ describe('HierarchyController', () => {
     });
 
     it('returns enabled:false when module disabled', async () => {
-      mockHierarchyService.getStats.mockResolvedValue({ totalUnits: 0, byLevel: {}, lastUpdated: null });
+      mockHierarchyService.getStats.mockResolvedValue({
+        totalUnits: 0,
+        byLevel: {},
+        lastUpdated: null,
+      });
       mockHierarchyService.isEnabled.mockReturnValue(false);
 
       const result = await controller.getStats(USER_ID);
@@ -146,7 +165,11 @@ describe('HierarchyController', () => {
     });
 
     it('returns null lastUpdated when no units exist', async () => {
-      mockHierarchyService.getStats.mockResolvedValue({ totalUnits: 0, byLevel: {}, lastUpdated: null });
+      mockHierarchyService.getStats.mockResolvedValue({
+        totalUnits: 0,
+        byLevel: {},
+        lastUpdated: null,
+      });
       mockHierarchyService.isEnabled.mockReturnValue(true);
 
       const result = await controller.getStats(USER_ID);
@@ -160,8 +183,22 @@ describe('HierarchyController', () => {
   describe('getUnitsForMemory', () => {
     it('returns shaped units for a memory', async () => {
       const rawUnits = [
-        { id: 'unit-1', level: 'L0', text: 'Hello world', position: 0, charStart: 0, charEnd: 11 },
-        { id: 'unit-2', level: 'L1', text: 'Greeting', position: null, charStart: null, charEnd: null },
+        {
+          id: 'unit-1',
+          level: 'L0',
+          text: 'Hello world',
+          position: 0,
+          charStart: 0,
+          charEnd: 11,
+        },
+        {
+          id: 'unit-2',
+          level: 'L1',
+          text: 'Greeting',
+          position: null,
+          charStart: null,
+          charEnd: null,
+        },
       ];
       mockHierarchyService.getUnitsForMemory.mockResolvedValue(rawUnits);
 
@@ -169,7 +206,11 @@ describe('HierarchyController', () => {
 
       expect(result.memoryId).toBe('mem-xyz');
       expect(result.units).toHaveLength(2);
-      expect(result.units[0]).toMatchObject({ id: 'unit-1', level: 'L0', position: 0 });
+      expect(result.units[0]).toMatchObject({
+        id: 'unit-1',
+        level: 'L0',
+        position: 0,
+      });
       expect(result.units[1]).toMatchObject({ id: 'unit-2', position: null });
     });
 
@@ -181,8 +222,12 @@ describe('HierarchyController', () => {
     });
 
     it('propagates service errors', async () => {
-      mockHierarchyService.getUnitsForMemory.mockRejectedValue(new Error('not found'));
-      await expect(controller.getUnitsForMemory('bad-id')).rejects.toThrow('not found');
+      mockHierarchyService.getUnitsForMemory.mockRejectedValue(
+        new Error('not found'),
+      );
+      await expect(controller.getUnitsForMemory('bad-id')).rejects.toThrow(
+        'not found',
+      );
     });
   });
 
@@ -191,7 +236,10 @@ describe('HierarchyController', () => {
   // ──────────────────────────────────────────────────────────────────────────
   describe('reprocessUser', () => {
     it('reprocesses with default batchSize when not provided', async () => {
-      mockHierarchyService.reprocessUser.mockResolvedValue({ processed: 10, failed: 0 });
+      mockHierarchyService.reprocessUser.mockResolvedValue({
+        processed: 10,
+        failed: 0,
+      });
 
       const result = await controller.reprocessUser(USER_ID);
 
@@ -202,7 +250,10 @@ describe('HierarchyController', () => {
     });
 
     it('parses and passes batchSize string as integer', async () => {
-      mockHierarchyService.reprocessUser.mockResolvedValue({ processed: 5, failed: 1 });
+      mockHierarchyService.reprocessUser.mockResolvedValue({
+        processed: 5,
+        failed: 1,
+      });
 
       await controller.reprocessUser(USER_ID, '25');
 
@@ -212,15 +263,22 @@ describe('HierarchyController', () => {
     });
 
     it('reports failures from service', async () => {
-      mockHierarchyService.reprocessUser.mockResolvedValue({ processed: 3, failed: 2 });
+      mockHierarchyService.reprocessUser.mockResolvedValue({
+        processed: 3,
+        failed: 2,
+      });
 
       const result = await controller.reprocessUser(USER_ID, '5');
       expect(result.failed).toBe(2);
     });
 
     it('propagates service errors', async () => {
-      mockHierarchyService.reprocessUser.mockRejectedValue(new Error('timeout'));
-      await expect(controller.reprocessUser(USER_ID)).rejects.toThrow('timeout');
+      mockHierarchyService.reprocessUser.mockRejectedValue(
+        new Error('timeout'),
+      );
+      await expect(controller.reprocessUser(USER_ID)).rejects.toThrow(
+        'timeout',
+      );
     });
   });
 

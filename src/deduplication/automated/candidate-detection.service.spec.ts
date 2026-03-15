@@ -120,7 +120,10 @@ describe('CandidateDetectionService', () => {
         .mockResolvedValue(mockMemories.slice(1)); // neighbours in text phase
 
       // Embedding-eligible: only mem-1 and mem-2
-      mockPrisma.$queryRaw.mockResolvedValue([{ id: 'mem-1' }, { id: 'mem-2' }]);
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { id: 'mem-1' },
+        { id: 'mem-2' },
+      ]);
 
       // pgvector neighbours query
       jest.spyOn(service as any, 'detectVectorNeighbours').mockResolvedValue({

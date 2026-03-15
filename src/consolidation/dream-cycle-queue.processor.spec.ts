@@ -118,9 +118,7 @@ describe('DreamCycleQueueProcessor', () => {
       dedupStage.run.mockResolvedValue({ scanned: 450, merged: 5 });
       (assertSanityGate as jest.Mock).mockImplementation(() => {});
 
-      const result = await processor.process(
-        makeJob(DREAM_CYCLE_JOBS.DEDUP),
-      );
+      const result = await processor.process(makeJob(DREAM_CYCLE_JOBS.DEDUP));
 
       expect(dedupStage.run).toHaveBeenCalledWith('user-1', false, 1000);
       expect(tracker.startStage).toHaveBeenCalledWith(
@@ -295,9 +293,7 @@ describe('DreamCycleQueueProcessor', () => {
   // =========================================================================
   describe('REPORT job', () => {
     it('should return COMPLETED status', async () => {
-      const result = await processor.process(
-        makeJob(DREAM_CYCLE_JOBS.REPORT),
-      );
+      const result = await processor.process(makeJob(DREAM_CYCLE_JOBS.REPORT));
 
       expect(result).toEqual({ status: 'COMPLETED', runId: 'run-1' });
       expect(tracker.completeStage).toHaveBeenCalled();
@@ -309,9 +305,9 @@ describe('DreamCycleQueueProcessor', () => {
   // =========================================================================
   describe('unknown job', () => {
     it('should throw and track error for unknown job name', async () => {
-      await expect(
-        processor.process(makeJob('UNKNOWN_JOB')),
-      ).rejects.toThrow('Unknown job: UNKNOWN_JOB');
+      await expect(processor.process(makeJob('UNKNOWN_JOB'))).rejects.toThrow(
+        'Unknown job: UNKNOWN_JOB',
+      );
 
       expect(tracker.errorStage).toHaveBeenCalledWith(
         'record-1',

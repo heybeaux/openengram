@@ -244,12 +244,14 @@ export class MemoryPipelineService {
 
     // 4b. Attach to entity profiles (fire-and-forget)
     if (this.attachmentPipeline) {
-      void this.attachmentPipeline.onMemoryCreated(memoryId, userId).catch((err) => {
-        this.logger.warn(
-          `[Memory] Entity profile attachment failed for ${memoryId}:`,
-          err instanceof Error ? err.message : err,
-        );
-      });
+      void this.attachmentPipeline
+        .onMemoryCreated(memoryId, userId)
+        .catch((err) => {
+          this.logger.warn(
+            `[Memory] Entity profile attachment failed for ${memoryId}:`,
+            err instanceof Error ? err.message : err,
+          );
+        });
     }
 
     // 5. Generate and store embedding (Phase 2 — resilient, HEY-345)

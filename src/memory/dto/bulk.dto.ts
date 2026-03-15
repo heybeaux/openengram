@@ -124,12 +124,16 @@ export class ExportFilteredQueryDto {
   @IsString()
   projectId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter memories created after this date (ISO 8601)' })
+  @ApiPropertyOptional({
+    description: 'Filter memories created after this date (ISO 8601)',
+  })
   @IsOptional()
   @IsString()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Filter memories created before this date (ISO 8601)' })
+  @ApiPropertyOptional({
+    description: 'Filter memories created before this date (ISO 8601)',
+  })
   @IsOptional()
   @IsString()
   endDate?: string;

@@ -327,7 +327,9 @@ describe('MemoryQueryService', () => {
         extraction: null,
       };
 
-      embedding.search.mockResolvedValue([{ id: 'm-coffee', score: 0.9 }] as any);
+      embedding.search.mockResolvedValue([
+        { id: 'm-coffee', score: 0.9 },
+      ] as any);
       prisma.memory.findMany = jest.fn().mockResolvedValue([mem]);
 
       await serviceWithReranker.recall('user-123', {

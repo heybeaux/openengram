@@ -22,8 +22,7 @@ const FORBIDDEN_DB_HOSTNAMES = [
 ];
 
 function checkDatabaseUrl(): void {
-  const url =
-    process.env.DATABASE_URL ?? process.env.DIRECT_URL ?? '';
+  const url = process.env.DATABASE_URL ?? process.env.DIRECT_URL ?? '';
 
   if (!url) {
     // No URL configured — let Prisma handle it (may fail later, but not our concern here)

@@ -110,7 +110,11 @@ describe('AwarenessController', () => {
 
       expect(prisma.memory.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { layer: 'INSIGHT', deletedAt: null, userId: { in: ['user1'] } },
+          where: {
+            layer: 'INSIGHT',
+            deletedAt: null,
+            userId: { in: ['user1'] },
+          },
         }),
       );
       expect(result).toEqual([

@@ -32,7 +32,13 @@ import {
 } from './dto/bulk.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
-import { Memory, MemoryLayer, MemorySource, MemoryDurability, SubjectType } from '@prisma/client';
+import {
+  Memory,
+  MemoryLayer,
+  MemorySource,
+  MemoryDurability,
+  SubjectType,
+} from '@prisma/client';
 import { parseFlexibleDate } from '../utils/date-parser';
 import { CorrectionService } from '../correction/correction.service';
 import {
@@ -209,9 +215,7 @@ export class MemoryService {
       setImmediate(() => {
         this.hypeService
           ?.generateAndStore(memory.id, rawContent, userId)
-          .catch((err) =>
-            this.logger.warn(`[HyPE] Failed: ${err.message}`),
-          );
+          .catch((err) => this.logger.warn(`[HyPE] Failed: ${err.message}`));
       });
     }
 
@@ -449,10 +453,7 @@ export class MemoryService {
 
     // Increment account memoriesUsed
     this.incrementMemoriesUsed(userId, memoryIds.length).catch((err) => {
-      this.logger.error(
-        '[BulkCreate] Failed to increment memoriesUsed:',
-        err,
-      );
+      this.logger.error('[BulkCreate] Failed to increment memoriesUsed:', err);
     });
 
     return { created: memoryIds.length, memoryIds };
@@ -909,8 +910,7 @@ export class MemoryService {
         },
       },
     });
-    const correctionAccountId =
-      (original?.user as any)?.accountId ?? undefined;
+    const correctionAccountId = (original?.user as any)?.accountId ?? undefined;
 
     if (!original) {
       throw new Error(`Memory not found: ${memoryId}`);

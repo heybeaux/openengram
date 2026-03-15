@@ -140,20 +140,13 @@ describe('AgentRecallController', () => {
         entities: [],
       });
 
-      expect(mockService.recallBatch).toHaveBeenCalledWith(
-        'account-1',
-        [],
-        10,
-      );
+      expect(mockService.recallBatch).toHaveBeenCalledWith('account-1', [], 10);
     });
   });
 
   describe('Auth guard', () => {
     it('should have ApiKeyOrJwtGuard applied', () => {
-      const guards = Reflect.getMetadata(
-        '__guards__',
-        AgentRecallController,
-      );
+      const guards = Reflect.getMetadata('__guards__', AgentRecallController);
       // Guard is applied at the class level
       expect(guards).toBeDefined();
       expect(guards.length).toBeGreaterThan(0);

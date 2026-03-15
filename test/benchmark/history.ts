@@ -5,7 +5,13 @@
  * comparing current vs previous runs for regression detection.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import type { BenchmarkReport } from './scoring';
@@ -73,8 +79,12 @@ export function compareReports(
   lines.push('');
   lines.push('═══ BENCHMARK COMPARISON ═══');
   lines.push('');
-  lines.push(`  Previous: ${previous.gitSha} (${previous.branch}) @ ${previous.timestamp}`);
-  lines.push(`  Current:  ${current.gitSha} (${current.branch}) @ ${current.timestamp}`);
+  lines.push(
+    `  Previous: ${previous.gitSha} (${previous.branch}) @ ${previous.timestamp}`,
+  );
+  lines.push(
+    `  Current:  ${current.gitSha} (${current.branch}) @ ${current.timestamp}`,
+  );
   lines.push('');
 
   const metrics: Array<{
@@ -121,7 +131,10 @@ export function compareReports(
 
   for (const m of metrics) {
     const delta = m.curr - m.prev;
-    const deltaStr = delta >= 0 ? `+${(delta * 100).toFixed(1)}%` : `${(delta * 100).toFixed(1)}%`;
+    const deltaStr =
+      delta >= 0
+        ? `+${(delta * 100).toFixed(1)}%`
+        : `${(delta * 100).toFixed(1)}%`;
     const emoji =
       Math.abs(delta) < 0.001
         ? '  '
@@ -149,8 +162,7 @@ export function compareReports(
     (q) => !prevFailedIds.has(q.queryId),
   );
   const fixes = previous.failedQueryDetails.filter(
-    (q) =>
-      !current.failedQueryDetails.some((c) => c.queryId === q.queryId),
+    (q) => !current.failedQueryDetails.some((c) => c.queryId === q.queryId),
   );
 
   if (newFailures.length > 0) {

@@ -1,7 +1,12 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { CsvParserService } from '../import/csv-parser.service';
 import { ImportMappingService } from '../import/import-mapping.service';
-import { MappingConfig, PreviewResult, PreviewProfile, PreviewMemory } from '../import/import.types';
+import {
+  MappingConfig,
+  PreviewResult,
+  PreviewProfile,
+  PreviewMemory,
+} from '../import/import.types';
 
 /**
  * ImportPreviewService
@@ -23,12 +28,18 @@ export class ImportPreviewService {
    * Parse the CSV and apply the mapping config without writing to DB.
    * Returns a preview of up to 100 rows.
    */
-  async preview(fileBuffer: Buffer, config: MappingConfig): Promise<PreviewResult> {
+  async preview(
+    fileBuffer: Buffer,
+    config: MappingConfig,
+  ): Promise<PreviewResult> {
     // Parse CSV
     const parsed = this.csvParser.parse(fileBuffer);
 
     // Validate column references
-    const missingColumns = this.csvParser.validateHeaders(parsed.headers, config);
+    const missingColumns = this.csvParser.validateHeaders(
+      parsed.headers,
+      config,
+    );
     if (missingColumns.length > 0) {
       throw new BadRequestException(
         `CSV is missing mapped columns: ${missingColumns.join(', ')}`,
@@ -39,7 +50,10 @@ export class ImportPreviewService {
     const previewRows = parsed.rows.slice(0, this.MAX_PREVIEW_ROWS);
 
     // Apply mapping
-    const { records, errors } = this.mappingService.applyMapping(previewRows, config);
+    const { records, errors } = this.mappingService.applyMapping(
+      previewRows,
+      config,
+    );
 
     // Build preview profiles
     const profiles: PreviewProfile[] = records.map((r) => ({

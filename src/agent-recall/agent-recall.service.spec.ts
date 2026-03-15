@@ -31,8 +31,20 @@ const baseProfile = {
   normalizedName: 'alice',
   entityId: 'entity-1',
   attributes: [
-    { key: 'role', value: 'developer', verified: true, confidence: 1.0, source: 'MANUAL' },
-    { key: 'unconfirmed_note', value: 'maybe CTO', verified: false, confidence: 0.4, source: null },
+    {
+      key: 'role',
+      value: 'developer',
+      verified: true,
+      confidence: 1.0,
+      source: 'MANUAL',
+    },
+    {
+      key: 'unconfirmed_note',
+      value: 'maybe CTO',
+      verified: false,
+      confidence: 0.4,
+      source: null,
+    },
   ],
 };
 
@@ -128,14 +140,35 @@ describe('AgentRecallService', () => {
       const mixedProfile = {
         ...baseProfile,
         attributes: [
-          { key: 'a', value: '1', verified: true, confidence: 1.0, source: null },
-          { key: 'b', value: '2', verified: false, confidence: 0.3, source: 'inferred' },
-          { key: 'c', value: '3', verified: true, confidence: 0.9, source: null },
+          {
+            key: 'a',
+            value: '1',
+            verified: true,
+            confidence: 1.0,
+            source: null,
+          },
+          {
+            key: 'b',
+            value: '2',
+            verified: false,
+            confidence: 0.3,
+            source: 'inferred',
+          },
+          {
+            key: 'c',
+            value: '3',
+            verified: true,
+            confidence: 0.9,
+            source: null,
+          },
         ],
       };
       mockPrisma.entityProfile.findFirst.mockResolvedValue(mixedProfile);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...mixedProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...mixedProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue(null);
 
       const result = await service.recallEntity(ACCOUNT_ID, 'Alice');
@@ -193,7 +226,10 @@ describe('AgentRecallService', () => {
 
       mockPrisma.entityProfile.findFirst.mockResolvedValue(baseProfile);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue(manyMemories);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue(null);
 
       const result = await service.recallEntity(ACCOUNT_ID, 'Alice', 5);
@@ -203,7 +239,10 @@ describe('AgentRecallService', () => {
     it('should return relationships when graph entity found', async () => {
       mockPrisma.entityProfile.findFirst.mockResolvedValue(baseProfile);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue({ id: 'ge-1' });
       mockPrisma.graphRelationship.findMany.mockResolvedValue([
         {
@@ -227,7 +266,10 @@ describe('AgentRecallService', () => {
     it('should return relationships for both source and target edges', async () => {
       mockPrisma.entityProfile.findFirst.mockResolvedValue(baseProfile);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue({ id: 'ge-1' });
       mockPrisma.graphRelationship.findMany.mockResolvedValue([
         {
@@ -249,7 +291,10 @@ describe('AgentRecallService', () => {
     it('should return empty relationships when graph entity lookup fails', async () => {
       mockPrisma.entityProfile.findFirst.mockResolvedValue(baseProfile);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockRejectedValue(new Error('DB error'));
 
       const result = await service.recallEntity(ACCOUNT_ID, 'Alice');
@@ -263,9 +308,14 @@ describe('AgentRecallService', () => {
 
   describe('matching strategies', () => {
     beforeEach(() => {
-      mockPrisma.user.findMany.mockResolvedValue(USER_IDS.map((id) => ({ id })));
+      mockPrisma.user.findMany.mockResolvedValue(
+        USER_IDS.map((id) => ({ id })),
+      );
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue(null);
     });
 
@@ -292,12 +342,16 @@ describe('AgentRecallService', () => {
       const result = await service.recallEntity(ACCOUNT_ID, 'Ally');
       expect(result).not.toBeNull();
       // findFirst called at least twice: once for exact, once for alias
-      expect(mockPrisma.entityProfile.findFirst.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(
+        mockPrisma.entityProfile.findFirst.mock.calls.length,
+      ).toBeGreaterThanOrEqual(2);
     });
 
     it('should try fuzzy (pg_trgm) when exact + alias fail', async () => {
       mockPrisma.entityProfile.findFirst.mockResolvedValue(null); // exact + alias fail
-      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: 'profile-1', sim: 0.7 }]); // fuzzy
+      mockPrisma.$queryRawUnsafe.mockResolvedValueOnce([
+        { id: 'profile-1', sim: 0.7 },
+      ]); // fuzzy
       mockPrisma.entityProfile.findUnique.mockResolvedValueOnce(baseProfile); // fuzzy lookup
 
       const result = await service.recallEntity(ACCOUNT_ID, 'Alyce');
@@ -388,23 +442,33 @@ describe('AgentRecallService', () => {
 
   describe('recallBatch', () => {
     it('should return array of results with nulls for unmatched', async () => {
-      mockPrisma.user.findMany.mockResolvedValue(USER_IDS.map((id) => ({ id })));
+      mockPrisma.user.findMany.mockResolvedValue(
+        USER_IDS.map((id) => ({ id })),
+      );
       mockPrisma.entityProfile.findFirst
         .mockResolvedValueOnce(baseProfile) // 'Alice' found
         .mockResolvedValue(null); // 'Unknown' not found
       mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
       mockPrisma.entityProfileMemory.findMany.mockResolvedValue([]);
-      mockPrisma.entityProfile.findUnique.mockResolvedValue({ ...baseProfile, entityId: null });
+      mockPrisma.entityProfile.findUnique.mockResolvedValue({
+        ...baseProfile,
+        entityId: null,
+      });
       mockPrisma.graphEntity.findFirst.mockResolvedValue(null);
 
-      const results = await service.recallBatch(ACCOUNT_ID, ['Alice', 'Unknown']);
+      const results = await service.recallBatch(ACCOUNT_ID, [
+        'Alice',
+        'Unknown',
+      ]);
       expect(results).toHaveLength(2);
       expect(results[0]).not.toBeNull();
       expect(results[1]).toBeNull();
     });
 
     it('should process all names in parallel', async () => {
-      mockPrisma.user.findMany.mockResolvedValue(USER_IDS.map((id) => ({ id })));
+      mockPrisma.user.findMany.mockResolvedValue(
+        USER_IDS.map((id) => ({ id })),
+      );
       mockPrisma.entityProfile.findFirst.mockResolvedValue(null);
       mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
 

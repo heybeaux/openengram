@@ -268,7 +268,10 @@ export class AgentRecallService {
    * Semantic embedding match using pgvector cosine distance.
    * Only works if profiles have embeddings.
    */
-  private async semanticMatch(userIds: string[], entityName: string): Promise<any | null> {
+  private async semanticMatch(
+    userIds: string[],
+    entityName: string,
+  ): Promise<any | null> {
     // We need an embedding for the query. Use existing embedding service
     // pattern: generate embedding for the entity name, then compare.
     // However, since we don't inject EmbeddingService here to keep the module
@@ -414,7 +417,12 @@ export class AgentRecallService {
    * 2. Direct GraphRelationship edges
    */
   private async getRelationships(
-    profile: { id: string; name: string; type: string; entityId?: string | null },
+    profile: {
+      id: string;
+      name: string;
+      type: string;
+      entityId?: string | null;
+    },
     userIds: string[],
   ) {
     try {

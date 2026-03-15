@@ -84,7 +84,10 @@ describe('EntityProfileService', () => {
       providers: [
         EntityProfileService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: AttachmentPipelineService, useValue: mockAttachmentPipeline },
+        {
+          provide: AttachmentPipelineService,
+          useValue: mockAttachmentPipeline,
+        },
       ],
     }).compile();
 
@@ -648,11 +651,17 @@ describe('EntityProfileService', () => {
     });
 
     it('should process memories in batches and return stats', async () => {
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce([{ id: 'mem-1' }, { id: 'mem-2' }]);
+      mockPrisma.memory.findMany.mockResolvedValueOnce([
+        { id: 'mem-1' },
+        { id: 'mem-2' },
+      ]);
 
       mockAttachmentPipeline.attachMemory
-        .mockResolvedValueOnce({ memoryId: 'mem-1', attached: [{ profileId: 'p1' }], skipped: 0 })
+        .mockResolvedValueOnce({
+          memoryId: 'mem-1',
+          attached: [{ profileId: 'p1' }],
+          skipped: 0,
+        })
         .mockResolvedValueOnce({ memoryId: 'mem-2', attached: [], skipped: 1 });
 
       const stats = await service.backfillAttachments('user-1');
@@ -665,8 +674,7 @@ describe('EntityProfileService', () => {
     });
 
     it('should handle attachment errors gracefully', async () => {
-      mockPrisma.memory.findMany
-        .mockResolvedValueOnce([{ id: 'mem-1' }]);
+      mockPrisma.memory.findMany.mockResolvedValueOnce([{ id: 'mem-1' }]);
 
       mockAttachmentPipeline.attachMemory.mockRejectedValueOnce(
         new Error('DB error'),

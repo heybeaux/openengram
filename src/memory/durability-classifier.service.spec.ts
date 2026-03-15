@@ -28,9 +28,9 @@ describe('DurabilityClassifierService', () => {
     // ── DURABLE: Preference patterns ──────────────────────────────
 
     it('classifies "I prefer oat milk" as DURABLE', () => {
-      expect(service.classify('I prefer oat milk in my coffee every morning')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('I prefer oat milk in my coffee every morning'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies "I like" statements as DURABLE', () => {
@@ -52,9 +52,9 @@ describe('DurabilityClassifierService', () => {
     });
 
     it('classifies "I always" statements as DURABLE', () => {
-      expect(service.classify('I always drink water first thing in the morning')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('I always drink water first thing in the morning'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies "I never" statements as DURABLE', () => {
@@ -64,15 +64,15 @@ describe('DurabilityClassifierService', () => {
     });
 
     it('classifies "my favourite" (British spelling) as DURABLE', () => {
-      expect(service.classify('My favourite color is blue and always has been')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('My favourite color is blue and always has been'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies "my favorite" (American spelling) as DURABLE', () => {
-      expect(service.classify('My favorite food is pizza with extra cheese')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('My favorite food is pizza with extra cheese'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies "I enjoy" statements as DURABLE', () => {
@@ -96,24 +96,24 @@ describe('DurabilityClassifierService', () => {
     });
 
     it('classifies "I live in" as DURABLE', () => {
-      expect(service.classify('I live in Portland, Oregon with my family')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('I live in Portland, Oregon with my family'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies family member mentions as DURABLE', () => {
-      expect(service.classify('My daughter just started kindergarten this year')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('My daughter just started kindergarten this year'),
+      ).toBe(MemoryDurability.DURABLE);
       expect(service.classify('My son is learning to play the piano now')).toBe(
         MemoryDurability.DURABLE,
       );
       expect(service.classify('My wife works as a nurse at the hospital')).toBe(
         MemoryDurability.DURABLE,
       );
-      expect(service.classify('My husband is an engineer at a tech company')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('My husband is an engineer at a tech company'),
+      ).toBe(MemoryDurability.DURABLE);
       expect(service.classify('My partner and I moved here last year')).toBe(
         MemoryDurability.DURABLE,
       );
@@ -166,9 +166,9 @@ describe('DurabilityClassifierService', () => {
     // ── DURABLE: Concrete numbers ─────────────────────────────────
 
     it('classifies age mentions as DURABLE', () => {
-      expect(service.classify("I'm 32 years old and live in the city center")).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify("I'm 32 years old and live in the city center"),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('classifies birth year as DURABLE', () => {
@@ -206,7 +206,9 @@ describe('DurabilityClassifierService', () => {
     // ── EPHEMERAL: Short content ──────────────────────────────────
 
     it('classifies short content (< 30 chars) as EPHEMERAL', () => {
-      expect(service.classify('ok sounds good')).toBe(MemoryDurability.EPHEMERAL);
+      expect(service.classify('ok sounds good')).toBe(
+        MemoryDurability.EPHEMERAL,
+      );
     });
 
     it('classifies very short content as EPHEMERAL', () => {
@@ -224,15 +226,15 @@ describe('DurabilityClassifierService', () => {
     });
 
     it('is case-insensitive for preference patterns', () => {
-      expect(service.classify('I PREFER dark mode for all my applications')).toBe(
-        MemoryDurability.DURABLE,
-      );
+      expect(
+        service.classify('I PREFER dark mode for all my applications'),
+      ).toBe(MemoryDurability.DURABLE);
     });
 
     it('does not treat start-of-sentence capitals as named entities', () => {
-      expect(service.classify('the weather was nice and warm today outside')).toBe(
-        MemoryDurability.EPHEMERAL,
-      );
+      expect(
+        service.classify('the weather was nice and warm today outside'),
+      ).toBe(MemoryDurability.EPHEMERAL);
     });
 
     it('does not treat common capitalised words as named entities', () => {

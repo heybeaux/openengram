@@ -76,7 +76,11 @@ export class ApiKeyGuard implements CanActivate {
             if (defaultAgent) {
               request.agent = defaultAgent;
               const defaultUser = await this.prisma.user.findFirst({
-                where: { accountId: defaultAccount.id, isDefault: true, deletedAt: null },
+                where: {
+                  accountId: defaultAccount.id,
+                  isDefault: true,
+                  deletedAt: null,
+                },
                 orderBy: { createdAt: 'asc' },
               });
               if (defaultUser) {
@@ -171,7 +175,10 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     // Find or create user scoped to the account, not the agent
-    const user = await this.findOrCreateUser(agent.accountId, externalId ?? null);
+    const user = await this.findOrCreateUser(
+      agent.accountId,
+      externalId ?? null,
+    );
 
     if (user.deletedAt) {
       throw new UnauthorizedException('User has been deleted');

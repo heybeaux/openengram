@@ -157,7 +157,9 @@ export class MemoryQueryService {
           );
 
           const adjustedScore =
-            blendedScore * this.recallWeightService.recallWeight(memory) * this.getImportanceMultiplier(memory);
+            blendedScore *
+            this.recallWeightService.recallWeight(memory) *
+            this.getImportanceMultiplier(memory);
           return { ...memory, score: adjustedScore } as MemoryWithScore;
         })
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
@@ -179,7 +181,7 @@ export class MemoryQueryService {
       );
 
       const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]));
-      let memoryIds = vectorResults.map((r) => r.id);
+      const memoryIds = vectorResults.map((r) => r.id);
 
       // BM25/tsvector hybrid: safety net for exact-keyword queries (phone numbers, proper nouns).
       // ftsResultIds tracks ALL FTS matches. Any FTS hit not in the cosine top-120 is
@@ -212,7 +214,9 @@ export class MemoryQueryService {
           }
         }
         if (ftsAdded > 0) {
-          this.logger.debug(`[Recall] BM25 hybrid: injected ${ftsAdded} FTS-only candidates`);
+          this.logger.debug(
+            `[Recall] BM25 hybrid: injected ${ftsAdded} FTS-only candidates`,
+          );
         }
 
         // ILIKE fallback: if BM25 found nothing, try substring match on significant query words.
@@ -228,7 +232,9 @@ export class MemoryQueryService {
                 .map((_, i) => `LOWER(raw) LIKE $${i + 2}`)
                 .join(' OR ');
               const ilikeParams = words.map((w) => `%${w}%`);
-              const ilikeResults = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+              const ilikeResults = await this.prisma.$queryRawUnsafe<
+                { id: string }[]
+              >(
                 `SELECT id FROM memories
                  WHERE user_id = $1
                    AND (${ilikeConditions})
@@ -250,15 +256,21 @@ export class MemoryQueryService {
                 }
               }
               if (ilikeAdded > 0) {
-                this.logger.debug(`[Recall] ILIKE fallback: rescued ${ilikeAdded} candidates`);
+                this.logger.debug(
+                  `[Recall] ILIKE fallback: rescued ${ilikeAdded} candidates`,
+                );
               }
             } catch (ilikeError) {
-              this.logger.debug(`[Recall] ILIKE fallback skipped: ${(ilikeError as Error).message}`);
+              this.logger.debug(
+                `[Recall] ILIKE fallback skipped: ${(ilikeError as Error).message}`,
+              );
             }
           }
         }
       } catch (ftsError) {
-        this.logger.debug(`[Recall] BM25 hybrid skipped: ${(ftsError as Error).message}`);
+        this.logger.debug(
+          `[Recall] BM25 hybrid skipped: ${(ftsError as Error).message}`,
+        );
       }
 
       const memories = await this.prisma.memory.findMany({
@@ -340,7 +352,7 @@ export class MemoryQueryService {
               // Boost memories that appear in both vector and graph results
               const idx = scoredMemories.findIndex((m) => m.id === gm.id);
               if (idx !== -1 && scoredMemories[idx].score != null) {
-                scoredMemories[idx].score! *= 1.2;
+                scoredMemories[idx].score *= 1.2;
               }
             } else {
               scoredMemories.push(gm);
@@ -371,7 +383,11 @@ export class MemoryQueryService {
     // For temporal queries, pass the original query (with temporal expression) to the
     // cross-encoder so it can use "last week", "today", etc. as ranking signals.
     const rerankQuery = hasTemporalIntent ? dto.query : searchQuery;
-    scoredMemories = await this.applyReranking(scoredMemories, rerankQuery, limit);
+    scoredMemories = await this.applyReranking(
+      scoredMemories,
+      rerankQuery,
+      limit,
+    );
 
     // v1.7: Agent-scoped filter — restrict to memories from a specific agent
     if (dto.filterAgentId) {
@@ -470,7 +486,7 @@ export class MemoryQueryService {
    * once it can see the full 100-candidate pool.
    */
   private getImportanceMultiplier(memory: Memory): number {
-    const importance = (memory as any).importanceScore as number ?? 0.5;
+    const importance = ((memory as any).importanceScore as number) ?? 0.5;
     return importance < 0.35 ? 0.4 : 1.0;
   }
 
@@ -560,8 +576,9 @@ export class MemoryQueryService {
       // Do NOT slice here — let applyReranking() decide the final top-N.
       // Slicing to `limit` before reranking drops gold memories that the
       // cross-encoder would correctly promote.
-      const merged = [...existingResults, ...relevantInsights]
-        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      const merged = [...existingResults, ...relevantInsights].sort(
+        (a, b) => (b.score ?? 0) - (a.score ?? 0),
+      );
 
       this.logger.log(
         `[Recall] Surfaced ${relevantInsights.length} INSIGHT memories (of ${insights.length} candidates)`,
@@ -614,9 +631,7 @@ export class MemoryQueryService {
     // Strip RLS canary prefix (RLS_CANARY_ALICE_B1: …) and bare counter prefix (107: …)
     // so the cross-encoder sees clean semantic content
     const stripCanary = (raw: string): string =>
-      raw
-        .replace(/^RLS_CANARY_[A-Z0-9_]+\d*:\s*/i, '')
-        .replace(/^\w+:\s+/, ''); // strip any remaining "TOKEN: " prefix
+      raw.replace(/^RLS_CANARY_[A-Z0-9_]+\d*:\s*/i, '').replace(/^\w+:\s+/, ''); // strip any remaining "TOKEN: " prefix
 
     try {
       // Pass ALL candidates to the cross-encoder — not just the first 120.
@@ -643,7 +658,10 @@ export class MemoryQueryService {
           const mem = candidates[r.index];
           const importanceScore =
             (mem as any).effectiveScore ?? (mem as any).importanceScore ?? 0.5;
-          const sp = SentimentService.scorePenalty(query, (mem as any).raw ?? '');
+          const sp = SentimentService.scorePenalty(
+            query,
+            (mem as any).raw ?? '',
+          );
           const finalScore = (r.score * 0.85 + importanceScore * 0.15) * sp;
           return { ...mem, score: finalScore };
         })

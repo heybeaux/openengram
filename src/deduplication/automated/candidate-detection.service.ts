@@ -52,10 +52,7 @@ export class CandidateDetectionService {
     });
 
     // Also get which of these have a non-null embedding (embeddingStatus = COMPLETED)
-    const withEmbedding = new Set(
-      recentMemories
-        .map((m) => m.id)
-    );
+    const withEmbedding = new Set(recentMemories.map((m) => m.id));
 
     // Fetch embedding-eligible ids (those with embeddingStatus COMPLETED)
     const embeddingRows: Array<{ id: string }> = await this.prisma.$queryRaw`
@@ -139,8 +136,8 @@ export class CandidateDetectionService {
 
     try {
       // Use the memory's own embedding (stored as pgvector) to find neighbours
-      const neighbors: Array<{ id: string; similarity: number }> =
-        await this.prisma.$queryRaw`
+      const neighbors: Array<{ id: string; similarity: number }> = await this
+        .prisma.$queryRaw`
           SELECT n.id, 1 - (n.embedding <=> src.embedding) AS similarity
           FROM memories src
           JOIN memories n
@@ -183,7 +180,11 @@ export class CandidateDetectionService {
     let skipped = 0;
 
     const others = await this.prisma.memory.findMany({
-      where: { id: { not: memoryId }, deletedAt: null, createdAt: { gte: since } },
+      where: {
+        id: { not: memoryId },
+        deletedAt: null,
+        createdAt: { gte: since },
+      },
       select: { id: true, raw: true },
       take: limit,
     });

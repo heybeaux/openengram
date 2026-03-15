@@ -24,7 +24,12 @@ describe('ImportMappingService', () => {
       description: 'bio',
     },
     attributeMapping: [
-      { key: 'email', column: 'email', valueType: 'EMAIL' as any, category: 'contact' },
+      {
+        key: 'email',
+        column: 'email',
+        valueType: 'EMAIL' as any,
+        category: 'contact',
+      },
     ],
     memoryMapping: {
       content: 'notes',

@@ -162,7 +162,10 @@ describe('EmbeddingQueueProcessor', () => {
     });
 
     it('should mark memory as DUPLICATE and set isDuplicateOf on merged duplicate', async () => {
-      const existingMemory = { id: 'mem-existing', raw: 'Existing content' } as any;
+      const existingMemory = {
+        id: 'mem-existing',
+        raw: 'Existing content',
+      } as any;
       (mockDedupService.findDuplicateV2 as jest.Mock).mockResolvedValue({
         action: 'merged',
         existingMemory,
@@ -186,7 +189,10 @@ describe('EmbeddingQueueProcessor', () => {
     });
 
     it('should mark memory as DUPLICATE and set isDuplicateOf on reinforced duplicate', async () => {
-      const existingMemory = { id: 'mem-existing', raw: 'Existing content' } as any;
+      const existingMemory = {
+        id: 'mem-existing',
+        raw: 'Existing content',
+      } as any;
       (mockDedupService.findDuplicateV2 as jest.Mock).mockResolvedValue({
         action: 'reinforced',
         existingMemory,

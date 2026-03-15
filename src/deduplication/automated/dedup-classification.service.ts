@@ -36,7 +36,10 @@ export class DedupClassificationService {
   // Public API
   // ---------------------------------------------------------------------------
 
-  async processPendingCandidates(): Promise<{ processed: number; errors: number }> {
+  async processPendingCandidates(): Promise<{
+    processed: number;
+    errors: number;
+  }> {
     const candidates = await this.prisma.dedupCandidate.findMany({
       where: { status: 'PENDING' },
       include: {
@@ -121,20 +124,21 @@ export class DedupClassificationService {
     // --- Signal computation ---
 
     // Entity overlap: fraction of significant words shared (proxy for named-entity overlap)
-    const words1 = new Set(content1.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? []);
-    const words2 = new Set(content2.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? []);
+    const words1 = new Set(
+      content1.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? [],
+    );
+    const words2 = new Set(
+      content2.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? [],
+    );
     const intersection = [...words1].filter((w) => words2.has(w)).length;
-    const entityOverlap =
-      intersection / Math.max(words1.size, words2.size, 1);
+    const entityOverlap = intersection / Math.max(words1.size, words2.size, 1);
 
     // Source authority: explicit sources score higher
     const authorityScore = this.sourceAuthority(source1, source2);
 
     // Weighted composite score provided as a hint to the LLM
     const weightedScore =
-      semanticSimilarity * 0.7 +
-      entityOverlap * 0.2 +
-      authorityScore * 0.1;
+      semanticSimilarity * 0.7 + entityOverlap * 0.2 + authorityScore * 0.1;
 
     // --- LLM prompt ---
     const prompt = `You are a memory deduplication expert. Classify the relationship between these two memory entries.
@@ -165,15 +169,12 @@ Respond with ONLY valid JSON (no markdown fences):
   "reasoning": "<one sentence>"
 }`;
 
-    const response = await this.llm.chat(
-      [{ role: 'user', content: prompt }],
-      {
-        provider: 'anthropic',
-        model: this.CLASSIFICATION_MODEL,
-        maxTokens: 512,
-        temperature: 0.2,
-      },
-    );
+    const response = await this.llm.chat([{ role: 'user', content: prompt }], {
+      provider: 'anthropic',
+      model: this.CLASSIFICATION_MODEL,
+      maxTokens: 512,
+      temperature: 0.2,
+    });
 
     return this.parseClassification(response.content);
   }
@@ -181,10 +182,15 @@ Respond with ONLY valid JSON (no markdown fences):
   /** Parse the raw LLM response into a typed ClassificationResult */
   private parseClassification(raw: string): ClassificationResult {
     // Strip optional markdown fences
-    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const cleaned = raw
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error(`LLM returned non-JSON response: ${raw.substring(0, 200)}`);
+      throw new Error(
+        `LLM returned non-JSON response: ${raw.substring(0, 200)}`,
+      );
     }
 
     const parsed: {

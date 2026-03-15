@@ -23,14 +23,14 @@ describe('ImportController', () => {
 
   const validConfig = JSON.stringify({
     profileMapping: { name: 'name', type: 'type' },
-    attributeMapping: [
-      { key: 'email', column: 'email', valueType: 'EMAIL' },
-    ],
+    attributeMapping: [{ key: 'email', column: 'email', valueType: 'EMAIL' }],
     memoryMapping: { content: 'notes' },
   });
 
   const mockFile = {
-    buffer: Buffer.from('name,type,email,notes\nAlice,PERSON,alice@example.com,test'),
+    buffer: Buffer.from(
+      'name,type,email,notes\nAlice,PERSON,alice@example.com,test',
+    ),
     originalname: 'import.csv',
     mimetype: 'text/csv',
   };
@@ -48,7 +48,9 @@ describe('ImportController', () => {
       .compile();
 
     controller = module.get<ImportController>(ImportController);
-    executionService = module.get<ImportExecutionService>(ImportExecutionService);
+    executionService = module.get<ImportExecutionService>(
+      ImportExecutionService,
+    );
     jobService = module.get<ImportJobService>(ImportJobService);
 
     jest.clearAllMocks();
@@ -63,7 +65,15 @@ describe('ImportController', () => {
   describe('POST /preview', () => {
     it('calls executionService.preview with parsed config and buffer', async () => {
       const mockResult = {
-        profiles: [{ rowNumber: 2, name: 'Alice', type: 'PERSON', attributeCount: 1, hasMemory: true }],
+        profiles: [
+          {
+            rowNumber: 2,
+            name: 'Alice',
+            type: 'PERSON',
+            attributeCount: 1,
+            hasMemory: true,
+          },
+        ],
         memories: [{ rowNumber: 2, content: 'test' }],
         errors: [],
         stats: { profileCount: 1, memoryCount: 1, errorCount: 0 },
@@ -74,7 +84,9 @@ describe('ImportController', () => {
 
       expect(mockExecutionService.preview).toHaveBeenCalledWith(
         mockFile.buffer,
-        expect.objectContaining({ profileMapping: { name: 'name', type: 'type' } }),
+        expect.objectContaining({
+          profileMapping: { name: 'name', type: 'type' },
+        }),
         'agent-1',
       );
       expect(result).toEqual(mockResult);
@@ -116,7 +128,9 @@ describe('ImportController', () => {
 
       expect(mockExecutionService.execute).toHaveBeenCalledWith(
         mockFile.buffer,
-        expect.objectContaining({ profileMapping: { name: 'name', type: 'type' } }),
+        expect.objectContaining({
+          profileMapping: { name: 'name', type: 'type' },
+        }),
         'agent-1',
       );
       expect(result).toEqual({ jobId: 'job-123', status: 'PROCESSING' });
@@ -159,9 +173,9 @@ describe('ImportController', () => {
         throw new NotFoundException('Import job not found: bad-id');
       });
 
-      await expect(
-        controller.getStatus(mockAgent, 'bad-id'),
-      ).rejects.toThrow('Import job not found');
+      await expect(controller.getStatus(mockAgent, 'bad-id')).rejects.toThrow(
+        'Import job not found',
+      );
     });
   });
 });

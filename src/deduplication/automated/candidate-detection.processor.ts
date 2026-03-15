@@ -32,7 +32,9 @@ export class CandidateDetectionProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<unknown> {
-    this.logger.log(`[CandidateDetectionProcessor] Processing job: ${job.name}`);
+    this.logger.log(
+      `[CandidateDetectionProcessor] Processing job: ${job.name}`,
+    );
 
     switch (job.name) {
       case DEDUP_AUTO_JOBS.DETECT_CANDIDATES: {
@@ -74,7 +76,9 @@ export class CandidateDetectionProcessor extends WorkerHost {
         return this.resolutionService.processClassifiedCandidates();
 
       default:
-        this.logger.warn(`[CandidateDetectionProcessor] Unknown job: ${job.name}`);
+        this.logger.warn(
+          `[CandidateDetectionProcessor] Unknown job: ${job.name}`,
+        );
         return null;
     }
   }

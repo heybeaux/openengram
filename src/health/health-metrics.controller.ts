@@ -111,7 +111,9 @@ export class HealthMetricsController {
       );
     }
 
-    const days = daysStr ? Math.min(365, Math.max(1, parseInt(daysStr, 10))) : 30;
+    const days = daysStr
+      ? Math.min(365, Math.max(1, parseInt(daysStr, 10)))
+      : 30;
     if (isNaN(days)) {
       throw new BadRequestException('days must be a positive integer');
     }

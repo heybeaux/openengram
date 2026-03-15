@@ -46,7 +46,7 @@ describe('HypeService', () => {
     it('should return questions when LLM returns valid JSON array', async () => {
       const questions = [
         'What does Alice put in her coffee?',
-        'What are Alice\'s food preferences?',
+        "What are Alice's food preferences?",
         'Does Alice have any dietary restrictions?',
       ];
       mockLlmService.chat.mockResolvedValue({
@@ -230,11 +230,7 @@ describe('HypeService', () => {
       }).compile();
       const disabledService = module.get<HypeService>(HypeService);
 
-      await disabledService.generateAndStore(
-        'mem-1',
-        'content',
-        'user-1',
-      );
+      await disabledService.generateAndStore('mem-1', 'content', 'user-1');
 
       expect(mockLlmService.chat).not.toHaveBeenCalled();
       expect(mockLlmService.embed).not.toHaveBeenCalled();

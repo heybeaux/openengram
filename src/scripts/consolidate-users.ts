@@ -111,10 +111,10 @@ async function run() {
 
           // Backfill Memory.agentId from dup's agentId if null
           // (dup.agentId was the old agent-scoped FK — use it to attribute memories)
-          if ((dup as any).agentId) {
+          if (dup.agentId) {
             const { count: baCount } = await prisma.memory.updateMany({
               where: { userId: canonical.id, agentId: null },
-              data: { agentId: (dup as any).agentId },
+              data: { agentId: dup.agentId },
             });
             stats.memoriesAgentIdBackfilled += baCount;
           }
@@ -148,10 +148,12 @@ async function run() {
           stats.graphRelationshipsRepointed += grCount;
 
           // Re-point graph mentions
-          const { count: gmCount } = await prisma.graphEntityMention.updateMany({
-            where: { userId: dup.id },
-            data: { userId: canonical.id },
-          });
+          const { count: gmCount } = await prisma.graphEntityMention.updateMany(
+            {
+              where: { userId: dup.id },
+              data: { userId: canonical.id },
+            },
+          );
           stats.graphMentionsRepointed += gmCount;
 
           // Re-point sync user maps
@@ -175,8 +177,12 @@ async function run() {
           });
         } else {
           // Dry-run: just count what would happen
-          const mCount = await prisma.memory.count({ where: { userId: dup.id } });
-          const sCount = await prisma.session.count({ where: { userId: dup.id } });
+          const mCount = await prisma.memory.count({
+            where: { userId: dup.id },
+          });
+          const sCount = await prisma.session.count({
+            where: { userId: dup.id },
+          });
           stats.memoriesRepointed += mCount;
           stats.sessionsRepointed += sCount;
           console.log(
@@ -198,7 +204,12 @@ async function run() {
     // Also mark any user with externalId 'default' as isDefault across the board
     if (!DRY_RUN) {
       await (prisma.user as any).updateMany({
-        where: { accountId: account.id, externalId: 'default', isDefault: false, deletedAt: null },
+        where: {
+          accountId: account.id,
+          externalId: 'default',
+          isDefault: false,
+          deletedAt: null,
+        },
         data: { isDefault: true },
       });
     }
@@ -223,4 +234,3 @@ run()
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
-

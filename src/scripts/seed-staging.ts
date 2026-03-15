@@ -42,11 +42,10 @@ interface FixtureUser {
   memories: FixtureMemory[];
 }
 const fixtureRoot = path.resolve(__dirname, '../../test/fixtures');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ALL_USERS, TOTAL_MEMORY_COUNT } = require(path.join(
-  fixtureRoot,
-  'index',
-)) as { ALL_USERS: FixtureUser[]; TOTAL_MEMORY_COUNT: number };
+
+const { ALL_USERS, TOTAL_MEMORY_COUNT } = require(
+  path.join(fixtureRoot, 'index'),
+) as { ALL_USERS: FixtureUser[]; TOTAL_MEMORY_COUNT: number };
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -262,9 +261,7 @@ async function seed(prisma: PrismaClient) {
   printSummaryTable(results);
 }
 
-function derivePriority(
-  memoryType?: string | null,
-): number {
+function derivePriority(memoryType?: string | null): number {
   switch (memoryType) {
     case 'CONSTRAINT':
       return 1;
@@ -322,7 +319,9 @@ async function printSummaryFromExisting(prisma: PrismaClient) {
     void agentId; // used for structure, not reprinted
   }
   console.log('═'.repeat(100));
-  console.log('\n⚠️   API keys are deterministic — see makeApiKey() to regenerate.\n');
+  console.log(
+    '\n⚠️   API keys are deterministic — see makeApiKey() to regenerate.\n',
+  );
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────

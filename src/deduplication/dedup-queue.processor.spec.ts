@@ -47,21 +47,23 @@ function makeJob(name: string, data: Record<string, any>): any {
   };
 }
 
-function makeCandidate(overrides: Partial<{
-  id: string;
-  userId: string;
-  memoryIds: string[];
-  similarity: number;
-  suggestedStrategy: string;
-  suggestedSurvivorId: string;
-  safetyFlags: string;
-  status: string;
-}> = {}): any {
+function makeCandidate(
+  overrides: Partial<{
+    id: string;
+    userId: string;
+    memoryIds: string[];
+    similarity: number;
+    suggestedStrategy: string;
+    suggestedSurvivorId: string;
+    safetyFlags: string;
+    status: string;
+  }> = {},
+): any {
   return {
     id: 'cand-1',
     userId: 'user-1',
     memoryIds: ['mem-a', 'mem-b'],
-    similarity: 0.90,
+    similarity: 0.9,
     suggestedStrategy: 'MERGE_INTO_SURVIVOR',
     suggestedSurvivorId: 'mem-a',
     safetyFlags: '[]',
@@ -88,7 +90,11 @@ describe('DedupQueueProcessor', () => {
     // Default mocks
     mockPrisma.dedupConfig.findUnique.mockResolvedValue(null); // use defaults
     mockPrisma.dedupBatchRun.create.mockResolvedValue({});
-    mockReviewService.processBacklog.mockResolvedValue({ approved: 0, skippedSafety: 0, errors: 0 });
+    mockReviewService.processBacklog.mockResolvedValue({
+      approved: 0,
+      skippedSafety: 0,
+      errors: 0,
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -97,15 +103,25 @@ describe('DedupQueueProcessor', () => {
   describe('process()', () => {
     it('routes PROCESS_BATCH jobs correctly', async () => {
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([]);
-      const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, { trigger: 'manual', batchSize: 10 });
+      const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, {
+        trigger: 'manual',
+        batchSize: 10,
+      });
       const result = await processor.process(job);
       expect(result).toBeDefined();
       expect(result.processed).toBe(0);
     });
 
     it('routes PROCESS_BACKLOG jobs correctly', async () => {
-      mockReviewService.processBacklog.mockResolvedValue({ approved: 3, skippedSafety: 1, errors: 0 });
-      const job = makeJob(DEDUP_JOBS.PROCESS_BACKLOG, { minSimilarity: 0.9, minAgeHours: 24 });
+      mockReviewService.processBacklog.mockResolvedValue({
+        approved: 3,
+        skippedSafety: 1,
+        errors: 0,
+      });
+      const job = makeJob(DEDUP_JOBS.PROCESS_BACKLOG, {
+        minSimilarity: 0.9,
+        minAgeHours: 24,
+      });
       const result = await processor.process(job);
       expect(result.approved).toBe(3);
     });
@@ -136,7 +152,10 @@ describe('DedupQueueProcessor', () => {
         { isProtected: false, canAutoMerge: true },
         { isProtected: false, canAutoMerge: true },
       ]);
-      mockMergeService.merge.mockResolvedValue({ survivorId: 'mem-a', mergedIds: ['mem-b'] });
+      mockMergeService.merge.mockResolvedValue({
+        survivorId: 'mem-a',
+        mergedIds: ['mem-b'],
+      });
       mockLineageService.recordMerge.mockResolvedValue({});
       mockPrisma.mergeCandidate.update.mockResolvedValue({});
 
@@ -174,7 +193,7 @@ describe('DedupQueueProcessor', () => {
     });
 
     it('leaves low-confidence candidates for manual review', async () => {
-      const candidate = makeCandidate({ similarity: 0.70 });
+      const candidate = makeCandidate({ similarity: 0.7 });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockSafetyService.checkMultipleSafety.mockResolvedValue([
         { isProtected: false, canAutoMerge: true },
@@ -233,7 +252,9 @@ describe('DedupQueueProcessor', () => {
     it('increments errors counter when candidate processing fails', async () => {
       const candidate = makeCandidate();
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-      mockSafetyService.checkMultipleSafety.mockRejectedValue(new Error('safety svc down'));
+      mockSafetyService.checkMultipleSafety.mockRejectedValue(
+        new Error('safety svc down'),
+      );
 
       const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, { trigger: 'cron' });
       const result = await processor.process(job);
@@ -243,14 +264,20 @@ describe('DedupQueueProcessor', () => {
     });
 
     it('throws when fetching candidates fails entirely', async () => {
-      mockPrisma.mergeCandidate.findMany.mockRejectedValue(new Error('DB connection lost'));
+      mockPrisma.mergeCandidate.findMany.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
       const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, { trigger: 'cron' });
-      await expect(processor.process(job)).rejects.toThrow('DB connection lost');
+      await expect(processor.process(job)).rejects.toThrow(
+        'DB connection lost',
+      );
     });
 
     it('continues processing batch even if backlog cleanup fails', async () => {
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([]);
-      mockReviewService.processBacklog.mockRejectedValue(new Error('backlog error'));
+      mockReviewService.processBacklog.mockRejectedValue(
+        new Error('backlog error'),
+      );
 
       const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, { trigger: 'cron' });
       // Should not throw — backlog errors are swallowed
@@ -259,13 +286,19 @@ describe('DedupQueueProcessor', () => {
     });
 
     it('handles malformed safetyFlags JSON gracefully', async () => {
-      const candidate = makeCandidate({ safetyFlags: 'not-json', similarity: 0.95 });
+      const candidate = makeCandidate({
+        safetyFlags: 'not-json',
+        similarity: 0.95,
+      });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockSafetyService.checkMultipleSafety.mockResolvedValue([
         { isProtected: false, canAutoMerge: true },
         { isProtected: false, canAutoMerge: true },
       ]);
-      mockMergeService.merge.mockResolvedValue({ survivorId: 'mem-a', mergedIds: ['mem-b'] });
+      mockMergeService.merge.mockResolvedValue({
+        survivorId: 'mem-a',
+        mergedIds: ['mem-b'],
+      });
       mockLineageService.recordMerge.mockResolvedValue({});
       mockPrisma.mergeCandidate.update.mockResolvedValue({});
 
@@ -281,17 +314,23 @@ describe('DedupQueueProcessor', () => {
   // ──────────────────────────────────────────────────────────────────────────
   describe('config caching', () => {
     it('uses DB config thresholds when available', async () => {
-      const candidate = makeCandidate({ similarity: 0.91, userId: 'user-custom' });
+      const candidate = makeCandidate({
+        similarity: 0.91,
+        userId: 'user-custom',
+      });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockPrisma.dedupConfig.findUnique.mockResolvedValue({
-        autoMergeThreshold: 0.90,
+        autoMergeThreshold: 0.9,
         autoResolveThreshold: 0.85,
       });
       mockSafetyService.checkMultipleSafety.mockResolvedValue([
         { isProtected: false, canAutoMerge: true },
         { isProtected: false, canAutoMerge: true },
       ]);
-      mockMergeService.merge.mockResolvedValue({ survivorId: 'mem-a', mergedIds: ['mem-b'] });
+      mockMergeService.merge.mockResolvedValue({
+        survivorId: 'mem-a',
+        mergedIds: ['mem-b'],
+      });
       mockLineageService.recordMerge.mockResolvedValue({});
       mockPrisma.mergeCandidate.update.mockResolvedValue({});
 
@@ -302,8 +341,8 @@ describe('DedupQueueProcessor', () => {
 
     it('only fetches config once per userId within a batch', async () => {
       const candidates = [
-        makeCandidate({ id: 'c1', similarity: 0.50, userId: 'same-user' }),
-        makeCandidate({ id: 'c2', similarity: 0.50, userId: 'same-user' }),
+        makeCandidate({ id: 'c1', similarity: 0.5, userId: 'same-user' }),
+        makeCandidate({ id: 'c2', similarity: 0.5, userId: 'same-user' }),
       ];
       mockPrisma.mergeCandidate.findMany.mockResolvedValue(candidates);
       mockSafetyService.checkMultipleSafety.mockResolvedValue([
@@ -324,7 +363,7 @@ describe('DedupQueueProcessor', () => {
   // ──────────────────────────────────────────────────────────────────────────
   describe('batch run recording', () => {
     it('records batch run as COMPLETED when no errors', async () => {
-      const candidate = makeCandidate({ similarity: 0.50 });
+      const candidate = makeCandidate({ similarity: 0.5 });
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockSafetyService.checkMultipleSafety.mockResolvedValue([
         { isProtected: false, canAutoMerge: true },
@@ -343,7 +382,9 @@ describe('DedupQueueProcessor', () => {
     it('records batch run as COMPLETED_WITH_ERRORS when errors > 0', async () => {
       const candidate = makeCandidate();
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
-      mockSafetyService.checkMultipleSafety.mockRejectedValue(new Error('oops'));
+      mockSafetyService.checkMultipleSafety.mockRejectedValue(
+        new Error('oops'),
+      );
 
       const job = makeJob(DEDUP_JOBS.PROCESS_BATCH, { trigger: 'manual' });
       await processor.process(job);
@@ -361,9 +402,16 @@ describe('DedupQueueProcessor', () => {
   // ──────────────────────────────────────────────────────────────────────────
   describe('processBacklogJob (PROCESS_BACKLOG)', () => {
     it('delegates to reviewService.processBacklog with job params', async () => {
-      mockReviewService.processBacklog.mockResolvedValue({ approved: 5, skippedSafety: 2, errors: 0 });
+      mockReviewService.processBacklog.mockResolvedValue({
+        approved: 5,
+        skippedSafety: 2,
+        errors: 0,
+      });
 
-      const job = makeJob(DEDUP_JOBS.PROCESS_BACKLOG, { minSimilarity: 0.88, minAgeHours: 12 });
+      const job = makeJob(DEDUP_JOBS.PROCESS_BACKLOG, {
+        minSimilarity: 0.88,
+        minAgeHours: 12,
+      });
       const result = await processor.process(job);
 
       expect(mockReviewService.processBacklog).toHaveBeenCalledWith(0.88, 12);
@@ -372,11 +420,18 @@ describe('DedupQueueProcessor', () => {
     });
 
     it('handles undefined optional params', async () => {
-      mockReviewService.processBacklog.mockResolvedValue({ approved: 0, skippedSafety: 0, errors: 0 });
+      mockReviewService.processBacklog.mockResolvedValue({
+        approved: 0,
+        skippedSafety: 0,
+        errors: 0,
+      });
 
       const job = makeJob(DEDUP_JOBS.PROCESS_BACKLOG, {});
       const result = await processor.process(job);
-      expect(mockReviewService.processBacklog).toHaveBeenCalledWith(undefined, undefined);
+      expect(mockReviewService.processBacklog).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+      );
       expect(result).toBeDefined();
     });
   });

@@ -25,10 +25,16 @@ export class RerankService {
       'http://localhost:8081',
     );
     this.rerankUrls = multiUrls
-      ? multiUrls.split(',').map((u) => u.trim()).filter(Boolean)
+      ? multiUrls
+          .split(',')
+          .map((u) => u.trim())
+          .filter(Boolean)
       : [singleUrl];
 
-    const weightsStr = this.configService.get<string>('RERANK_MODEL_WEIGHTS', '');
+    const weightsStr = this.configService.get<string>(
+      'RERANK_MODEL_WEIGHTS',
+      '',
+    );
     this.modelWeights = weightsStr
       ? weightsStr.split(',').map((w) => parseFloat(w.trim()) || 1.0)
       : this.rerankUrls.map(() => 1.0);
@@ -117,7 +123,9 @@ export class RerankService {
 
     if (successful.length === 1) {
       const latencyMs = Date.now() - start;
-      this.logger.debug(`[Rerank] 1/${this.rerankUrls.length} models succeeded in ${latencyMs}ms`);
+      this.logger.debug(
+        `[Rerank] 1/${this.rerankUrls.length} models succeeded in ${latencyMs}ms`,
+      );
       return successful[0].rankings;
     }
 
@@ -177,7 +185,9 @@ export class RerankService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Rerank API error from ${url}: ${response.status} - ${error}`);
+      throw new Error(
+        `Rerank API error from ${url}: ${response.status} - ${error}`,
+      );
     }
 
     return response.json() as Promise<RerankResult[]>;
@@ -202,8 +212,6 @@ export class RerankService {
       }),
     );
 
-    return checks.some(
-      (r) => r.status === 'fulfilled' && r.value === true,
-    );
+    return checks.some((r) => r.status === 'fulfilled' && r.value === true);
   }
 }

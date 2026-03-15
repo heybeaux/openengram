@@ -57,7 +57,10 @@ export class ImportController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Preview of profiles and memories that would be created.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Preview of profiles and memories that would be created.',
+  })
   @ApiResponse({ status: 400, description: 'Invalid CSV or mapping config.' })
   async preview(
     @Agent() agent: any,
@@ -89,7 +92,10 @@ export class ImportController {
       },
     },
   })
-  @ApiResponse({ status: 202, description: 'Import job accepted. Use jobId to poll status.' })
+  @ApiResponse({
+    status: 202,
+    description: 'Import job accepted. Use jobId to poll status.',
+  })
   @ApiResponse({ status: 400, description: 'Invalid CSV or mapping config.' })
   async execute(
     @Agent() agent: any,
@@ -98,7 +104,11 @@ export class ImportController {
   ) {
     const { buffer, config } = this.parseUpload(file, configJson);
     const userId = await this.resolveUserId(agent);
-    const { jobId } = await this.executionService.execute(buffer, config, userId);
+    const { jobId } = await this.executionService.execute(
+      buffer,
+      config,
+      userId,
+    );
     return { jobId, status: 'PROCESSING' as const };
   }
 
@@ -106,13 +116,16 @@ export class ImportController {
 
   @Get(':jobId')
   @ApiOperation({ summary: 'Get import job status and progress' })
-  @ApiParam({ name: 'jobId', description: 'Import job UUID returned from execute endpoint' })
-  @ApiResponse({ status: 200, description: 'Job status, progress, stats, and errors.' })
+  @ApiParam({
+    name: 'jobId',
+    description: 'Import job UUID returned from execute endpoint',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Job status, progress, stats, and errors.',
+  })
   @ApiResponse({ status: 404, description: 'Job not found.' })
-  async getStatus(
-    @Agent() _agent: any,
-    @Param('jobId') jobId: string,
-  ) {
+  async getStatus(@Agent() _agent: any, @Param('jobId') jobId: string) {
     const job = this.jobService.getJob(jobId);
     return {
       status: job.status,
@@ -132,7 +145,9 @@ export class ImportController {
       throw new BadRequestException('A CSV file is required (field: "file")');
     }
     if (!configJson) {
-      throw new BadRequestException('A mapping config is required (field: "config")');
+      throw new BadRequestException(
+        'A mapping config is required (field: "config")',
+      );
     }
 
     let config: MappingConfig;

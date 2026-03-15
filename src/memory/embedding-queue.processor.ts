@@ -28,14 +28,26 @@ export class EmbeddingQueueProcessor extends WorkerHost {
     try {
       const memory = await this.prisma.memory.findUnique({
         where: { id: memoryId },
-        select: { id: true, embeddingStatus: true, deletedAt: true, layer: true, source: true, sessionId: true },
+        select: {
+          id: true,
+          embeddingStatus: true,
+          deletedAt: true,
+          layer: true,
+          source: true,
+          sessionId: true,
+        },
       });
       if (!memory || memory.deletedAt) {
         this.logger.warn(`Memory ${memoryId} not found or deleted — skipping`);
         return;
       }
-      if (memory.embeddingStatus === 'COMPLETE' || (memory.embeddingStatus as string) === 'DUPLICATE') {
-        this.logger.debug(`Memory ${memoryId} already processed (${memory.embeddingStatus}) — skipping`);
+      if (
+        memory.embeddingStatus === 'COMPLETE' ||
+        (memory.embeddingStatus as string) === 'DUPLICATE'
+      ) {
+        this.logger.debug(
+          `Memory ${memoryId} already processed (${memory.embeddingStatus}) — skipping`,
+        );
         return;
       }
 
@@ -44,7 +56,14 @@ export class EmbeddingQueueProcessor extends WorkerHost {
 
       // [HEY-462] Run dedup off the hot path now that the embedding exists
       if (runDedup) {
-        await this.runDedup(memoryId, userId, raw, memory.layer, memory.source, memory.sessionId);
+        await this.runDedup(
+          memoryId,
+          userId,
+          raw,
+          memory.layer,
+          memory.source,
+          memory.sessionId,
+        );
       }
 
       this.logger.log(`Embedding complete: memoryId=${memoryId}`);
@@ -105,11 +124,14 @@ export class EmbeddingQueueProcessor extends WorkerHost {
         this.logger.log(
           `[Dedup] Reinforce: new=${memoryId} → existing=${existingId} (score=${dedupResult.similarityScore?.toFixed(3)})`,
         );
-        await this.dedupService.reinforceMemory(existingId, sessionId ?? undefined);
+        await this.dedupService.reinforceMemory(
+          existingId,
+          sessionId ?? undefined,
+        );
       }
 
       // Mark the new memory as DUPLICATE and point to the surviving memory
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       await (this.prisma.memory.update as any)({
         where: { id: memoryId },
         data: {

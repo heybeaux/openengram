@@ -35,8 +35,7 @@ export class BillingController {
     description: 'Current plan details with usage and limits',
   })
   async getAccountPlan(@Req() req: any) {
-    const accountId: string | undefined =
-      req.accountId ?? req.agent?.accountId;
+    const accountId: string | undefined = req.accountId ?? req.agent?.accountId;
 
     // Default to DEVELOPER if no account context (local/self-hosted)
     const plan = accountId
@@ -74,12 +73,8 @@ export class BillingController {
     status: 200,
     description: 'Stripe checkout URL for plan upgrade',
   })
-  async upgradePlan(
-    @Req() req: any,
-    @Body() body: { plan?: PlanType } = {},
-  ) {
-    const accountId: string | undefined =
-      req.accountId ?? req.agent?.accountId;
+  async upgradePlan(@Req() req: any, @Body() body: { plan?: PlanType } = {}) {
+    const accountId: string | undefined = req.accountId ?? req.agent?.accountId;
 
     const targetPlan = body.plan ?? PlanType.TEAM;
 

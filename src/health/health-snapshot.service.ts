@@ -79,9 +79,7 @@ export class HealthSnapshotService {
     accountId: string,
     agentId?: string,
   ): Promise<SnapshotResult> {
-    this.logger.log(
-      `Taking health metric snapshot for accountId=${accountId}`,
-    );
+    this.logger.log(`Taking health metric snapshot for accountId=${accountId}`);
 
     // Compute live metrics
     const report = await this.healthMetrics.compute();
@@ -218,7 +216,9 @@ export class HealthSnapshotService {
    *
    * @param accountId - Account to query
    */
-  async getLatestAll(accountId: string): Promise<Record<MetricName, MetricSnapshot | null>> {
+  async getLatestAll(
+    accountId: string,
+  ): Promise<Record<MetricName, MetricSnapshot | null>> {
     const result = {} as Record<MetricName, MetricSnapshot | null>;
 
     await Promise.all(
@@ -267,8 +267,8 @@ export class HealthSnapshotService {
     }
     const mins = dreamCycleSla.minutesSinceLastComplete;
     if (mins <= 25 * 60) return 100; // ≤25h → green
-    if (mins <= 48 * 60) return 65;  // ≤48h → yellow
-    return 20;                        // >48h → red
+    if (mins <= 48 * 60) return 65; // ≤48h → yellow
+    return 20; // >48h → red
   }
 
   private computeVitality(components: {
@@ -278,13 +278,17 @@ export class HealthSnapshotService {
     consolidationHealth: number;
   }): number {
     // Weighted composite: embeddings & dedup carry more weight than freshness
-    const { embeddingCoverage, dedupHealth, memoryFreshness, consolidationHealth } =
-      components;
+    const {
+      embeddingCoverage,
+      dedupHealth,
+      memoryFreshness,
+      consolidationHealth,
+    } = components;
     return (
       embeddingCoverage * 0.35 +
       dedupHealth * 0.25 +
-      memoryFreshness * 0.20 +
-      consolidationHealth * 0.20
+      memoryFreshness * 0.2 +
+      consolidationHealth * 0.2
     );
   }
 }

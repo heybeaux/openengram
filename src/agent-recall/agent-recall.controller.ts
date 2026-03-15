@@ -8,7 +8,13 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AgentRecallService } from './agent-recall.service';
 import { BatchRecallDto } from './dto/batch-recall.dto';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
@@ -54,9 +60,7 @@ export class AgentRecallController {
     );
 
     if (!result) {
-      throw new NotFoundException(
-        `No entity found matching "${decodedName}"`,
-      );
+      throw new NotFoundException(`No entity found matching "${decodedName}"`);
     }
 
     return result;
@@ -68,7 +72,10 @@ export class AgentRecallController {
     description:
       'Recall up to 20 entities in one request. Unknown entities return null in the array.',
   })
-  @ApiResponse({ status: 200, description: 'Array of recall results (null for misses).' })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of recall results (null for misses).',
+  })
   async recallBatch(@Agent() agent: any, @Body() dto: BatchRecallDto) {
     const limit = dto.limit ?? 10;
     return this.service.recallBatch(agent.accountId, dto.entities, limit);
