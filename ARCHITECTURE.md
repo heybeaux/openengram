@@ -103,6 +103,7 @@ Engram is a NestJS-based AI memory service that stores, retrieves, and manages l
 | `teams` | ~601 | Team management |
 | `feedback` | ~284 | User feedback collection |
 | `instance` | ~313 | Instance configuration |
+| `scripts` | ~337 | CLI and maintenance scripts |
 
 ---
 
