@@ -75,7 +75,9 @@ describe('CsvParserService', () => {
     });
 
     it('throws BadRequestException on empty file (whitespace only)', () => {
-      expect(() => service.parse(Buffer.from('\n   \n'))).toThrow('CSV file is empty');
+      expect(() => service.parse(Buffer.from('\n   \n'))).toThrow(
+        'CSV file is empty',
+      );
     });
   });
 
@@ -126,7 +128,10 @@ describe('CsvParserService', () => {
         profileMapping: { name: 'name' },
         memoryMapping: { content: 'notes', importance: '3' },
       };
-      const missing = service.validateHeaders(headers, configWithStaticImportance);
+      const missing = service.validateHeaders(
+        headers,
+        configWithStaticImportance,
+      );
       expect(missing).toHaveLength(0);
     });
   });

@@ -45,7 +45,8 @@ export class EntityProfileService {
       where: { id: agentId },
       select: { accountId: true },
     });
-    if (!agent?.accountId) throw new NotFoundException(`Agent not found: ${agentId}`);
+    if (!agent?.accountId)
+      throw new NotFoundException(`Agent not found: ${agentId}`);
 
     const existing = await this.prisma.user.findFirst({
       where: { accountId: agent.accountId, deletedAt: null },
@@ -308,7 +309,6 @@ export class EntityProfileService {
 
     let cursor: string | undefined;
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       // Fetch a batch of non-deleted memories that have no profile attachments
       const memories = await this.prisma.memory.findMany({
@@ -319,9 +319,7 @@ export class EntityProfileService {
         },
         orderBy: { createdAt: 'asc' },
         take: BATCH_SIZE,
-        ...(cursor
-          ? { skip: 1, cursor: { id: cursor } }
-          : {}),
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         select: { id: true },
       });
 

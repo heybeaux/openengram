@@ -262,7 +262,8 @@ export class MemoryController {
   ): Promise<void> {
     const format = query.format || 'json';
     const date = new Date().toISOString().split('T')[0];
-    const ext = format === 'ndjson' ? 'ndjson' : format === 'csv' ? 'csv' : 'json';
+    const ext =
+      format === 'ndjson' ? 'ndjson' : format === 'csv' ? 'csv' : 'json';
 
     res.setHeader(
       'Content-Disposition',

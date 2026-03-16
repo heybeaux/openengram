@@ -6,7 +6,12 @@ import { HybridSearchService } from './hybrid-search.service';
 
 @Global()
 @Module({
-  providers: [VectorService, PgVectorProvider, PineconeProvider, HybridSearchService],
+  providers: [
+    VectorService,
+    PgVectorProvider,
+    PineconeProvider,
+    HybridSearchService,
+  ],
   exports: [VectorService, HybridSearchService],
 })
 export class VectorModule {}

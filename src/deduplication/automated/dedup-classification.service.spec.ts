@@ -67,7 +67,9 @@ describe('DedupClassificationService', () => {
       ],
     }).compile();
 
-    service = module.get<DedupClassificationService>(DedupClassificationService);
+    service = module.get<DedupClassificationService>(
+      DedupClassificationService,
+    );
     jest.clearAllMocks();
   });
 

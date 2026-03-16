@@ -53,7 +53,12 @@ export class ImportMappingService {
       const rawType = config.profileMapping.type
         ? this.resolveValue(row, config.profileMapping.type)
         : undefined;
-      const type = this.resolveEntityType(rawType, rowNumber, rowErrors, config.profileMapping.type);
+      const type = this.resolveEntityType(
+        rawType,
+        rowNumber,
+        rowErrors,
+        config.profileMapping.type,
+      );
 
       const description = config.profileMapping.description
         ? this.resolveValue(row, config.profileMapping.description) || undefined
@@ -87,7 +92,12 @@ export class ImportMappingService {
             : undefined;
 
           const importance = rawImportance
-            ? this.parseImportance(rawImportance, rowNumber, rowErrors, config.memoryMapping.importance)
+            ? this.parseImportance(
+                rawImportance,
+                rowNumber,
+                rowErrors,
+                config.memoryMapping.importance,
+              )
             : undefined;
 
           memory = { content: content.trim(), importance };
@@ -98,7 +108,11 @@ export class ImportMappingService {
 
       errors.push(...rowErrors);
 
-      if (rowErrors.some((e) => e.rowNumber === rowNumber && e.message.includes('required'))) {
+      if (
+        rowErrors.some(
+          (e) => e.rowNumber === rowNumber && e.message.includes('required'),
+        )
+      ) {
         // Skip rows with fatal errors (missing required name)
         this.logger.debug(`Row ${rowNumber} skipped due to validation errors`);
         return;
@@ -106,7 +120,7 @@ export class ImportMappingService {
 
       records.push({
         rowNumber,
-        profile: { name: name!.trim(), type, description },
+        profile: { name: name.trim(), type, description },
         attributes,
         memory,
       });

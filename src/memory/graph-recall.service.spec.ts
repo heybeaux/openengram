@@ -148,9 +148,7 @@ describe('GraphRecallService', () => {
       graphService.searchEntities.mockResolvedValue([
         { ...mockEntity, matchType: 'exact' } as any,
       ]);
-      graphService.getMemoriesForEntity.mockResolvedValue([
-        mockMemory as any,
-      ]);
+      graphService.getMemoriesForEntity.mockResolvedValue([mockMemory as any]);
       graphService.getRelatedEntities.mockResolvedValue([]);
 
       const result = await service.recallViaGraph(
@@ -200,9 +198,7 @@ describe('GraphRecallService', () => {
       graphService.getMemoriesForEntity
         .mockResolvedValueOnce([mainMemory as any]) // direct
         .mockResolvedValueOnce([relatedMemory as any]); // from related entity
-      graphService.getRelatedEntities.mockResolvedValue([
-        relatedEntity as any,
-      ]);
+      graphService.getRelatedEntities.mockResolvedValue([relatedEntity as any]);
 
       const result = await service.recallViaGraph(
         'What does Alice think?',
@@ -237,9 +233,7 @@ describe('GraphRecallService', () => {
       graphService.searchEntities.mockResolvedValue([
         { id: 'entity-1', name: 'Alice', userId, matchType: 'exact' } as any,
       ]);
-      graphService.getMemoriesForEntity.mockResolvedValue(
-        memories as any[],
-      );
+      graphService.getMemoriesForEntity.mockResolvedValue(memories as any[]);
       graphService.getRelatedEntities.mockResolvedValue([]);
 
       const result = await service.recallViaGraph(
@@ -257,9 +251,7 @@ describe('GraphRecallService', () => {
         { id: 'entity-1', name: 'Alice', userId, matchType: 'exact' } as any,
       ]);
       // Return same memory from direct and related
-      graphService.getMemoriesForEntity.mockResolvedValue([
-        sameMemory as any,
-      ]);
+      graphService.getMemoriesForEntity.mockResolvedValue([sameMemory as any]);
       graphService.getRelatedEntities.mockResolvedValue([
         { id: 'entity-2', name: 'Related', userId } as any,
       ]);

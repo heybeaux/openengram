@@ -1,4 +1,12 @@
-import { IsArray, IsString, IsOptional, IsInt, Min, Max, ArrayMaxSize } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  ArrayMaxSize,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class BatchRecallDto {

@@ -14,7 +14,12 @@ const buildCsv = (rows: string[]): Buffer =>
 const BASE_CONFIG: MappingConfig = {
   profileMapping: { name: 'name', type: 'PERSON' },
   attributeMapping: [
-    { key: 'email', column: 'email', valueType: 'EMAIL' as any, category: 'contact' },
+    {
+      key: 'email',
+      column: 'email',
+      valueType: 'EMAIL' as any,
+      category: 'contact',
+    },
   ],
   memoryMapping: { content: 'notes', importance: 'priority' },
 };
@@ -60,7 +65,9 @@ describe('ImportProcessingService', () => {
               return { id: 'profile-1', ...args.data };
             }),
           },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'mem-1' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -84,8 +91,12 @@ describe('ImportProcessingService', () => {
 
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const fakeTx = {
-          entityProfile: { create: jest.fn().mockResolvedValue({ id: 'profile-1' }) },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+          entityProfile: {
+            create: jest.fn().mockResolvedValue({ id: 'profile-1' }),
+          },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'mem-1' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -97,7 +108,12 @@ describe('ImportProcessingService', () => {
         'Bob,PERSON,bob@example.com,Note for Bob,4',
       ]);
 
-      const result = await service.processImport(jobId, 'user-1', csv, BASE_CONFIG);
+      const result = await service.processImport(
+        jobId,
+        'user-1',
+        csv,
+        BASE_CONFIG,
+      );
 
       expect(result.stats.profileCount).toBe(2);
       expect(result.stats.memoryCount).toBe(2);
@@ -120,7 +136,9 @@ describe('ImportProcessingService', () => {
               return { id: 'profile-x', ...args.data };
             }),
           },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'mem-x' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -133,7 +151,12 @@ describe('ImportProcessingService', () => {
         'Charlie,PERSON,charlie@example.com,Note for Charlie,2',
       ]);
 
-      const result = await service.processImport(jobId, 'user-1', csv, BASE_CONFIG);
+      const result = await service.processImport(
+        jobId,
+        'user-1',
+        csv,
+        BASE_CONFIG,
+      );
 
       expect(profiles).toHaveLength(1);
       expect(profiles[0].name).toBe('Charlie');
@@ -150,8 +173,12 @@ describe('ImportProcessingService', () => {
         if (callCount === 1) throw new Error('DB constraint violation');
 
         const fakeTx = {
-          entityProfile: { create: jest.fn().mockResolvedValue({ id: 'profile-2' }) },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          entityProfile: {
+            create: jest.fn().mockResolvedValue({ id: 'profile-2' }),
+          },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'mem-2' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -163,7 +190,12 @@ describe('ImportProcessingService', () => {
         'Bob,PERSON,bob@example.com,Note for Bob,3',
       ]);
 
-      const result = await service.processImport(jobId, 'user-1', csv, BASE_CONFIG);
+      const result = await service.processImport(
+        jobId,
+        'user-1',
+        csv,
+        BASE_CONFIG,
+      );
 
       expect(result.stats.profileCount).toBe(1);
       expect(result.stats.errorCount).toBe(1);
@@ -179,7 +211,9 @@ describe('ImportProcessingService', () => {
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const fakeTx = {
           entityProfile: { create: jest.fn().mockResolvedValue({ id: 'p1' }) },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'm1' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -198,16 +232,18 @@ describe('ImportProcessingService', () => {
       const { jobId } = jobService.createJob('user-1');
       const progressValues: number[] = [];
 
-      const spy = jest.spyOn(jobService, 'updateProgress').mockImplementation(
-        (_id: string, progress: number) => {
+      const spy = jest
+        .spyOn(jobService, 'updateProgress')
+        .mockImplementation((_id: string, progress: number) => {
           progressValues.push(progress);
-        },
-      );
+        });
 
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const fakeTx = {
           entityProfile: { create: jest.fn().mockResolvedValue({ id: 'px' }) },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'mx' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -215,7 +251,10 @@ describe('ImportProcessingService', () => {
       });
 
       // 15 rows → progress updates at index 0, 10, 14
-      const rows = Array.from({ length: 15 }, (_, i) => `User${i},PERSON,u${i}@x.com,Note,3`);
+      const rows = Array.from(
+        { length: 15 },
+        (_, i) => `User${i},PERSON,u${i}@x.com,Note,3`,
+      );
       const csv = buildCsv(rows);
 
       await service.processImport(jobId, 'user-1', csv, BASE_CONFIG);
@@ -235,7 +274,12 @@ describe('ImportProcessingService', () => {
       mockPrisma.$transaction.mockResolvedValue(undefined);
 
       const csv = buildCsv([',,missing@example.com,Note,3']);
-      const result = await service.processImport(jobId, 'user-1', csv, BASE_CONFIG);
+      const result = await service.processImport(
+        jobId,
+        'user-1',
+        csv,
+        BASE_CONFIG,
+      );
 
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.errors[0].message).toMatch(/required/i);

@@ -1,6 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { ImportJobState, JobStatus, ImportStats, RowError } from './import.types';
+import {
+  ImportJobState,
+  JobStatus,
+  ImportStats,
+  RowError,
+} from './import.types';
 
 /**
  * ImportJobService
@@ -62,7 +67,11 @@ export class ImportJobService {
   /**
    * Update job progress (0.0–1.0) and current stats.
    */
-  updateProgress(jobId: string, progress: number, stats: Partial<ImportStats>): void {
+  updateProgress(
+    jobId: string,
+    progress: number,
+    stats: Partial<ImportStats>,
+  ): void {
     const job = this.requireJob(jobId);
     job.progress = Math.min(1, Math.max(0, progress));
     job.stats = { ...job.stats, ...stats };

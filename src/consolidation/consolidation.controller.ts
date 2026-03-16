@@ -67,10 +67,7 @@ export class ConsolidationController {
   ): Promise<{ runId: string; status: string }> {
     if (!this.queueProducer) throw new Error('Queue not configured');
     const userId =
-      body?.userId ??
-      req?.user?.id ??
-      (req as any)?.agent?.userId ??
-      'default';
+      body?.userId ?? req?.user?.id ?? req?.agent?.userId ?? 'default';
     const runId = await this.queueProducer.enqueue(userId, {
       dryRun: body?.dryRun ?? false,
       maxLlmCalls: body?.maxLlmCalls,

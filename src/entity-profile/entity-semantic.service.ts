@@ -74,7 +74,10 @@ export class EntitySemanticService {
 
       try {
         const profileVector = this.parseVector(profile.embedding);
-        const similarity = this.cosineSimilarity(memoryEmbedding, profileVector);
+        const similarity = this.cosineSimilarity(
+          memoryEmbedding,
+          profileVector,
+        );
 
         if (similarity >= threshold) {
           matches.push({ profileId: profile.id, similarity });
@@ -127,9 +130,7 @@ export class EntitySemanticService {
    */
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) {
-      throw new Error(
-        `Vector dimension mismatch: ${a.length} vs ${b.length}`,
-      );
+      throw new Error(`Vector dimension mismatch: ${a.length} vs ${b.length}`);
     }
 
     let dot = 0;

@@ -80,7 +80,9 @@ describe('EntityMentionService', () => {
         'alice smith mentioned NestJS.',
         'user-1',
       );
-      expect(result.map((r) => r.profileId).sort()).toEqual(['p1', 'p3'].sort());
+      expect(result.map((r) => r.profileId).sort()).toEqual(
+        ['p1', 'p3'].sort(),
+      );
     });
 
     it('should detect multiple entities in one text', async () => {

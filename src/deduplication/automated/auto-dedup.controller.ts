@@ -47,7 +47,9 @@ export class AutoDedupController {
   // ---------------------------------------------------------------------------
 
   @Get('review')
-  @ApiOperation({ summary: 'Get items needing human review from automated dedup pipeline' })
+  @ApiOperation({
+    summary: 'Get items needing human review from automated dedup pipeline',
+  })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Review queue items' })
   async getReviewQueue(@Query('limit') limit?: string) {
@@ -78,10 +80,7 @@ export class AutoDedupController {
   @ApiOperation({ summary: 'Resolve a dedup candidate (human decision)' })
   @ApiParam({ name: 'id', description: 'DedupCandidate id' })
   @ApiResponse({ status: 200, description: 'Candidate resolved' })
-  async resolveCandidate(
-    @Param('id') id: string,
-    @Body() body: ResolveDto,
-  ) {
+  async resolveCandidate(@Param('id') id: string, @Body() body: ResolveDto) {
     const notes = body.notes ? `: ${body.notes}` : '';
     await this.prisma.dedupCandidate.update({
       where: { id },
@@ -124,7 +123,9 @@ export class AutoDedupController {
   // ---------------------------------------------------------------------------
 
   @Get('auto-stats')
-  @ApiOperation({ summary: 'Automated dedup pipeline statistics (legacy alias)' })
+  @ApiOperation({
+    summary: 'Automated dedup pipeline statistics (legacy alias)',
+  })
   @ApiResponse({ status: 200, description: 'Pipeline stats' })
   async getAutoStats() {
     return this.buildPipelineStats();

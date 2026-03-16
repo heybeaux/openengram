@@ -98,7 +98,9 @@ describe('Recall Benchmark (Post-Dream-Cycle)', () => {
     // Run the dream cycle for each test user
     let allSucceeded = true;
     for (const user of corpus.seededUsers) {
-      console.log(`[Dream Cycle] Starting consolidation for user: ${user.name}`);
+      console.log(
+        `[Dream Cycle] Starting consolidation for user: ${user.name}`,
+      );
       try {
         const headers = asUser(user.apiKey, user.userId);
         const res = await request(app.getHttpServer())
@@ -171,7 +173,9 @@ describe('Recall Benchmark (Post-Dream-Cycle)', () => {
     // Resolve superseded chains and union with original IDs so either the
     // original or the consolidated memory counts as a correct hit.
     const resolvedTop5 = await resolveSuperseded(prisma, query.must_top5);
-    const expandedMustTop5 = [...new Set([...query.must_top5, ...resolvedTop5])];
+    const expandedMustTop5 = [
+      ...new Set([...query.must_top5, ...resolvedTop5]),
+    ];
     const expandedQuery: GoldQuery = { ...query, must_top5: expandedMustTop5 };
 
     const headers = asUser(user.apiKey, user.userId);
@@ -294,12 +298,13 @@ describe('Recall Benchmark (Post-Dream-Cycle)', () => {
       // Log any zero-hit queries (aspirational — P@5 threshold is the hard gate).
       const zeroHitQueries = allScores.filter(
         (s) =>
-          s.details.expectedTop5.length > 0 &&
-          s.details.top5Hits.length === 0,
+          s.details.expectedTop5.length > 0 && s.details.top5Hits.length === 0,
       );
       if (zeroHitQueries.length > 0) {
         const ids = zeroHitQueries.map((q) => q.queryId).join(', ');
-        console.warn(`⚠️  Zero-hit queries after dream cycle (${zeroHitQueries.length}): ${ids}`);
+        console.warn(
+          `⚠️  Zero-hit queries after dream cycle (${zeroHitQueries.length}): ${ids}`,
+        );
       }
     });
   });

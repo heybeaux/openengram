@@ -235,7 +235,11 @@ export class DedupResolutionService {
           similarity: similarityScore,
           triggeredBy: 'auto',
           originalContents: JSON.stringify([
-            { memoryId: loser.id, content: loser.raw, createdAt: loser.createdAt },
+            {
+              memoryId: loser.id,
+              content: loser.raw,
+              createdAt: loser.createdAt,
+            },
           ]),
           mergedContent: finalContent,
           contentChanged: finalContent !== winner.raw,
@@ -253,9 +257,7 @@ export class DedupResolutionService {
       }),
     ]);
 
-    this.logger.log(
-      `[DedupResolution] Auto-merged ${loser.id} → ${winner.id}`,
-    );
+    this.logger.log(`[DedupResolution] Auto-merged ${loser.id} → ${winner.id}`);
   }
 
   /**
@@ -270,8 +272,7 @@ export class DedupResolutionService {
   ): Promise<void> {
     const [winner, loser] = this.pickWinnerLoser(memory1, memory2);
     const consolidated =
-      mergedContent ??
-      `${winner.raw}\n\n[Consolidated from: ${loser.raw}]`;
+      mergedContent ?? `${winner.raw}\n\n[Consolidated from: ${loser.raw}]`;
 
     await this.prisma.$transaction([
       this.prisma.memory.update({
@@ -292,7 +293,11 @@ export class DedupResolutionService {
           similarity: similarityScore,
           triggeredBy: 'auto',
           originalContents: JSON.stringify([
-            { memoryId: loser.id, content: loser.raw, createdAt: loser.createdAt },
+            {
+              memoryId: loser.id,
+              content: loser.raw,
+              createdAt: loser.createdAt,
+            },
           ]),
           mergedContent: consolidated,
           contentChanged: consolidated !== winner.raw,
@@ -314,7 +319,10 @@ export class DedupResolutionService {
     );
   }
 
-  private async markResolved(candidateId: string, reasoning: string): Promise<void> {
+  private async markResolved(
+    candidateId: string,
+    reasoning: string,
+  ): Promise<void> {
     await this.prisma.dedupCandidate.update({
       where: { id: candidateId },
       data: { status: 'RESOLVED', resolvedAt: new Date(), reasoning },

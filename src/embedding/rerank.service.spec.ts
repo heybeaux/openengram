@@ -40,8 +40,8 @@ describe('RerankService', () => {
         ok: true,
         json: async () => [
           { index: 2, score: 0.95 },
-          { index: 0, score: 0.80 },
-          { index: 1, score: 0.30 },
+          { index: 0, score: 0.8 },
+          { index: 1, score: 0.3 },
         ],
       });
 
@@ -53,8 +53,8 @@ describe('RerankService', () => {
 
       expect(results).toEqual([
         { index: 2, score: 0.95 },
-        { index: 0, score: 0.80 },
-        { index: 1, score: 0.30 },
+        { index: 0, score: 0.8 },
+        { index: 1, score: 0.3 },
       ]);
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -142,21 +142,33 @@ describe('RerankService', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 2, score: 0.9 }, { index: 0, score: 0.7 }, { index: 1, score: 0.2 }],
+          json: async () => [
+            { index: 2, score: 0.9 },
+            { index: 0, score: 0.7 },
+            { index: 1, score: 0.2 },
+          ],
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 0, score: 0.95 }, { index: 2, score: 0.6 }, { index: 1, score: 0.1 }],
+          json: async () => [
+            { index: 0, score: 0.95 },
+            { index: 2, score: 0.6 },
+            { index: 1, score: 0.1 },
+          ],
         });
 
-      const results = await service.rerank('query', ['text0', 'text1', 'text2']);
+      const results = await service.rerank('query', [
+        'text0',
+        'text1',
+        'text2',
+      ]);
 
       // doc0: 1/(60+2) + 1/(60+1) = 0.01613 + 0.01639 = 0.03252
       // doc2: 1/(60+1) + 1/(60+2) = 0.01639 + 0.01613 = 0.03252
       // doc1: 1/(60+3) + 1/(60+3) = lowest
       // doc0 and doc2 should both score above doc1
       expect(results[2].index).toBe(1); // doc1 always last
-      expect(results.map(r => r.score).every(s => s > 0)).toBe(true);
+      expect(results.map((r) => r.score).every((s) => s > 0)).toBe(true);
     });
 
     it('should use only successful model when one fails', async () => {
@@ -168,7 +180,10 @@ describe('RerankService', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 1, score: 0.9 }, { index: 0, score: 0.5 }],
+          json: async () => [
+            { index: 1, score: 0.9 },
+            { index: 0, score: 0.5 },
+          ],
         })
         .mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
@@ -186,7 +201,10 @@ describe('RerankService', () => {
       mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
       const results = await service.rerank('query', ['text0', 'text1']);
-      expect(results).toEqual([{ index: 0, score: 0 }, { index: 1, score: 0 }]);
+      expect(results).toEqual([
+        { index: 0, score: 0 },
+        { index: 1, score: 0 },
+      ]);
     });
 
     it('doc ranked 1st by both models should outscore doc ranked 1st by only one', async () => {
@@ -200,11 +218,17 @@ describe('RerankService', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 0, score: 0.9 }, { index: 1, score: 0.8 }],
+          json: async () => [
+            { index: 0, score: 0.9 },
+            { index: 1, score: 0.8 },
+          ],
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 0, score: 0.95 }, { index: 1, score: 0.4 }],
+          json: async () => [
+            { index: 0, score: 0.95 },
+            { index: 1, score: 0.4 },
+          ],
         });
 
       const results = await service.rerank('query', ['docA', 'docB']);
@@ -223,11 +247,17 @@ describe('RerankService', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 1, score: 0.9 }, { index: 0, score: 0.1 }],
+          json: async () => [
+            { index: 1, score: 0.9 },
+            { index: 0, score: 0.1 },
+          ],
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ index: 0, score: 0.9 }, { index: 1, score: 0.1 }],
+          json: async () => [
+            { index: 0, score: 0.9 },
+            { index: 1, score: 0.1 },
+          ],
         });
 
       const results = await service.rerank('query', ['docA', 'docB']);

@@ -136,7 +136,9 @@ export function runScoringConfig(
         score = qReranker[mem.id] * rw + importance * iw;
       } else {
         // No reranker: cosine * cosineWeight + importanceScore * importanceFinalWeight
-        score = cosine * config.cosineWeight + importance * config.importanceFinalWeight;
+        score =
+          cosine * config.cosineWeight +
+          importance * config.importanceFinalWeight;
       }
 
       return { id: mem.id, score };
@@ -199,10 +201,18 @@ function main() {
 
     // For recall@20 we need full top-20
     const top20 = userMems
-      .map((m) => ({ id: m.id, cosine: qCosines[m.id] ?? 0, importance: m.importanceScore }))
+      .map((m) => ({
+        id: m.id,
+        cosine: qCosines[m.id] ?? 0,
+        importance: m.importanceScore,
+      }))
       .sort((a, b) => {
-        const sa = a.cosine * config.cosineWeight + a.importance * config.importanceFinalWeight;
-        const sb = b.cosine * config.cosineWeight + b.importance * config.importanceFinalWeight;
+        const sa =
+          a.cosine * config.cosineWeight +
+          a.importance * config.importanceFinalWeight;
+        const sb =
+          b.cosine * config.cosineWeight +
+          b.importance * config.importanceFinalWeight;
         return sb - sa;
       })
       .slice(0, 20)
@@ -213,7 +223,9 @@ function main() {
     const adjustedScore = {
       ...score,
       precisionAt5: (() => {
-        const top5Hits = goldQuery.must_top5.filter((id) => topIds.includes(id));
+        const top5Hits = goldQuery.must_top5.filter((id) =>
+          topIds.includes(id),
+        );
         return goldQuery.must_top5.length > 0
           ? top5Hits.length / goldQuery.must_top5.length
           : 1.0;
@@ -221,14 +233,18 @@ function main() {
       details: {
         ...score.details,
         top5Hits: goldQuery.must_top5.filter((id) => topIds.includes(id)),
-        actualIds: [...topIds, ...top20.filter((id) => !topIds.includes(id))].slice(0, 20),
+        actualIds: [
+          ...topIds,
+          ...top20.filter((id) => !topIds.includes(id)),
+        ].slice(0, 20),
       },
     };
 
     // Recalculate passed with corrected precisionAt5
     const passed =
       adjustedScore.isolationPassed &&
-      (goldQuery.must_top5.length === 0 || adjustedScore.details.top5Hits.length > 0);
+      (goldQuery.must_top5.length === 0 ||
+        adjustedScore.details.top5Hits.length > 0);
 
     allScores.push({ ...adjustedScore, passed });
   }

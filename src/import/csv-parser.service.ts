@@ -46,7 +46,9 @@ export class CsvParserService {
       rows.push(row);
     }
 
-    this.logger.debug(`Parsed CSV: ${headers.length} columns, ${rows.length} data rows`);
+    this.logger.debug(
+      `Parsed CSV: ${headers.length} columns, ${rows.length} data rows`,
+    );
     return { headers, rows };
   }
 
@@ -61,17 +63,26 @@ export class CsvParserService {
     const { profileMapping, attributeMapping, memoryMapping } = config;
 
     // Profile mapping — name is always required; type/description are optional
-    if (profileMapping.name && !this.isStaticValue(profileMapping.name, headers)) {
+    if (
+      profileMapping.name &&
+      !this.isStaticValue(profileMapping.name, headers)
+    ) {
       if (!headerSet.has(profileMapping.name)) {
         missing.push(profileMapping.name);
       }
     }
-    if (profileMapping.type && !this.isStaticValue(profileMapping.type, headers)) {
+    if (
+      profileMapping.type &&
+      !this.isStaticValue(profileMapping.type, headers)
+    ) {
       if (!headerSet.has(profileMapping.type)) {
         missing.push(profileMapping.type);
       }
     }
-    if (profileMapping.description && !this.isStaticValue(profileMapping.description, headers)) {
+    if (
+      profileMapping.description &&
+      !this.isStaticValue(profileMapping.description, headers)
+    ) {
       if (!headerSet.has(profileMapping.description)) {
         missing.push(profileMapping.description);
       }
@@ -115,7 +126,13 @@ export class CsvParserService {
    */
   private isStaticValue(value: string, headers: string[]): boolean {
     if (headers.includes(value)) return false;
-    const knownEntityTypes = ['PERSON', 'ORGANIZATION', 'PROJECT', 'BRAND', 'PRODUCT'];
+    const knownEntityTypes = [
+      'PERSON',
+      'ORGANIZATION',
+      'PROJECT',
+      'BRAND',
+      'PRODUCT',
+    ];
     if (knownEntityTypes.includes(value.toUpperCase())) return true;
     if (/^\d+(\.\d+)?$/.test(value)) return true;
     return false;
@@ -123,10 +140,7 @@ export class CsvParserService {
 
   /** Split text into non-empty lines, handling \r\n and \n */
   private splitLines(text: string): string[] {
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .split('\n');
+    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   }
 
   /**

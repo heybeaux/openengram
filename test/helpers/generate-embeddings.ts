@@ -59,9 +59,7 @@ export async function generateCorpusEmbeddings(
   for (let i = 0; i < memories.length; i += BATCH_SIZE) {
     const batch = memories.slice(i, i + BATCH_SIZE);
     const texts = batch.map((m) =>
-      m.raw.length > MAX_EMBED_CHARS
-        ? m.raw.slice(0, MAX_EMBED_CHARS)
-        : m.raw,
+      m.raw.length > MAX_EMBED_CHARS ? m.raw.slice(0, MAX_EMBED_CHARS) : m.raw,
     );
 
     // Generate embeddings in batch — with retry on null vectors (server flakiness workaround)
@@ -70,16 +68,22 @@ export async function generateCorpusEmbeddings(
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const raw = await embeddingService.embed(texts);
       // Check for null/undefined values (flaky server returns null floats)
-      const hasNulls = raw.some(emb => emb.some(v => v === null || v === undefined));
+      const hasNulls = raw.some((emb) =>
+        emb.some((v) => v === null || v === undefined),
+      );
       if (!hasNulls) {
         embeddings = raw;
         break;
       }
-      logger.warn(`Attempt ${attempt + 1}: null vectors detected, retrying after 2s...`);
-      await new Promise(r => setTimeout(r, 2000));
+      logger.warn(
+        `Attempt ${attempt + 1}: null vectors detected, retrying after 2s...`,
+      );
+      await new Promise((r) => setTimeout(r, 2000));
       if (attempt === MAX_RETRIES - 1) {
         // Last resort: use valid embeddings, skip memories with nulls
-        embeddings = raw.map(emb => emb.map(v => (v === null || v === undefined) ? 0 : v));
+        embeddings = raw.map((emb) =>
+          emb.map((v) => (v === null || v === undefined ? 0 : v)),
+        );
         logger.warn('Using zero-filled fallback for null vectors');
       }
     }

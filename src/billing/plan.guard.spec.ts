@@ -75,12 +75,10 @@ describe('PlanGuard', () => {
   describe('@RequiresPlan', () => {
     beforeEach(() => {
       // Feature check returns undefined (not set)
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_PLAN_KEY) return PlanType.TEAM;
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_PLAN_KEY) return PlanType.TEAM;
+        return undefined;
+      });
     });
 
     it('allows a TEAM account to access TEAM endpoint', async () => {
@@ -128,12 +126,10 @@ describe('PlanGuard', () => {
     });
 
     it('blocks DEVELOPER from BUSINESS endpoint', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_PLAN_KEY) return PlanType.BUSINESS;
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_PLAN_KEY) return PlanType.BUSINESS;
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.DEVELOPER,
@@ -145,12 +141,10 @@ describe('PlanGuard', () => {
     });
 
     it('blocks TEAM from BUSINESS endpoint', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_PLAN_KEY) return PlanType.BUSINESS;
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_PLAN_KEY) return PlanType.BUSINESS;
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.TEAM,
@@ -166,12 +160,10 @@ describe('PlanGuard', () => {
 
   describe('@RequiresFeature', () => {
     beforeEach(() => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_FEATURE_KEY) return 'bulkImport';
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_FEATURE_KEY) return 'bulkImport';
+        return undefined;
+      });
     });
 
     it('blocks DEVELOPER account from bulkImport endpoint with 402', async () => {
@@ -204,12 +196,10 @@ describe('PlanGuard', () => {
     });
 
     it('blocks DEVELOPER from sso feature', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_FEATURE_KEY) return 'sso';
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_FEATURE_KEY) return 'sso';
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.DEVELOPER,
@@ -221,12 +211,10 @@ describe('PlanGuard', () => {
     });
 
     it('blocks TEAM from sso feature (BUSINESS only)', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_FEATURE_KEY) return 'sso';
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_FEATURE_KEY) return 'sso';
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.TEAM,
@@ -238,12 +226,10 @@ describe('PlanGuard', () => {
     });
 
     it('allows BUSINESS to use sso feature', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_FEATURE_KEY) return 'sso';
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_FEATURE_KEY) return 'sso';
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.BUSINESS,
@@ -260,12 +246,10 @@ describe('PlanGuard', () => {
 
   describe('402 response body', () => {
     it('contains all required fields', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockImplementation((key) => {
-          if (key === REQUIRES_PLAN_KEY) return PlanType.TEAM;
-          return undefined;
-        });
+      jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+        if (key === REQUIRES_PLAN_KEY) return PlanType.TEAM;
+        return undefined;
+      });
 
       mockPlanService.getAccountPlan.mockResolvedValue({
         plan: PlanType.DEVELOPER,

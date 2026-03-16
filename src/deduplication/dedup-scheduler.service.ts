@@ -17,7 +17,8 @@ export class DedupSchedulerService implements OnModuleInit {
     private readonly producer: DedupQueueProducer,
   ) {
     this.pipelineEnabled =
-      this.configService.get<string>('DEDUP_PIPELINE_ENABLED', 'true') === 'true';
+      this.configService.get<string>('DEDUP_PIPELINE_ENABLED', 'true') ===
+      'true';
     this.backlogThreshold = parseInt(
       this.configService.get<string>('DEDUP_BACKLOG_THRESHOLD', '1000'),
       10,
@@ -92,7 +93,10 @@ export class DedupSchedulerService implements OnModuleInit {
   /**
    * Manually trigger a drain (called from controller endpoint)
    */
-  async triggerManualDrain(): Promise<{ enqueued: boolean; pendingCount: number }> {
+  async triggerManualDrain(): Promise<{
+    enqueued: boolean;
+    pendingCount: number;
+  }> {
     const pendingCount = await this.getPendingCount();
 
     if (pendingCount === 0) {

@@ -100,9 +100,7 @@ describe('MultiQueryController', () => {
     });
 
     it('should throw INTERNAL_SERVER_ERROR when expansion fails with Error', async () => {
-      expansionService.expand.mockRejectedValue(
-        new Error('LLM timeout'),
-      );
+      expansionService.expand.mockRejectedValue(new Error('LLM timeout'));
 
       await expect(
         controller.expandQuery({ query: 'valid query' }),
@@ -143,15 +141,15 @@ describe('MultiQueryController', () => {
   // =========================================================================
   describe('testExpansion', () => {
     it('should throw BAD_REQUEST when query is empty', async () => {
-      await expect(
-        controller.testExpansion({ query: '' }),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.testExpansion({ query: '' })).rejects.toThrow(
+        HttpException,
+      );
     });
 
     it('should throw BAD_REQUEST when query is whitespace', async () => {
-      await expect(
-        controller.testExpansion({ query: '  ' }),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.testExpansion({ query: '  ' })).rejects.toThrow(
+        HttpException,
+      );
     });
 
     it('should test all strategies and return results', async () => {

@@ -122,7 +122,9 @@ export class DurabilityClassifierService {
    * Simple heuristic: split into sentences, check for mid-sentence capitals.
    */
   private hasNamedEntity(content: string): boolean {
-    const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+    const sentences = content
+      .split(/[.!?]+/)
+      .filter((s) => s.trim().length > 0);
 
     for (const sentence of sentences) {
       const words = sentence.trim().split(/\s+/);

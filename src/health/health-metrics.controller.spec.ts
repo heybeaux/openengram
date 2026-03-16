@@ -16,7 +16,9 @@ const mockSnapshotService = {
   getLatestAll: jest.fn(),
 };
 
-const makeReq = (overrides: Partial<{ accountId: string; agent: { id: string } }> = {}) => ({
+const makeReq = (
+  overrides: Partial<{ accountId: string; agent: { id: string } }> = {},
+) => ({
   accountId: 'acc-123',
   agent: { id: 'agent-1' },
   ...overrides,
@@ -84,7 +86,9 @@ describe('HealthMetricsController', () => {
         new Error('Compute failed'),
       );
 
-      await expect(controller.refreshMetrics()).rejects.toThrow('Compute failed');
+      await expect(controller.refreshMetrics()).rejects.toThrow(
+        'Compute failed',
+      );
     });
   });
 

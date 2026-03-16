@@ -68,7 +68,10 @@ export class ImportV2Controller {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary', description: 'CSV file' },
-        mapping: { type: 'string', description: 'MappingConfig as JSON string' },
+        mapping: {
+          type: 'string',
+          description: 'MappingConfig as JSON string',
+        },
       },
       required: ['file', 'mapping'],
     },
@@ -79,14 +82,22 @@ export class ImportV2Controller {
   })
   @UseInterceptors(FileInterceptor('file'))
   async preview(
-    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    @UploadedFile()
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+      size: number;
+    },
     @Body('mapping') mappingJson: string,
   ) {
     if (!file) {
       throw new BadRequestException('A CSV file is required (field: "file")');
     }
     if (!mappingJson) {
-      throw new BadRequestException('A mapping config is required (field: "mapping")');
+      throw new BadRequestException(
+        'A mapping config is required (field: "mapping")',
+      );
     }
 
     let config: MappingConfig;
@@ -106,7 +117,8 @@ export class ImportV2Controller {
   @Post()
   @ApiOperation({
     summary: 'Start a bulk profile import',
-    description: 'Upload a CSV and mapping config. Returns a jobId for async processing.',
+    description:
+      'Upload a CSV and mapping config. Returns a jobId for async processing.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -114,7 +126,10 @@ export class ImportV2Controller {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary', description: 'CSV file' },
-        mapping: { type: 'string', description: 'MappingConfig as JSON string' },
+        mapping: {
+          type: 'string',
+          description: 'MappingConfig as JSON string',
+        },
       },
       required: ['file', 'mapping'],
     },
@@ -129,14 +144,22 @@ export class ImportV2Controller {
   @UseInterceptors(FileInterceptor('file'))
   async startImport(
     @Agent() agent: any,
-    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    @UploadedFile()
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+      size: number;
+    },
     @Body('mapping') mappingJson: string,
   ) {
     if (!file) {
       throw new BadRequestException('A CSV file is required (field: "file")');
     }
     if (!mappingJson) {
-      throw new BadRequestException('A mapping config is required (field: "mapping")');
+      throw new BadRequestException(
+        'A mapping config is required (field: "mapping")',
+      );
     }
 
     let config: MappingConfig;
@@ -164,21 +187,22 @@ export class ImportV2Controller {
         config: config as any,
       };
 
-      await this.importQueue.add(
-        'bulk-import:process',
-        jobData,
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: { count: 100 },
-          removeOnFail: { count: 50 },
-        },
-      );
+      await this.importQueue.add('bulk-import:process', jobData, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 50 },
+      });
 
       this.logger.log(`Queued bulk-import-v2 job: ${jobId}`);
     } else {
-      this.logger.warn('Redis not available — import job created but not enqueued');
-      this.jobService.failJob(jobId, 'Redis is not configured; async processing unavailable');
+      this.logger.warn(
+        'Redis not available — import job created but not enqueued',
+      );
+      this.jobService.failJob(
+        jobId,
+        'Redis is not configured; async processing unavailable',
+      );
     }
 
     return { jobId, status: 'PROCESSING' };

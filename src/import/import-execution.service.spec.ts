@@ -30,7 +30,12 @@ Bob Smith,PERSON,bob@example.com,Potential partner,3`;
   const config: MappingConfig = {
     profileMapping: { name: 'name', type: 'type' },
     attributeMapping: [
-      { key: 'email', column: 'email', valueType: 'EMAIL' as any, category: 'contact' },
+      {
+        key: 'email',
+        column: 'email',
+        valueType: 'EMAIL' as any,
+        category: 'contact',
+      },
     ],
     memoryMapping: { content: 'notes', importance: 'priority' },
   };
@@ -154,14 +159,18 @@ Bob Smith,PERSON,bob@example.com,Potential partner,3`;
       entityProfile: {
         create: jest.fn().mockResolvedValue({ id: 'profile-1' }),
       },
-      entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      entityAttribute: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       memory: { create: jest.fn().mockResolvedValue({ id: 'memory-1' }) },
       entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
     });
 
     beforeEach(() => {
       seedJob();
-      mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(makeTxMock()));
+      mockPrisma.$transaction.mockImplementation(async (fn: any) =>
+        fn(makeTxMock()),
+      );
     });
 
     it('creates profiles, attributes, and memories for valid rows', async () => {
@@ -251,7 +260,9 @@ Bob,PERSON,bob@example.com,another good row,2`;
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const tx = {
           entityProfile: { create: jest.fn().mockResolvedValue({ id: 'p1' }) },
-          entityAttribute: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          entityAttribute: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
           memory: { create: jest.fn().mockResolvedValue({ id: 'm1' }) },
           entityProfileMemory: { create: jest.fn().mockResolvedValue({}) },
         };
@@ -261,7 +272,9 @@ Bob,PERSON,bob@example.com,another good row,2`;
       await service.processJob({
         jobId,
         userId: 'user-1',
-        fileBase64: Buffer.from(`name,type,notes\nAlice,PERSON,test`).toString('base64'),
+        fileBase64: Buffer.from(`name,type,notes\nAlice,PERSON,test`).toString(
+          'base64',
+        ),
         config: {
           profileMapping: { name: 'name', type: 'type' },
           memoryMapping: { content: 'notes' },

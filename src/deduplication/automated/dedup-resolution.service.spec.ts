@@ -3,15 +3,17 @@ import { DedupResolutionService } from './dedup-resolution.service';
 import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { SafetyService } from '../safety.service';
 
-const makeMemory = (overrides: Partial<{
-  id: string;
-  raw: string;
-  importanceScore: number;
-  userId: string;
-  createdAt: Date;
-  safetyCritical: boolean;
-  memoryType: string | null;
-}> = {}) => ({
+const makeMemory = (
+  overrides: Partial<{
+    id: string;
+    raw: string;
+    importanceScore: number;
+    userId: string;
+    createdAt: Date;
+    safetyCritical: boolean;
+    memoryType: string | null;
+  }> = {},
+) => ({
   id: 'mem-1',
   raw: 'Test memory content',
   importanceScore: 0.5,

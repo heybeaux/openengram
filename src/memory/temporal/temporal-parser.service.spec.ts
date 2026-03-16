@@ -257,7 +257,9 @@ describe('TemporalParserService', () => {
       // Window should be 6 months back from NOW
       const sixMonthsAgo = new Date(NOW);
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      expect(result.temporalFilter!.start.getMonth()).toBe(sixMonthsAgo.getMonth());
+      expect(result.temporalFilter!.start.getMonth()).toBe(
+        sixMonthsAgo.getMonth(),
+      );
     });
 
     it('should detect "2 years ago"', () => {
@@ -266,7 +268,9 @@ describe('TemporalParserService', () => {
       expect(result.temporalFilter!.expression).toBe('2 years ago');
       const twoYearsAgo = new Date(NOW);
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-      expect(result.temporalFilter!.start.getFullYear()).toBe(twoYearsAgo.getFullYear());
+      expect(result.temporalFilter!.start.getFullYear()).toBe(
+        twoYearsAgo.getFullYear(),
+      );
     });
 
     it('should detect "years ago" without number', () => {
@@ -276,7 +280,9 @@ describe('TemporalParserService', () => {
       // Should cover 1-3 years range
       const threeYearsAgo = new Date(NOW);
       threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-      expect(result.temporalFilter!.start.getFullYear()).toBe(threeYearsAgo.getFullYear());
+      expect(result.temporalFilter!.start.getFullYear()).toBe(
+        threeYearsAgo.getFullYear(),
+      );
     });
 
     it('should detect "3 weeks ago"', () => {

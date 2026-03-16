@@ -72,8 +72,13 @@ export class ApiKeyOrJwtGuard implements CanActivate {
         request.agent = defaultAgent;
 
         // Resolve user — account-scoped (not agent-scoped)
-        const externalUserId = request.headers['x-am-user-id'] as string | undefined;
-        const user = await this.findOrCreateUser(instanceKey.accountId, externalUserId ?? null);
+        const externalUserId = request.headers['x-am-user-id'] as
+          | string
+          | undefined;
+        const user = await this.findOrCreateUser(
+          instanceKey.accountId,
+          externalUserId ?? null,
+        );
         request.user = user;
         return true;
       }
@@ -98,7 +103,9 @@ export class ApiKeyOrJwtGuard implements CanActivate {
       this.isLocalIp(request)
     ) {
       // LAN bypass: use header if provided, otherwise default to first user
-      const externalUserId = request.headers['x-am-user-id'] as string | undefined;
+      const externalUserId = request.headers['x-am-user-id'] as
+        | string
+        | undefined;
       const internalUserId = request.headers['x-user-id'] as string | undefined;
 
       const agent = await this.prisma.agent.findFirst({

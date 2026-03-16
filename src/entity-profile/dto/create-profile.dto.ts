@@ -40,7 +40,10 @@ export class CreateProfileDto {
   @IsString({ each: true })
   aliases?: string[];
 
-  @ApiPropertyOptional({ description: 'Tags for categorization', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Tags for categorization',
+    type: [String],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

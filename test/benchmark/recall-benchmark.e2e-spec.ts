@@ -71,9 +71,7 @@ describe('Recall Benchmark', () => {
   /**
    * Execute a single recall query through the HTTP API.
    */
-  async function executeQuery(
-    query: GoldQuery,
-  ): Promise<string[]> {
+  async function executeQuery(query: GoldQuery): Promise<string[]> {
     const user = userMap.get(query.user);
     if (!user) {
       throw new Error(`Unknown fixture user: ${query.user}`);
@@ -195,7 +193,9 @@ describe('Recall Benchmark', () => {
         );
         if (zeroHitQueries.length > 0) {
           const ids = zeroHitQueries.map((q) => q.queryId).join(', ');
-          console.warn(`⚠️  Zero-hit queries (${zeroHitQueries.length}): ${ids}`);
+          console.warn(
+            `⚠️  Zero-hit queries (${zeroHitQueries.length}): ${ids}`,
+          );
         }
       } else {
         // With cached embeddings, just log the baseline

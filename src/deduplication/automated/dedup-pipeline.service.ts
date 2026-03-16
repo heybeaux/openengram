@@ -3,9 +3,15 @@ import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { CandidateDetectionService, DetectionStats } from './candidate-detection.service';
+import {
+  CandidateDetectionService,
+  DetectionStats,
+} from './candidate-detection.service';
 import { DedupClassificationService } from './dedup-classification.service';
-import { DedupResolutionService, ResolutionStats } from './dedup-resolution.service';
+import {
+  DedupResolutionService,
+  ResolutionStats,
+} from './dedup-resolution.service';
 import {
   DEDUP_AUTO_DETECTION_QUEUE,
   DEDUP_AUTO_JOBS,
@@ -63,7 +69,9 @@ export class DedupPipelineService implements OnModuleInit {
   @Cron('0 4 * * *', { name: 'dedup-pipeline-daily' })
   async handleDailyCron(): Promise<void> {
     if (!this.isPipelineEnabled()) {
-      this.logger.log('[DedupPipeline] Cron fired but pipeline is disabled — skipping');
+      this.logger.log(
+        '[DedupPipeline] Cron fired but pipeline is disabled — skipping',
+      );
       return;
     }
     this.logger.log('[DedupPipeline] Daily cron triggered');

@@ -433,8 +433,18 @@ describe('ReviewService', () => {
 
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([oldCandidate]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       mockPrisma.mergeCandidate.findUnique.mockResolvedValue(oldCandidate);
       mockMerge.merge.mockResolvedValue({
@@ -469,8 +479,18 @@ describe('ReviewService', () => {
 
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { isProtected: true, canAutoMerge: false, requiresReview: true, reasons: [{ type: 'PROTECTED_TYPE' }] },
-        { isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          isProtected: true,
+          canAutoMerge: false,
+          requiresReview: true,
+          reasons: [{ type: 'PROTECTED_TYPE' }],
+        },
+        {
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
 
       const result = await service.processBacklog();
@@ -495,8 +515,18 @@ describe('ReviewService', () => {
 
       mockPrisma.mergeCandidate.findMany.mockResolvedValue([candidate]);
       mockSafety.checkMultipleSafety.mockResolvedValue([
-        { isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
-        { isProtected: false, canAutoMerge: true, requiresReview: false, reasons: [] },
+        {
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
+        {
+          isProtected: false,
+          canAutoMerge: true,
+          requiresReview: false,
+          reasons: [],
+        },
       ]);
       // approve throws (e.g., memory deleted)
       mockPrisma.mergeCandidate.findUnique.mockResolvedValue(candidate);

@@ -183,10 +183,7 @@ export class AttachmentPipelineService {
    * Attach entity profiles to multiple memories efficiently.
    * Batch-loads profiles once, reuses for all memories.
    */
-  async attachBatch(
-    memoryIds: string[],
-    userId: string,
-  ): Promise<BatchResult> {
+  async attachBatch(memoryIds: string[], userId: string): Promise<BatchResult> {
     if (!memoryIds.length) {
       return { processed: 0, failed: 0, totalAttached: 0, results: [] };
     }
@@ -229,10 +226,7 @@ export class AttachmentPipelineService {
    *
    * "Unattached" = memory has no EntityProfileMemory records at all.
    */
-  async scanRecentUnattached(
-    userId: string,
-    limit = 50,
-  ): Promise<BatchResult> {
+  async scanRecentUnattached(userId: string, limit = 50): Promise<BatchResult> {
     // Find memories with no entity profile attachments
     const memories = await this.prisma.memory.findMany({
       where: {

@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AttributeType } from '@prisma/client';
@@ -8,7 +14,9 @@ export class ProfileMappingDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'CSV column name or static EntityType value (e.g. PERSON)' })
+  @ApiPropertyOptional({
+    description: 'CSV column name or static EntityType value (e.g. PERSON)',
+  })
   @IsOptional()
   @IsString()
   type?: string;
@@ -28,7 +36,10 @@ export class AttributeMappingItemDto {
   @IsString()
   column: string;
 
-  @ApiPropertyOptional({ enum: AttributeType, description: 'Attribute value type' })
+  @ApiPropertyOptional({
+    enum: AttributeType,
+    description: 'Attribute value type',
+  })
   @IsOptional()
   @IsEnum(AttributeType)
   valueType?: AttributeType;
@@ -45,7 +56,9 @@ export class MemoryMappingDto {
   @IsString()
   content?: string;
 
-  @ApiPropertyOptional({ description: 'CSV column or static numeric value for importance (1–5)' })
+  @ApiPropertyOptional({
+    description: 'CSV column or static numeric value for importance (1–5)',
+  })
   @IsOptional()
   @IsString()
   importance?: string;

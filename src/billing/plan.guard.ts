@@ -9,10 +9,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PlanService } from './plan.service';
 import { PlanType, PLAN_DEFAULTS, PAID_PLANS } from './plan.types';
-import {
-  REQUIRES_PLAN_KEY,
-  REQUIRES_FEATURE_KEY,
-} from './plan.decorators';
+import { REQUIRES_PLAN_KEY, REQUIRES_FEATURE_KEY } from './plan.decorators';
 
 export interface UpgradeRequiredBody {
   error: 'upgrade_required';
@@ -58,10 +55,9 @@ export class PlanGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    const requiredFeature = this.reflector.getAllAndOverride<string | undefined>(
-      REQUIRES_FEATURE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredFeature = this.reflector.getAllAndOverride<
+      string | undefined
+    >(REQUIRES_FEATURE_KEY, [context.getHandler(), context.getClass()]);
 
     // No billing metadata — allow through
     if (!requiredPlan && !requiredFeature) {
@@ -122,10 +118,7 @@ export class PlanGuard implements CanActivate {
     return true;
   }
 
-  private throwUpgradeRequired(
-    requiredPlan: PlanType,
-    message: string,
-  ): never {
+  private throwUpgradeRequired(requiredPlan: PlanType, message: string): never {
     const body: UpgradeRequiredBody = {
       error: 'upgrade_required',
       requiredPlan,

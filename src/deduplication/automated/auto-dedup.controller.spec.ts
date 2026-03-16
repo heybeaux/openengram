@@ -4,8 +4,16 @@ import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { DedupPipelineService } from './dedup-pipeline.service';
 import { ApiKeyOrJwtGuard } from '../../common/guards/api-key-or-jwt.guard';
 
-const mockMemory1 = { id: 'mem-1', raw: 'Memory one content', importanceScore: 0.8 };
-const mockMemory2 = { id: 'mem-2', raw: 'Memory two content', importanceScore: 0.7 };
+const mockMemory1 = {
+  id: 'mem-1',
+  raw: 'Memory one content',
+  importanceScore: 0.8,
+};
+const mockMemory2 = {
+  id: 'mem-2',
+  raw: 'Memory two content',
+  importanceScore: 0.7,
+};
 
 const mockCandidate = {
   id: 'candidate-1',
@@ -140,7 +148,11 @@ describe('AutoDedupController', () => {
           reasoning: 'Human action — merge',
         },
       });
-      expect(result).toEqual({ success: true, id: 'candidate-1', action: 'merge' });
+      expect(result).toEqual({
+        success: true,
+        id: 'candidate-1',
+        action: 'merge',
+      });
     });
 
     it('should include notes in reasoning when provided', async () => {
@@ -195,8 +207,12 @@ describe('AutoDedupController', () => {
       const after = new Date();
 
       const callData = mockPrisma.dedupCandidate.update.mock.calls[0][0].data;
-      expect(callData.resolvedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(callData.resolvedAt.getTime()).toBeLessThanOrEqual(after.getTime());
+      expect(callData.resolvedAt.getTime()).toBeGreaterThanOrEqual(
+        before.getTime(),
+      );
+      expect(callData.resolvedAt.getTime()).toBeLessThanOrEqual(
+        after.getTime(),
+      );
     });
   });
 
@@ -205,11 +221,11 @@ describe('AutoDedupController', () => {
   describe('getPipelineStats()', () => {
     it('should return pipeline statistics with correct counts', async () => {
       mockPrisma.dedupCandidate.count
-        .mockResolvedValueOnce(10)  // pending
-        .mockResolvedValueOnce(25)  // classified
-        .mockResolvedValueOnce(15)  // resolved
-        .mockResolvedValueOnce(50)  // total
-        .mockResolvedValueOnce(8);  // reviewQueueDepth
+        .mockResolvedValueOnce(10) // pending
+        .mockResolvedValueOnce(25) // classified
+        .mockResolvedValueOnce(15) // resolved
+        .mockResolvedValueOnce(50) // total
+        .mockResolvedValueOnce(8); // reviewQueueDepth
       mockPrisma.dedupCandidate.groupBy.mockResolvedValue([
         { classification: 'DUPLICATE', _count: { id: 20 } },
       ]);
@@ -227,11 +243,11 @@ describe('AutoDedupController', () => {
 
     it('should calculate merge rate as percentage of resolved/total', async () => {
       mockPrisma.dedupCandidate.count
-        .mockResolvedValueOnce(0)   // pending
-        .mockResolvedValueOnce(0)   // classified
-        .mockResolvedValueOnce(30)  // resolved
+        .mockResolvedValueOnce(0) // pending
+        .mockResolvedValueOnce(0) // classified
+        .mockResolvedValueOnce(30) // resolved
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(0);  // reviewQueueDepth
+        .mockResolvedValueOnce(0); // reviewQueueDepth
       mockPrisma.dedupCandidate.groupBy.mockResolvedValue([]);
 
       const result = await controller.getPipelineStats();
@@ -255,8 +271,14 @@ describe('AutoDedupController', () => {
 
       const result = await controller.getPipelineStats();
 
-      expect(result.classifications).toContainEqual({ type: 'DUPLICATE', count: 7 });
-      expect(result.classifications).toContainEqual({ type: 'SIMILAR', count: 3 });
+      expect(result.classifications).toContainEqual({
+        type: 'DUPLICATE',
+        count: 7,
+      });
+      expect(result.classifications).toContainEqual({
+        type: 'SIMILAR',
+        count: 3,
+      });
     });
   });
 
@@ -295,7 +317,9 @@ describe('AutoDedupController', () => {
     it('should propagate errors from pipeline run', async () => {
       mockPipeline.runPipeline.mockRejectedValue(new Error('Pipeline failure'));
 
-      await expect(controller.triggerPipelineRun()).rejects.toThrow('Pipeline failure');
+      await expect(controller.triggerPipelineRun()).rejects.toThrow(
+        'Pipeline failure',
+      );
     });
   });
 });

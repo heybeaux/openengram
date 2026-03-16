@@ -130,10 +130,9 @@ export class PgVectorEnsembleProvider {
     const embeddingStr = `[${options.embedding.join(',')}]`;
     const dimensions = options.embedding.length;
 
-    const results = await this.prisma.$transaction(
-      async (tx) =>
-        tx.$queryRawUnsafe<Array<{ memory_id: string; score: number }>>(
-          `
+    const results = await this.prisma.$transaction(async (tx) =>
+      tx.$queryRawUnsafe<Array<{ memory_id: string; score: number }>>(
+        `
       SELECT
         me.memory_id,
         1 - (me.embedding <=> $1::vector) as score
@@ -147,12 +146,12 @@ export class PgVectorEnsembleProvider {
       ORDER BY me.embedding <=> $1::vector
       LIMIT $5
       `,
-          embeddingStr,
-          options.modelId,
-          dimensions,
-          options.userId,
-          options.limit,
-        ),
+        embeddingStr,
+        options.modelId,
+        dimensions,
+        options.userId,
+        options.limit,
+      ),
     );
 
     return results.map((r) => ({

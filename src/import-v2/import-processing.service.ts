@@ -9,7 +9,12 @@ import {
   ImportStats,
   RowError,
 } from '../import/import.types';
-import { AttachMethod, MemoryLayer, MemorySource, EmbeddingStatus } from '@prisma/client';
+import {
+  AttachMethod,
+  MemoryLayer,
+  MemorySource,
+  EmbeddingStatus,
+} from '@prisma/client';
 
 export interface ProcessingResult {
   stats: ImportStats;
@@ -61,7 +66,11 @@ export class ImportProcessingService {
     }
 
     const total = records.length;
-    const stats: ImportStats = { profileCount: 0, memoryCount: 0, errorCount: mappingErrors.length };
+    const stats: ImportStats = {
+      profileCount: 0,
+      memoryCount: 0,
+      errorCount: mappingErrors.length,
+    };
 
     if (total === 0) {
       this.jobService.completeJob(jobId, stats);
@@ -85,7 +94,9 @@ export class ImportProcessingService {
         processingErrors.push(rowErr);
         this.jobService.addError(jobId, rowErr);
         stats.errorCount += 1;
-        this.logger.warn(`Row ${record.rowNumber} failed: ${(err as Error).message}`);
+        this.logger.warn(
+          `Row ${record.rowNumber} failed: ${(err as Error).message}`,
+        );
       }
 
       // Update progress every 10 rows (or at the last row)

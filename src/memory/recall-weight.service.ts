@@ -63,16 +63,11 @@ export class RecallWeightService {
       usedCountMultiplier: parseFloat(
         this.config.get('USAGE_USED_COUNT_MULTIPLIER', '2'),
       ),
-      feedbackBoost: parseFloat(
-        this.config.get('USAGE_FEEDBACK_BOOST', '1.5'),
-      ),
+      feedbackBoost: parseFloat(this.config.get('USAGE_FEEDBACK_BOOST', '1.5')),
       feedbackPenalty: parseFloat(
         this.config.get('USAGE_FEEDBACK_PENALTY', '0.5'),
       ),
-      minRetrievals: parseInt(
-        this.config.get('USAGE_MIN_RETRIEVALS', '3'),
-        10,
-      ),
+      minRetrievals: parseInt(this.config.get('USAGE_MIN_RETRIEVALS', '3'), 10),
     };
   }
 
@@ -158,9 +153,10 @@ export class RecallWeightService {
 
     // Recency decay: exp(-lambda * days) where lambda = ln(2) / halfLife
     const lambda = Math.LN2 / recencyHalfLifeDays;
-    const lastUsedTime = memory.lastUsedAt?.getTime()
-      ?? memory.lastRetrievedAt?.getTime()
-      ?? memory.createdAt.getTime();
+    const lastUsedTime =
+      memory.lastUsedAt?.getTime() ??
+      memory.lastRetrievedAt?.getTime() ??
+      memory.createdAt.getTime();
     const daysSinceUse = (now - lastUsedTime) / DAY_MS;
     const recencyDecay = Math.exp(-lambda * daysSinceUse);
 
@@ -186,7 +182,14 @@ export class RecallWeightService {
    */
   async applyUsageWeighting(
     memories: Array<{ id: string; score: number; [key: string]: any }>,
-  ): Promise<Array<{ id: string; score: number; usageBoost?: number; [key: string]: any }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      score: number;
+      usageBoost?: number;
+      [key: string]: any;
+    }>
+  > {
     if (this.usageConfig.usageWeight === 0) return memories;
     if (memories.length === 0) return memories;
 
@@ -250,9 +253,7 @@ export class RecallWeightService {
       for (const fb of feedbacks) {
         const prev = result.get(fb.memoryId)?.netPositive ?? 0;
         const delta =
-          fb.wasHelpful === true
-            ? fb._count.wasHelpful
-            : -fb._count.wasHelpful;
+          fb.wasHelpful === true ? fb._count.wasHelpful : -fb._count.wasHelpful;
         result.set(fb.memoryId, { netPositive: prev + delta });
       }
     } catch (error) {

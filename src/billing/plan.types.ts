@@ -65,6 +65,7 @@ export const PAID_PLANS: PlanType[] = [PlanType.TEAM, PlanType.BUSINESS];
 /** Human-readable plan descriptions */
 export const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
   [PlanType.DEVELOPER]: 'Local-only, single user, full API access — Free',
-  [PlanType.TEAM]: 'Cloud sync, team features, unlimited profiles — $49/mo + $15/seat',
+  [PlanType.TEAM]:
+    'Cloud sync, team features, unlimited profiles — $49/mo + $15/seat',
   [PlanType.BUSINESS]: 'SSO, dedicated support, SLA — Custom pricing',
 };

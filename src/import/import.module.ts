@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { CsvParserService } from './csv-parser.service';
 import { ImportMappingService } from './import-mapping.service';
-import { ImportExecutionService, BULK_IMPORT_QUEUE } from './import-execution.service';
+import {
+  ImportExecutionService,
+  BULK_IMPORT_QUEUE,
+} from './import-execution.service';
 import { ImportJobService } from './import-job.service';
 import { ImportController } from './import.controller';
 import { BulkImportProcessor } from './bulk-import.processor';

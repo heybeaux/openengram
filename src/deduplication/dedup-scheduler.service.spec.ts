@@ -81,7 +81,9 @@ describe('DedupSchedulerService', () => {
         ],
       }).compile();
 
-      const disabledService = module.get<DedupSchedulerService>(DedupSchedulerService);
+      const disabledService = module.get<DedupSchedulerService>(
+        DedupSchedulerService,
+      );
 
       await disabledService.handleScheduledDedup();
 
@@ -135,7 +137,9 @@ describe('DedupSchedulerService', () => {
         ],
       }).compile();
 
-      const disabledService = module.get<DedupSchedulerService>(DedupSchedulerService);
+      const disabledService = module.get<DedupSchedulerService>(
+        DedupSchedulerService,
+      );
       mockPrisma.mergeCandidate.count.mockResolvedValue(5000);
 
       await disabledService.handleBacklogDrain();

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  BadRequestException,
+  CanActivate,
+  ExecutionContext,
+} from '@nestjs/common';
 import { ImportV2Controller } from './import-v2.controller';
 import { ImportPreviewService } from './import-preview.service';
 import { ImportJobService } from '../import/import-job.service';
@@ -50,7 +54,9 @@ interface MockFile {
   size: number;
 }
 
-const buildFile = (content = 'name,email\nAlice,alice@example.com'): MockFile => ({
+const buildFile = (
+  content = 'name,email\nAlice,alice@example.com',
+): MockFile => ({
   buffer: Buffer.from(content),
   originalname: 'import.csv',
   mimetype: 'text/csv',
@@ -80,7 +86,13 @@ describe('ImportV2Controller', () => {
 
     const previewResult: PreviewResult = {
       profiles: [
-        { rowNumber: 2, name: 'Alice', type: 'PERSON' as any, attributeCount: 1, hasMemory: false },
+        {
+          rowNumber: 2,
+          name: 'Alice',
+          type: 'PERSON' as any,
+          attributeCount: 1,
+          hasMemory: false,
+        },
       ],
       memories: [],
       errors: [],
@@ -109,7 +121,10 @@ describe('ImportV2Controller', () => {
   describe('POST /v1/profiles/import/preview', () => {
     it('returns preview result for valid input', async () => {
       const file = buildFile();
-      const result = await controller.preview(file as any, JSON.stringify(BASE_MAPPING));
+      const result = await controller.preview(
+        file as any,
+        JSON.stringify(BASE_MAPPING),
+      );
 
       expect(mockPreviewService.preview).toHaveBeenCalledWith(
         file.buffer,
@@ -147,7 +162,10 @@ describe('ImportV2Controller', () => {
     it('does NOT call preview service if validation fails', async () => {
       const badMapping = { profileMapping: {} };
       try {
-        await controller.preview(buildFile() as any, JSON.stringify(badMapping));
+        await controller.preview(
+          buildFile() as any,
+          JSON.stringify(badMapping),
+        );
       } catch {
         // expected
       }
@@ -183,7 +201,11 @@ describe('ImportV2Controller', () => {
       const csvContent = 'name,email\nBob,bob@example.com';
       const file = buildFile(csvContent);
 
-      await controller.startImport(AGENT, file as any, JSON.stringify(BASE_MAPPING));
+      await controller.startImport(
+        AGENT,
+        file as any,
+        JSON.stringify(BASE_MAPPING),
+      );
 
       const [, jobData] = mockQueue.add.mock.calls[0];
       expect(jobData.fileBase64).toBe(file.buffer.toString('base64'));
@@ -193,7 +215,11 @@ describe('ImportV2Controller', () => {
 
     it('throws BadRequestException when file is missing', async () => {
       await expect(
-        controller.startImport(AGENT, undefined as any, JSON.stringify(BASE_MAPPING)),
+        controller.startImport(
+          AGENT,
+          undefined as any,
+          JSON.stringify(BASE_MAPPING),
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -226,7 +252,9 @@ describe('ImportV2Controller', () => {
         throw new NotFoundException('Job not found');
       });
 
-      await expect(controller.getJobStatus('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(controller.getJobStatus('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

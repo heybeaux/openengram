@@ -14,12 +14,14 @@ const ACCOUNT_ID = 'test_account_001';
 const AGENT_ID = 'test_agent_001';
 
 /** Factory for a fake HealthMetricsService.compute() response */
-function makeHealthReport(overrides: {
-  embeddingPct?: number;
-  dupPct?: number;
-  stalePct?: number;
-  dreamMins?: number | null;
-} = {}) {
+function makeHealthReport(
+  overrides: {
+    embeddingPct?: number;
+    dupPct?: number;
+    stalePct?: number;
+    dreamMins?: number | null;
+  } = {},
+) {
   const {
     embeddingPct = 92,
     dupPct = 4,
@@ -223,10 +225,16 @@ describe('HealthSnapshotService', () => {
     expect(history[0].value).toBe(88);
 
     // Verify the query filters by accountId, metricName, and date range
-    const [{ where }] =
-      mockPrisma.healthMetricSnapshot.findMany.mock.calls[0] as [
-        { where: { accountId: string; metricName: string; createdAt: { gte: Date } } },
-      ];
+    const [{ where }] = mockPrisma.healthMetricSnapshot.findMany.mock
+      .calls[0] as [
+      {
+        where: {
+          accountId: string;
+          metricName: string;
+          createdAt: { gte: Date };
+        };
+      },
+    ];
     expect(where.accountId).toBe(ACCOUNT_ID);
     expect(where.metricName).toBe('embedding_coverage');
     expect(where.createdAt?.gte).toBeInstanceOf(Date);
@@ -275,9 +283,9 @@ describe('HealthSnapshotService', () => {
   it('takeSnapshot() correctly derives scores from raw metric values', async () => {
     mockHealthMetrics.compute.mockResolvedValue(
       makeHealthReport({
-        embeddingPct: 90,   // embedding_coverage → 90
-        dupPct: 10,         // dedup_health → 100 - 10 = 90
-        stalePct: 25,       // memory_freshness → 100 - 25 = 75
+        embeddingPct: 90, // embedding_coverage → 90
+        dupPct: 10, // dedup_health → 100 - 10 = 90
+        stalePct: 25, // memory_freshness → 100 - 25 = 75
         dreamMins: 30 * 60, // 30h → yellow → 65
       }),
     );

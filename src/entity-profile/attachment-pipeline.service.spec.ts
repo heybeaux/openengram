@@ -69,7 +69,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should attach mention-detected profiles with AUTO_MENTION', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice Smith', matchType: 'exact', confidence: 1.0 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice Smith',
+          matchType: 'exact',
+          confidence: 1.0,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([]);
 
@@ -97,7 +102,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should prefer AUTO_MENTION over AUTO_SEMANTIC for same profile', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice', matchType: 'alias', confidence: 0.9 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice',
+          matchType: 'alias',
+          confidence: 0.9,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([
         { profileId: 'p1', similarity: 0.8 },
@@ -112,7 +122,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should skip profiles that are already attached (deduplication)', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice', matchType: 'exact', confidence: 1.0 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice',
+          matchType: 'exact',
+          confidence: 1.0,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([]);
 
@@ -130,7 +145,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should filter mentions below confidence threshold', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice', matchType: 'normalized', confidence: 0.5 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice',
+          matchType: 'normalized',
+          confidence: 0.5,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([]);
 
@@ -157,7 +177,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should handle semantic matching errors gracefully', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice', matchType: 'exact', confidence: 1.0 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice',
+          matchType: 'exact',
+          confidence: 1.0,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockRejectedValue(
         new Error('Embed server down'),
@@ -183,7 +208,12 @@ describe('AttachmentPipelineService', () => {
 
     it('should call createMany with correct data', async () => {
       mockMentionService.detectMentions.mockResolvedValue([
-        { profileId: 'p1', matchedText: 'Alice', matchType: 'exact', confidence: 1.0 },
+        {
+          profileId: 'p1',
+          matchedText: 'Alice',
+          matchType: 'exact',
+          confidence: 1.0,
+        },
       ]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([
         { profileId: 'p2', similarity: 0.82 },
@@ -225,7 +255,12 @@ describe('AttachmentPipelineService', () => {
       mockPrisma.entityProfileMemory.createMany.mockResolvedValue({ count: 1 });
       mockMentionService.detectMentions
         .mockResolvedValueOnce([
-          { profileId: 'p1', matchedText: 'Alice', matchType: 'exact', confidence: 1.0 },
+          {
+            profileId: 'p1',
+            matchedText: 'Alice',
+            matchType: 'exact',
+            confidence: 1.0,
+          },
         ])
         .mockResolvedValueOnce([]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([]);
@@ -241,7 +276,10 @@ describe('AttachmentPipelineService', () => {
 
   describe('onMemoryCreated', () => {
     it('should call attachMemory and not throw on error', async () => {
-      mockPrisma.memory.findFirst.mockResolvedValue({ id: 'mem-1', raw: 'text' });
+      mockPrisma.memory.findFirst.mockResolvedValue({
+        id: 'mem-1',
+        raw: 'text',
+      });
       mockMentionService.detectMentions.mockResolvedValue([]);
       mockSemanticService.findSemanticMatches.mockResolvedValue([]);
 

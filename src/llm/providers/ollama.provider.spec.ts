@@ -47,7 +47,11 @@ describe('OllamaProvider', () => {
     });
 
     it('should use custom baseUrl when provided', () => {
-      const p = new OllamaProvider({ provider: 'ollama', model: 'llama3.2', baseUrl: 'http://my-gpu-box:11434' });
+      const p = new OllamaProvider({
+        provider: 'ollama',
+        model: 'llama3.2',
+        baseUrl: 'http://my-gpu-box:11434',
+      });
       expect((p as any).baseUrl).toBe('http://my-gpu-box:11434');
     });
 
@@ -104,10 +108,17 @@ describe('OllamaProvider', () => {
 
     it('should use options.model when provided', async () => {
       mockFetch.mockResolvedValue(
-        makeOkResponse({ message: { content: 'ok' }, model: 'mistral', prompt_eval_count: 1, eval_count: 1 }),
+        makeOkResponse({
+          message: { content: 'ok' },
+          model: 'mistral',
+          prompt_eval_count: 1,
+          eval_count: 1,
+        }),
       );
 
-      await provider.chat([{ role: 'user', content: 'test' }], { model: 'mistral' });
+      await provider.chat([{ role: 'user', content: 'test' }], {
+        model: 'mistral',
+      });
 
       const bodyStr = mockFetch.mock.calls[0][1].body;
       expect(JSON.parse(bodyStr).model).toBe('mistral');
@@ -115,10 +126,17 @@ describe('OllamaProvider', () => {
 
     it('should use options.temperature when provided', async () => {
       mockFetch.mockResolvedValue(
-        makeOkResponse({ message: { content: 'ok' }, model: 'llama3.2', prompt_eval_count: 0, eval_count: 0 }),
+        makeOkResponse({
+          message: { content: 'ok' },
+          model: 'llama3.2',
+          prompt_eval_count: 0,
+          eval_count: 0,
+        }),
       );
 
-      await provider.chat([{ role: 'user', content: 'test' }], { temperature: 0.0 });
+      await provider.chat([{ role: 'user', content: 'test' }], {
+        temperature: 0.0,
+      });
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.options.temperature).toBe(0.0);
@@ -126,7 +144,12 @@ describe('OllamaProvider', () => {
 
     it('should default temperature to 0.7', async () => {
       mockFetch.mockResolvedValue(
-        makeOkResponse({ message: { content: '' }, model: 'llama3.2', prompt_eval_count: 0, eval_count: 0 }),
+        makeOkResponse({
+          message: { content: '' },
+          model: 'llama3.2',
+          prompt_eval_count: 0,
+          eval_count: 0,
+        }),
       );
 
       await provider.chat([{ role: 'user', content: 'test' }]);
@@ -148,7 +171,11 @@ describe('OllamaProvider', () => {
 
     it('should handle empty message content', async () => {
       mockFetch.mockResolvedValue(
-        makeOkResponse({ model: 'llama3.2', prompt_eval_count: 0, eval_count: 0 }),
+        makeOkResponse({
+          model: 'llama3.2',
+          prompt_eval_count: 0,
+          eval_count: 0,
+        }),
       );
 
       const result = await provider.chat([{ role: 'user', content: 'test' }]);
@@ -156,7 +183,9 @@ describe('OllamaProvider', () => {
     });
 
     it('should throw on HTTP error response', async () => {
-      mockFetch.mockResolvedValue(makeErrorResponse(500, 'Internal Server Error'));
+      mockFetch.mockResolvedValue(
+        makeErrorResponse(500, 'Internal Server Error'),
+      );
 
       await expect(
         provider.chat([{ role: 'user', content: 'test' }]),
@@ -266,7 +295,9 @@ describe('OllamaProvider', () => {
     });
 
     it('should throw on HTTP error', async () => {
-      mockFetch.mockResolvedValue(makeErrorResponse(503, 'service unavailable'));
+      mockFetch.mockResolvedValue(
+        makeErrorResponse(503, 'service unavailable'),
+      );
 
       await expect(
         provider.json([{ role: 'user', content: 'test' }]),
@@ -281,9 +312,7 @@ describe('OllamaProvider', () => {
   describe('embed()', () => {
     it('should return embedding, model, and dimensions', async () => {
       const embedding = [0.1, 0.2, 0.3, 0.4];
-      mockFetch.mockResolvedValue(
-        makeOkResponse({ embedding }),
-      );
+      mockFetch.mockResolvedValue(makeOkResponse({ embedding }));
 
       const result = await provider.embed('hello world');
       expect(result.embedding).toEqual(embedding);
@@ -328,7 +357,11 @@ describe('OllamaProvider', () => {
     });
 
     it('should use custom baseUrl for embeddings', async () => {
-      const customProvider = new OllamaProvider({ provider: 'ollama', model: 'llama3.2', baseUrl: 'http://192.168.1.10:11434' });
+      const customProvider = new OllamaProvider({
+        provider: 'ollama',
+        model: 'llama3.2',
+        baseUrl: 'http://192.168.1.10:11434',
+      });
       mockFetch.mockResolvedValue(makeOkResponse({ embedding: [0.1] }));
 
       await customProvider.embed('test');

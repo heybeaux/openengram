@@ -43,7 +43,8 @@ export class HybridSearchService {
       minTextScore: parseFloat(
         this.configService.get('HYBRID_MIN_TEXT_SCORE', '0.01'),
       ),
-      enableFuzzy: this.configService.get('HYBRID_FUZZY_ENABLED', 'true') !== 'false',
+      enableFuzzy:
+        this.configService.get('HYBRID_FUZZY_ENABLED', 'true') !== 'false',
     };
 
     this.logger.log(
@@ -75,7 +76,9 @@ export class HybridSearchService {
       params.push(userIds[0]);
       paramIndex++;
     } else {
-      const placeholders = userIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      const placeholders = userIds
+        .map((_, i) => `$${paramIndex + i}`)
+        .join(', ');
       whereClause = `m.user_id IN (${placeholders}) AND m.deleted_at IS NULL`;
       params.push(...userIds);
       paramIndex += userIds.length;
@@ -150,7 +153,9 @@ export class HybridSearchService {
         Array<{ id: string; score: number }>
       >(sql, ...params);
 
-      this.logger.log(`[HybridSearch] text search: ${results.length} results for "${query.substring(0, 50)}"`);
+      this.logger.log(
+        `[HybridSearch] text search: ${results.length} results for "${query.substring(0, 50)}"`,
+      );
       return results.map((r) => ({ id: r.id, score: Number(r.score) }));
     } catch (error) {
       this.logger.warn(
@@ -237,7 +242,11 @@ export class HybridSearchService {
   classifyQuery(query: string): { vectorWeight: number; textWeight: number } {
     const words = query.split(/\s+/);
     const totalWords = words.length;
-    if (totalWords === 0) return { vectorWeight: this.config.vectorWeight, textWeight: this.config.textWeight };
+    if (totalWords === 0)
+      return {
+        vectorWeight: this.config.vectorWeight,
+        textWeight: this.config.textWeight,
+      };
 
     // Indicators of keyword-heavy queries
     let keywordSignals = 0;
@@ -246,7 +255,9 @@ export class HybridSearchService {
     if (totalWords <= 3) keywordSignals += 2;
 
     // ALL CAPS words (acronyms like MAP, OB, IV)
-    const capsWords = words.filter((w) => w.length >= 2 && w === w.toUpperCase() && /^[A-Z]+$/.test(w));
+    const capsWords = words.filter(
+      (w) => w.length >= 2 && w === w.toUpperCase() && /^[A-Z]+$/.test(w),
+    );
     keywordSignals += capsWords.length * 2;
 
     // Proper nouns (capitalized, not sentence start)

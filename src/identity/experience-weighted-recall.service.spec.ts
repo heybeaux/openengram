@@ -23,7 +23,9 @@ describe('ExperienceWeightedRecallService', () => {
       ],
     }).compile();
 
-    service = module.get<ExperienceWeightedRecallService>(ExperienceWeightedRecallService);
+    service = module.get<ExperienceWeightedRecallService>(
+      ExperienceWeightedRecallService,
+    );
   });
 
   // ─── calculateWeight (pure function, no DB) ───────────────────────────────
@@ -291,7 +293,12 @@ describe('ExperienceWeightedRecallService', () => {
   describe('getWeights()', () => {
     it('should return weights ordered by weight desc', async () => {
       const mockWeights = [
-        { category: 'deployment', successCount: 20, totalCount: 22, weight: 1.8 },
+        {
+          category: 'deployment',
+          successCount: 20,
+          totalCount: 22,
+          weight: 1.8,
+        },
         { category: 'testing', successCount: 5, totalCount: 6, weight: 1.3 },
       ];
       mockPrisma.experienceWeight.findMany.mockResolvedValue(mockWeights);

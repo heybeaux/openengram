@@ -46,7 +46,8 @@ describe('DelegationController', () => {
       .useValue({ canActivate: () => false })
       .compile();
 
-    const guardedController = module.get<DelegationController>(DelegationController);
+    const guardedController =
+      module.get<DelegationController>(DelegationController);
     expect(guardedController).toBeDefined();
   });
 

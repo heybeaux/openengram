@@ -27,7 +27,9 @@ export class BulkImportV2Processor extends WorkerHost {
   async process(job: Job<BulkImportV2JobData>): Promise<void> {
     const { jobId, userId, fileBase64, config } = job.data;
 
-    this.logger.log(`Processing bulk-import-v2 job: ${jobId} for user: ${userId}`);
+    this.logger.log(
+      `Processing bulk-import-v2 job: ${jobId} for user: ${userId}`,
+    );
 
     try {
       const fileBuffer = Buffer.from(fileBase64, 'base64');

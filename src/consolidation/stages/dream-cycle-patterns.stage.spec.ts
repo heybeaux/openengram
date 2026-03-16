@@ -1,4 +1,7 @@
-import { DreamCyclePatternsStage, PatternsStageResult } from './dream-cycle-patterns.stage';
+import {
+  DreamCyclePatternsStage,
+  PatternsStageResult,
+} from './dream-cycle-patterns.stage';
 import { ServicePrismaService } from '../../prisma/service-prisma.service';
 import { ConsolidationService } from '../../memory/consolidation.service';
 import { LLMService } from '../../llm/llm.service';
@@ -48,10 +51,12 @@ function makeStage(eventEmitter?: EventEmitter2): DreamCyclePatternsStage {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function makeClusterDetail(overrides: Partial<{
-  canonicalId: string;
-  duplicateIds: string[];
-}> = {}) {
+function makeClusterDetail(
+  overrides: Partial<{
+    canonicalId: string;
+    duplicateIds: string[];
+  }> = {},
+) {
   return {
     canonicalId: 'mem-1',
     duplicateIds: ['mem-2', 'mem-3'],
@@ -115,13 +120,18 @@ describe('DreamCyclePatternsStage', () => {
         clustersFound: 1,
         details: [makeClusterDetail()],
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst
         .mockResolvedValueOnce(null) // no existing pattern
         .mockResolvedValueOnce({ id: 'pattern-mem-1' }); // after create
       mockPrisma.memory.create.mockResolvedValue({ id: 'pattern-mem-1' });
       mockPrisma.memoryChainLink.create.mockResolvedValue({});
-      mockLLM.json.mockResolvedValue({ summary: 'User prefers mornings', confidence: 0.8 });
+      mockLLM.json.mockResolvedValue({
+        summary: 'User prefers mornings',
+        confidence: 0.8,
+      });
     });
 
     it('creates a pattern memory when confidence >= 0.6', async () => {
@@ -183,9 +193,14 @@ describe('DreamCyclePatternsStage', () => {
         clustersFound: 1,
         details: [makeClusterDetail()],
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst.mockResolvedValue(null);
-      mockLLM.json.mockResolvedValue({ summary: 'Weak pattern', confidence: 0.4 });
+      mockLLM.json.mockResolvedValue({
+        summary: 'Weak pattern',
+        confidence: 0.4,
+      });
 
       const result = await stage.run('user-1', false, 5);
 
@@ -204,7 +219,9 @@ describe('DreamCyclePatternsStage', () => {
         details: [makeClusterDetail()],
       });
       // Only 2 memories returned (below minSize of 3)
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2']),
+      );
       mockPrisma.memory.findFirst.mockResolvedValue(null);
 
       const result = await stage.run('user-1', false, 5);
@@ -218,7 +235,9 @@ describe('DreamCyclePatternsStage', () => {
         clustersFound: 1,
         details: [makeClusterDetail()],
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       // Existing pattern found
       mockPrisma.memory.findFirst.mockResolvedValue({ id: 'existing-pattern' });
 
@@ -229,14 +248,21 @@ describe('DreamCyclePatternsStage', () => {
     });
 
     it('respects LLM budget — stops after budget exhausted', async () => {
-      const details = [makeClusterDetail(), makeClusterDetail({ canonicalId: 'mem-4', duplicateIds: ['mem-5', 'mem-6'] })];
+      const details = [
+        makeClusterDetail(),
+        makeClusterDetail({
+          canonicalId: 'mem-4',
+          duplicateIds: ['mem-5', 'mem-6'],
+        }),
+      ];
       mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
         clustersFound: 2,
         details,
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
-      mockPrisma.memory.findFirst
-        .mockResolvedValue(null); // no existing patterns
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
+      mockPrisma.memory.findFirst.mockResolvedValue(null); // no existing patterns
       mockPrisma.memory.create.mockResolvedValue({});
       mockPrisma.memory.findFirst
         .mockResolvedValueOnce(null)
@@ -259,14 +285,22 @@ describe('DreamCyclePatternsStage', () => {
   describe('error handling', () => {
     it('catches LLM errors per-cluster and continues', async () => {
       const details = [
-        makeClusterDetail({ canonicalId: 'mem-1', duplicateIds: ['mem-2', 'mem-3'] }),
-        makeClusterDetail({ canonicalId: 'mem-4', duplicateIds: ['mem-5', 'mem-6'] }),
+        makeClusterDetail({
+          canonicalId: 'mem-1',
+          duplicateIds: ['mem-2', 'mem-3'],
+        }),
+        makeClusterDetail({
+          canonicalId: 'mem-4',
+          duplicateIds: ['mem-5', 'mem-6'],
+        }),
       ];
       mockConsolidation.promoteRecurringPatterns.mockResolvedValue({
         clustersFound: 2,
         details,
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst.mockResolvedValue(null);
       mockPrisma.memory.create.mockResolvedValue({});
       mockPrisma.memory.findFirst
@@ -292,16 +326,23 @@ describe('DreamCyclePatternsStage', () => {
         clustersFound: 1,
         details: [makeClusterDetail()],
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 'pattern-x' });
       mockPrisma.memory.create.mockResolvedValue({});
       mockPrisma.memoryChainLink.create.mockResolvedValue({});
-      mockLLM.json.mockResolvedValue({ summary: 'A pattern', confidence: 0.75 });
+      mockLLM.json.mockResolvedValue({
+        summary: 'A pattern',
+        confidence: 0.75,
+      });
 
       // Should not throw even without event emitter
-      await expect(stageWithoutEmitter.run('user-1', false, 5)).resolves.toBeDefined();
+      await expect(
+        stageWithoutEmitter.run('user-1', false, 5),
+      ).resolves.toBeDefined();
     });
 
     it('handles chain link creation failure without crashing (swallowed)', async () => {
@@ -309,12 +350,16 @@ describe('DreamCyclePatternsStage', () => {
         clustersFound: 1,
         details: [makeClusterDetail()],
       });
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 'pattern-y' });
       mockPrisma.memory.create.mockResolvedValue({});
-      mockPrisma.memoryChainLink.create.mockRejectedValue(new Error('unique constraint'));
+      mockPrisma.memoryChainLink.create.mockRejectedValue(
+        new Error('unique constraint'),
+      );
       mockLLM.json.mockResolvedValue({ summary: 'Pattern', confidence: 0.9 });
 
       // Chain link errors are swallowed — should not throw
@@ -346,7 +391,9 @@ describe('DreamCyclePatternsStage', () => {
         details: [makeClusterDetail()],
       });
       // Only 3 memories — below minSize of 5
-      mockPrisma.memory.findMany.mockResolvedValue(makeMemories(['mem-1', 'mem-2', 'mem-3']));
+      mockPrisma.memory.findMany.mockResolvedValue(
+        makeMemories(['mem-1', 'mem-2', 'mem-3']),
+      );
       mockPrisma.memory.findFirst.mockResolvedValue(null);
 
       const result = await stageWith5.run('user-1', false, 5);
