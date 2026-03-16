@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 # Cache bust: 2026-03-14 — force fresh pnpm install to pick up Prisma v7 + @prisma/adapter-pg
-ARG CACHE_BUST=2026-03-14
+ARG CACHE_BUST=2026-03-16
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
