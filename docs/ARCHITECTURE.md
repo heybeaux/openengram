@@ -9,12 +9,12 @@
 
 ## Module Map
 
-> 55 modules total. Sizes from architecture watchdog (2026-03-13).
+> 56 modules total. Sizes from architecture watchdog (2026-03-19).
 
 ### Core
 | Module | Purpose | Files | Lines |
 |---|---|---|---|
-| `memory` | CRUD, embedding generation, recall, temporal parsing, search | 72 | 19,326 |
+| `memory` | CRUD, embedding generation, recall, temporal parsing, search | 72 | 19,696 |
 | `prisma` | PrismaService singleton (wraps @prisma/client) | 9 | 630 |
 | `storage` | Unified storage interface (Prisma-Postgres, SQLite providers) | 7 | 1,759 |
 | `vector` | pgvector provider for similarity search | 10 | 1,614 |
@@ -30,7 +30,7 @@
 | `ensemble` | Multi-model RRF fusion, drift detection, nightly re-embed, model registry | 17 | 7,696 |
 | `correction` | Contradiction detection, memory superseding chains | 5 | 866 |
 | `consolidation` | Merge duplicate/related memories, dream cycle | 34 | 7,837 |
-| `deduplication` | Exact/near-duplicate detection, merge, lineage | 37 | 10,693 |
+| `deduplication` | Exact/near-duplicate detection, merge, lineage | 38 | 11,368 |
 | `clustering` | Memory clustering | 5 | 833 |
 | `hierarchy` | Hierarchical memory organization | 11 | 2,518 |
 | `summarization` | Memory summarization | 6 | 731 |
@@ -54,6 +54,7 @@
 | `memory-pool` | Memory pooling for agents and sessions | 5 | 588 |
 | `graph` | Relationship graph between memories (entities, extraction) | 17 | 4,624 |
 | `session-indexing` | Session-level memory indexing | 5 | 603 |
+| `retrieval-signals` | Signal scoring for search ranking | 6 | 582 |
 
 ### Identity & Delegation
 | Module | Purpose | Files | Lines |
@@ -110,9 +111,9 @@
 5. Services don't import from other module's internals — use NestJS DI
 
 ## Known Architecture Notes
-- `memory-query.service.ts` (1,178 lines), `memory.service.ts` (1,105), `memory.controller.ts` (1,062), `deduplication.service.ts` (910) — top candidates for future file splitting
-- `identity` module (66 files, 11.5k lines) is the largest module; consider sub-module breakdown
-- `deduplication` module grew significantly (7.1k→10.7k lines) — review for splitting opportunity
+- `memory-query.service.ts` (1,214 lines), `memory.service.ts` (1,105), `memory.controller.ts` (1,088), `deduplication.service.ts` (910) — top candidates for future file splitting
+- `identity` module (67 files, 11.7k lines) is the largest module; consider sub-module breakdown
+- `deduplication` module grew significantly (7.1k→11.4k lines) — review for splitting opportunity
 - `topic-taxonomy.ts` (802 lines) — static data file, large but acceptable
 - `scripts` module has no `.spec.ts` files (shell scripts, no TS tests needed)
 - Cross-module direct imports are used for `PrismaService` and shared guards — acceptable NestJS pattern for infrastructure concerns
