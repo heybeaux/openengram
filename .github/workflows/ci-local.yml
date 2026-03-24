@@ -1,6 +1,7 @@
 name: CI (Local Edition)
 
 on:
+  workflow_dispatch:
   push:
     branches: [staging]
   pull_request:
