@@ -1,6 +1,7 @@
 name: Recall Benchmark
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [staging, production]
 
