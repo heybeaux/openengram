@@ -6,7 +6,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface GenerateContextOptions {
-  agentId: string;
+  /**
+   * Internal user ID (resolved by the guard from API key + X-AM-User-ID header).
+   * Preferred over agentId — API key auth is sufficient to scope memories.
+   */
+  userId?: string;
+  /**
+   * @deprecated Prefer userId. Kept for backward compatibility with dream-cycle
+   * callers that still pass agentId. Ignored when userId is provided.
+   */
+  agentId?: string;
   maxTokens?: number;
   writePath?: string;
   dryRun?: boolean;
@@ -85,13 +94,22 @@ export class GenerateContextService {
       Date.now() - STALENESS_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    // Query all active memories for this agent
+    // Build the where clause: prefer userId (from resolved API key auth),
+    // fall back to agentId for backward compat. API key alone is sufficient
+    // to scope memories — no caller-supplied ID required.
+    const memoryWhere: Record<string, unknown> = {
+      deletedAt: null,
+      archivedReason: null,
+    };
+    if (options.userId) {
+      memoryWhere['userId'] = options.userId;
+    } else if (options.agentId) {
+      memoryWhere['agentId'] = options.agentId;
+    }
+
+    // Query all active memories for this agent/user
     const memories = await this.prisma.memory.findMany({
-      where: {
-        agentId: options.agentId,
-        deletedAt: null,
-        archivedReason: null,
-      },
+      where: memoryWhere as any,
       orderBy: [{ effectiveScore: 'desc' }, { confidence: 'desc' }],
       select: {
         id: true,
@@ -114,11 +132,15 @@ export class GenerateContextService {
     const memoryClusterMap = new Map<string, string>();
     const clusterLabelMap = new Map<string, string>();
     try {
+      // Use same scope as the main query: userId preferred, agentId as fallback
+      const [clusterCol, clusterVal] = options.userId
+        ? ['user_id', options.userId]
+        : ['agent_id', options.agentId ?? ''];
       const clusterAssignments = await this.prisma.$queryRawUnsafe<
         Array<{ id: string; cluster_id: string }>
       >(
-        `SELECT id, cluster_id FROM memories WHERE agent_id = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
-        options.agentId,
+        `SELECT id, cluster_id FROM memories WHERE ${clusterCol} = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
+        clusterVal,
       );
       for (const row of clusterAssignments) {
         memoryClusterMap.set(row.id, row.cluster_id);

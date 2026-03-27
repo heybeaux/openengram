@@ -23,6 +23,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { DreamCycleQueueProducer } from './dream-cycle-queue.producer';
+import { UserId } from '../common/decorators/user-id.decorator';
 
 @ApiTags('Consolidation')
 @UseGuards(ApiKeyOrJwtGuard)
@@ -78,13 +79,18 @@ export class ConsolidationController {
 
   @Post('generate-context')
   async generateContextEndpoint(
+    @UserId() userId: string | null,
     @Query('includeStale') includeStale?: string,
     @Query('tokenBudget') tokenBudget?: string,
-    @Body() body?: GenerateContextOptions,
+    @Body() body?: Omit<GenerateContextOptions, 'userId'>,
   ): Promise<GenerateContextResult> {
     const opts: GenerateContextOptions = {
       ...body,
-      agentId: body?.agentId ?? '',
+      // userId from resolved auth takes precedence — API key is sufficient,
+      // no need for caller to supply an agentId.
+      userId: userId ?? undefined,
+      // Keep agentId for backward compat (dream-cycle internal calls)
+      agentId: body?.agentId ?? undefined,
     };
     if (includeStale === 'true' || includeStale === '1') {
       opts.includeStale = true;
