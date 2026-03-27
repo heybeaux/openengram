@@ -172,13 +172,22 @@ export class DreamCycleService {
           `Account ${account.id}: found ${users.length} users`,
         );
 
-        for (const user of users) {
+        // Phase 0 scalability: run users in parallel with concurrency limit
+        // DREAM_CYCLE_CONCURRENCY env var controls batch size (default: 5)
+        // Does not affect per-user processing logic — recall scores unaffected.
+        const concurrency = parseInt(
+          this.config.get<string>('DREAM_CYCLE_CONCURRENCY', '5'),
+          10,
+        );
+        const userQueue = [...users];
+        const runUser = async (user: { id: string }) => {
           this.log(`Running Dream Cycle for user: ${user.id} (account: ${account.id})`);
-          const result = await this.runInternal({
-            ...options,
-            userId: user.id,
-          });
+          const result = await this.runInternal({ ...options, userId: user.id });
           allResults.push(result);
+        };
+        while (userQueue.length > 0) {
+          const batch = userQueue.splice(0, concurrency);
+          await Promise.all(batch.map(runUser));
         }
       }
 

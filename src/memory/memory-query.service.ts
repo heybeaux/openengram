@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   Injectable,
   Optional,
@@ -11,9 +12,16 @@ import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import { MultiQueryService } from '../multi-query/multi-query.service';
 import { MemoryPoolService } from '../memory-pool/memory-pool.service';
 import { MemoryAccessLogService } from '../memory-access-log/memory-access-log.service';
-import { AnticipatoryService } from '../anticipatory/anticipatory.service';
-import { ResultExplanationDto } from '../multi-query/dto/multi-query.dto';
-import { Memory, SubjectType } from '@prisma/client';
+import { QueryLogService } from '../memory-access-log/query-log.service';
+import {
+  AnticipatoryService,
+  AnticipatoryRunResult,
+} from '../anticipatory/anticipatory.service';
+import {
+  MultiQueryMetadataDto,
+  ResultExplanationDto,
+} from '../multi-query/dto/multi-query.dto';
+import { Memory, MemoryLayer, SubjectType } from '@prisma/client';
 import {
   MemoryWithExtraction,
   MemoryWithScore,
@@ -38,13 +46,14 @@ export class MemoryQueryService {
     @Optional() private memoryPoolService?: MemoryPoolService,
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private anticipatoryService?: AnticipatoryService,
+    @Optional() private queryLogService?: QueryLogService,
   ) {}
 
   /**
    * Semantic search for memories
    */
   async recall(
-    userId: string | string[],
+    userId: string | string[] | null,
     dto: QueryMemoryDto,
   ): Promise<QueryResult> {
     const startTime = Date.now();
@@ -56,17 +65,20 @@ export class MemoryQueryService {
       );
     }
 
-    // Normalize userId for Prisma where clauses
-    const userIdFilter = Array.isArray(userId) ? { in: userId } : userId;
+    // ENG-109: Normalize userId for Prisma where clauses.
+    // If null (no X-AM-User-ID header), omit filter to query all account users.
+    const userIdFilter = userId === null
+      ? undefined
+      : Array.isArray(userId) ? { in: userId } : userId;
 
     // v0.9: Use explicit poolIds if provided, otherwise resolve from agentSessionKey
     let poolIds: string[] | undefined = dto.poolIds;
-    const singleUserId = Array.isArray(userId) ? userId[0] : userId;
+    const singleUserId = Array.isArray(userId) ? userId[0] : (userId ?? undefined);
     if (!poolIds && dto.agentSessionKey && this.memoryPoolService) {
       try {
         poolIds = await this.memoryPoolService.getAccessiblePoolIds(
           dto.agentSessionKey,
-          singleUserId,
+          singleUserId ?? 'default',
         );
       } catch (err) {
         this.logger.warn(
@@ -157,7 +169,7 @@ export class MemoryQueryService {
       );
 
       const vectorResults = await this.embedding.search(
-        userId,
+        userId ?? 'default',
         queryEmbedding,
         200,
         dto.layers as any,
@@ -201,7 +213,7 @@ export class MemoryQueryService {
       // STANDARD PATH (ENG-26: pass query text for hybrid search fusion)
       const candidateLimit = Math.max(200, limit * 20);
       const vectorResults = await this.embedding.search(
-        userId,
+        userId ?? 'default',
         queryEmbedding,
         candidateLimit,
         dto.layers as any,
@@ -218,18 +230,30 @@ export class MemoryQueryService {
       // BM25/tsvector hybrid: safety net for exact-keyword queries
       const ftsResultIds = new Set<string>();
       try {
-        const ftsResults = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
-          `SELECT id FROM memories
-           WHERE user_id = $1
-             AND to_tsvector('english', raw) @@ websearch_to_tsquery('english', $2)
-             AND deleted_at IS NULL
-             AND superseded_by_id IS NULL
-             AND searchable IS NOT FALSE
-           ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $2)) DESC
-           LIMIT 100`,
-          singleUserId,
-          searchQuery,
-        );
+        // ENG-109: When no userId, omit user_id filter to search all account memories
+        const ftsResults = singleUserId
+          ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+              `SELECT id FROM memories
+               WHERE user_id = $1
+                 AND to_tsvector('english', raw) @@ websearch_to_tsquery('english', $2)
+                 AND deleted_at IS NULL
+                 AND superseded_by_id IS NULL
+                 AND searchable IS NOT FALSE
+               ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $2)) DESC
+               LIMIT 100`,
+              singleUserId ?? 'default',
+              searchQuery,
+            )
+          : await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+              `SELECT id FROM memories
+               WHERE to_tsvector('english', raw) @@ websearch_to_tsquery('english', $1)
+                 AND deleted_at IS NULL
+                 AND superseded_by_id IS NULL
+                 AND searchable IS NOT FALSE
+               ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $1)) DESC
+               LIMIT 100`,
+              searchQuery,
+            );
         let ftsAdded = 0;
         for (const row of ftsResults) {
           ftsResultIds.add(row.id);
@@ -255,23 +279,33 @@ export class MemoryQueryService {
             .filter((w) => w.length >= 4);
           if (words.length > 0) {
             try {
+              // ENG-109: Adjust parameter indices when no userId
+              const paramOffset = singleUserId ? 2 : 1;
               const ilikeConditions = words
-                .map((_, i) => `LOWER(raw) LIKE $${i + 2}`)
+                .map((_, i) => `LOWER(raw) LIKE $${i + paramOffset}`)
                 .join(' OR ');
               const ilikeParams = words.map((w) => `%${w}%`);
-              const ilikeResults = await this.prisma.$queryRawUnsafe<
-                { id: string }[]
-              >(
-                `SELECT id FROM memories
-                 WHERE user_id = $1
-                   AND (${ilikeConditions})
-                   AND deleted_at IS NULL
-                   AND superseded_by_id IS NULL
-                   AND searchable IS NOT FALSE
-                 LIMIT 20`,
-                singleUserId,
-                ...ilikeParams,
-              );
+              const ilikeResults = singleUserId
+                ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                    `SELECT id FROM memories
+                     WHERE user_id = $1
+                       AND (${ilikeConditions})
+                       AND deleted_at IS NULL
+                       AND superseded_by_id IS NULL
+                       AND searchable IS NOT FALSE
+                     LIMIT 20`,
+                    singleUserId ?? 'default',
+                    ...ilikeParams,
+                  )
+                : await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                    `SELECT id FROM memories
+                     WHERE (${ilikeConditions})
+                       AND deleted_at IS NULL
+                       AND superseded_by_id IS NULL
+                       AND searchable IS NOT FALSE
+                     LIMIT 20`,
+                    ...ilikeParams,
+                  );
               let ilikeAdded = 0;
               for (const row of ilikeResults) {
                 ftsResultIds.add(row.id);
@@ -356,7 +390,7 @@ export class MemoryQueryService {
       scoredMemories = await this.rankingService.mergeGraphResults(
         scoredMemories,
         dto.query,
-        singleUserId,
+        singleUserId ?? 'default',
         limit,
       );
     } catch (error) {
@@ -368,7 +402,7 @@ export class MemoryQueryService {
     // ── Active Insight Surfacing ──────────────────────────────────────
     scoredMemories = await this.rankingService.surfaceInsights(
       scoredMemories,
-      Array.isArray(userId) ? userId : [userId],
+      Array.isArray(userId) ? userId : userId ? [userId] : [],
       searchQuery,
       limit,
       queryEmbedding,
@@ -438,7 +472,7 @@ export class MemoryQueryService {
         const excludeIds = new Set(result.map((m) => m.id));
         const areResult = await this.anticipatoryService.run(
           dto.query,
-          singleUserId,
+          singleUserId ?? 'default',
           excludeIds,
           dto.anticipatory,
         );
@@ -453,10 +487,29 @@ export class MemoryQueryService {
       }
     }
 
+    const latencyMs = Date.now() - startTime;
+
+    // Fire-and-forget query log for re-ranker training
+    if (this.queryLogService) {
+      this.queryLogService.logQuery({
+        queryText: dto.query,
+        queryEmbedding: queryEmbedding,
+        agentId: dto.agentId,
+        sessionKey: dto.agentSessionKey,
+        results: result.map((m, i) => ({
+          memoryId: m.id,
+          cosineScore: m.score ?? 0,
+          rank: i + 1,
+        })),
+        latencyMs,
+      });
+    }
+
     return {
+      recallId: randomUUID(),
       memories: result,
       queryTokens: dto.query.split(/\s+/).length,
-      latencyMs: Date.now() - startTime,
+      latencyMs,
       ...(anticipatoryMeta ? { anticipatoryMeta } : {}),
     };
   }
@@ -475,7 +528,7 @@ export class MemoryQueryService {
    * Perform recall using multi-query retrieval
    */
   private async recallWithMultiQuery(
-    userId: string | string[],
+    userId: string | string[] | null,
     dto: QueryMemoryDto,
     startTime: number,
     poolIds?: string[],
@@ -494,7 +547,7 @@ export class MemoryQueryService {
 
     const multiQueryResult = await this.multiQueryService!.search(
       dto.query,
-      userId,
+      userId ?? [],
       {
         topK: dto.limit ?? 10,
         layers: dto.layers as any,
@@ -589,7 +642,7 @@ export class MemoryQueryService {
         const excludeIds = new Set(result.map((m) => m.id));
         const areResult = await this.anticipatoryService.run(
           dto.query,
-          Array.isArray(userId) ? userId[0] : userId,
+          Array.isArray(userId) ? userId[0] : userId ?? 'default',
           excludeIds,
           dto.anticipatory,
         );
@@ -604,10 +657,29 @@ export class MemoryQueryService {
       }
     }
 
+    const latencyMsMq = Date.now() - startTime;
+
+    // Fire-and-forget query log for re-ranker training (multi-query path)
+    if (this.queryLogService) {
+      this.queryLogService.logQuery({
+        queryText: dto.query,
+        queryEmbedding: [], // multi-query uses multiple embeddings; omit to avoid picking one arbitrarily
+        agentId: dto.agentId,
+        sessionKey: dto.agentSessionKey,
+        results: result.map((m, i) => ({
+          memoryId: m.id,
+          cosineScore: m.score ?? 0,
+          rank: i + 1,
+        })),
+        latencyMs: latencyMsMq,
+      });
+    }
+
     return {
+      recallId: randomUUID(),
       memories: result,
       queryTokens: dto.query.split(/\s+/).length,
-      latencyMs: Date.now() - startTime,
+      latencyMs: latencyMsMq,
       multiQuery: multiQueryMetadata,
       explanations,
       ...(anticipatoryMeta2 ? { anticipatoryMeta: anticipatoryMeta2 } : {}),
