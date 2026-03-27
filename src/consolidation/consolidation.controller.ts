@@ -86,15 +86,21 @@ export class ConsolidationController {
     @Body() body?: Omit<GenerateContextOptions, 'accountId' | 'userId'>,
   ): Promise<GenerateContextResult> {
     // accountId is always resolved from the API key — it's the primary scope.
-    // userId is optional: when present (X-AM-User-ID header), narrows to one user.
-    // When absent, generate-context returns memories for ALL users in the account.
+    // userId is optional narrowing: only pass it when the caller explicitly
+    // provided X-AM-User-ID, otherwise query all users in the account.
+    // The guard always resolves a default user even without the header, so we
+    // check the raw header to distinguish "explicit" from "guard fallback".
     const accountId: string | undefined =
       req.accountId ?? req.agent?.accountId ?? undefined;
+    const explicitUserHeader = req.headers?.['x-am-user-id'] as
+      | string
+      | undefined;
 
     const opts: GenerateContextOptions = {
       ...body,
       accountId,
-      userId: userId ?? undefined, // optional narrowing, not required
+      // Only narrow to userId when the caller explicitly sent X-AM-User-ID
+      userId: explicitUserHeader ? (userId ?? undefined) : undefined,
       agentId: body?.agentId ?? undefined, // legacy fallback
     };
     if (includeStale === 'true' || includeStale === '1') {
