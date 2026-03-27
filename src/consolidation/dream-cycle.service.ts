@@ -566,15 +566,20 @@ export class DreamCycleService {
       const contextWritePath = this.config.get<string>(
         'DREAM_CONTEXT_WRITE_PATH',
       );
+      // DREAM_CONTEXT_AGENT_ID is deprecated — userId from the current run is
+      // sufficient. Keep env var support for backward compat but no longer
+      // require it: if not set, use the userId from the current dream-cycle run.
       const contextAgentId = this.config.get<string>('DREAM_CONTEXT_AGENT_ID');
       if (
         generateContextEnabled &&
-        contextAgentId &&
+        (contextAgentId || userId) &&
         this.generateContextService
       ) {
         this.log('Stage 5: Generate context');
         try {
           const contextResult = await this.generateContextService.generate({
+            // Prefer userId (API-key-scoped) over legacy agentId env var
+            userId: userId !== 'default' ? userId : undefined,
             agentId: contextAgentId,
             writePath: contextWritePath,
             dryRun,
