@@ -7,13 +7,19 @@ import * as path from 'path';
 
 export interface GenerateContextOptions {
   /**
-   * Internal user ID (resolved by the guard from API key + X-AM-User-ID header).
-   * Preferred over agentId — API key auth is sufficient to scope memories.
+   * Account ID resolved from the API key. When provided, all users under
+   * the account are included — no userId required. This is the primary
+   * scope: API key alone is sufficient to access all account memories.
+   */
+  accountId?: string;
+  /**
+   * Optional narrowing filter. When provided alongside accountId, restricts
+   * to memories for this specific user only. Omit to get all account memories.
    */
   userId?: string;
   /**
-   * @deprecated Prefer userId. Kept for backward compatibility with dream-cycle
-   * callers that still pass agentId. Ignored when userId is provided.
+   * @deprecated Use accountId instead. Kept for backward compat with
+   * dream-cycle callers that still pass agentId.
    */
   agentId?: string;
   maxTokens?: number;
@@ -94,20 +100,45 @@ export class GenerateContextService {
       Date.now() - STALENESS_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    // Build the where clause: prefer userId (from resolved API key auth),
-    // fall back to agentId for backward compat. API key alone is sufficient
-    // to scope memories — no caller-supplied ID required.
+    // Resolve effective user ID scope:
+    // - accountId (from API key) → fetch all user IDs for this account
+    // - userId (optional narrowing) → restrict to one user
+    // - agentId (legacy fallback) → filter by agent
+    // API key alone is sufficient — userId is never required.
+    let effectiveUserIds: string[] | string | null = null;
+
+    if (options.accountId) {
+      if (options.userId) {
+        // Narrowed to specific user
+        effectiveUserIds = options.userId;
+      } else {
+        // All users under this account
+        const accountUsers = await this.prisma.user.findMany({
+          where: { accountId: options.accountId, deletedAt: null },
+          select: { id: true },
+        });
+        effectiveUserIds =
+          accountUsers.length > 0 ? accountUsers.map((u) => u.id) : null;
+      }
+    } else if (options.userId) {
+      // Legacy: userId without accountId (e.g. dream-cycle internal calls)
+      effectiveUserIds = options.userId;
+    }
+
     const memoryWhere: Record<string, unknown> = {
       deletedAt: null,
       archivedReason: null,
     };
-    if (options.userId) {
-      memoryWhere['userId'] = options.userId;
+    if (effectiveUserIds) {
+      memoryWhere['userId'] = Array.isArray(effectiveUserIds)
+        ? { in: effectiveUserIds }
+        : effectiveUserIds;
     } else if (options.agentId) {
+      // Legacy agentId fallback
       memoryWhere['agentId'] = options.agentId;
     }
 
-    // Query all active memories for this agent/user
+    // Query all active memories
     const memories = await this.prisma.memory.findMany({
       where: memoryWhere as any,
       orderBy: [{ effectiveScore: 'desc' }, { confidence: 'desc' }],
@@ -132,16 +163,32 @@ export class GenerateContextService {
     const memoryClusterMap = new Map<string, string>();
     const clusterLabelMap = new Map<string, string>();
     try {
-      // Use same scope as the main query: userId preferred, agentId as fallback
-      const [clusterCol, clusterVal] = options.userId
-        ? ['user_id', options.userId]
-        : ['agent_id', options.agentId ?? ''];
-      const clusterAssignments = await this.prisma.$queryRawUnsafe<
-        Array<{ id: string; cluster_id: string }>
-      >(
-        `SELECT id, cluster_id FROM memories WHERE ${clusterCol} = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
-        clusterVal,
-      );
+      // Use same scope as the main query
+      let clusterAssignments: Array<{ id: string; cluster_id: string }> = [];
+      if (effectiveUserIds) {
+        if (Array.isArray(effectiveUserIds)) {
+          clusterAssignments = await this.prisma.$queryRawUnsafe<
+            Array<{ id: string; cluster_id: string }>
+          >(
+            `SELECT id, cluster_id FROM memories WHERE user_id = ANY($1::text[]) AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
+            effectiveUserIds,
+          );
+        } else {
+          clusterAssignments = await this.prisma.$queryRawUnsafe<
+            Array<{ id: string; cluster_id: string }>
+          >(
+            `SELECT id, cluster_id FROM memories WHERE user_id = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
+            effectiveUserIds,
+          );
+        }
+      } else if (options.agentId) {
+        clusterAssignments = await this.prisma.$queryRawUnsafe<
+          Array<{ id: string; cluster_id: string }>
+        >(
+          `SELECT id, cluster_id FROM memories WHERE agent_id = $1 AND deleted_at IS NULL AND cluster_id IS NOT NULL`,
+          options.agentId,
+        );
+      }
       for (const row of clusterAssignments) {
         memoryClusterMap.set(row.id, row.cluster_id);
       }

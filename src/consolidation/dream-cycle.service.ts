@@ -566,21 +566,29 @@ export class DreamCycleService {
       const contextWritePath = this.config.get<string>(
         'DREAM_CONTEXT_WRITE_PATH',
       );
-      // DREAM_CONTEXT_AGENT_ID is deprecated — userId from the current run is
-      // sufficient. Keep env var support for backward compat but no longer
-      // require it: if not set, use the userId from the current dream-cycle run.
+      // DREAM_CONTEXT_AGENT_ID is deprecated — accountId is now sufficient.
+      // userId is passed as an optional narrowing hint so the context is
+      // scoped to this specific user's run (not all account users).
       const contextAgentId = this.config.get<string>('DREAM_CONTEXT_AGENT_ID');
-      if (
-        generateContextEnabled &&
-        (contextAgentId || userId) &&
-        this.generateContextService
-      ) {
+      if (generateContextEnabled && this.generateContextService) {
         this.log('Stage 5: Generate context');
         try {
+          // Resolve accountId for this user so generate-context can scope
+          // by account (API key model: accountId is sufficient, userId optional)
+          let contextAccountId: string | undefined;
+          if (userId && userId !== 'default') {
+            const userRecord = await this.prisma.user.findUnique({
+              where: { id: userId },
+              select: { accountId: true },
+            });
+            contextAccountId = userRecord?.accountId ?? undefined;
+          }
+
           const contextResult = await this.generateContextService.generate({
-            // Prefer userId (API-key-scoped) over legacy agentId env var
+            accountId: contextAccountId,
+            // Pass userId as narrowing hint so the context is for this user
             userId: userId !== 'default' ? userId : undefined,
-            agentId: contextAgentId,
+            agentId: contextAgentId, // legacy fallback only
             writePath: contextWritePath,
             dryRun,
           });

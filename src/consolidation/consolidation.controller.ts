@@ -79,18 +79,23 @@ export class ConsolidationController {
 
   @Post('generate-context')
   async generateContextEndpoint(
+    @Req() req: any,
     @UserId() userId: string | null,
     @Query('includeStale') includeStale?: string,
     @Query('tokenBudget') tokenBudget?: string,
-    @Body() body?: Omit<GenerateContextOptions, 'userId'>,
+    @Body() body?: Omit<GenerateContextOptions, 'accountId' | 'userId'>,
   ): Promise<GenerateContextResult> {
+    // accountId is always resolved from the API key — it's the primary scope.
+    // userId is optional: when present (X-AM-User-ID header), narrows to one user.
+    // When absent, generate-context returns memories for ALL users in the account.
+    const accountId: string | undefined =
+      req.accountId ?? req.agent?.accountId ?? undefined;
+
     const opts: GenerateContextOptions = {
       ...body,
-      // userId from resolved auth takes precedence — API key is sufficient,
-      // no need for caller to supply an agentId.
-      userId: userId ?? undefined,
-      // Keep agentId for backward compat (dream-cycle internal calls)
-      agentId: body?.agentId ?? undefined,
+      accountId,
+      userId: userId ?? undefined, // optional narrowing, not required
+      agentId: body?.agentId ?? undefined, // legacy fallback
     };
     if (includeStale === 'true' || includeStale === '1') {
       opts.includeStale = true;
