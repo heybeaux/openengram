@@ -43,7 +43,6 @@ export class DreamCycleQueueProducer {
       // Previously defaulted to BullMQ default (no limit on some versions).
       jobId: undefined,
       delay: 0,
-      timeout: 3600000, // 1 hour in ms
     };
 
     await this.flowProducer.add({
