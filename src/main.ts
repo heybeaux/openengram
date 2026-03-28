@@ -31,6 +31,10 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', true);
 
+  // Increase body size limit for cloud sync bulk pushes (default 100KB is too small for embedding batches)
+  app.use(require('express').json({ limit: '10mb' }));
+  app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
+
   // Use Pino logger
   app.useLogger(app.get(Logger));
 
