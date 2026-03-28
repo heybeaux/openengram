@@ -14,7 +14,6 @@ describe('MemoryBulkController — Async Import (HEY-353)', () => {
       {} as any, // memoryService
       mockJobQueue,
       {} as any, // memoryPipeline
-      {} as any, // retrievalSignals
     );
   });
 
