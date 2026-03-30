@@ -283,15 +283,17 @@ describe('ReembeddingService', () => {
           layer: MemoryLayer.IDENTITY,
         }),
       );
-      expect(mockPrisma.memoryExtraction.upsert).toHaveBeenCalledWith({
-        where: { memoryId: 'mem_123' },
-        update: expect.objectContaining({
-          rawJson: expect.objectContaining({
-            embeddingVersion: 1,
-            enrichmentVersion: '1.0.0',
+      expect(mockPrisma.memoryExtraction.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { memoryId: 'mem_123' },
+          update: expect.objectContaining({
+            rawJson: expect.objectContaining({
+              embeddingVersion: 1,
+              enrichmentVersion: '1.0.0',
+            }),
           }),
         }),
-      });
+      );
     });
   });
 
