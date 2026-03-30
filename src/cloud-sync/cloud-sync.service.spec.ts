@@ -82,6 +82,7 @@ describe('CloudSyncService', () => {
       },
       agent: {
         create: jest.fn(),
+        findUnique: jest.fn(),
       },
       user: {
         findUnique: jest.fn(),
@@ -228,6 +229,7 @@ describe('CloudSyncService', () => {
     const setupAgentUserMocks = () => {
       prisma.syncAgentMap.findUnique.mockResolvedValue(null);
       prisma.agent.create.mockResolvedValue({ id: 'cloud-agent-1' });
+      prisma.agent.findUnique.mockResolvedValue({ id: 'cloud-agent-1', accountId: 'acc-1' });
       prisma.syncAgentMap.create.mockResolvedValue({});
       prisma.syncUserMap.findUnique.mockResolvedValue(null);
       prisma.user.findUnique.mockResolvedValue(null);
