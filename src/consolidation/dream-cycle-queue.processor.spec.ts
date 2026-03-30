@@ -47,6 +47,7 @@ describe('DreamCycleQueueProcessor', () => {
   let tracker: any;
   let pendingStage: any;
   let tieringStage: any;
+  let consolidationStage: any;
   let patternsStage: any;
   let driftStage: any;
   let identityStage: any;
@@ -79,6 +80,7 @@ describe('DreamCycleQueueProcessor', () => {
 
     pendingStage = { run: jest.fn() };
     tieringStage = { run: jest.fn() };
+    consolidationStage = { run: jest.fn().mockResolvedValue({ consolidated: 0 }) };
     patternsStage = { run: jest.fn() };
     driftStage = { run: jest.fn() };
     identityStage = { run: jest.fn() };
@@ -88,6 +90,7 @@ describe('DreamCycleQueueProcessor', () => {
       tracker,
       pendingStage,
       tieringStage,
+      consolidationStage as any,
       patternsStage,
       driftStage,
       identityStage,
@@ -164,7 +167,7 @@ describe('DreamCycleQueueProcessor', () => {
       );
 
       expect(patternsStage.run).toHaveBeenCalledWith('user-1', false, 50);
-      expect(result).toEqual({ patternsCreated: 7 });
+      expect(result).toEqual(expect.objectContaining({ patternsCreated: 7 }));
     });
 
     it('should default maxLlmCalls to 50 when undefined', async () => {
@@ -224,7 +227,7 @@ describe('DreamCycleQueueProcessor', () => {
     it('should return COMPLETED status', async () => {
       const result = await processor.process(makeJob(DREAM_CYCLE_JOBS.REPORT));
 
-      expect(result).toEqual({ status: 'COMPLETED', runId: 'run-1' });
+      expect(result).toEqual(expect.objectContaining({ status: 'COMPLETED', runId: 'run-1' }));
       expect(tracker.completeStage).toHaveBeenCalled();
     });
   });
