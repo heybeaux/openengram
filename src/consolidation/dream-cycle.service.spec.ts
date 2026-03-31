@@ -15,6 +15,7 @@ import {
   DreamCycleConsolidationStage,
   DreamCycleTimelineSynthesisStage,
   DreamCycleImportanceRescoreStage,
+  DreamCycleArchivalStage,
 } from './stages';
 import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
 
@@ -183,6 +184,19 @@ describe('DreamCycleService', () => {
         {
           provide: DreamCycleImportanceRescoreStage,
           useValue: { run: jest.fn().mockResolvedValue({ rescored: 0, unchanged: 0, avgChange: 0 }) },
+        },
+        {
+          provide: DreamCycleArchivalStage,
+          useValue: {
+            run: jest.fn().mockResolvedValue({
+              archived: 0,
+              skippedProtectedLayer: 0,
+              skippedRecentlyRetrieved: 0,
+              skippedFrequentlyUsed: 0,
+              byLayer: {},
+              byType: {},
+            }),
+          },
         },
         {
           provide: DreamCycleRunTrackerService,

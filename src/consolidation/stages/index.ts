@@ -6,3 +6,4 @@ export { DreamCycleTieringStage } from './dream-cycle-tiering.stage';
 export { DreamCycleConsolidationStage } from './dream-cycle-consolidation.stage';
 export { DreamCycleTimelineSynthesisStage } from './dream-cycle-timeline-synthesis.stage';
 export { DreamCycleImportanceRescoreStage } from './dream-cycle-importance-rescore.stage';
+export { DreamCycleArchivalStage } from './dream-cycle-archival.stage';
