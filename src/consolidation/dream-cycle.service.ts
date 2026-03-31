@@ -15,6 +15,7 @@ import {
   DreamCycleTieringStage,
   DreamCycleConsolidationStage,
   DreamCycleTimelineSynthesisStage,
+  DreamCycleArchivalStage,
 } from './stages';
 import * as os from 'os';
 import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
@@ -33,6 +34,7 @@ export type DreamCycleStage =
   | 'clustering'
   | 'drift'
   | 'identity'
+  | 'archival'
   | 'report';
 
 export interface DreamCycleOptions {
@@ -67,6 +69,7 @@ const ALL_STAGES: DreamCycleStage[] = [
   'clustering',
   'drift',
   'identity',
+  'archival',
   'report',
 ];
 
@@ -85,6 +88,7 @@ export class DreamCycleService {
     private driftStage: DreamCycleDriftStage,
     private identityStage: DreamCycleIdentityStage,
     private timelineSynthesisStage: DreamCycleTimelineSynthesisStage,
+    private archivalStage: DreamCycleArchivalStage,
     private tracker: DreamCycleRunTrackerService,
     @Optional() private generateContextService?: GenerateContextService,
     @Optional() private clusteringService?: ClusteringService,
@@ -582,6 +586,37 @@ export class DreamCycleService {
           this.log('Stage 3.8 complete', identityResult);
         } catch (err) {
           const msg = `Identity stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.9: Archival of low-importance memories (ENG-123)
+      if (stages.includes('archival')) {
+        this.log('Stage 3.9: Archival of low-importance memories');
+        const archivalStart = new Date();
+        const archivalRecord = await this.tracker.startStage(
+          runId,
+          'archival',
+          totalMemories,
+        );
+        try {
+          const archivalResult = await this.archivalStage.run(userId, dryRun);
+          await this.tracker.completeStage(
+            archivalRecord.id,
+            archivalResult.archived,
+            archivalStart,
+          );
+          memoriesArchived += archivalResult.archived;
+          stageDetails.archival = archivalResult;
+          this.log('Stage 3.9 complete', archivalResult);
+        } catch (err) {
+          await this.tracker.errorStage(
+            archivalRecord.id,
+            err as Error,
+            archivalStart,
+          );
+          const msg = `Archival stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
           this.log(msg, undefined, 'error');
         }
