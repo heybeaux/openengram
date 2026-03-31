@@ -14,6 +14,7 @@ describe('MemoryQueryController', () => {
       recall: jest.fn(),
       getGraphData: jest.fn(),
       loadContext: jest.fn(),
+      findContradictions: jest.fn(),
     } as any;
 
     contextualRecallService = {
@@ -94,6 +95,50 @@ describe('MemoryQueryController', () => {
         userId,
         100,
         true,
+      );
+    });
+  });
+
+  describe('findContradictions', () => {
+    it('should delegate to memoryService.findContradictions', async () => {
+      const dto = { memoryId: 'mem-1' } as any;
+      const expected = {
+        sourceId: 'mem-1',
+        sourceText: 'some fact',
+        contradictions: [],
+        total: 0,
+        latencyMs: 5,
+      };
+      memoryService.findContradictions.mockResolvedValue(expected);
+
+      const req = { isInstanceKey: false };
+      const result = await controller.findContradictions(userId, dto, req);
+
+      expect(result).toEqual(expected);
+      expect(memoryService.findContradictions).toHaveBeenCalledWith(
+        userId,
+        dto,
+      );
+    });
+
+    it('should resolve account user IDs when agentId provided', async () => {
+      const dto = { text: 'the sky is green' } as any;
+      const expected = {
+        sourceId: null,
+        sourceText: 'the sky is green',
+        contradictions: [],
+        total: 0,
+        latencyMs: 3,
+      };
+      memoryService.findContradictions.mockResolvedValue(expected);
+
+      const req = { isInstanceKey: false, accountId: 'acc-1' };
+      await controller.findContradictions(userId, dto, req, 'agent-1');
+
+      // When resolveAccountUserIds returns null (empty list), falls back to userId
+      expect(memoryService.findContradictions).toHaveBeenCalledWith(
+        userId,
+        dto,
       );
     });
   });

@@ -15,6 +15,10 @@ import {
   BulkTextResult,
 } from './dto/bulk.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
+import {
+  FindContradictionsDto,
+  FindContradictionsResult,
+} from './dto/find-contradictions.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
 
 // Extracted services
@@ -96,6 +100,16 @@ export class MemoryService {
     dto: QueryMemoryDto,
   ): Promise<QueryResult> {
     return this.queryService.recall(userId, dto);
+  }
+
+  /**
+   * Find potential contradictions — delegates to MemoryQueryService
+   */
+  async findContradictions(
+    userId: string | string[] | null,
+    dto: FindContradictionsDto,
+  ): Promise<FindContradictionsResult> {
+    return this.queryService.findContradictions(userId, dto);
   }
 
   /**
