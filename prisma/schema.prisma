@@ -246,6 +246,10 @@ model Memory {
   dedupCandidates1 DedupCandidate[] @relation("DedupCandidate1")
   dedupCandidates2 DedupCandidate[] @relation("DedupCandidate2")
 
+  // Memory Edges (ENG-120): typed graph relationships
+  outgoingEdges MemoryEdge[] @relation("MemoryEdgesSource")
+  incomingEdges MemoryEdge[] @relation("MemoryEdgesTarget")
+
   @@index([clusterId])
   @@index([userId, layer])
   @@index([userId, createdAt])
@@ -2344,4 +2348,29 @@ model Timeline {
   @@index([agentId, agentLocalDate(sort: Desc)])
   @@index([arcId])
   @@map("timelines")
+}
+
+/// ENG-120: Typed graph relationships between memories
+model MemoryEdge {
+  id            String    @id @default(uuid())
+  sourceId      String    @map("source_id")
+  targetId      String    @map("target_id")
+  edgeType      String    @map("edge_type")
+  weight        Float     @default(0.5)
+  confidence    Float     @default(0.5)
+  temporalStart DateTime? @map("temporal_start")
+  temporalEnd   DateTime? @map("temporal_end")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  createdBy     String?   @map("created_by")
+  metadata      Json      @default("{}")
+  agentId       String    @map("agent_id")
+
+  source Memory @relation("MemoryEdgesSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Memory @relation("MemoryEdgesTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([edgeType])
+  @@index([agentId])
+  @@map("memory_edges")
 }
