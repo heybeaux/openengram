@@ -11,6 +11,11 @@ import {
   FindContradictionsResult,
   ContradictionResult,
 } from './dto/find-contradictions.dto';
+import {
+  TraceTimelineDto,
+  TraceTimelineResponse,
+  TimelineEntry,
+} from './dto/trace-timeline.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
@@ -1126,6 +1131,94 @@ export class MemoryQueryService {
       contradictions,
       total: contradictions.length,
       latencyMs: Date.now() - startTime,
+    };
+  }
+
+  async traceTimeline(
+    agentId: string,
+    dto: TraceTimelineDto,
+  ): Promise<TraceTimelineResponse> {
+    const { topic, startDate, endDate, method = 'keyword', limit = 100 } = dto;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: string;
+        raw: string;
+        memory_type: string;
+        importance_score: number;
+        created_at: Date;
+      }>
+    >(
+      `SELECT id, raw, memory_type, importance_score, created_at
+       FROM memories
+       WHERE agent_id = $1
+         AND searchable = true
+         AND deleted_at IS NULL
+         AND raw ILIKE '%' || $2 || '%'
+         AND created_at >= $3
+         AND created_at <= $4
+       ORDER BY created_at ASC
+       LIMIT $5`,
+      agentId,
+      topic,
+      start,
+      end,
+      limit,
+    );
+
+    // Group by day
+    const entriesByDate = new Map<string, TimelineEntry>();
+    for (const row of rows) {
+      const dateKey = row.created_at.toISOString().split('T')[0];
+      let entry = entriesByDate.get(dateKey);
+      if (!entry) {
+        entry = { date: dateKey, memories: [] };
+        entriesByDate.set(dateKey, entry);
+      }
+      entry.memories.push({
+        id: row.id,
+        raw: row.raw,
+        memoryType: row.memory_type,
+        importanceScore: Number(row.importance_score),
+        createdAt: row.created_at,
+      });
+    }
+
+    // Generate all days in range for gap detection
+    const allDays: string[] = [];
+    const current = new Date(start);
+    current.setUTCHours(0, 0, 0, 0);
+    const endNorm = new Date(end);
+    endNorm.setUTCHours(0, 0, 0, 0);
+    while (current <= endNorm) {
+      allDays.push(current.toISOString().split('T')[0]);
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    const gaps = allDays.filter((day) => !entriesByDate.has(day));
+    const daysWithMemories = allDays.length - gaps.length;
+    const coverage =
+      allDays.length > 0
+        ? Math.round((daysWithMemories / allDays.length) * 10000) / 100
+        : 0;
+
+    // Sort entries chronologically
+    const entries = Array.from(entriesByDate.values()).sort(
+      (a, b) => a.date.localeCompare(b.date),
+    );
+
+    return {
+      topic,
+      range: {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0],
+      },
+      totalMemories: rows.length,
+      entries,
+      gaps,
+      coverage,
     };
   }
 }
