@@ -14,7 +14,12 @@ import {
   QueryResult,
   ContextResult,
 } from './memory.service';
+import { MemoryQueryService } from './memory-query.service';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
+import {
+  TraceTimelineDto,
+  TraceTimelineResponse,
+} from './dto/trace-timeline.dto';
 import {
   FindFailuresDto,
   FindFailuresResultDto,
@@ -50,6 +55,7 @@ import { RetrievalSignalsService } from '../retrieval-signals/retrieval-signals.
 export class MemoryQueryController {
   constructor(
     private readonly memoryService: MemoryService,
+    private readonly memoryQueryService: MemoryQueryService,
     private readonly contextualRecallService: ContextualRecallService,
     private readonly temporalGapService: TemporalGapService,
     private readonly prisma: PrismaService,
@@ -350,5 +356,24 @@ export class MemoryQueryController {
       new Date(dto.end),
       agent.id,
     );
+  }
+
+  /**
+   * POST /v1/memories/timeline
+   * ENG-124: Trace chronological timeline of memories about a topic.
+   */
+  @Post('memories/timeline')
+  @ApiOperation({
+    summary: 'Trace topic timeline',
+    description:
+      'Returns chronological memories about a topic in a date range with gap detection.',
+  })
+  @ApiTags('search')
+  @RateLimit(30)
+  async traceTimeline(
+    @Agent() agent: any,
+    @Body() dto: TraceTimelineDto,
+  ): Promise<TraceTimelineResponse> {
+    return this.memoryQueryService.traceTimeline(agent.id, dto);
   }
 }
