@@ -1,11 +1,13 @@
 import { MemoryQueryController } from './memory-query.controller';
 import { MemoryService } from './memory.service';
 import { ContextualRecallService } from './contextual-recall.service';
+import { ProjectStateService } from './project-state.service';
 
 describe('MemoryQueryController', () => {
   let controller: MemoryQueryController;
   let memoryService: jest.Mocked<MemoryService>;
   let contextualRecallService: jest.Mocked<ContextualRecallService>;
+  let projectStateService: jest.Mocked<ProjectStateService>;
 
   const userId = 'user-123';
 
@@ -28,11 +30,16 @@ describe('MemoryQueryController', () => {
       logQuery: jest.fn().mockResolvedValue('query-id'),
     } as any;
 
+    projectStateService = {
+      synthesize: jest.fn(),
+    } as any;
+
     controller = new MemoryQueryController(
       memoryService,
       contextualRecallService,
       prismaService,
       retrievalSignals,
+      projectStateService,
     );
   });
 
@@ -105,6 +112,46 @@ describe('MemoryQueryController', () => {
       memoryService.loadContext.mockResolvedValue(expected as any);
 
       const result = await controller.loadContext(userId, dto);
+
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('projectState', () => {
+    it('should delegate to projectStateService.synthesize', async () => {
+      const dto = { projectName: 'Alpha' } as any;
+      const expected = {
+        projectName: 'Alpha',
+        lastActivity: null,
+        totalMemories: 0,
+        confidence: 0,
+        summary: { goals: [], decisions: [], issues: [], outcomes: [], insights: [] },
+        recentActivity: [],
+      };
+      projectStateService.synthesize.mockResolvedValue(expected);
+
+      const req = { isInstanceKey: false };
+      const result = await controller.projectState(userId, dto, req);
+
+      expect(result).toEqual(expected);
+      expect(projectStateService.synthesize).toHaveBeenCalledWith(userId, dto);
+    });
+
+    it('should resolve account user IDs when agentId is provided', async () => {
+      const dto = { projectName: 'Beta' } as any;
+      const expected = {
+        projectName: 'Beta',
+        lastActivity: null,
+        totalMemories: 0,
+        confidence: 0,
+        summary: { goals: [], decisions: [], issues: [], outcomes: [], insights: [] },
+        recentActivity: [],
+      };
+      projectStateService.synthesize.mockResolvedValue(expected);
+
+      const req = { accountId: 'acc-1' };
+      // The prisma.user.findMany will return users for the account
+      const result = await controller.projectState(userId, dto, req, 'agent-1');
 
       expect(result).toEqual(expected);
     });
