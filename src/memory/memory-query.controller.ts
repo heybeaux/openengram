@@ -9,12 +9,19 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { MemoryService, QueryResult, ContextResult } from './memory.service';
-import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import {
+  MemoryService,
+  QueryResult,
+  ContextResult,
+} from './memory.service';
+import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
   FindFailuresDto,
   FindFailuresResultDto,
 } from './dto/find-failures.dto';
+import {
+  FindContradictionsDto,
+  FindContradictionsResult,
+} from './dto/find-contradictions.dto';
 import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
@@ -110,6 +117,28 @@ export class MemoryQueryController {
     }
 
     return result;
+  }
+
+  /**
+   * POST /v1/memories/find-contradictions
+   * Find memories that potentially contradict a given fact or insight.
+   */
+  @Post('memories/find-contradictions')
+  @ApiOperation({
+    summary: 'Find contradictions',
+    description:
+      'Find memories that potentially contradict a given fact or insight using semantic similarity.',
+  })
+  @ApiTags('search')
+  @RateLimit(30)
+  async findContradictions(
+    @UserId() userId: string,
+    @Body() dto: FindContradictionsDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
+  ): Promise<FindContradictionsResult> {
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.findContradictions(accountUserIds || userId, dto);
   }
 
   /**
