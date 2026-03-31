@@ -15,6 +15,7 @@ import {
   ContextResult,
 } from './memory.service';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
+import {
   FindFailuresDto,
   FindFailuresResultDto,
 } from './dto/find-failures.dto';
@@ -22,6 +23,8 @@ import {
   FindContradictionsDto,
   FindContradictionsResult,
 } from './dto/find-contradictions.dto';
+import { ProjectStateDto, ProjectStateResponse } from './dto/project-state.dto';
+import { ProjectStateService } from './project-state.service';
 import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
@@ -51,6 +54,7 @@ export class MemoryQueryController {
     private readonly temporalGapService: TemporalGapService,
     private readonly prisma: PrismaService,
     private readonly retrievalSignals: RetrievalSignalsService,
+    private readonly projectStateService: ProjectStateService,
   ) {}
 
   /**
@@ -275,6 +279,28 @@ export class MemoryQueryController {
     @Body() dto: LoadContextDto,
   ): Promise<ContextResult> {
     return this.memoryService.loadContext(userId, dto);
+  }
+
+  /**
+   * POST /v1/memories/project-state
+   * Synthesize the current state of a project from all related memories.
+   */
+  @Post('memories/project-state')
+  @ApiOperation({
+    summary: 'Synthesize project state',
+    description:
+      'Returns a structured overview of a project by categorizing related memories into goals, decisions, issues, outcomes, and insights.',
+  })
+  @ApiTags('search')
+  @RateLimit(30)
+  async projectState(
+    @UserId() userId: string,
+    @Body() dto: ProjectStateDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
+  ): Promise<ProjectStateResponse> {
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.projectStateService.synthesize(accountUserIds || userId, dto);
   }
 
   /**
