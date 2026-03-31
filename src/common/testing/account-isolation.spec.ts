@@ -20,6 +20,7 @@ import {
   DreamCycleDriftStage,
   DreamCycleIdentityStage,
   DreamCycleTimelineSynthesisStage,
+  DreamCycleImportanceRescoreStage,
 } from '../../consolidation/stages';
 import { DreamCycleRunTrackerService } from '../../consolidation/dream-cycle-run-tracker.service';
 import { SafetyService } from '../../deduplication/safety.service';
@@ -480,6 +481,7 @@ describe('ENG-34: Account Isolation — Dream Cycle Orchestrator', () => {
         { provide: DreamCycleDriftStage, useValue: noopStage },
         { provide: DreamCycleIdentityStage, useValue: noopStage },
         { provide: DreamCycleTimelineSynthesisStage, useValue: { run: jest.fn().mockResolvedValue({ synthesesCreated: 0 }) } },
+        { provide: DreamCycleImportanceRescoreStage, useValue: { run: jest.fn().mockResolvedValue({ rescored: 0, unchanged: 0, avgChange: 0 }) } },
         { provide: DreamCycleRunTrackerService, useValue: trackerMock },
       ],
     }).compile();
