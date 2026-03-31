@@ -26,10 +26,16 @@ import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
 } from './dto/contextual-recall.dto';
+import {
+  GapDetectionQueryDto,
+  GapDetectionResponse,
+} from './dto/gap-detection-query.dto';
 import { ContextualRecallService } from './contextual-recall.service';
+import { TemporalGapService } from './temporal-gap.service';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
+import { Agent } from '../common/decorators/user-id.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,6 +48,7 @@ export class MemoryQueryController {
   constructor(
     private readonly memoryService: MemoryService,
     private readonly contextualRecallService: ContextualRecallService,
+    private readonly temporalGapService: TemporalGapService,
     private readonly prisma: PrismaService,
     private readonly retrievalSignals: RetrievalSignalsService,
   ) {}
@@ -292,6 +299,30 @@ export class MemoryQueryController {
       effectiveUserId,
       limit ? parseInt(limit, 10) : 500,
       includeAgent === 'true',
+    );
+  }
+
+  /**
+   * GET /v1/memories/gaps
+   * Detect temporal gaps in memories for a given topic.
+   */
+  @Get('memories/gaps')
+  @ApiOperation({
+    summary: 'Detect temporal gaps',
+    description:
+      'Reports time periods with missing or abnormally sparse memories for a given topic.',
+  })
+  @ApiTags('analytics')
+  @RateLimit(30)
+  async detectGaps(
+    @Agent() agent: any,
+    @Query() dto: GapDetectionQueryDto,
+  ): Promise<GapDetectionResponse> {
+    return this.temporalGapService.detectGaps(
+      dto.topic,
+      new Date(dto.start),
+      new Date(dto.end),
+      agent.id,
     );
   }
 }
