@@ -50,7 +50,6 @@ export class DreamCycleImportanceRescoreStage {
         where: {
           userId,
           deletedAt: null,
-          archivedAt: null,
         },
         select: {
           id: true,
