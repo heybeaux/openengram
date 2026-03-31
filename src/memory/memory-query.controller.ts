@@ -12,6 +12,10 @@ import type { Response } from 'express';
 import { MemoryService, QueryResult, ContextResult } from './memory.service';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
 import {
+  FindFailuresDto,
+  FindFailuresResultDto,
+} from './dto/find-failures.dto';
+import {
   ContextualRecallDto,
   ContextualRecallResponseDto,
 } from './dto/contextual-recall.dto';
@@ -181,6 +185,28 @@ export class MemoryQueryController {
     res.set('Link', '</v1/memories/query>; rel="successor-version"');
     const accountUserIds = await this.resolveAccountUserIds(req, agentId);
     return this.memoryService.recall(accountUserIds || userId, dto);
+  }
+
+  /**
+   * POST /v1/memories/find-failures
+   * ENG-116: Find memories about past failures related to a given goal/task.
+   */
+  @Post('memories/find-failures')
+  @ApiOperation({
+    summary: 'Find failure memories',
+    description:
+      'Find memories about past failures semantically related to a given goal or task.',
+  })
+  @ApiTags('search')
+  @RateLimit(30)
+  async findFailures(
+    @UserId() userId: string,
+    @Body() dto: FindFailuresDto,
+    @Req() req: any,
+    @Query('agentId') agentId?: string,
+  ): Promise<FindFailuresResultDto> {
+    const accountUserIds = await this.resolveAccountUserIds(req, agentId);
+    return this.memoryService.findFailures(accountUserIds || userId, dto);
   }
 
   /**
