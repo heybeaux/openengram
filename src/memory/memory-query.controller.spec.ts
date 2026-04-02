@@ -1,5 +1,6 @@
 import { MemoryQueryController } from './memory-query.controller';
 import { MemoryService } from './memory.service';
+import { MemoryQueryService } from './memory-query.service';
 import { ContextualRecallService } from './contextual-recall.service';
 import { TemporalGapService } from './temporal-gap.service';
 import { ProjectStateService } from './project-state.service';
@@ -7,6 +8,7 @@ import { ProjectStateService } from './project-state.service';
 describe('MemoryQueryController', () => {
   let controller: MemoryQueryController;
   let memoryService: jest.Mocked<MemoryService>;
+  let memoryQueryService: jest.Mocked<MemoryQueryService>;
   let contextualRecallService: jest.Mocked<ContextualRecallService>;
   let temporalGapService: jest.Mocked<TemporalGapService>;
   let projectStateService: jest.Mocked<ProjectStateService>;
@@ -41,8 +43,13 @@ describe('MemoryQueryController', () => {
       synthesize: jest.fn(),
     } as any;
 
+    memoryQueryService = {
+      traceTimeline: jest.fn(),
+    } as any;
+
     controller = new MemoryQueryController(
       memoryService,
+      memoryQueryService,
       contextualRecallService,
       temporalGapService,
       prismaService,

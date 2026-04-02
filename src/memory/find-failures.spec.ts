@@ -222,6 +222,7 @@ describe('findFailures (ENG-116)', () => {
 
       controller = new MemoryQueryController(
         memoryService,
+        {} as any, // memoryQueryService
         contextualRecallService,
         {} as any, // temporalGapService
         prismaService,
