@@ -112,6 +112,7 @@ export class DreamCyclePatternsStage {
                 confidence: pattern.confidence,
                 patternSourceIds: memories.map((m) => m.id),
                 lastDreamCycleAt: new Date(),
+                searchable: false,
               },
             });
 
