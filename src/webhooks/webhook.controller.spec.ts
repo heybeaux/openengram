@@ -3,6 +3,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
+import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 const mockWebhook = {
   id: 'wh-1',
@@ -27,7 +28,7 @@ const mockDeliveryService = {
   sendTestEvent: jest.fn().mockResolvedValue({ queued: true }),
 };
 
-const headers = (userId = 'user-1') => ({ 'x-am-user-id': userId });
+const mockReq = (userId = 'user-1') => ({ userId });
 
 describe('WebhookController', () => {
   let controller: WebhookController;
@@ -40,7 +41,10 @@ describe('WebhookController', () => {
         { provide: WebhookService, useValue: mockWebhookService },
         { provide: WebhookDeliveryService, useValue: mockDeliveryService },
       ],
-    }).compile();
+    })
+      .overrideGuard(ApiKeyOrJwtGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<WebhookController>(WebhookController);
   });
@@ -102,7 +106,7 @@ describe('WebhookController', () => {
     const dto = { url: 'https://example.com/hook', events: ['memory.created'] };
 
     it('creates a webhook and returns it', async () => {
-      const result = await controller.create(headers(), dto as any);
+      const result = await controller.create(mockReq(), dto as any);
       expect(result).toEqual(mockWebhook);
       expect(mockWebhookService.create).toHaveBeenCalledWith('user-1', dto);
     });
@@ -112,7 +116,7 @@ describe('WebhookController', () => {
         new Error('Limit reached'),
       );
       await expect(
-        controller.create(headers(), dto as any),
+        controller.create(mockReq(), dto as any),
       ).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         message: 'Limit reached',
@@ -124,7 +128,7 @@ describe('WebhookController', () => {
 
   describe('list', () => {
     it('returns webhook list for user', async () => {
-      const result = await controller.list(headers());
+      const result = await controller.list(mockReq());
       expect(result).toEqual([mockWebhook]);
       expect(mockWebhookService.list).toHaveBeenCalledWith('user-1');
     });
@@ -134,14 +138,14 @@ describe('WebhookController', () => {
 
   describe('getById', () => {
     it('returns a single webhook', async () => {
-      const result = await controller.getById(headers(), 'wh-1');
+      const result = await controller.getById(mockReq(), 'wh-1');
       expect(result).toEqual(mockWebhook);
     });
 
     it('throws 404 when webhook not found', async () => {
       mockWebhookService.getById.mockResolvedValueOnce(null);
       await expect(
-        controller.getById(headers(), 'wh-missing'),
+        controller.getById(mockReq(), 'wh-missing'),
       ).rejects.toMatchObject({
         status: HttpStatus.NOT_FOUND,
       });
@@ -152,7 +156,7 @@ describe('WebhookController', () => {
 
   describe('update', () => {
     it('updates a webhook', async () => {
-      const result = await controller.update(headers(), 'wh-1', {
+      const result = await controller.update(mockReq(), 'wh-1', {
         active: false,
       });
       expect(result.active).toBe(false);
@@ -161,7 +165,7 @@ describe('WebhookController', () => {
     it('wraps service errors in 404 HttpException', async () => {
       mockWebhookService.update.mockRejectedValueOnce(new Error('Not found'));
       await expect(
-        controller.update(headers(), 'wh-missing', {}),
+        controller.update(mockReq(), 'wh-missing', {}),
       ).rejects.toMatchObject({ status: HttpStatus.NOT_FOUND });
     });
   });
@@ -170,14 +174,14 @@ describe('WebhookController', () => {
 
   describe('delete', () => {
     it('deletes a webhook', async () => {
-      const result = await controller.delete(headers(), 'wh-1');
+      const result = await controller.delete(mockReq(), 'wh-1');
       expect(result).toEqual({ deleted: true });
     });
 
     it('wraps service errors in 404 HttpException', async () => {
       mockWebhookService.delete.mockRejectedValueOnce(new Error('Not found'));
       await expect(
-        controller.delete(headers(), 'wh-missing'),
+        controller.delete(mockReq(), 'wh-missing'),
       ).rejects.toMatchObject({
         status: HttpStatus.NOT_FOUND,
       });
@@ -188,7 +192,7 @@ describe('WebhookController', () => {
 
   describe('test', () => {
     it('sends a test event and returns result', async () => {
-      const result = await controller.test(headers(), 'wh-1');
+      const result = await controller.test(mockReq(), 'wh-1');
       expect(result).toEqual({ queued: true });
       expect(mockDeliveryService.sendTestEvent).toHaveBeenCalledWith(
         'wh-1',
@@ -200,7 +204,7 @@ describe('WebhookController', () => {
       mockDeliveryService.sendTestEvent.mockRejectedValueOnce(
         new Error('Webhook not found'),
       );
-      await expect(controller.test(headers(), 'bad-id')).rejects.toMatchObject({
+      await expect(controller.test(mockReq(), 'bad-id')).rejects.toMatchObject({
         status: HttpStatus.NOT_FOUND,
       });
     });
@@ -210,7 +214,7 @@ describe('WebhookController', () => {
 
   describe('deliveries', () => {
     it('returns delivery list with default limit 50', async () => {
-      await controller.deliveries(headers(), 'wh-1');
+      await controller.deliveries(mockReq(), 'wh-1');
       expect(mockWebhookService.getDeliveries).toHaveBeenCalledWith(
         'wh-1',
         'user-1',
@@ -219,7 +223,7 @@ describe('WebhookController', () => {
     });
 
     it('passes parsed limit when provided as query param', async () => {
-      await controller.deliveries(headers(), 'wh-1', '10');
+      await controller.deliveries(mockReq(), 'wh-1', '10');
       expect(mockWebhookService.getDeliveries).toHaveBeenCalledWith(
         'wh-1',
         'user-1',
@@ -232,7 +236,7 @@ describe('WebhookController', () => {
         new Error('Webhook not found'),
       );
       await expect(
-        controller.deliveries(headers(), 'bad-id'),
+        controller.deliveries(mockReq(), 'bad-id'),
       ).rejects.toMatchObject({ status: HttpStatus.NOT_FOUND });
     });
   });

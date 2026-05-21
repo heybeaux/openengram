@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
+import { ApiKeyOrJwtGuard } from '../../common/guards/api-key-or-jwt.guard';
 
 describe('FeedbackController (anticipatory)', () => {
   let controller: FeedbackController;
@@ -14,7 +15,10 @@ describe('FeedbackController (anticipatory)', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FeedbackController],
       providers: [{ provide: FeedbackService, useValue: mockFeedbackService }],
-    }).compile();
+    })
+      .overrideGuard(ApiKeyOrJwtGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<FeedbackController>(FeedbackController);
   });

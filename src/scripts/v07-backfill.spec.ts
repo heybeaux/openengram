@@ -104,12 +104,9 @@ describe('v07-backfill script', () => {
           findMany: jest
             .fn()
             .mockResolvedValue([{ id: 'user-1', externalId: 'Beaux' }]),
-          upsert: jest.fn().mockResolvedValue({ id: 's1', sessionKey: 'agent:main' }),
-        },
-        user: {
-          findMany: jest.fn().mockResolvedValue([
-            { id: 'user-1', externalId: 'Beaux' },
-          ]),
+          upsert: jest
+            .fn()
+            .mockResolvedValue({ id: 's1', sessionKey: 'agent:main' }),
         },
         memoryPool: {
           upsert: jest.fn().mockResolvedValue({ id: 'pool-1' }),
@@ -139,7 +136,6 @@ describe('v07-backfill script', () => {
               poolId: pool.id,
               addedBy: 'agent:main',
             },
-            data: { memoryId: memory.id, poolId: pool.id, addedBy: 'agent:main' },
           });
           added++;
         } catch (e: any) {
@@ -153,7 +149,6 @@ describe('v07-backfill script', () => {
       expect(prismaInstance.memoryPoolMembership.create).toHaveBeenCalledTimes(
         1,
       );
-      expect(prismaInstance.memoryPoolMembership.create).toHaveBeenCalledTimes(1);
     });
 
     it('should re-throw non-P2002 errors from memoryPoolMembership.create', async () => {
@@ -172,7 +167,9 @@ describe('v07-backfill script', () => {
             await mockBadCreate({
               data: { memoryId: memory.id, poolId: pool.id },
             });
-            await mockBadCreate({ data: { memoryId: memory.id, poolId: pool.id } });
+            await mockBadCreate({
+              data: { memoryId: memory.id, poolId: pool.id },
+            });
           } catch (e: any) {
             if (e.code !== 'P2002') throw e;
           }
