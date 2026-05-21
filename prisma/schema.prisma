@@ -182,6 +182,8 @@ model Memory {
   // ENG-31: Durability classification for retrieval scoring
   durability             MemoryDurability @default(UNCLASSIFIED)
   durabilityClassifiedAt DateTime?        @map("durability_classified_at")
+  // GIN-43: Optimistic concurrency version counter
+  version                Int              @default(0)
 
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")

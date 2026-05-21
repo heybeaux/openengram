@@ -1921,8 +1921,19 @@
         "responses": {
           "200": {
             "description": "Feedback recorded"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid credentials."
           }
         },
+        "security": [
+          {
+            "x-am-api-key": []
+          },
+          {
+            "bearer": []
+          }
+        ],
         "summary": "Submit feedback on anticipatory recall results",
         "tags": [
           "anticipatory"
