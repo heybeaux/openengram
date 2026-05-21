@@ -9,7 +9,6 @@ const TOPIC_DEFINITIONS: TopicDefinition[] = [
   ...PERSONAL_TOPIC_DEFINITIONS,
   ...SYSTEM_TOPIC_DEFINITIONS,
 ];
-import { TOPIC_DEFINITIONS } from './topic-taxonomy';
 
 // ============================================================================
 // Helper Functions

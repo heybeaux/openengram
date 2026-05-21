@@ -27,7 +27,6 @@ describe('InsightInjectionStrategy', () => {
   function makeSignals(
     overrides: Partial<ContextSignals> = {},
   ): ContextSignals {
-  function makeSignals(overrides: Partial<ContextSignals> = {}): ContextSignals {
     return {
       query: 'test query',
       userId: 'user1',
@@ -64,7 +63,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 1000,
     });
-    const result = await strategy.execute(makeSignals(), { maxResults: 5, timeoutMs: 1000 });
     expect(result).toEqual([]);
     expect(mockPrisma.memory.findMany).not.toHaveBeenCalled();
   });
@@ -119,7 +117,6 @@ describe('InsightInjectionStrategy', () => {
         topics: ['test'],
         excludeMemoryIds: new Set(['m1', 'm2']),
       }),
-      makeSignals({ topics: ['test'], excludeMemoryIds: new Set(['m1', 'm2']) }),
       { maxResults: 5, timeoutMs: 5000 },
     );
 
@@ -133,7 +130,6 @@ describe('InsightInjectionStrategy', () => {
         id: `insight-${i}`,
         raw: `Insight about topic${i} details`,
       }),
-      makeInsight({ id: `insight-${i}`, raw: `Insight about topic${i} details` }),
     );
     mockPrisma.memory.findMany.mockResolvedValue(insights);
 
@@ -141,7 +137,6 @@ describe('InsightInjectionStrategy', () => {
       makeSignals({
         topics: ['topic0', 'topic1', 'topic2', 'topic3', 'topic4'],
       }),
-      makeSignals({ topics: ['topic0', 'topic1', 'topic2', 'topic3', 'topic4'] }),
       { maxResults: 2, timeoutMs: 5000 },
     );
 
@@ -156,10 +151,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    await strategy.execute(
-      makeSignals({ topics: ['project alpha'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     // markSurfaced is fire-and-forget, give it a tick
     await new Promise((r) => setTimeout(r, 10));
@@ -200,7 +191,6 @@ describe('InsightInjectionStrategy', () => {
     expect(contentResult!.meta.salience).toBeGreaterThan(
       topicResult!.meta.salience,
     );
-    expect(contentResult!.meta.salience).toBeGreaterThan(topicResult!.meta.salience);
   });
 
   it('should apply freshness boost (newer = higher score)', async () => {
@@ -226,14 +216,6 @@ describe('InsightInjectionStrategy', () => {
     expect(newerResult!.meta.salience).toBeGreaterThan(
       olderResult!.meta.salience,
     );
-    const result = await strategy.execute(
-      makeSignals({ topics: ['alpha'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
-
-    const newerResult = result.find((r) => r.memory.id === 'newer');
-    const olderResult = result.find((r) => r.memory.id === 'older');
-    expect(newerResult!.meta.salience).toBeGreaterThan(olderResult!.meta.salience);
   });
 
   it('should apply surfacing decay (more surfaced = lower score)', async () => {
@@ -259,14 +241,6 @@ describe('InsightInjectionStrategy', () => {
     expect(freshResult!.meta.salience).toBeGreaterThan(
       staleResult!.meta.salience,
     );
-    const result = await strategy.execute(
-      makeSignals({ topics: ['beta'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
-
-    const freshResult = result.find((r) => r.memory.id === 'fresh');
-    const staleResult = result.find((r) => r.memory.id === 'stale');
-    expect(freshResult!.meta.salience).toBeGreaterThan(staleResult!.meta.salience);
   });
 
   // --- Cooldown ---
@@ -285,10 +259,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['gamma'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toHaveLength(0);
   });
@@ -307,10 +277,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['delta'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toHaveLength(1);
   });
@@ -322,7 +288,6 @@ describe('InsightInjectionStrategy', () => {
       confidence: null,
       raw: 'Topic about epsilon',
     });
-    const insight = makeInsight({ confidence: null, raw: 'Topic about epsilon' });
     mockPrisma.memory.findMany.mockResolvedValue([insight]);
 
     const result = await strategy.execute(
@@ -342,10 +307,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['zeta'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toHaveLength(1);
   });
@@ -358,10 +319,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['eta'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toHaveLength(1);
   });
@@ -371,7 +328,6 @@ describe('InsightInjectionStrategy', () => {
       raw: 'completely unrelated content',
       extraction: { topics: [] },
     });
-    const irrelevant = makeInsight({ raw: 'completely unrelated content', extraction: { topics: [] } });
     mockPrisma.memory.findMany.mockResolvedValue([irrelevant]);
 
     const result = await strategy.execute(
@@ -393,10 +349,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['theta'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result[0].meta.insightType).toBe('behavioral_pattern');
   });
@@ -409,10 +361,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['iota'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result[0].meta.insightType).toBe('unknown');
   });
@@ -426,10 +374,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['test'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toEqual([]);
   });
@@ -443,10 +387,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 5000,
     });
-    const result = await strategy.execute(
-      makeSignals({ topics: ['kappa'] }),
-      { maxResults: 5, timeoutMs: 5000 },
-    );
 
     expect(result).toHaveLength(1);
 
@@ -474,20 +414,6 @@ describe('InsightInjectionStrategy', () => {
       maxResults: 5,
       timeoutMs: 100,
     });
-    jest.spyOn(Date, 'now')
-      .mockImplementation(() => {
-        callCount++;
-        // First call: start, sets deadline. After findMany returns, exceed deadline.
-        if (callCount <= 2) return NOW;
-        return NOW + 10000; // way past deadline
-      });
-
-    mockPrisma.memory.findMany.mockResolvedValue([makeInsight({ raw: 'Topic about lambda' })]);
-
-    const result = await strategy.execute(
-      makeSignals({ topics: ['lambda'] }),
-      { maxResults: 5, timeoutMs: 100 },
-    );
 
     expect(result).toEqual([]);
   });
