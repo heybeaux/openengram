@@ -3,10 +3,14 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
+  IsISO8601,
+  Validate,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ObservedAtNotFarFutureConstraint } from './create-memory.dto';
+import { TemporalWarning } from '../memory.types';
 
 export class ExportQueryDto {
   @ApiPropertyOptional({ enum: ['json', 'ndjson'], default: 'json' })
@@ -87,6 +91,21 @@ export class ImportMemoryItemDto {
   @IsString()
   updatedAt?: string;
 
+  /**
+   * Temporal anchoring (Phase 1): when the event occurred (vs when recorded).
+   * ISO 8601. Rejected if more than 1 hour in the future (clock-skew tolerance).
+   * Mirrors CreateMemoryDto.observedAt.
+   */
+  @ApiPropertyOptional({
+    description:
+      'When the event occurred (vs when recorded). ISO 8601. Reject if >1h in future.',
+    example: '2024-06-15T14:00:00Z',
+  })
+  @IsOptional()
+  @IsISO8601()
+  @Validate(ObservedAtNotFarFutureConstraint)
+  observedAt?: string;
+
   // Ignored on import (re-generated) but accepted for format compatibility
   @IsOptional()
   ensembleEmbeddings?: Record<string, number[]>;
@@ -96,4 +115,12 @@ export interface ImportResult {
   imported: number;
   skipped: number;
   errors: number;
+  /**
+   * Temporal anchoring T6: batch-level structured warnings.
+   * Reserves `HISTORICAL_WITHOUT_ANCHOR` for HISTORICAL-without-anchor items.
+   * The current importMemories path uses `source = EXPLICIT_STATEMENT` by
+   * default so this field is structurally never populated today, but is
+   * included so SDKs can rely on a uniform ingest response shape.
+   */
+  warnings?: TemporalWarning[];
 }
