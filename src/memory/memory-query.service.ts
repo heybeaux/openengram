@@ -5,6 +5,11 @@ import {
   Logger,
   BadRequestException,
 } from '@nestjs/common';
+import {
+  TraceTimelineDto,
+  TraceTimelineResponse,
+  TimelineEntry,
+} from './dto/trace-timeline.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { TemporalParserService } from './temporal/temporal-parser.service';
@@ -31,6 +36,7 @@ import {
 import { RecallWeightService } from './recall-weight.service';
 import { MemoryQueryRankingService } from './memory-query-ranking.service';
 import { MemoryQueryContextService } from './memory-query-context.service';
+import { MemoryFailureService } from './memory-failure.service';
 
 @Injectable()
 export class MemoryQueryService {
@@ -47,6 +53,7 @@ export class MemoryQueryService {
     @Optional() private memoryAccessLogService?: MemoryAccessLogService,
     @Optional() private anticipatoryService?: AnticipatoryService,
     @Optional() private queryLogService?: QueryLogService,
+    @Optional() private memoryFailureService?: MemoryFailureService,
   ) {}
 
   /**
@@ -67,18 +74,24 @@ export class MemoryQueryService {
 
     // ENG-109: Normalize userId for Prisma where clauses.
     // If null (no X-AM-User-ID header), omit filter to query all account users.
-    const userIdFilter = userId === null
-      ? undefined
-      : Array.isArray(userId) ? { in: userId } : userId;
+    const userIdFilter =
+      userId === null
+        ? undefined
+        : Array.isArray(userId)
+          ? { in: userId }
+          : userId;
 
     // v0.9: Use explicit poolIds if provided, otherwise resolve from agentSessionKey
     let poolIds: string[] | undefined = dto.poolIds;
-    const singleUserId = Array.isArray(userId) ? userId[0] : (userId ?? undefined);
+    const singleUserId = Array.isArray(userId)
+      ? userId[0]
+      : (userId ?? undefined);
     if (!poolIds && dto.agentSessionKey && this.memoryPoolService) {
       try {
         poolIds = await this.memoryPoolService.getAccessiblePoolIds(
           dto.agentSessionKey,
           singleUserId ?? 'default',
+          dto.agentId,
         );
       } catch (err) {
         this.logger.warn(
@@ -115,6 +128,9 @@ export class MemoryQueryService {
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
     const visibilityFilter = this.buildVisibilityFilter(dto);
     const metadataFilter = this.buildMetadataFilter(dto);
+    const sessionIdFilter = this.buildSessionIdFilter(dto);
+    const allowInsightSurfacing =
+      !dto.layers || dto.layers.includes(MemoryLayer.INSIGHT);
     const limit = dto.limit ?? 10;
 
     // ENG-42: Extract filter params for vector search
@@ -131,42 +147,149 @@ export class MemoryQueryService {
     let scoredMemories: MemoryWithScore[];
 
     if (hasTemporalIntent) {
-      // TEMPORAL PATH
-      // ENG-48: Merge explicit after/before with temporal parser range
-      const temporalCreatedAt: Record<string, any> = {
-        gte: parsed.temporalFilter!.start,
-        lte: parsed.temporalFilter!.end,
-      };
-      if (dto.after) {
-        const afterDate = new Date(dto.after);
-        if (afterDate > temporalCreatedAt.gte) temporalCreatedAt.gte = afterDate;
-      }
-      if (dto.before) {
-        const beforeDate = new Date(dto.before);
-        if (beforeDate < temporalCreatedAt.lte) temporalCreatedAt.lte = beforeDate;
-      }
+      // TEMPORAL PATH — HEY-575: Adaptive window expansion
+      // ENG-48 after/before merging is applied on the first expansion pass below
+      const adaptiveEnabled = process.env.TEMPORAL_QUERY_ADAPTIVE !== 'false';
+      const minResults = parseInt(
+        process.env.TEMPORAL_QUERY_MIN_RESULTS ?? '5',
+        10,
+      );
+      const maxExpand = parseInt(
+        process.env.TEMPORAL_QUERY_MAX_EXPAND ?? '3',
+        10,
+      );
+      const timeoutMs = parseInt(
+        process.env.TEMPORAL_QUERY_TIMEOUT_MS ?? '200',
+        10,
+      );
 
-      const temporalMemories = await this.prisma.memory.findMany({
-        where: {
-          userId: userIdFilter,
-          deletedAt: null,
-          supersededById: null,
-          searchable: { not: false },
-          createdAt: temporalCreatedAt,
-          ...subjectTypeFilter,
-          ...visibilityFilter,
-          ...metadataFilter,
+      let activeFilter = parsed.temporalFilter!;
+      // Cap expansion end at the original filter's end to prevent the window
+      // from creeping into the present for past-anchored queries (e.g. "years ago").
+      const originalFilterEnd = parsed.temporalFilter!.end;
+      let temporalMemories: MemoryWithExtraction[];
+      let expandPass = 0;
+      const expandStart = Date.now();
+      const expandDeadline = expandStart + timeoutMs;
+
+      // HEY-575: log expansion-loop entry config so we can correlate later
+      // termination reasons against the configured envelope.
+      this.logger.log({
+        event: 'recall.temporal_expand.enter',
+        adaptiveEnabled,
+        minResults,
+        maxExpand,
+        timeoutMs,
+        initialWindow: {
+          start: activeFilter.start.toISOString(),
+          end: originalFilterEnd.toISOString(),
         },
-        include: { extraction: true },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
       });
 
-      this.logger.log(
-        '[Recall] Temporal path: found',
-        temporalMemories.length,
-        'memories in range',
+      let timedOut = false;
+      do {
+        const passStart = Date.now();
+        // Clamp end to originalFilterEnd so expansion never pulls in memories
+        // newer than the parsed temporal intent allows.
+        const clampedEnd =
+          activeFilter.end > originalFilterEnd
+            ? originalFilterEnd
+            : activeFilter.end;
+
+        const activeCreatedAt: Record<string, any> = {
+          gte: activeFilter.start,
+          lte: clampedEnd,
+        };
+        if (expandPass === 0) {
+          // Only apply explicit after/before on the first pass
+          if (dto.after) {
+            const afterDate = new Date(dto.after);
+            if (afterDate > activeCreatedAt.gte)
+              activeCreatedAt.gte = afterDate;
+          }
+          if (dto.before) {
+            const beforeDate = new Date(dto.before);
+            if (beforeDate < activeCreatedAt.lte)
+              activeCreatedAt.lte = beforeDate;
+          }
+        }
+
+        temporalMemories = await this.prisma.memory.findMany({
+          where: {
+            userId: userIdFilter,
+            deletedAt: null,
+            supersededById: null,
+            searchable: { not: false },
+            createdAt: activeCreatedAt,
+            ...subjectTypeFilter,
+            ...visibilityFilter,
+            ...metadataFilter,
+            ...sessionIdFilter,
+          },
+          include: { extraction: true },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        });
+
+        this.logger.debug({
+          event: 'recall.temporal_expand.pass',
+          pass: expandPass,
+          windowStart: (activeCreatedAt.gte as Date).toISOString(),
+          windowEnd: (activeCreatedAt.lte as Date).toISOString(),
+          windowMultiplier: Math.pow(2, expandPass),
+          candidatesFound: temporalMemories.length,
+          elapsedMs: Date.now() - passStart,
+        });
+
+        expandPass++;
+
+        // Widen the window by doubling the span each pass
+        activeFilter = this.temporalParser.expandWindow(activeFilter, 2.0);
+
+        if (
+          adaptiveEnabled &&
+          temporalMemories.length < minResults &&
+          expandPass <= maxExpand &&
+          Date.now() >= expandDeadline
+        ) {
+          timedOut = true;
+          break;
+        }
+      } while (
+        adaptiveEnabled &&
+        temporalMemories.length < minResults &&
+        expandPass <= maxExpand &&
+        Date.now() < expandDeadline
       );
+
+      const terminationReason = timedOut
+        ? 'timeout'
+        : !adaptiveEnabled
+          ? 'adaptive_disabled'
+          : temporalMemories.length >= minResults
+            ? 'min_results_satisfied'
+            : expandPass > maxExpand
+              ? 'max_expand_reached'
+              : 'unknown';
+
+      if (timedOut) {
+        this.logger.warn({
+          event: 'recall.temporal_expand.timeout',
+          passes: expandPass,
+          candidatesFound: temporalMemories.length,
+          minResults,
+          timeoutMs,
+          elapsedMs: Date.now() - expandStart,
+        });
+      }
+
+      this.logger.log({
+        event: 'recall.temporal_expand.exit',
+        passes: expandPass,
+        candidatesFound: temporalMemories.length,
+        terminationReason,
+        elapsedMs: Date.now() - expandStart,
+      });
 
       const vectorResults = await this.embedding.search(
         userId ?? 'default',
@@ -228,12 +351,16 @@ export class MemoryQueryService {
       const memoryIds = vectorResults.map((r) => r.id);
 
       // BM25/tsvector hybrid: safety net for exact-keyword queries
+      // Skip inline FTS when in pool-only mode (poolIds set, no userId) — pool JOIN is the auth boundary
       const ftsResultIds = new Set<string>();
+      const skipFts = poolIds && poolIds.length > 0 && !singleUserId;
       try {
         // ENG-109: When no userId, omit user_id filter to search all account memories
-        const ftsResults = singleUserId
-          ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
-              `SELECT id FROM memories
+        const ftsResults = skipFts
+          ? []
+          : singleUserId
+            ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                `SELECT id FROM memories
                WHERE user_id = $1
                  AND to_tsvector('english', raw) @@ websearch_to_tsquery('english', $2)
                  AND deleted_at IS NULL
@@ -241,19 +368,19 @@ export class MemoryQueryService {
                  AND searchable IS NOT FALSE
                ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $2)) DESC
                LIMIT 100`,
-              singleUserId ?? 'default',
-              searchQuery,
-            )
-          : await this.prisma.$queryRawUnsafe<{ id: string }[]>(
-              `SELECT id FROM memories
+                singleUserId ?? 'default',
+                searchQuery,
+              )
+            : await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                `SELECT id FROM memories
                WHERE to_tsvector('english', raw) @@ websearch_to_tsquery('english', $1)
                  AND deleted_at IS NULL
                  AND superseded_by_id IS NULL
                  AND searchable IS NOT FALSE
                ORDER BY ts_rank(to_tsvector('english', raw), websearch_to_tsquery('english', $1)) DESC
                LIMIT 100`,
-              searchQuery,
-            );
+                searchQuery,
+              );
         let ftsAdded = 0;
         for (const row of ftsResults) {
           ftsResultIds.add(row.id);
@@ -345,6 +472,7 @@ export class MemoryQueryService {
           ...visibilityFilter,
           ...metadataFilter,
           ...temporalRangeFilter,
+          ...sessionIdFilter,
         },
         include: { extraction: true },
       });
@@ -406,6 +534,20 @@ export class MemoryQueryService {
       searchQuery,
       limit,
       queryEmbedding,
+      {
+        allow: allowInsightSurfacing,
+        where: allowInsightSurfacing
+          ? this.buildInsightSurfacingWhere(
+              userIdFilter,
+              dto,
+              subjectTypeFilter,
+              visibilityFilter,
+              metadataFilter,
+              sessionIdFilter,
+              temporalRangeFilter,
+            )
+          : undefined,
+      },
     );
 
     // ── ENG-29: Cross-Encoder Reranking ──────────────────────────
@@ -436,7 +578,9 @@ export class MemoryQueryService {
 
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
-      result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
+      result = ((await this.memoryFailureService?.attachChains(
+        scoredMemories,
+      )) ?? scoredMemories) as MemoryWithScore[];
     }
 
     const resultIds = result.map((m) => m.id);
@@ -561,6 +705,7 @@ export class MemoryQueryService {
     const subjectTypeFilter = this.buildSubjectTypeFilter(dto);
     const visibilityFilterMQ = this.buildVisibilityFilter(dto);
     const metadataFilterMQ = this.buildMetadataFilter(dto);
+    const sessionIdFilterMQ = this.buildSessionIdFilter(dto);
 
     const memories = await this.prisma.memory.findMany({
       where: {
@@ -571,6 +716,7 @@ export class MemoryQueryService {
         ...subjectTypeFilter,
         ...visibilityFilterMQ,
         ...metadataFilterMQ,
+        ...sessionIdFilterMQ,
       },
       include: { extraction: true },
     });
@@ -593,7 +739,9 @@ export class MemoryQueryService {
 
     let result: MemoryWithScore[] = scoredMemories;
     if (dto.includeChains) {
-      result = (await this.attachChains(scoredMemories)) as MemoryWithScore[];
+      result = ((await this.memoryFailureService?.attachChains(
+        scoredMemories,
+      )) ?? scoredMemories) as MemoryWithScore[];
     }
 
     const resultIds = result.map((m) => m.id);
@@ -642,7 +790,7 @@ export class MemoryQueryService {
         const excludeIds = new Set(result.map((m) => m.id));
         const areResult = await this.anticipatoryService.run(
           dto.query,
-          Array.isArray(userId) ? userId[0] : userId ?? 'default',
+          Array.isArray(userId) ? userId[0] : (userId ?? 'default'),
           excludeIds,
           dto.anticipatory,
         );
@@ -709,6 +857,52 @@ export class MemoryQueryService {
       budget,
       constraintReserve,
     );
+  }
+
+  /**
+   * HEY-578: Build Prisma WHERE clause for sessionId filter.
+   */
+  buildSessionIdFilter(dto: QueryMemoryDto): Record<string, any> {
+    if (!dto.sessionId) return {};
+    return { sessionId: dto.sessionId };
+  }
+
+  buildInsightSurfacingWhere(
+    userIdFilter: string | { in: string[] } | undefined,
+    dto: QueryMemoryDto,
+    subjectTypeFilter: Record<string, any>,
+    visibilityFilter: Record<string, any>,
+    metadataFilter: Record<string, any>,
+    sessionIdFilter: Record<string, any>,
+    temporalRangeFilter: Record<string, any>,
+  ): Record<string, any> {
+    const recentCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const explicitCreatedAt = temporalRangeFilter.createdAt ?? {};
+    const createdAt: Record<string, any> = {
+      gte:
+        explicitCreatedAt.gte && explicitCreatedAt.gte > recentCutoff
+          ? explicitCreatedAt.gte
+          : recentCutoff,
+    };
+
+    if (explicitCreatedAt.lte) {
+      createdAt.lte = explicitCreatedAt.lte;
+    }
+
+    return {
+      ...(userIdFilter !== undefined ? { userId: userIdFilter } : {}),
+      layer: MemoryLayer.INSIGHT,
+      deletedAt: null,
+      supersededById: null,
+      searchable: { not: false },
+      importanceScore: { gte: 0.6 },
+      createdAt,
+      ...subjectTypeFilter,
+      ...visibilityFilter,
+      ...metadataFilter,
+      ...sessionIdFilter,
+      ...(dto.filterAgentId ? { agentId: dto.filterAgentId } : {}),
+    };
   }
 
   /**
@@ -798,57 +992,91 @@ export class MemoryQueryService {
     return this.contextService.formatContext(memories, maxTokens);
   }
 
-  private async attachChains(
-    memories: MemoryWithExtraction[],
-    maxDepth: number = 3,
-  ): Promise<MemoryWithExtraction[]> {
-    const memoryIds = memories.map((m) => m.id);
-    if (memoryIds.length === 0) return memories;
+  async traceTimeline(
+    agentId: string,
+    dto: TraceTimelineDto,
+  ): Promise<TraceTimelineResponse> {
+    const { topic, startDate, endDate, method = 'keyword', limit = 100 } = dto;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    const chainLinks = await this.prisma.memoryChainLink.findMany({
-      where: {
-        OR: [{ sourceId: { in: memoryIds } }, { targetId: { in: memoryIds } }],
-      },
-      include: {
-        source: true,
-        target: true,
-      },
-    });
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: string;
+        raw: string;
+        memory_type: string;
+        importance_score: number;
+        created_at: Date;
+      }>
+    >(
+      `SELECT id, raw, memory_type, importance_score, created_at
+       FROM memories
+       WHERE agent_id = $1
+         AND searchable = true
+         AND deleted_at IS NULL
+         AND raw ILIKE '%' || $2 || '%'
+         AND created_at >= $3
+         AND created_at <= $4
+       ORDER BY created_at ASC
+       LIMIT $5`,
+      agentId,
+      topic,
+      start,
+      end,
+      limit,
+    );
 
-    if (chainLinks.length === 0) return memories;
-
-    // Build chain map per memory
-    const chainMap = new Map<
-      string,
-      Array<{ memory: any; linkType: string; confidence: number }>
-    >();
-
-    for (const link of chainLinks) {
-      for (const memoryId of memoryIds) {
-        if (link.sourceId === memoryId) {
-          const arr = chainMap.get(memoryId) ?? [];
-          arr.push({
-            memory: link.target,
-            linkType: link.linkType,
-            confidence: link.confidence,
-          });
-          chainMap.set(memoryId, arr);
-        }
-        if (link.targetId === memoryId) {
-          const arr = chainMap.get(memoryId) ?? [];
-          arr.push({
-            memory: link.source,
-            linkType: link.linkType,
-            confidence: link.confidence,
-          });
-          chainMap.set(memoryId, arr);
-        }
+    // Group by day
+    const entriesByDate = new Map<string, TimelineEntry>();
+    for (const row of rows) {
+      const dateKey = row.created_at.toISOString().split('T')[0];
+      let entry = entriesByDate.get(dateKey);
+      if (!entry) {
+        entry = { date: dateKey, memories: [] };
+        entriesByDate.set(dateKey, entry);
       }
+      entry.memories.push({
+        id: row.id,
+        raw: row.raw,
+        memoryType: row.memory_type,
+        importanceScore: Number(row.importance_score),
+        createdAt: row.created_at,
+      });
     }
 
-    return memories.map((m) => ({
-      ...m,
-      chainedMemories: chainMap.get(m.id) ?? [],
-    }));
+    // Generate all days in range for gap detection
+    const allDays: string[] = [];
+    const current = new Date(start);
+    current.setUTCHours(0, 0, 0, 0);
+    const endNorm = new Date(end);
+    endNorm.setUTCHours(0, 0, 0, 0);
+    while (current <= endNorm) {
+      allDays.push(current.toISOString().split('T')[0]);
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    const gaps = allDays.filter((day) => !entriesByDate.has(day));
+    const daysWithMemories = allDays.length - gaps.length;
+    const coverage =
+      allDays.length > 0
+        ? Math.round((daysWithMemories / allDays.length) * 10000) / 100
+        : 0;
+
+    // Sort entries chronologically
+    const entries = Array.from(entriesByDate.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+
+    return {
+      topic,
+      range: {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0],
+      },
+      totalMemories: rows.length,
+      entries,
+      gaps,
+      coverage,
+    };
   }
 }

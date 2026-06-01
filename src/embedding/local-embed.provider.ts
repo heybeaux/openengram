@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EmbeddingProvider, EmbedOptions } from './embedding-provider.interface';
+import {
+  EmbeddingProvider,
+  EmbedOptions,
+} from './embedding-provider.interface';
 
 /**
  * Local Embedding Provider
@@ -26,10 +29,16 @@ export class LocalEmbedProvider implements EmbeddingProvider {
       'LOCAL_EMBED_MODEL',
       'bge-base-en-v1.5',
     );
-    this.dimensions = this.configService.get<number>(
+    const rawDimensions = this.configService.get<number | string>(
       'LOCAL_EMBED_DIMENSIONS',
       768,
     );
+    this.dimensions = Number(rawDimensions);
+    if (!Number.isInteger(this.dimensions) || this.dimensions <= 0) {
+      throw new Error(
+        `LOCAL_EMBED_DIMENSIONS must be a positive integer, got ${JSON.stringify(rawDimensions)}`,
+      );
+    }
   }
 
   async embed(texts: string[], options?: EmbedOptions): Promise<number[][]> {
@@ -63,10 +72,7 @@ export class LocalEmbedProvider implements EmbeddingProvider {
   }
 
   private async doFetch(fetchOptions: RequestInit): Promise<number[][]> {
-    const response = await fetch(
-      `${this.baseUrl}/v1/embeddings`,
-      fetchOptions,
-    );
+    const response = await fetch(`${this.baseUrl}/v1/embeddings`, fetchOptions);
 
     if (!response.ok) {
       const error = await response.text();
@@ -81,7 +87,35 @@ export class LocalEmbedProvider implements EmbeddingProvider {
       throw new Error('Invalid response from local embedding server');
     }
 
-    return data.data.map((item: any) => item.embedding);
+    return data.data.map((item: any, index: number) =>
+      this.validateEmbedding(item?.embedding, index),
+    );
+  }
+
+  private validateEmbedding(embedding: unknown, index: number): number[] {
+    if (!Array.isArray(embedding)) {
+      throw new Error(
+        `Invalid embedding at index ${index}: expected array from local embedding server`,
+      );
+    }
+
+    if (embedding.length !== this.dimensions) {
+      throw new Error(
+        `Invalid embedding at index ${index}: expected ${this.dimensions} dimensions, got ${embedding.length}`,
+      );
+    }
+
+    if (
+      embedding.some(
+        (value) => typeof value !== 'number' || !Number.isFinite(value),
+      )
+    ) {
+      throw new Error(
+        `Invalid embedding at index ${index}: contains non-finite values`,
+      );
+    }
+
+    return embedding;
   }
 
   getModelName(): string {

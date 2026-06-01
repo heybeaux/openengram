@@ -15,6 +15,8 @@ import {
   DreamCycleTieringStage,
   DreamCycleConsolidationStage,
   DreamCycleTimelineSynthesisStage,
+  DreamCycleImportanceRescoreStage,
+  DreamCycleArchivalStage,
 } from './stages';
 import * as os from 'os';
 import { DreamCycleRunTrackerService } from './dream-cycle-run-tracker.service';
@@ -33,6 +35,8 @@ export type DreamCycleStage =
   | 'clustering'
   | 'drift'
   | 'identity'
+  | 'importance-rescore'
+  | 'archival'
   | 'report';
 
 export interface DreamCycleOptions {
@@ -67,6 +71,8 @@ const ALL_STAGES: DreamCycleStage[] = [
   'clustering',
   'drift',
   'identity',
+  'importance-rescore',
+  'archival',
   'report',
 ];
 
@@ -85,6 +91,8 @@ export class DreamCycleService {
     private driftStage: DreamCycleDriftStage,
     private identityStage: DreamCycleIdentityStage,
     private timelineSynthesisStage: DreamCycleTimelineSynthesisStage,
+    private importanceRescoreStage: DreamCycleImportanceRescoreStage,
+    private archivalStage: DreamCycleArchivalStage,
     private tracker: DreamCycleRunTrackerService,
     @Optional() private generateContextService?: GenerateContextService,
     @Optional() private clusteringService?: ClusteringService,
@@ -211,9 +219,7 @@ export class DreamCycleService {
           select: { id: true },
         });
 
-        this.log(
-          `Account ${account.id}: found ${users.length} users`,
-        );
+        this.log(`Account ${account.id}: found ${users.length} users`);
 
         // Phase 0 scalability: run users in parallel with concurrency limit
         // DREAM_CYCLE_CONCURRENCY env var controls batch size (default: 5)
@@ -224,8 +230,13 @@ export class DreamCycleService {
         );
         const userQueue = [...users];
         const runUser = async (user: { id: string }) => {
-          this.log(`Running Dream Cycle for user: ${user.id} (account: ${account.id})`);
-          const result = await this.runInternal({ ...options, userId: user.id });
+          this.log(
+            `Running Dream Cycle for user: ${user.id} (account: ${account.id})`,
+          );
+          const result = await this.runInternal({
+            ...options,
+            userId: user.id,
+          });
           allResults.push(result);
         };
         while (userQueue.length > 0) {
@@ -276,7 +287,7 @@ export class DreamCycleService {
     const startTime = Date.now();
     const stageDetails: Record<string, any> = {};
     const errors: string[] = [];
-    let scoresRefreshed = 0;
+    const scoresRefreshed = 0;
     let duplicatesMerged = 0;
     let patternsCreated = 0;
     let memoriesArchived = 0;
@@ -582,6 +593,66 @@ export class DreamCycleService {
           this.log('Stage 3.8 complete', identityResult);
         } catch (err) {
           const msg = `Identity stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.9: Importance re-scoring (ENG-119)
+      if (stages.includes('importance-rescore')) {
+        this.log('Stage 3.9: Importance re-scoring');
+        const rescoreStart = new Date();
+        const rescoreRecord = await this.tracker.startStage(
+          runId,
+          'importance-rescore',
+          totalMemories,
+        );
+        try {
+          const rescoreResult = await this.importanceRescoreStage.run(
+            userId,
+            dryRun,
+          );
+          await this.tracker.completeStage(rescoreRecord.id, 0, rescoreStart);
+          stageDetails['importance-rescore'] = rescoreResult;
+          this.log('Stage 3.9 complete', rescoreResult);
+        } catch (err) {
+          await this.tracker.errorStage(
+            rescoreRecord.id,
+            err as Error,
+            rescoreStart,
+          );
+          const msg = `Importance re-scoring stage failed: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(msg);
+          this.log(msg, undefined, 'error');
+        }
+      }
+
+      // Stage 3.10: Archival of low-importance memories (ENG-123)
+      if (stages.includes('archival')) {
+        this.log('Stage 3.10: Archival of low-importance memories');
+        const archivalStart = new Date();
+        const archivalRecord = await this.tracker.startStage(
+          runId,
+          'archival',
+          totalMemories,
+        );
+        try {
+          const archivalResult = await this.archivalStage.run(userId, dryRun);
+          await this.tracker.completeStage(
+            archivalRecord.id,
+            archivalResult.archived,
+            archivalStart,
+          );
+          memoriesArchived += archivalResult.archived;
+          stageDetails.archival = archivalResult;
+          this.log('Stage 3.10 complete', archivalResult);
+        } catch (err) {
+          await this.tracker.errorStage(
+            archivalRecord.id,
+            err as Error,
+            archivalStart,
+          );
+          const msg = `Archival stage failed: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(msg);
           this.log(msg, undefined, 'error');
         }

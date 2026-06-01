@@ -35,7 +35,8 @@ export class RetrievalSignalsService {
    * Returns the generated queryId (cuid).
    */
   async logQuery(input: LogQueryInput): Promise<string> {
-    const queryType = input.queryType ?? this.classifyQueryType(input.queryText);
+    const queryType =
+      input.queryType ?? this.classifyQueryType(input.queryText);
 
     const log = await this.prisma.retrievalLog.create({
       data: {
@@ -75,17 +76,98 @@ export class RetrievalSignalsService {
   }
 
   /**
+   * Fetch recent retrieval queries for an account, with their attached signals.
+   * Used by Ginnung cockpit to render the Engram panel's "recent retrievals" view.
+   *
+   * Note: per-result similarity scores live in the original query response
+   * (X-Query-Id header → `memories[*].score`) and are NOT persisted at retrieval
+   * time. Signals returned here are feedback + downstream-behavior events.
+   */
+  async getRecentQueries(
+    accountId: string,
+    options: { limit?: number; since?: Date } = {},
+  ): Promise<
+    Array<{
+      queryId: string;
+      queryText: string;
+      queryType: string | null;
+      resultCount: number;
+      latencyMs: number;
+      createdAt: Date;
+      signals: Array<{
+        memoryId: string | null;
+        rank: number | null;
+        weight: number;
+        signalType: string;
+        propensity: number | null;
+        createdAt: Date;
+      }>;
+    }>
+  > {
+    const take = Math.min(options.limit ?? 20, 100);
+
+    const logs = await this.prisma.retrievalLog.findMany({
+      where: {
+        accountId,
+        ...(options.since ? { createdAt: { gte: options.since } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+
+    if (logs.length === 0) return [];
+
+    const signals = await this.prisma.retrievalSignal.findMany({
+      where: {
+        accountId,
+        queryId: { in: logs.map((l) => l.id) },
+      },
+      orderBy: { rank: 'asc' },
+    });
+
+    const signalsByQuery = new Map<string, typeof signals>();
+    for (const s of signals) {
+      const bucket = signalsByQuery.get(s.queryId) ?? [];
+      bucket.push(s);
+      signalsByQuery.set(s.queryId, bucket);
+    }
+
+    return logs.map((log) => ({
+      queryId: log.id,
+      queryText: log.queryText,
+      queryType: log.queryType,
+      resultCount: log.resultCount,
+      latencyMs: log.latencyMs,
+      createdAt: log.createdAt,
+      signals: (signalsByQuery.get(log.id) ?? []).map((s) => ({
+        memoryId: s.memoryId,
+        rank: s.rank,
+        weight: s.weight,
+        signalType: s.signalType,
+        propensity: s.propensity,
+        createdAt: s.createdAt,
+      })),
+    }));
+  }
+
+  /**
    * Compute propensity score p(item_i at position_k) for IPS correction.
    * Under static RRF with fixed weights, propensity is approximated as
    * 1/(k + rank) normalized by the total number of results.
    */
-  computePropensity(rank: number, resultCount: number, rrfK: number = 60): number {
+  computePropensity(
+    rank: number,
+    resultCount: number,
+    rrfK: number = 60,
+  ): number {
     if (resultCount === 0) return 0;
     // Propensity = probability of item appearing at this rank
     // Under RRF: score(d) = 1/(k + rank). Normalize across result set.
     const rawScore = 1 / (rrfK + rank);
-    const totalMass = Array.from({ length: resultCount }, (_, i) => 1 / (rrfK + i))
-      .reduce((sum, s) => sum + s, 0);
+    const totalMass = Array.from(
+      { length: resultCount },
+      (_, i) => 1 / (rrfK + i),
+    ).reduce((sum, s) => sum + s, 0);
     return rawScore / totalMass;
   }
 

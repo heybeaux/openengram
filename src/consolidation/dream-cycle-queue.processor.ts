@@ -15,6 +15,7 @@ import { DreamCycleConsolidationStage } from './stages/dream-cycle-consolidation
 import { DreamCyclePatternsStage } from './stages/dream-cycle-patterns.stage';
 import { DreamCycleDriftStage } from './stages/dream-cycle-drift.stage';
 import { DreamCycleIdentityStage } from './stages/dream-cycle-identity.stage';
+import { DreamCycleArchivalStage } from './stages/dream-cycle-archival.stage';
 import { ClusteringService } from '../clustering/clustering.service';
 
 @Processor(DREAM_CYCLE_QUEUE)
@@ -30,6 +31,7 @@ export class DreamCycleQueueProcessor extends WorkerHost {
     private readonly patternsStage: DreamCyclePatternsStage,
     private readonly driftStage: DreamCycleDriftStage,
     private readonly identityStage: DreamCycleIdentityStage,
+    private readonly archivalStage: DreamCycleArchivalStage,
     @Optional() private readonly clusteringService?: ClusteringService,
   ) {
     super();
@@ -95,8 +97,7 @@ export class DreamCycleQueueProcessor extends WorkerHost {
     cursor: DreamCycleCursor,
   ): Promise<any> {
     const { userId, dryRun, maxLlmCalls } = job.data;
-    const remainingLlm =
-      (maxLlmCalls ?? 50) - (cursor.llmCallsUsed ?? 0);
+    const remainingLlm = (maxLlmCalls ?? 50) - (cursor.llmCallsUsed ?? 0);
 
     switch (job.name) {
       case DREAM_CYCLE_JOBS.PENDING:
@@ -123,6 +124,9 @@ export class DreamCycleQueueProcessor extends WorkerHost {
 
       case DREAM_CYCLE_JOBS.IDENTITY:
         return this.identityStage.run(userId, dryRun, remainingLlm);
+
+      case DREAM_CYCLE_JOBS.ARCHIVAL:
+        return this.archivalStage.run(userId, dryRun);
 
       case DREAM_CYCLE_JOBS.REPORT: {
         this.logger.log(`Dream Cycle flow COMPLETE: runId=${job.data.runId}`);
@@ -151,6 +155,8 @@ export class DreamCycleQueueProcessor extends WorkerHost {
         return result.patternsCreated ?? 0;
       case DREAM_CYCLE_JOBS.CLUSTERING:
         return result.clustersFound ?? 0;
+      case DREAM_CYCLE_JOBS.ARCHIVAL:
+        return result.archived ?? 0;
       default:
         return 0;
     }

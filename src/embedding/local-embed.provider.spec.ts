@@ -45,7 +45,7 @@ describe('LocalEmbedProvider', () => {
 
   describe('embed', () => {
     it('should embed a single text', async () => {
-      const mockEmbedding = [0.1, 0.2, 0.3];
+      const mockEmbedding = new Array(768).fill(0.1);
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -66,8 +66,8 @@ describe('LocalEmbedProvider', () => {
 
     it('should embed multiple texts', async () => {
       const mockEmbeddings = [
-        { embedding: [0.1, 0.2] },
-        { embedding: [0.3, 0.4] },
+        { embedding: new Array(768).fill(0.1) },
+        { embedding: new Array(768).fill(0.2) },
       ];
       mockFetch.mockResolvedValue({
         ok: true,
@@ -76,8 +76,8 @@ describe('LocalEmbedProvider', () => {
 
       const result = await provider.embed(['hello', 'world']);
       expect(result).toEqual([
-        [0.1, 0.2],
-        [0.3, 0.4],
+        new Array(768).fill(0.1),
+        new Array(768).fill(0.2),
       ]);
       // Multiple texts should send as array
       expect(mockFetch).toHaveBeenCalledWith(
@@ -114,11 +114,37 @@ describe('LocalEmbedProvider', () => {
       );
     });
 
-    it('should send X-Priority header when priority option is set', async () => {
+    it('should throw on wrong embedding dimensions', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
           data: [{ embedding: [0.1, 0.2] }],
+        }),
+      });
+
+      await expect(provider.embed(['test'])).rejects.toThrow(
+        'expected 768 dimensions, got 2',
+      );
+    });
+
+    it('should throw on non-finite embedding values', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [{ embedding: new Array(768).fill(null) }],
+        }),
+      });
+
+      await expect(provider.embed(['test'])).rejects.toThrow(
+        'contains non-finite values',
+      );
+    });
+
+    it('should send X-Priority header when priority option is set', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [{ embedding: new Array(768).fill(0.1) }],
         }),
       });
 
@@ -140,7 +166,7 @@ describe('LocalEmbedProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: [{ embedding: [0.1, 0.2] }],
+          data: [{ embedding: new Array(768).fill(0.1) }],
         }),
       });
 
@@ -188,6 +214,59 @@ describe('LocalEmbedProvider', () => {
 
       const result = await provider.healthCheck();
       expect(result).toBe(false);
+    });
+  });
+
+  describe('LOCAL_EMBED_DIMENSIONS coercion', () => {
+    it('coerces stringified env value to number and accepts matching embedding', async () => {
+      const stringDimConfig = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          const config: Record<string, any> = {
+            LOCAL_EMBED_URL: 'http://localhost:8080',
+            LOCAL_EMBED_MODEL: 'minilm',
+            LOCAL_EMBED_DIMENSIONS: '384',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      };
+      const module = await Test.createTestingModule({
+        providers: [
+          LocalEmbedProvider,
+          { provide: ConfigService, useValue: stringDimConfig },
+        ],
+      }).compile();
+      const stringProvider = module.get<LocalEmbedProvider>(LocalEmbedProvider);
+
+      expect(stringProvider.getDimensions()).toBe(384);
+
+      const mockEmbedding = new Array(384).fill(0.1);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: [{ embedding: mockEmbedding }] }),
+      });
+      const result = await stringProvider.embed(['hello']);
+      expect(result[0]).toHaveLength(384);
+    });
+
+    it('throws on non-numeric LOCAL_EMBED_DIMENSIONS', async () => {
+      const badConfig = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          const config: Record<string, any> = {
+            LOCAL_EMBED_URL: 'http://localhost:8080',
+            LOCAL_EMBED_MODEL: 'minilm',
+            LOCAL_EMBED_DIMENSIONS: 'not-a-number',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      };
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            LocalEmbedProvider,
+            { provide: ConfigService, useValue: badConfig },
+          ],
+        }).compile(),
+      ).rejects.toThrow(/LOCAL_EMBED_DIMENSIONS must be a positive integer/);
     });
   });
 });

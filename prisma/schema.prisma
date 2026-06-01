@@ -57,6 +57,7 @@ model Agent {
   webhooks       Webhook[]
   account        Account?       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   syncAgentMaps  SyncAgentMap[]
+  poolGrants     PoolGrant[]
 
   @@map("agents")
 }
@@ -167,6 +168,7 @@ model Memory {
   embeddingModel         String?          @map("embedding_model")
   embeddingStatus        EmbeddingStatus  @default(PENDING) @map("embedding_status")
   isDuplicateOf          String?          @map("is_duplicate_of")
+  parentMemoryId         String?          @map("parent_memory_id") // HEY-574: FACT_KEY child → parent link
   ingestedAt             DateTime         @default(now()) @map("ingested_at")
   retrievalCount         Int              @default(0) @map("retrieval_count")
   lastRetrievedAt        DateTime?        @map("last_retrieved_at")
@@ -181,12 +183,14 @@ model Memory {
   // ENG-31: Durability classification for retrieval scoring
   durability             MemoryDurability @default(UNCLASSIFIED)
   durabilityClassifiedAt DateTime?        @map("durability_classified_at")
+  // GIN-43: Optimistic concurrency version counter
+  version                Int              @default(0)
 
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
   deletedAt      DateTime?                @map("deleted_at")
   processedAt    DateTime?                @map("processed_at")
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("vector(768)")?
   searchVector   Unsupported("tsvector")? @map("search_vector")
   feedback       Feedback[]
   project        Project?                 @relation(fields: [projectId], references: [id])
@@ -224,6 +228,13 @@ model Memory {
   // e.g. insightType, signalSource, actionable, expiresAt, acknowledged)
   metadata Json? @map("metadata")
 
+  // Temporal anchoring (temporal-anchoring spec):
+  //   observedAt is the speaker's "now" — the anchor for relative-phrase resolution.
+  //   For real-time capture it equals createdAt; for bulk/historical import the caller supplies it.
+  observedAt           DateTime?            @map("observed_at")
+  temporalAnchorSource TemporalAnchorSource @default(FALLBACK_RECORDED_AT) @map("temporal_anchor_source")
+  eventTimes           MemoryEventTime[]
+
   // Semantic Memory Graph relations
   graphMentions        GraphEntityMention[]
   graphEntityFirstSeen GraphEntity[]        @relation("GraphEntityFirstSeen")
@@ -239,12 +250,22 @@ model Memory {
   // Multi-model ensemble embeddings
   ensembleEmbeddings MemoryEmbedding[]
 
+  // Per-model embedding tables (feat/embed-per-model-tables)
+  embeddingsOpenaiSmall EmbeddingOpenaiSmall?
+  embeddingsBgeBase     EmbeddingBgeBase?
+  embeddingsMinilm      EmbeddingMinilm?
+  embeddingsNomic       EmbeddingNomic?
+
   // Entity Profiles
   entityProfiles EntityProfileMemory[]
 
   // Automated dedup pipeline relations
   dedupCandidates1 DedupCandidate[] @relation("DedupCandidate1")
   dedupCandidates2 DedupCandidate[] @relation("DedupCandidate2")
+
+  // Memory Edges (ENG-120): typed graph relationships
+  outgoingEdges MemoryEdge[] @relation("MemoryEdgesSource")
+  incomingEdges MemoryEdge[] @relation("MemoryEdgesTarget")
 
   @@index([clusterId])
   @@index([userId, layer])
@@ -261,7 +282,33 @@ model Memory {
   @@index([embeddingStatus])
   @@index([tags], type: Gin) // ENG-42: Fast tag containment queries
   @@index([userId, processedAt])
+  @@index([userId, observedAt])
+  @@index([observedAt])
   @@map("memories")
+}
+
+/// Extracted temporal references from memory content, resolved against Memory.observedAt.
+/// See openspec/changes/temporal-anchoring for the field model and resolution rules.
+model MemoryEventTime {
+  id                 String              @id @default(cuid())
+  memoryId           String              @map("memory_id")
+  memory             Memory              @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  surface            String              // original phrase from content
+  resolvedInstant    DateTime?           @map("resolved_instant")
+  resolvedRangeStart DateTime?           @map("resolved_range_start")
+  resolvedRangeEnd   DateTime?           @map("resolved_range_end")
+
+  anchor             DateTime            // the observedAt this was resolved against
+  confidence         EventTimeConfidence
+  extractor          EventTimeExtractor
+
+  createdAt          DateTime            @default(now()) @map("created_at")
+
+  @@index([memoryId])
+  @@index([resolvedInstant])
+  @@index([resolvedRangeStart, resolvedRangeEnd])
+  @@map("memory_event_times")
 }
 
 /// UX feedback from dashboard users (in-app widget + NPS)
@@ -304,6 +351,10 @@ model MemoryExtraction {
   whereConfidence Float? @map("where_confidence")
   whyConfidence   Float? @map("why_confidence")
   howConfidence   Float? @map("how_confidence")
+
+  // HEY-574: LLM-distilled atomic facts for key expansion (LongMemEval S2)
+  factKeys       String[] @default([]) @map("fact_keys")
+  factKeyVectors Json?    @map("fact_key_vectors")
 
   rawJson     Json?    @map("raw_json")
   extractedAt DateTime @default(now()) @map("extracted_at")
@@ -548,20 +599,24 @@ model MemoryPoolMembership {
   @@map("memory_pool_memberships")
 }
 
-/// Grants an agent session access to a shared pool
+/// Grants an agent session or agent identity access to a shared pool
 model PoolGrant {
   id             String         @id @default(cuid())
   poolId         String         @map("pool_id")
-  agentSessionId String         @map("agent_session_id")
+  agentSessionId String?        @map("agent_session_id")
+  agentId        String?        @map("agent_id")
   permission     PoolPermission @default(READ)
   grantedBy      String         @map("granted_by")
   grantedAt      DateTime       @default(now()) @map("granted_at")
   expiresAt      DateTime?      @map("expires_at")
 
-  pool         MemoryPool   @relation(fields: [poolId], references: [id], onDelete: Cascade)
-  agentSession AgentSession @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+  pool         MemoryPool    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  agentSession AgentSession? @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+  agent        Agent?        @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@unique([poolId, agentSessionId])
+  @@unique([poolId, agentId])
+  @@index([agentId])
   @@map("pool_grants")
 }
 
@@ -661,6 +716,11 @@ enum MemoryType {
   LESSON // Priority 1: Mistakes, corrections, and learnings
   TASK_OUTCOME // Priority 3: Structured task completion records
   SELF_ASSESSMENT // Priority 3: Agent self-evaluation records
+  DECISION // Priority 2: Choices that were made (retained longer — decisions have consequences)
+  OUTCOME // Priority 3: Results of actions (linked to decisions)
+  GOAL // Priority 2: Intended objectives (active until resolved or abandoned)
+  TEMPORAL_GAP // ENG-131: Session-resume gap markers anchoring observations temporally
+  FACT_KEY // HEY-574: LLM-distilled atomic fact child rows for key expansion
 }
 
 /// Subject type - who/what is this memory about?
@@ -680,6 +740,26 @@ enum MemorySource {
   PATTERN_DETECTED
   SYSTEM
   GIT_HISTORY
+  HISTORICAL
+}
+
+/// Provenance of Memory.observedAt — used to decide whether relative-phrase extraction is safe to run.
+enum TemporalAnchorSource {
+  EXPLICIT_CALLER
+  INFERRED_FROM_CONTENT
+  FALLBACK_RECORDED_AT
+}
+
+enum EventTimeConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum EventTimeExtractor {
+  REGEX
+  DATEPARSER
+  LLM
 }
 
 /// Importance hint from API caller
@@ -1080,6 +1160,69 @@ model MemoryEmbedding {
   @@index([modelId])
   @@index([memoryId])
   @@map("memory_embeddings")
+}
+
+// ============================================================================
+// PER-MODEL EMBEDDING TABLES (feat/embed-per-model-tables)
+// Each table stores fixed-dimension vectors for a single model, enabling
+// targeted ivfflat indexes and clean per-model ANN queries without casting.
+// EmbeddingNomic is QUARANTINED — retained for backfill only.
+// ============================================================================
+
+/// OpenAI text-embedding-3-small — 1536 dimensions
+model EmbeddingOpenaiSmall {
+  id           String   @id @default(cuid())
+  memoryId     String   @unique @map("memory_id")
+  modelVersion String   @map("model_version") // e.g. "text-embedding-3-small"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  embedding Unsupported("vector(1536)")?
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("embedding_openai_small")
+}
+
+/// BGE-base-en-v1.5 — 768 dimensions
+model EmbeddingBgeBase {
+  id           String   @id @default(cuid())
+  memoryId     String   @unique @map("memory_id")
+  modelVersion String   @map("model_version") // e.g. "bge-base-en-v1.5"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  embedding Unsupported("vector(768)")?
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("embedding_bge_base")
+}
+
+/// all-MiniLM-L6-v2 — 384 dimensions
+model EmbeddingMinilm {
+  id           String   @id @default(cuid())
+  memoryId     String   @unique @map("memory_id")
+  modelVersion String   @map("model_version") // e.g. "all-MiniLM-L6-v2"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  embedding Unsupported("vector(384)")?
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("embedding_minilm")
+}
+
+/// nomic-embed-text-v1 — 768 dimensions — QUARANTINED, schema kept for backfill
+model EmbeddingNomic {
+  id           String   @id @default(cuid())
+  memoryId     String   @unique @map("memory_id")
+  modelVersion String   @map("model_version") // e.g. "nomic-embed-text-v1"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  embedding Unsupported("vector(768)")?
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("embedding_nomic")
 }
 
 /// Drift snapshot for tracking embedding drift over time
@@ -2344,4 +2487,29 @@ model Timeline {
   @@index([agentId, agentLocalDate(sort: Desc)])
   @@index([arcId])
   @@map("timelines")
+}
+
+/// ENG-120: Typed graph relationships between memories
+model MemoryEdge {
+  id            String    @id @default(uuid())
+  sourceId      String    @map("source_id")
+  targetId      String    @map("target_id")
+  edgeType      String    @map("edge_type")
+  weight        Float     @default(0.5)
+  confidence    Float     @default(0.5)
+  temporalStart DateTime? @map("temporal_start")
+  temporalEnd   DateTime? @map("temporal_end")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  createdBy     String?   @map("created_by")
+  metadata      Json      @default("{}")
+  agentId       String    @map("agent_id")
+
+  source Memory @relation("MemoryEdgesSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Memory @relation("MemoryEdgesTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([edgeType])
+  @@index([agentId])
+  @@map("memory_edges")
 }

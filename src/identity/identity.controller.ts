@@ -24,7 +24,7 @@ import { TrustProfileService } from './trust-profile.service';
 import { DelegationContractService } from './delegation-contract.service';
 import { ChallengeService } from './challenge.service';
 import { IdentityService } from './identity.service';
-import { CreateTeamDto } from './dto/team.dto';
+import { CreateIdentityTeamDto } from './dto/team.dto';
 import { ImportIdentityDto } from './dto/portable-identity.dto';
 import {
   CreateTaskCompletionDto,
@@ -385,7 +385,7 @@ export class IdentityController {
   @Post('teams')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a team profile' })
-  async createTeam(@Body() dto: CreateTeamDto) {
+  async createTeam(@Body() dto: CreateIdentityTeamDto) {
     return this.teamProfileService.createTeam(dto);
   }
 

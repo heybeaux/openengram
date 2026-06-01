@@ -104,6 +104,9 @@ describe('v07-backfill script', () => {
           findMany: jest
             .fn()
             .mockResolvedValue([{ id: 'user-1', externalId: 'Beaux' }]),
+          upsert: jest
+            .fn()
+            .mockResolvedValue({ id: 's1', sessionKey: 'agent:main' }),
         },
         memoryPool: {
           upsert: jest.fn().mockResolvedValue({ id: 'pool-1' }),
@@ -161,6 +164,9 @@ describe('v07-backfill script', () => {
       try {
         for (const memory of memories) {
           try {
+            await mockBadCreate({
+              data: { memoryId: memory.id, poolId: pool.id },
+            });
             await mockBadCreate({
               data: { memoryId: memory.id, poolId: pool.id },
             });

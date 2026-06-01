@@ -1,8 +1,9 @@
+import { Injectable, Logger } from '@nestjs/common';
 import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
-import { CreateMemoryDto, CreateMemoryBatchDto } from './dto/create-memory.dto';
+  CreateMemoryDto,
+  CreateMemoryBatchDto,
+  BatchCreateResponseDto,
+} from './dto/create-memory.dto';
 import {
   ExportedMemory,
   ImportMemoryItemDto,
@@ -15,10 +16,20 @@ import {
   BulkTextResult,
 } from './dto/bulk.dto';
 import { QueryMemoryDto, LoadContextDto } from './dto/query-memory.dto';
+import {
+  FindContradictionsDto,
+  FindContradictionsResult,
+} from './dto/find-contradictions.dto';
 import { UpdateMemoryDto, CorrectMemoryDto } from './dto/update-memory.dto';
+import {
+  FindFailuresDto,
+  FindFailuresResultDto,
+} from './dto/find-failures.dto';
 
 // Extracted services
 import { MemoryQueryService } from './memory-query.service';
+import { MemoryFailureService } from './memory-failure.service';
+import { MemoryContradictionService } from './memory-contradiction.service';
 import { MemoryGraphService } from './memory-graph.service';
 import { MemoryExportService } from './memory-export.service';
 import { MemoryWriteService } from './memory-write.service';
@@ -42,6 +53,8 @@ export class MemoryService {
   private readonly logger = new Logger(MemoryService.name);
   constructor(
     private queryService: MemoryQueryService,
+    private failureService: MemoryFailureService,
+    private contradictionService: MemoryContradictionService,
     private graphService: MemoryGraphService,
     private exportService: MemoryExportService,
     private writeService: MemoryWriteService,
@@ -64,7 +77,7 @@ export class MemoryService {
   async rememberAll(
     userId: string,
     dto: CreateMemoryBatchDto,
-  ): Promise<{ created: number; failed: number }> {
+  ): Promise<BatchCreateResponseDto> {
     return this.writeService.rememberAll(userId, dto);
   }
 
@@ -96,6 +109,26 @@ export class MemoryService {
     dto: QueryMemoryDto,
   ): Promise<QueryResult> {
     return this.queryService.recall(userId, dto);
+  }
+
+  /**
+   * ENG-116: Find failures related to a goal — delegates to MemoryQueryService
+   */
+  async findFailures(
+    userId: string | string[] | null,
+    dto: FindFailuresDto,
+  ): Promise<FindFailuresResultDto> {
+    return this.failureService.findFailures(userId, dto);
+  }
+
+  /**
+   * Find potential contradictions — delegates to MemoryQueryService
+   */
+  async findContradictions(
+    userId: string | string[] | null,
+    dto: FindContradictionsDto,
+  ): Promise<FindContradictionsResult> {
+    return this.contradictionService.findContradictions(userId, dto);
   }
 
   /**

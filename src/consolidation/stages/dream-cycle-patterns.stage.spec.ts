@@ -146,6 +146,7 @@ describe('DreamCyclePatternsStage', () => {
             raw: 'User prefers mornings',
             layer: 'IDENTITY',
             source: 'PATTERN_DETECTED',
+            searchable: false,
           }),
         }),
       );

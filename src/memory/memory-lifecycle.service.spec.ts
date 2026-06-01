@@ -6,6 +6,7 @@ import { ImportanceService } from './importance.service';
 import { MemoryPipelineService } from './memory-pipeline.service';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { MemoryLayer, MemorySource, ImportanceHint } from '@prisma/client';
+import { ElasticsearchService } from '../search/elasticsearch.service';
 
 describe('MemoryLifecycleService', () => {
   let service: MemoryLifecycleService;
@@ -14,6 +15,7 @@ describe('MemoryLifecycleService', () => {
   let mockEmbedding: any;
   let mockImportance: any;
   let mockPipelineService: any;
+  let mockElasticsearchService: Partial<ElasticsearchService>;
 
   const mockMemory = {
     id: 'mem-123',
@@ -94,12 +96,18 @@ describe('MemoryLifecycleService', () => {
       linkRelatedMemories: jest.fn().mockResolvedValue(undefined),
     };
 
+    mockElasticsearchService = {
+      indexMemory: jest.fn().mockResolvedValue(undefined),
+      deleteMemory: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new MemoryLifecycleService(
       mockPrisma,
       mockExtraction,
       mockEmbedding,
       mockImportance,
       mockPipelineService,
+      mockElasticsearchService as ElasticsearchService,
     );
   });
 
@@ -133,9 +141,9 @@ describe('MemoryLifecycleService', () => {
     it('should throw when user does not own memory', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue({ userId: 'other-user' });
 
-      await expect(
-        service.markUsed('mem-123', 'user-456'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.markUsed('mem-123', 'user-456')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -186,9 +194,9 @@ describe('MemoryLifecycleService', () => {
     it('should throw ForbiddenException for wrong user', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue(mockMemory);
 
-      await expect(
-        service.getById('mem-123', 'wrong-user'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getById('mem-123', 'wrong-user')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -219,9 +227,9 @@ describe('MemoryLifecycleService', () => {
     it('should throw NotFoundException for non-existent memory', async () => {
       mockPrisma.memory.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.delete('non-existent', 'user-456'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.delete('non-existent', 'user-456')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

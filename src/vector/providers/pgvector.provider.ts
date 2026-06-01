@@ -41,7 +41,7 @@ export class PgVectorProvider implements VectorProvider {
   }
 
   async upsert(record: VectorRecord): Promise<void> {
-    const embeddingStr = `[${record.embedding.join(',')}]`;
+    const embeddingStr = this.serializeEmbedding(record.embedding, 'upsert');
 
     // Write to inline column for backward compat
     const updated = await this.prisma.$executeRawUnsafe(
@@ -90,7 +90,7 @@ export class PgVectorProvider implements VectorProvider {
     embedding: number[],
     options: VectorSearchOptions,
   ): Promise<VectorSearchResult[]> {
-    const embeddingStr = `[${embedding.join(',')}]`;
+    const embeddingStr = this.serializeEmbedding(embedding, 'search');
     const limit = options.limit || 10;
 
     // Build WHERE clause for the memories table filters
@@ -102,9 +102,11 @@ export class PgVectorProvider implements VectorProvider {
     const params: any[] = [embeddingStr, this.searchModel];
     let paramIndex = 3;
 
-    // User ID filter
+    // User ID filter — skip when pool membership JOIN is the auth boundary
     let memoryWhereClause: string;
-    if (userIds.length === 1) {
+    if (options.filter?.poolIds && options.filter.poolIds.length > 0) {
+      memoryWhereClause = `m.deleted_at IS NULL`;
+    } else if (userIds.length === 1) {
       memoryWhereClause = `m.user_id = $${paramIndex} AND m.deleted_at IS NULL`;
       params.push(userIds[0]);
       paramIndex++;
@@ -154,7 +156,10 @@ export class PgVectorProvider implements VectorProvider {
     }
 
     // ENG-42: Metadata JSONB containment filter
-    if (options.filter?.metadata && Object.keys(options.filter.metadata).length > 0) {
+    if (
+      options.filter?.metadata &&
+      Object.keys(options.filter.metadata).length > 0
+    ) {
       memoryWhereClause += ` AND m.metadata @> $${paramIndex}::jsonb`;
       params.push(JSON.stringify(options.filter.metadata));
       paramIndex++;
@@ -168,8 +173,13 @@ export class PgVectorProvider implements VectorProvider {
     // Determine whether to include legacy fallback (UNION ALL on memories.embedding)
     const skipFallback = await this.shouldSkipLegacyFallback();
 
+    // Clamp limit to a safe positive integer before interpolation into SQL.
+    // LIMIT cannot be a bound parameter in this dynamic query construction;
+    // Math.trunc guarantees it is a plain integer with no injection potential.
+    const safeLimit = Math.max(1, Math.trunc(limit));
+
     const primaryQuery = `
-        SELECT 
+        SELECT
           m.id,
           1 - (me.embedding <=> $1::vector) as score
         FROM memories m
@@ -179,7 +189,7 @@ export class PgVectorProvider implements VectorProvider {
           AND ${memoryWhereClause}
           AND me.embedding IS NOT NULL
         ORDER BY me.embedding <=> $1::vector
-        LIMIT ${limit}`;
+        LIMIT ${safeLimit}`;
 
     const fallbackQuery = `
       UNION ALL
@@ -196,12 +206,12 @@ export class PgVectorProvider implements VectorProvider {
             WHERE me.memory_id = m.id AND me.model_id = $2
           )
         ORDER BY m.embedding <=> $1::vector
-        LIMIT ${limit}
+        LIMIT ${safeLimit}
       )`;
 
     const query = skipFallback
       ? `${primaryQuery} `
-      : `(${primaryQuery}) ${fallbackQuery} ORDER BY score DESC LIMIT ${limit}`;
+      : `(${primaryQuery}) ${fallbackQuery} ORDER BY score DESC LIMIT ${safeLimit}`;
 
     // Search ensemble embeddings first, optionally fall back to inline column
     const results = await this.prisma.$queryRawUnsafe<
@@ -248,6 +258,26 @@ export class PgVectorProvider implements VectorProvider {
     }
 
     return vectorResults;
+  }
+
+  private serializeEmbedding(embedding: number[], operation: string): string {
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      throw new Error(
+        `[PgVector] Invalid embedding for ${operation}: expected non-empty array`,
+      );
+    }
+
+    if (
+      embedding.some(
+        (value) => typeof value !== 'number' || !Number.isFinite(value),
+      )
+    ) {
+      throw new Error(
+        `[PgVector] Invalid embedding for ${operation}: contains non-finite values`,
+      );
+    }
+
+    return `[${embedding.join(',')}]`;
   }
 
   async delete(id: string): Promise<void> {

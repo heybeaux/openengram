@@ -49,6 +49,8 @@ export interface ExtractionResult {
   lesson: LessonFields | null;
   capabilities: CapabilitySignal[];
   preferenceSignals: PreferenceSignal[];
+  // HEY-574: LLM-distilled atomic fact keys for key expansion
+  factKeys: string[];
 }
 
 // Priority mapping for memory types
@@ -61,6 +63,11 @@ export const MEMORY_TYPE_PRIORITY: Record<MemoryType, number> = {
   EVENT: 4,
   TASK_OUTCOME: 3,
   SELF_ASSESSMENT: 3,
+  DECISION: 2,
+  OUTCOME: 3,
+  GOAL: 2,
+  TEMPORAL_GAP: 4, // System-generated session anchor; matches EVENT priority
+  FACT_KEY: 4, // HEY-574: Derived atomic fact child; matches EVENT priority
 };
 
 export interface EntityWithType {
@@ -107,4 +114,5 @@ export interface ExtractionResponse {
   lessonseverity: string | null;
   lessonsource: string | null;
   lessontriggerpatterns: string[] | null;
+  fact_keys: string[] | null;
 }

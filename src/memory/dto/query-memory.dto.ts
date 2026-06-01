@@ -9,6 +9,7 @@ import {
   ValidateNested,
   Min,
   Max,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -22,7 +23,8 @@ import { AnticipatoryOptionsDto } from '../../anticipatory/dto/anticipatory.dto'
  */
 export class RecallFilterDto {
   @ApiPropertyOptional({
-    description: 'Must-match tags (AND logic — memory must have ALL listed tags)',
+    description:
+      'Must-match tags (AND logic — memory must have ALL listed tags)',
     example: ['google-ads', 'campaign'],
   })
   @IsOptional()
@@ -31,7 +33,8 @@ export class RecallFilterDto {
   tags?: string[];
 
   @ApiPropertyOptional({
-    description: 'Metadata key-value filters (memory.metadata must contain all entries)',
+    description:
+      'Metadata key-value filters (memory.metadata must contain all entries)',
     example: { client: 'acme', env: 'production' },
   })
   @IsOptional()
@@ -45,6 +48,7 @@ export class QueryMemoryDto {
     example: 'What are the user preferences?',
   })
   @IsString()
+  @MaxLength(2000, { message: 'Query must not exceed 2000 characters' })
   query: string;
 
   @ApiPropertyOptional({
@@ -209,6 +213,33 @@ export class QueryMemoryDto {
   @Min(1.0)
   @Max(5.0)
   agentBoost?: number;
+
+  // HEY-576: Chain-of-Note reading prompt
+  @ApiPropertyOptional({
+    description:
+      'When true, the structured response includes a Chain-of-Note system prompt ' +
+      'that instructs the reading model to annotate each memory before answering. ' +
+      'Requires structured=true (or response_format=structured) to take effect.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  chainOfNote?: boolean;
+
+  // HEY-578: Session-scoped recall filter (LongMemEval H1 prereq)
+  // When set, restricts recalled memories to those ingested under this sessionId.
+  // The column was added by S1 (HEY-573) and is indexed; no schema change needed.
+  @ApiPropertyOptional({
+    description:
+      'Filter recalled memories by session ID. ' +
+      'When set, only memories whose sessionId matches this value are returned. ' +
+      'Must not exceed 256 characters.',
+    example: 'session_abc123',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  sessionId?: string;
 }
 
 export class LoadContextDto {
@@ -227,4 +258,24 @@ export class LoadContextDto {
   @IsOptional()
   @IsNumber()
   maxTokens?: number = 4000;
+
+  // HEY-576: Chain-of-Note flag for context endpoint
+  @ApiPropertyOptional({
+    description:
+      'When true, the returned context string is replaced by a Chain-of-Note prompt ' +
+      'template populated with the loaded memories. Use as the system prompt for the reading model.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  chainOfNote?: boolean;
+
+  // HEY-576: natural-language question used by CoN template when chainOfNote=true
+  @ApiPropertyOptional({
+    description:
+      'Question for the Chain-of-Note prompt (used with chainOfNote=true).',
+  })
+  @IsOptional()
+  @IsString()
+  query?: string;
 }

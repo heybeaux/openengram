@@ -46,6 +46,15 @@ describe('MemoryQueryService', () => {
       }),
       calculateTemporalRelevance: jest.fn().mockReturnValue(0.8),
       blendScores: jest.fn().mockReturnValue(0.7),
+      expandWindow: jest.fn().mockImplementation((filter, multiplier) => {
+        const mid = (filter.start.getTime() + filter.end.getTime()) / 2;
+        const halfSpan = (filter.end.getTime() - filter.start.getTime()) / 2;
+        return {
+          ...filter,
+          start: new Date(mid - halfSpan * multiplier),
+          end: new Date(mid + halfSpan * multiplier),
+        };
+      }),
     } as any;
 
     multiQueryService = {
@@ -160,6 +169,7 @@ describe('MemoryQueryService', () => {
       expect(memoryPoolService.getAccessiblePoolIds).toHaveBeenCalledWith(
         'session-1',
         userId,
+        undefined,
       );
       expect(result.memories).toHaveLength(0);
     });
@@ -199,11 +209,15 @@ describe('MemoryQueryService', () => {
 
     it('should pass filter tags and metadata to embedding search (ENG-42)', async () => {
       embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
-      prisma.memory.findMany = jest
-        .fn()
-        .mockResolvedValue([
-          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {}, tags: ['google-ads'] },
-        ]);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([
+        {
+          id: 'm1',
+          raw: 'test',
+          effectiveScore: 0.5,
+          extraction: {},
+          tags: ['google-ads'],
+        },
+      ]);
 
       await service.recall(userId, {
         query: 'test',
@@ -295,7 +309,13 @@ describe('MemoryQueryService', () => {
       ] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'recent', effectiveScore: 0.5, extraction: {}, createdAt: new Date('2026-03-22') },
+        {
+          id: 'm1',
+          raw: 'recent',
+          effectiveScore: 0.5,
+          extraction: {},
+          createdAt: new Date('2026-03-22'),
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -314,12 +334,16 @@ describe('MemoryQueryService', () => {
     });
 
     it('should filter memories by before date (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'old', effectiveScore: 0.5, extraction: {}, createdAt: new Date('2026-03-10') },
+        {
+          id: 'm1',
+          raw: 'old',
+          effectiveScore: 0.5,
+          extraction: {},
+          createdAt: new Date('2026-03-10'),
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -338,12 +362,16 @@ describe('MemoryQueryService', () => {
     });
 
     it('should filter memories by combined after+before date range (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'in range', effectiveScore: 0.5, extraction: {}, createdAt: new Date('2026-03-12') },
+        {
+          id: 'm1',
+          raw: 'in range',
+          effectiveScore: 0.5,
+          extraction: {},
+          createdAt: new Date('2026-03-12'),
+        },
       ]);
 
       const result = await service.recall(userId, {
@@ -355,7 +383,10 @@ describe('MemoryQueryService', () => {
       expect(prisma.memory.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            createdAt: { gte: new Date('2026-03-10'), lte: new Date('2026-03-15') },
+            createdAt: {
+              gte: new Date('2026-03-10'),
+              lte: new Date('2026-03-15'),
+            },
           }),
         }),
       );
@@ -363,12 +394,16 @@ describe('MemoryQueryService', () => {
     });
 
     it('should pass arc tag to embedding search and Prisma filter (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'arc memory', effectiveScore: 0.5, extraction: {}, tags: ['my-arc'] },
+        {
+          id: 'm1',
+          raw: 'arc memory',
+          effectiveScore: 0.5,
+          extraction: {},
+          tags: ['my-arc'],
+        },
       ]);
 
       await service.recall(userId, {
@@ -400,9 +435,7 @@ describe('MemoryQueryService', () => {
     });
 
     it('should merge arc tag with existing filter.tags (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
       prisma.memory.findMany = jest.fn().mockResolvedValue([]);
 
@@ -445,13 +478,13 @@ describe('MemoryQueryService', () => {
     });
 
     it('should allow type="memory" as a no-op (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
-      ]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
+        ]);
 
       const result = await service.recall(userId, {
         query: 'test',
@@ -462,19 +495,20 @@ describe('MemoryQueryService', () => {
     });
 
     it('should not add createdAt filter when after/before not provided (ENG-48)', async () => {
-      embedding.search.mockResolvedValue([
-        { id: 'm1', score: 0.9 },
-      ] as any);
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
 
-      prisma.memory.findMany = jest.fn().mockResolvedValue([
-        { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
-      ]);
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'm1', raw: 'test', effectiveScore: 0.5, extraction: {} },
+        ]);
 
       await service.recall(userId, {
         query: 'test',
       } as any);
 
-      const findManyCall = (prisma.memory.findMany as jest.Mock).mock.calls[0][0];
+      const findManyCall = (prisma.memory.findMany as jest.Mock).mock
+        .calls[0][0];
       expect(findManyCall.where.createdAt).toBeUndefined();
     });
 
@@ -543,12 +577,16 @@ describe('MemoryQueryService', () => {
     });
 
     it('should build gte filter for after', () => {
-      const result = service.buildTemporalRangeFilter({ after: '2026-03-20' } as any);
+      const result = service.buildTemporalRangeFilter({
+        after: '2026-03-20',
+      } as any);
       expect(result).toEqual({ createdAt: { gte: new Date('2026-03-20') } });
     });
 
     it('should build lte filter for before', () => {
-      const result = service.buildTemporalRangeFilter({ before: '2026-03-24' } as any);
+      const result = service.buildTemporalRangeFilter({
+        before: '2026-03-24',
+      } as any);
       expect(result).toEqual({ createdAt: { lte: new Date('2026-03-24') } });
     });
 
@@ -800,6 +838,89 @@ describe('MemoryQueryService', () => {
       // Should NOT re-embed each insight individually — only 1 generate call
       expect(embedding.generateForRecall).toHaveBeenCalledTimes(1);
     });
+
+    it('should not surface insights when requested layers exclude INSIGHT', async () => {
+      const identityMemory = {
+        id: 'm1',
+        raw: 'identity memory',
+        layer: 'IDENTITY',
+        effectiveScore: 0.8,
+        extraction: {},
+      };
+
+      prisma.memory.findMany = jest.fn().mockImplementation((args: any) => {
+        if (args?.where?.layer === 'INSIGHT') {
+          return Promise.resolve([
+            {
+              id: 'insight-1',
+              raw: 'should not leak in',
+              layer: 'INSIGHT',
+              importanceScore: 0.9,
+              effectiveScore: 0.9,
+              createdAt: new Date(),
+              extraction: {},
+            },
+          ]);
+        }
+        return Promise.resolve([identityMemory]);
+      });
+
+      embedding.search.mockResolvedValueOnce([{ id: 'm1', score: 0.9 }] as any);
+
+      const result = await service.recall(userId, {
+        query: 'who am i',
+        layers: ['IDENTITY'],
+      } as any);
+
+      expect(result.memories.map((m) => m.id)).toEqual(['m1']);
+      expect(embedding.search).toHaveBeenCalledTimes(1);
+      expect(prisma.memory.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('should apply recall filters to surfaced insight lookup', async () => {
+      const insightMemory = {
+        id: 'insight-1',
+        raw: 'scoped insight',
+        layer: 'INSIGHT',
+        importanceScore: 0.8,
+        effectiveScore: 0.8,
+        createdAt: new Date(),
+        extraction: {},
+      };
+
+      prisma.memory.findMany = jest.fn().mockImplementation((args: any) => {
+        if (args?.where?.layer === 'INSIGHT') {
+          return Promise.resolve([insightMemory]);
+        }
+        return Promise.resolve([
+          { id: 'm1', raw: 'memory 1', effectiveScore: 0.8, extraction: {} },
+        ]);
+      });
+
+      embedding.search
+        .mockResolvedValueOnce([{ id: 'm1', score: 0.9 }])
+        .mockResolvedValueOnce([{ id: 'insight-1', score: 0.5 }]);
+
+      await service.recall(userId, {
+        query: 'test query',
+        layers: ['INSIGHT', 'IDENTITY'],
+        sessionId: 'session-X',
+        visibility: ['TEAM'],
+        filterAgentId: 'agent-7',
+      } as any);
+
+      const insightCall = (prisma.memory.findMany as jest.Mock).mock.calls.find(
+        ([args]) => args?.where?.layer === 'INSIGHT',
+      )?.[0];
+
+      expect(insightCall).toBeDefined();
+      expect(insightCall.where).toMatchObject({
+        layer: 'INSIGHT',
+        sessionId: 'session-X',
+        visibility: { in: ['TEAM'] },
+        agentId: 'agent-7',
+      });
+    });
   });
 
   describe('recall with multiQuery', () => {
@@ -840,6 +961,209 @@ describe('MemoryQueryService', () => {
       await service.recall(userId, { query: 'yesterday meeting' } as any);
       // Should NOT use multiQuery for temporal queries
       expect(multiQueryService.search).not.toHaveBeenCalled();
+    });
+  });
+
+  // HEY-575 regression: adaptive expansion must not widen end past original filter boundary
+  // ── HEY-578: sessionId filter ─────────────────────────────────────────────
+
+  describe('buildSessionIdFilter (HEY-578)', () => {
+    it('returns empty object when sessionId is not provided', () => {
+      expect(service.buildSessionIdFilter({} as any)).toEqual({});
+    });
+
+    it('returns sessionId clause when provided', () => {
+      expect(
+        service.buildSessionIdFilter({ sessionId: 'sess-xyz' } as any),
+      ).toEqual({ sessionId: 'sess-xyz' });
+    });
+  });
+
+  describe('recall — sessionId filter (HEY-578)', () => {
+    it('positive filter: passes sessionId into Prisma where clause', async () => {
+      embedding.search.mockResolvedValue([{ id: 'm1', score: 0.9 }] as any);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([]);
+
+      await service.recall(userId, {
+        query: 'test',
+        sessionId: 'session-X',
+      } as any);
+
+      expect(prisma.memory.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ sessionId: 'session-X' }),
+        }),
+      );
+    });
+
+    it('session isolation: sessionId=X Prisma where clause excludes sessionId=Y at DB level', async () => {
+      // We verify the WHERE clause is correctly composed — Prisma enforces isolation at the DB.
+      // A contract test: confirm sessionId is in the where clause so the DB rejects other sessions.
+      embedding.search.mockResolvedValue([
+        { id: 'mem-x', score: 0.9 },
+        { id: 'mem-y', score: 0.85 },
+      ] as any);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([]);
+
+      await service.recall(userId, {
+        query: 'test',
+        sessionId: 'session-X',
+      } as any);
+
+      // Every candidate-fetching findMany call must carry sessionId=session-X
+      const candidateCalls = (
+        prisma.memory.findMany as jest.Mock
+      ).mock.calls.filter(
+        (c: any[]) =>
+          c[0]?.where?.id !== undefined || c[0]?.where?.sessionId !== undefined,
+      );
+      expect(candidateCalls.length).toBeGreaterThan(0);
+      const firstCandidateCall = (prisma.memory.findMany as jest.Mock).mock
+        .calls[0];
+      expect(firstCandidateCall[0].where).toMatchObject({
+        sessionId: 'session-X',
+      });
+    });
+
+    it('cross-tenant isolation: sessionId filter composes with userId in embedding.search (tenant scoping preserved)', async () => {
+      // In the standard path, userId is passed to embedding.search (tenant isolation).
+      // sessionId filter is applied additively in the Prisma where clause (session isolation).
+      // Both must be present for correct cross-tenant + cross-session isolation.
+      embedding.search.mockResolvedValue([]);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([]);
+
+      await service.recall('tenant-A', {
+        query: 'test',
+        sessionId: 'session-X',
+      } as any);
+
+      // userId reaches embedding.search (tenant isolation)
+      const searchCall = (embedding.search as jest.Mock).mock.calls[0];
+      expect(searchCall[0]).toBe('tenant-A');
+
+      // sessionId reaches prisma.memory.findMany (session filter)
+      const call = (prisma.memory.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where).toMatchObject({ sessionId: 'session-X' });
+    });
+
+    it('no regression: omitting sessionId leaves no sessionId key in where clause', async () => {
+      embedding.search.mockResolvedValue([]);
+      prisma.memory.findMany = jest.fn().mockResolvedValue([]);
+
+      await service.recall(userId, { query: 'test' } as any);
+
+      const call = (prisma.memory.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('sessionId');
+    });
+  });
+
+  // ── HEY-575 regression ───────────────────────────────────────────────────
+
+  describe('temporal adaptive expansion — end boundary (HEY-575)', () => {
+    const twoYearsAgo = new Date('2024-01-01T00:00:00.000Z');
+    const oneYearAgo = new Date('2025-01-01T00:00:00.000Z');
+
+    beforeEach(() => {
+      // "years ago" filter: start=2yrs, end=1yr. expandWindow doubles symmetrically,
+      // pushing end past now after just one pass.
+      temporalParser.parse.mockReturnValue({
+        semanticQuery: 'standup notes',
+        temporalFilter: {
+          expression: 'years ago',
+          start: twoYearsAgo,
+          end: oneYearAgo,
+          confidence: 0.7,
+        },
+      } as any);
+
+      embedding.search.mockResolvedValue([]);
+    });
+
+    it('should never query memories newer than the original filter end during expansion', async () => {
+      // First call returns 0 memories → triggers adaptive expansion.
+      // Second call returns enough memories → stops.
+      prisma.memory.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([]) // pass 0: no results, triggers expansion
+        .mockResolvedValue([
+          {
+            id: 'old-mem-1',
+            raw: 'standup 2 years ago',
+            effectiveScore: 0.4,
+            createdAt: new Date('2024-06-01'),
+            extraction: {},
+          },
+          {
+            id: 'old-mem-2',
+            raw: 'standup 2 years ago',
+            effectiveScore: 0.4,
+            createdAt: new Date('2024-06-02'),
+            extraction: {},
+          },
+          {
+            id: 'old-mem-3',
+            raw: 'standup 2 years ago',
+            effectiveScore: 0.4,
+            createdAt: new Date('2024-06-03'),
+            extraction: {},
+          },
+          {
+            id: 'old-mem-4',
+            raw: 'standup 2 years ago',
+            effectiveScore: 0.4,
+            createdAt: new Date('2024-06-04'),
+            extraction: {},
+          },
+          {
+            id: 'old-mem-5',
+            raw: 'standup 2 years ago',
+            effectiveScore: 0.4,
+            createdAt: new Date('2024-06-05'),
+            extraction: {},
+          },
+        ]);
+
+      await service.recall(userId, {
+        query: 'standup notes from years ago',
+      } as any);
+
+      const allCalls = (prisma.memory.findMany as jest.Mock).mock.calls;
+      // Every findMany call must have lte <= originalFilterEnd (oneYearAgo)
+      for (const [args] of allCalls) {
+        if (args?.where?.createdAt?.lte) {
+          expect(args.where.createdAt.lte.getTime()).toBeLessThanOrEqual(
+            oneYearAgo.getTime(),
+          );
+        }
+      }
+    });
+
+    it('should not return today-anchored memories when query is "years ago"', async () => {
+      const todayMemory = {
+        id: 'today-mem-1',
+        raw: 'standup today',
+        effectiveScore: 0.8,
+        createdAt: new Date(), // now
+        extraction: {},
+      };
+
+      // Simulate expansion eventually returning a today-anchored memory if
+      // the end clamp is missing — the fix should prevent this being queried.
+      prisma.memory.findMany = jest.fn().mockResolvedValue([todayMemory]);
+
+      await service.recall(userId, {
+        query: 'standup notes from years ago',
+      } as any);
+
+      const allCalls = (prisma.memory.findMany as jest.Mock).mock.calls;
+      // The lte on every call must never be past the original end boundary
+      for (const [args] of allCalls) {
+        if (args?.where?.createdAt?.lte) {
+          expect(args.where.createdAt.lte.getTime()).toBeLessThanOrEqual(
+            oneYearAgo.getTime(),
+          );
+        }
+      }
     });
   });
 });

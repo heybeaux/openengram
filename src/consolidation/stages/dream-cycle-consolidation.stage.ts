@@ -218,6 +218,7 @@ Write a single consolidated memory that captures all the information above.`;
           memoryType: 'FACT',
           tier: 'WARM',
           consolidated: false,
+          searchable: false,
         },
       });
 
