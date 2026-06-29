@@ -26,7 +26,12 @@ import {
   MultiQueryMetadataDto,
   ResultExplanationDto,
 } from '../multi-query/dto/multi-query.dto';
-import { EmbeddingStatus, Memory, MemoryLayer, SubjectType } from '@prisma/client';
+import {
+  EmbeddingStatus,
+  Memory,
+  MemoryLayer,
+  SubjectType,
+} from '@prisma/client';
 import {
   MemoryWithExtraction,
   MemoryWithScore,
@@ -215,6 +220,9 @@ export class MemoryQueryService {
           }
         }
 
+        // Temporal C1+M1: filter on effective event time (observedAt ?? createdAt).
+        // OR-clause keeps the [userId, observedAt] index usable for the
+        // observedAt branch; memories without observedAt fall back to createdAt.
         temporalMemories = await this.prisma.memory.findMany({
           where: {
             userId: userIdFilter,
@@ -223,14 +231,21 @@ export class MemoryQueryService {
             searchable: { not: false },
             embeddingStatus: { not: EmbeddingStatus.DUPLICATE },
             isDuplicateOf: null,
-            createdAt: activeCreatedAt,
+            OR: [
+              { observedAt: activeCreatedAt },
+              { observedAt: null, createdAt: activeCreatedAt },
+            ],
             ...subjectTypeFilter,
             ...visibilityFilter,
             ...metadataFilter,
             ...sessionIdFilter,
+            ...(dto.filterAgentId ? { agentId: dto.filterAgentId } : {}),
           },
           include: { extraction: true },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [
+            { observedAt: { sort: 'desc', nulls: 'last' } },
+            { createdAt: 'desc' },
+          ],
           take: 200,
         });
 
@@ -249,10 +264,15 @@ export class MemoryQueryService {
         // Widen the window by doubling the span each pass
         activeFilter = this.temporalParser.expandWindow(activeFilter, 2.0);
 
+        // Retrieval C2 fix: the deadline may only terminate the loop AFTER at
+        // least 2 passes have completed. Previously this guard fired right
+        // after pass 0 whenever the (default 200ms) deadline had elapsed,
+        // so expansion never ran even once.
         if (
           adaptiveEnabled &&
           temporalMemories.length < minResults &&
           expandPass <= maxExpand &&
+          expandPass >= 2 &&
           Date.now() >= expandDeadline
         ) {
           timedOut = true;
@@ -261,8 +281,7 @@ export class MemoryQueryService {
       } while (
         adaptiveEnabled &&
         temporalMemories.length < minResults &&
-        expandPass <= maxExpand &&
-        Date.now() < expandDeadline
+        expandPass <= maxExpand
       );
 
       const terminationReason = timedOut
@@ -313,8 +332,9 @@ export class MemoryQueryService {
       scoredMemories = temporalMemories
         .map((memory) => {
           const semanticScore = scoreMap.get(memory.id) ?? 0.1;
+          // Temporal C1: score against effective event time, not ingest time
           const temporalScore = this.temporalParser.calculateTemporalRelevance(
-            memory.createdAt,
+            memory.observedAt ?? memory.createdAt,
             parsed.temporalFilter,
           );
           const importanceScore =
@@ -354,20 +374,36 @@ export class MemoryQueryService {
       const memoryIds = vectorResults.map((r) => r.id);
       const keywordRescueIds = new Set<string>();
 
-      // BM25/tsvector hybrid: safety net for exact-keyword queries
-      // Skip inline FTS when in pool-only mode (poolIds set, no userId) — pool JOIN is the auth boundary.
-      // When account auth resolves to multiple user ids, search all resolved users instead of collapsing
-      // to the first user; fresh writes may belong to any of them.
+      // BM25/tsvector hybrid: safety net for exact-keyword queries.
+      // In pool-auth mode (no userId), scope FTS via pool-membership subquery.
+      // When account auth resolves multiple users, search all resolved users
+      // instead of collapsing keyword rescue to the first user.
       const ftsResultIds = new Set<string>();
-      const skipFts = poolIds && poolIds.length > 0 && !singleUserId;
+      const poolOnlyMode = poolIds && poolIds.length > 0 && !singleUserId;
       const resolvedUserIds = Array.isArray(userId)
         ? userId
         : singleUserId
           ? [singleUserId]
           : [];
       try {
-        const ftsResults = skipFts
-          ? []
+        const ftsResults = poolOnlyMode
+          ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+              `SELECT m.id FROM memories m
+               WHERE m.id IN (
+                 SELECT mpm.memory_id FROM memory_pool_memberships mpm
+                 WHERE mpm.pool_id = ANY($1::text[])
+               )
+                 AND to_tsvector('english', m.raw) @@ websearch_to_tsquery('english', $2)
+                 AND m.deleted_at IS NULL
+                 AND m.superseded_by_id IS NULL
+                 AND m.searchable IS NOT FALSE
+                 AND m.embedding_status != 'DUPLICATE'
+                 AND m.is_duplicate_of IS NULL
+               ORDER BY ts_rank(to_tsvector('english', m.raw), websearch_to_tsquery('english', $2)) DESC
+               LIMIT 100`,
+              poolIds,
+              searchQuery,
+            )
           : resolvedUserIds.length > 0
             ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
                 `SELECT id FROM memories
@@ -395,8 +431,15 @@ export class MemoryQueryService {
                LIMIT 100`,
                 searchQuery,
               );
+        // RRF fusion (k=60): BM25 rank contributes 1/(k+rank) so rank-1
+        // BM25 hit scores ≈0.016, rank-100 ≈0.006. This prevents a flat
+        // 0.75 override from promoting low-quality exact-keyword matches
+        // above high-quality semantic matches.
+        const RRF_K = 60;
         let ftsAdded = 0;
-        for (const row of ftsResults) {
+        for (let ftsRank = 0; ftsRank < ftsResults.length; ftsRank++) {
+          const row = ftsResults[ftsRank];
+          const bm25Score = 1 / (RRF_K + ftsRank + 1);
           ftsResultIds.add(row.id);
           keywordRescueIds.add(row.id);
           if (!scoreMap.has(row.id)) {
@@ -409,71 +452,142 @@ export class MemoryQueryService {
         }
         if (ftsAdded > 0) {
           this.logger.debug(
-            `[Recall] BM25 hybrid: injected ${ftsAdded} FTS-only candidates`,
+            `[Recall] BM25 hybrid (RRF): injected ${ftsAdded} FTS-only candidates`,
           );
         }
 
-        // ILIKE fallback
-        if (ftsResults.length === 0) {
-          const words = searchQuery
-            .toLowerCase()
-            .split(/\s+/)
-            .filter((w) => w.length >= 4);
-          if (words.length > 0) {
-            try {
-              const hasResolvedUsers = resolvedUserIds.length > 0;
-              const paramOffset = hasResolvedUsers ? 2 : 1;
-              const ilikeConditions = words
-                .map((_, i) => `LOWER(raw) LIKE $${i + paramOffset}`)
-                .join(' OR ');
-              const ilikeParams = words.map((w) => `%${w}%`);
-              const ilikeResults = hasResolvedUsers
+        // Lexical rescue runs alongside FTS, not only when FTS returns zero.
+        // websearch_to_tsquery can be too strict for natural questions (for
+        // example requiring filler terms such as "tell" or "need"), while a
+        // curated ILIKE pass catches exact domain words like medication/roast.
+        const words = this.extractLexicalRescueTerms(searchQuery);
+        if (words.length > 0) {
+          try {
+            const hasResolvedUsers = resolvedUserIds.length > 0;
+            const paramOffset = hasResolvedUsers ? 2 : 1;
+            const ilikeConditions = words
+              .map((_, i) => `LOWER(raw) LIKE $${i + paramOffset}`)
+              .join(' OR ');
+            const ilikeParams = words.map((w) => `%${w}%`);
+            const ilikeResults = poolOnlyMode
+              ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+                  `SELECT m.id FROM memories m
+                   WHERE m.id IN (
+                     SELECT mpm.memory_id FROM memory_pool_memberships mpm
+                     WHERE mpm.pool_id = ANY($1::text[])
+                   )
+                     AND (${words
+                       .map((_, i) => `LOWER(m.raw) LIKE $${i + 2}`)
+                       .join(' OR ')})
+                     AND m.deleted_at IS NULL
+                     AND m.superseded_by_id IS NULL
+                     AND m.searchable IS NOT FALSE
+                     AND m.embedding_status != 'DUPLICATE'
+                     AND m.is_duplicate_of IS NULL
+                   ORDER BY m.importance_score DESC, m.created_at DESC
+                   LIMIT 20`,
+                  poolIds,
+                  ...ilikeParams,
+                )
+              : hasResolvedUsers
                 ? await this.prisma.$queryRawUnsafe<{ id: string }[]>(
                     `SELECT id FROM memories
-                     WHERE user_id = ANY($1::text[])
-                       AND (${ilikeConditions})
-                       AND deleted_at IS NULL
-                       AND superseded_by_id IS NULL
-                       AND searchable IS NOT FALSE
-                       AND embedding_status != 'DUPLICATE'
-                       AND is_duplicate_of IS NULL
-                     LIMIT 20`,
+                   WHERE user_id = ANY($1::text[])
+                     AND (${ilikeConditions})
+                     AND deleted_at IS NULL
+                     AND superseded_by_id IS NULL
+                     AND searchable IS NOT FALSE
+                     AND embedding_status != 'DUPLICATE'
+                     AND is_duplicate_of IS NULL
+                   ORDER BY importance_score DESC, created_at DESC
+                   LIMIT 20`,
                     resolvedUserIds,
                     ...ilikeParams,
                   )
                 : await this.prisma.$queryRawUnsafe<{ id: string }[]>(
                     `SELECT id FROM memories
-                     WHERE (${ilikeConditions})
-                       AND deleted_at IS NULL
-                       AND superseded_by_id IS NULL
-                       AND searchable IS NOT FALSE
-                       AND embedding_status != 'DUPLICATE'
-                       AND is_duplicate_of IS NULL
-                     LIMIT 20`,
+                   WHERE (${ilikeConditions})
+                     AND deleted_at IS NULL
+                     AND superseded_by_id IS NULL
+                     AND searchable IS NOT FALSE
+                     AND embedding_status != 'DUPLICATE'
+                     AND is_duplicate_of IS NULL
+                   ORDER BY importance_score DESC, created_at DESC
+                   LIMIT 20`,
                     ...ilikeParams,
                   );
-              let ilikeAdded = 0;
-              for (const row of ilikeResults) {
-                ftsResultIds.add(row.id);
-                keywordRescueIds.add(row.id);
-                if (!scoreMap.has(row.id)) {
-                  scoreMap.set(row.id, 1.1);
-                  memoryIds.push(row.id);
-                  ilikeAdded++;
-                } else {
-                  scoreMap.set(row.id, Math.max(scoreMap.get(row.id)!, 1.1));
-                }
+            let ilikeAdded = 0;
+            for (const row of ilikeResults) {
+              ftsResultIds.add(row.id);
+              keywordRescueIds.add(row.id);
+              if (!scoreMap.has(row.id)) {
+                scoreMap.set(row.id, 1.1);
+                memoryIds.push(row.id);
+                ilikeAdded++;
+              } else {
+                scoreMap.set(row.id, Math.max(scoreMap.get(row.id)!, 1.1));
               }
-              if (ilikeAdded > 0) {
-                this.logger.debug(
-                  `[Recall] ILIKE fallback: rescued ${ilikeAdded} candidates`,
-                );
-              }
-            } catch (ilikeError) {
+            }
+            if (ilikeAdded > 0) {
               this.logger.debug(
-                `[Recall] ILIKE fallback skipped: ${(ilikeError as Error).message}`,
+                `[Recall] ILIKE fallback: rescued ${ilikeAdded} candidates`,
               );
             }
+          } catch (ilikeError) {
+            this.logger.debug(
+              `[Recall] ILIKE fallback skipped: ${(ilikeError as Error).message}`,
+            );
+          }
+        }
+
+        if (this.isIdentityProfileQuery(searchQuery) && !poolOnlyMode) {
+          try {
+            const identityResults = await this.prisma.memory.findMany({
+              where: {
+                ...(userIdFilter !== undefined ? { userId: userIdFilter } : {}),
+                deletedAt: null,
+                supersededById: null,
+                searchable: { not: false },
+                embeddingStatus: { not: EmbeddingStatus.DUPLICATE },
+                isDuplicateOf: null,
+                OR: [
+                  { tags: { has: 'identity' } },
+                  { tags: { has: 'work' } },
+                  { tags: { has: 'career' } },
+                  { raw: { contains: 'developer', mode: 'insensitive' } },
+                  { raw: { contains: 'building', mode: 'insensitive' } },
+                ],
+                ...subjectTypeFilter,
+                ...visibilityFilter,
+                ...metadataFilter,
+                ...temporalRangeFilter,
+                ...sessionIdFilter,
+                ...(dto.filterAgentId ? { agentId: dto.filterAgentId } : {}),
+              },
+              orderBy: [{ importanceScore: 'desc' }, { createdAt: 'desc' }],
+              take: 10,
+              select: { id: true },
+            });
+            let identityAdded = 0;
+            for (const row of identityResults) {
+              keywordRescueIds.add(row.id);
+              if (!scoreMap.has(row.id)) {
+                scoreMap.set(row.id, 1.15);
+                memoryIds.push(row.id);
+                identityAdded++;
+              } else {
+                scoreMap.set(row.id, Math.max(scoreMap.get(row.id)!, 1.15));
+              }
+            }
+            if (identityAdded > 0) {
+              this.logger.debug(
+                `[Recall] identity rescue: injected ${identityAdded} candidates`,
+              );
+            }
+          } catch (identityError) {
+            this.logger.debug(
+              `[Recall] identity rescue skipped: ${(identityError as Error).message}`,
+            );
           }
         }
       } catch (ftsError) {
@@ -490,6 +604,7 @@ export class MemoryQueryService {
           searchable: { not: false },
           embeddingStatus: { not: EmbeddingStatus.DUPLICATE },
           isDuplicateOf: null,
+          ...(dto.filterAgentId ? { agentId: dto.filterAgentId } : {}),
           ...subjectTypeFilter,
           ...visibilityFilter,
           ...metadataFilter,
@@ -533,10 +648,24 @@ export class MemoryQueryService {
       scoredMemories = [...sorted, ...forcedFts];
     }
 
+    // Temporal H1+H2: first/earliest mention intent — sort ascending by event
+    // time and skip usage boost (which would bury old cold memories).
+    if (parsed.firstMentionIntent) {
+      scoredMemories = scoredMemories.sort((a, b) => {
+        const ta = ((a as any).observedAt ?? a.createdAt) as Date;
+        const tb = ((b as any).observedAt ?? b.createdAt) as Date;
+        return new Date(ta).getTime() - new Date(tb).getTime();
+      });
+    }
+
     // ── ENG-27: Usage-Weighted Re-ranking ────────────────────────────
+    // Skip usage boost for first-mention queries — the oldest memory is by
+    // definition cold (never accessed) but it IS the right answer.
     try {
-      scoredMemories =
-        await this.rankingService.applyUsageWeighting(scoredMemories);
+      if (!parsed.firstMentionIntent) {
+        scoredMemories =
+          await this.rankingService.applyUsageWeighting(scoredMemories);
+      }
     } catch (error) {
       this.logger.warn(
         `[Recall] Usage weighting failed, proceeding without: ${(error as Error)?.message}`,
@@ -593,8 +722,9 @@ export class MemoryQueryService {
     // exact-match writes from the final top-N.
     const missingKeywordHits = [...keywordRescueMap.entries()]
       .filter(([id]) => !scoredMemories.some((m) => m.id === id))
-      .map(([, mem]) =>
-        ({ ...mem, score: Math.max(mem.score ?? 0, 1.1) } as MemoryWithScore),
+      .map(
+        ([, mem]) =>
+          ({ ...mem, score: Math.max(mem.score ?? 0, 1.1) }) as MemoryWithScore,
       );
     if (missingKeywordHits.length > 0) {
       scoredMemories = [...missingKeywordHits, ...scoredMemories]
@@ -622,9 +752,8 @@ export class MemoryQueryService {
 
     let result: MemoryWithScore[] = this.filterRecallSurvivors(scoredMemories);
     if (dto.includeChains) {
-      result = ((await this.memoryFailureService?.attachChains(
-        result,
-      )) ?? result) as MemoryWithScore[];
+      result = ((await this.memoryFailureService?.attachChains(result)) ??
+        result) as MemoryWithScore[];
       result = this.filterRecallSurvivors(result);
     }
 
@@ -786,11 +915,49 @@ export class MemoryQueryService {
       })
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
-    let result: MemoryWithScore[] = this.filterRecallSurvivors(scoredMemories);
+    // Apply the same post-processing chain as the standard path so multi-query
+    // is not silently downgraded to cosine-only ranking (retrieval H4), then
+    // enforce survivor filtering again after graph/insight/rerank additions.
+    let postProcessedMQ: MemoryWithScore[] = scoredMemories;
+    try {
+      postProcessedMQ =
+        await this.rankingService.applyUsageWeighting(postProcessedMQ);
+    } catch (err) {
+      this.logger.warn(
+        `[MultiQuery] Usage weighting failed: ${(err as Error)?.message}`,
+      );
+    }
+    try {
+      postProcessedMQ = await this.rankingService.mergeGraphResults(
+        postProcessedMQ,
+        dto.query,
+        Array.isArray(userId)
+          ? (userId[0] ?? 'default')
+          : (userId ?? 'default'),
+        dto.limit ?? 10,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[MultiQuery] Graph recall merge failed: ${(err as Error)?.message}`,
+      );
+    }
+    const mqUserIds = Array.isArray(userId) ? userId : userId ? [userId] : [];
+    postProcessedMQ = await this.rankingService.surfaceInsights(
+      postProcessedMQ,
+      mqUserIds,
+      dto.query,
+      dto.limit ?? 10,
+    );
+    postProcessedMQ = await this.rankingService.applyReranking(
+      postProcessedMQ,
+      dto.query,
+      dto.limit ?? 10,
+    );
+
+    let result: MemoryWithScore[] = this.filterRecallSurvivors(postProcessedMQ);
     if (dto.includeChains) {
-      result = ((await this.memoryFailureService?.attachChains(
-        result,
-      )) ?? result) as MemoryWithScore[];
+      result = ((await this.memoryFailureService?.attachChains(result)) ??
+        result) as MemoryWithScore[];
       result = this.filterRecallSurvivors(result);
     }
 
@@ -886,6 +1053,40 @@ export class MemoryQueryService {
     };
   }
 
+  private extractLexicalRescueTerms(query: string): string[] {
+    const stopWords = new Set([
+      'about',
+      'does',
+      'doing',
+      'have',
+      'mine',
+      'need',
+      'tell',
+      'that',
+      'this',
+      'what',
+      'when',
+      'where',
+      'which',
+      'whose',
+      'with',
+      'your',
+    ]);
+
+    return [...new Set(query.toLowerCase().match(/[a-z0-9]+/g) ?? [])]
+      .filter((word) => word.length >= 4 && !stopWords.has(word))
+      .slice(0, 8);
+  }
+
+  private isIdentityProfileQuery(query: string): boolean {
+    const normalized = query.toLowerCase();
+    return (
+      /who\s+am\s+i/.test(normalized) ||
+      /what\s+do\s+i\s+do/.test(normalized) ||
+      /what\s+am\s+i\s+building/.test(normalized)
+    );
+  }
+
   private filterRecallSurvivors<T extends MemoryWithScore>(memories: T[]): T[] {
     return memories.filter((memory) => {
       const embeddingStatus = (memory as any).embeddingStatus;
@@ -926,10 +1127,18 @@ export class MemoryQueryService {
 
   /**
    * HEY-578: Build Prisma WHERE clause for sessionId filter.
+   *
+   * Clients pass EXTERNAL session IDs (e.g. "lme-e47becba"), but
+   * memories.sessionId stores the INTERNAL session cuid. Filter via the
+   * Session relation so EITHER the internal id OR the external id matches.
    */
   buildSessionIdFilter(dto: QueryMemoryDto): Record<string, any> {
     if (!dto.sessionId) return {};
-    return { sessionId: dto.sessionId };
+    return {
+      session: {
+        OR: [{ id: dto.sessionId }, { externalId: dto.sessionId }],
+      },
+    };
   }
 
   buildInsightSurfacingWhere(
