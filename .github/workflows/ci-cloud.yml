@@ -59,6 +59,8 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Check for local workspace files
+        run: ./scripts/check-no-workspace-files.sh
       - name: Type check
         run: npx tsc --noEmit
       - name: Lint
