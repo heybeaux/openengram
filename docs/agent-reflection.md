@@ -186,6 +186,8 @@ Agent self-memories are stored with:
 
 ## Example: Full Integration
 
+> The TypeScript client source lives in [heybeaux/engram-client](https://github.com/heybeaux/engram-client) and currently declares the package name `@engram/client`, but it is not published to npm yet. Install it from source or adapt this example to direct REST calls until the package is released.
+
 ```typescript
 import { EngramClient } from '@engram/client';
 
