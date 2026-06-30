@@ -3,7 +3,8 @@
   <h1 align="center">Engram</h1>
   <p align="center"><strong>Persistent memory for AI agents</strong></p>
   <p align="center">
-    <a href="https://github.com/heybeaux/engram/actions"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci.yml?label=build&style=flat-square" alt="Build"></a>
+    <a href="https://github.com/heybeaux/engram/actions/workflows/ci-local.yml"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci-local.yml?branch=staging&label=local%20ci&style=flat-square" alt="Local CI"></a>
+    <a href="https://github.com/heybeaux/engram/actions/workflows/ci-cloud.yml"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci-cloud.yml?branch=staging&label=cloud%20ci&style=flat-square" alt="Cloud CI"></a>
     <a href="https://github.com/heybeaux/engram/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
     <a href="https://www.npmjs.com/package/@engram/api"><img src="https://img.shields.io/npm/v/@engram/api?style=flat-square&label=npm" alt="npm"></a>
     <a href="https://github.com/heybeaux/engram"><img src="https://img.shields.io/github/stars/heybeaux/engram?style=flat-square" alt="Stars"></a>
@@ -71,18 +72,20 @@ See the [Getting Started Guide](./docs/getting-started.md) for detailed walkthro
 **Store a memory:**
 
 ```bash
-curl -X POST https://api.openengram.ai/v1/memories \
+curl -X POST http://localhost:3001/v1/memories \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{"content": "The user prefers dark mode and is allergic to peanuts", "metadata": {}}'
+  -H "X-AM-API-Key: eg_sk_your_key_here" \
+  -H "X-AM-User-ID: user_123" \
+  -d '{"raw": "The user prefers dark mode and is allergic to peanuts"}'
 ```
 
 **Search memories:**
 
 ```bash
-curl -X POST https://api.openengram.ai/v1/memories/search \
+curl -X POST http://localhost:3001/v1/memories/search \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "X-AM-API-Key: eg_sk_your_key_here" \
+  -H "X-AM-User-ID: user_123" \
   -d '{"query": "What are the user preferences?", "limit": 5}'
 ```
 
@@ -103,7 +106,7 @@ Self-hosting is fully supported today with no feature limits.
 
 ## Self-Hosting
 
-See [QUICKSTART.md](./QUICKSTART.md) for detailed self-hosting instructions including:
+See [docs/QUICKSTART.md](./docs/QUICKSTART.md) for detailed self-hosting instructions including:
 
 - Docker Compose setup
 - Building from source
