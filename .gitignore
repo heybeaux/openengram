@@ -49,3 +49,16 @@ data/
 .factory-debugger-prompt.md
 tsconfig.tsbuildinfo
 test/benchmark/results/benchmark-*.json
+
+# Local OpenClaw / agent workspace files — never commit to product repos
+.openclaw/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+MEMORY_CONTEXT.md
+MEMORY_INSTRUCTIONS.md
+SOUL.md
+TOOLS.md
+USER.md
+BOOTSTRAP.md

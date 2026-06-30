@@ -5,10 +5,16 @@
 const { Client } = require('pg');
 const https = require('https');
 
-const API_KEY   = 'eng_dca0a9f0cb98341af8daca93e2070bff6c60b78ef2cf829b';
-const USER_ID   = 'beaux';
-const LOCAL_URL = 'postgresql://beauxwalton@localhost:5432/engram';
+const API_KEY = process.env.ENGRAM_API_KEY;
+const USER_ID = process.env.ENGRAM_USER_ID || 'beaux';
+const LOCAL_URL =
+  process.env.DATABASE_URL || 'postgresql://beauxwalton@localhost:5432/engram';
 const PAGE_SIZE = 100;
+
+if (!API_KEY) {
+  console.error('Set ENGRAM_API_KEY before running sync-api-to-local.js');
+  process.exit(1);
+}
 
 function apiGet(path) {
   return new Promise((resolve, reject) => {

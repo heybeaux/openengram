@@ -1,7 +1,8 @@
 #!/bin/bash
 # Full resync script: get preview, then push local-only memories in batches
-AUTH="Authorization: Bearer eng_5a7845e6035da07459793f39b2d19903278814e602b6ae16"
-BASE="http://localhost:3001"
+: "${ENGRAM_API_KEY:?Set ENGRAM_API_KEY before running this script}"
+AUTH="Authorization: Bearer ${ENGRAM_API_KEY}"
+BASE="${ENGRAM_LOCAL_BASE_URL:-http://localhost:3001}"
 
 echo "Step 1: Getting reconciliation preview..."
 PREVIEW=$(curl -s "$BASE/v1/cloud/reconcile/preview" -X POST -H "$AUTH" --max-time 180)
