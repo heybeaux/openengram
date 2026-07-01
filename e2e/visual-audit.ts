@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { AUDIT_ROUTES, type AuditRoute } from "./page-manifest";
+import { AUDIT_ROUTES, type AuditRoute } from "./route-inventory";
 
 const VISUAL_AUDIT_ENABLED = process.env.PLAYWRIGHT_VISUAL_AUDIT === "1";
 

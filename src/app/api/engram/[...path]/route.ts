@@ -109,15 +109,24 @@ async function authenticateCaller(request: NextRequest): Promise<{ valid: boolea
   }
 }
 
+function isPublicProxyEndpoint(pathname: string): boolean {
+  return (
+    pathname === '/v1/health' ||
+    pathname === '/v1/instance/info' ||
+    pathname.startsWith('/v1/auth/')
+  );
+}
+
 async function proxyRequest(request: NextRequest, { params }: { params: { path: string[] } }) {
+  const pathname = `/${params.path.join('/')}`;
+
   // Local edition: skip JWT auth (single-user, no abuse risk)
   const edition = process.env.NEXT_PUBLIC_EDITION || 'cloud';
-  if (edition !== 'local') {
+  if (edition !== 'local' && !isPublicProxyEndpoint(pathname)) {
     const auth = await authenticateCaller(request);
     if (!auth.valid) return NextResponse.json({ error: auth.error }, { status: 401 });
   }
 
-  const pathname = `/${params.path.join('/')}`;
   const url = new URL(pathname, ENGRAM_API_URL);
   request.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
 
