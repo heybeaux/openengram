@@ -39,7 +39,7 @@ pnpm prisma migrate deploy
 pnpm start:dev
 ```
 
-The server starts at `http://localhost:3000` (or whatever `PORT` you set). Health check: `GET /v1/health` (no auth required).
+When running with `pnpm start:dev`, the API starts at `http://localhost:3000` unless you set `PORT`. The Docker Compose quickstart uses `http://localhost:3001`. Health check: `GET /v1/health` (no auth required). Interactive API docs are served at `/api-docs` on whichever API port you use.
 
 ### Local Embeddings (Optional)
 
@@ -192,7 +192,7 @@ refactor: extract scoring logic into separate service
 
 ### Review Process
 
-1. Open a PR against `main`
+1. Open a PR against `staging` (the default development branch)
 2. CI runs lint + tests automatically
 3. A maintainer will review (usually within a few days)
 4. Address feedback, then we merge!
@@ -215,10 +215,10 @@ Not all memories are equal. "I'm allergic to peanuts" should never be evicted fr
 
 | What | Where |
 |------|-------|
-| API Documentation | `http://localhost:3000/v1/docs` (Swagger UI, auto-generated) |
+| API Documentation | `http://localhost:3000/api-docs` for `pnpm start:dev`, or `http://localhost:3001/api-docs` for Docker Compose (Swagger UI, auto-generated) |
 | Dashboard | Separate repo: [engram-dashboard](https://github.com/heybeaux/engram-dashboard) |
-| Health & Metrics | `GET /v1/health` (no auth) |
-| Memory Graph | `http://localhost:3000/memory-graph.html` (D3 visualization) |
+| Health & Metrics | `GET /v1/health` on the API port (no auth) |
+| Memory Graph | `http://localhost:3000/memory-graph.html` on the API port (D3 visualization, when enabled) |
 | Design Docs | `docs/` directory |
 | Eval Results | `tests/evaluation/results/` |
 | Self-Hosting Guide | `docs/SELF_HOSTING.md` |
