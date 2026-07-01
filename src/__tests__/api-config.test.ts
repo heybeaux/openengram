@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 describe('api-config', () => {
   const originalEnv = process.env;
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
@@ -89,6 +93,23 @@ describe('api-config', () => {
       const { buildAuthHeaders } = await import('@/lib/api-config');
       const headers = buildAuthHeaders({ extraHeaders: { 'X-Custom': 'value' } });
       expect(headers['X-Custom']).toBe('value');
+    });
+  });
+
+  describe('apiFetch', () => {
+    it('surfaces backend JSON message details instead of a generic API Error', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+        message: 'Drift analysis requires ensemble admin permission',
+        error: 'Forbidden',
+      }), {
+        status: 403,
+        statusText: 'Forbidden',
+        headers: { 'Content-Type': 'application/json' },
+      })));
+
+      const { apiFetch } = await import('@/lib/api-config');
+      await expect(apiFetch('/v1/ensemble/drift/analyze', { method: 'POST' }))
+        .rejects.toThrow('Request failed (403 Forbidden): Drift analysis requires ensemble admin permission');
     });
   });
 });

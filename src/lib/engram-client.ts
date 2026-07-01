@@ -70,8 +70,25 @@ function stringField(
   return typeof value === 'string' ? value : fallback;
 }
 
+function timestampStringField(
+  value: unknown,
+  fallback = '',
+): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const millis = value > 1_000_000_000_000 ? value : value * 1000;
+    return new Date(millis).toISOString();
+  }
+  return fallback;
+}
+
 function nullableStringField(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+function nullableTimestampStringField(value: unknown): string | null {
+  const timestamp = timestampStringField(value);
+  return timestamp || null;
 }
 
 function normalizeAgentSession(
@@ -84,11 +101,53 @@ function normalizeAgentSession(
     status: stringField(raw.status, 'ACTIVE') as import('./types').AgentSessionStatus,
     parentSessionKey: nullableStringField(raw.parentSessionKey ?? raw.parent_session_key),
     taskDescription: nullableStringField(raw.taskDescription ?? raw.task_description),
-    startedAt: stringField(raw.startedAt ?? raw.started_at ?? raw.createdAt ?? raw.created_at),
-    endedAt: nullableStringField(raw.endedAt ?? raw.ended_at),
-    createdAt: stringField(raw.createdAt ?? raw.created_at),
-    updatedAt: stringField(raw.updatedAt ?? raw.updated_at),
+    startedAt: timestampStringField(
+      raw.startedAt ??
+        raw.started_at ??
+        raw.started ??
+        raw.started_at_ms ??
+        raw.startTime ??
+        raw.start_time ??
+        raw.createdAt ??
+        raw.created_at,
+    ),
+    endedAt: nullableTimestampStringField(
+      raw.endedAt ??
+        raw.ended_at ??
+        raw.ended ??
+        raw.ended_at_ms ??
+        raw.endTime ??
+        raw.end_time,
+    ),
+    createdAt: timestampStringField(raw.createdAt ?? raw.created_at),
+    updatedAt: timestampStringField(raw.updatedAt ?? raw.updated_at),
   };
+}
+
+
+function getErrorDetail(errorBody: unknown): string | null {
+  if (typeof errorBody === 'string') return errorBody.trim() || null;
+  if (!errorBody || typeof errorBody !== 'object') return null;
+
+  const body = errorBody as Record<string, unknown>;
+  const message = body.message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  if (Array.isArray(message)) {
+    const parts = message.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()));
+    if (parts.length) return parts.join('; ');
+  }
+
+  const error = body.error;
+  if (typeof error === 'string' && error.trim()) return error.trim();
+  return null;
+}
+
+function buildApiErrorMessage(response: Response, errorBody: unknown): string {
+  const statusText = response.statusText ? ` ${response.statusText}` : '';
+  const detail = getErrorDetail(errorBody);
+  return detail
+    ? `Request failed (${response.status}${statusText}): ${detail}`
+    : `Request failed (${response.status}${statusText})`;
 }
 
 // ============================================================================
@@ -157,7 +216,7 @@ export class EngramClient {
       }
       throw new EngramApiError(
         response.status,
-        `API Error: ${response.statusText}`,
+        buildApiErrorMessage(response, errorBody),
         errorBody
       );
     }
