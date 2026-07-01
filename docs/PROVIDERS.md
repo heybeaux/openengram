@@ -209,11 +209,13 @@ PostgreSQL extension for vector storage. Default and recommended for most use ca
 
 ### Setup
 
-pgvector comes bundled with Engram's Prisma schema. Just run migrations:
+pgvector comes bundled with Engram's Prisma schema. Just run safe migrations:
 
 ```bash
-pnpm prisma migrate dev
+pnpm run migrate:deploy
 ```
+
+Never run `prisma migrate dev` or `prisma migrate reset` against a real/shared database.
 
 ### Configuration
 
