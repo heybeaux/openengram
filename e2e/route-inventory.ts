@@ -3,6 +3,7 @@ export type AuditRoute = {
   name: string;
   kind: "public" | "auth" | "dashboard";
   viewport?: "desktop" | "mobile" | "both";
+  dynamic?: boolean;
 };
 
 export const PUBLIC_ROUTES: AuditRoute[] = [
@@ -42,11 +43,14 @@ export const DASHBOARD_ROUTES: AuditRoute[] = [
   { path: "/dashboard", name: "Dashboard", kind: "dashboard", viewport: "both" },
   { path: "/memories", name: "Memories", kind: "dashboard", viewport: "both" },
   { path: "/memories/merge-review", name: "Merge Review", kind: "dashboard" },
+  { path: "/memories/test-memory", name: "Memory Detail", kind: "dashboard", dynamic: true },
   { path: "/sessions", name: "Sessions", kind: "dashboard" },
+  { path: "/sessions/test-session", name: "Session Detail", kind: "dashboard", dynamic: true },
   { path: "/graph", name: "Graph", kind: "dashboard", viewport: "both" },
   { path: "/consolidation", name: "Consolidation", kind: "dashboard" },
   { path: "/sources", name: "Sources", kind: "dashboard" },
   { path: "/pools", name: "Pools", kind: "dashboard" },
+  { path: "/pools/test-pool", name: "Pool Detail", kind: "dashboard", dynamic: true },
   { path: "/analytics", name: "Analytics", kind: "dashboard" },
   { path: "/api-keys", name: "API Keys", kind: "dashboard" },
   { path: "/settings", name: "Settings", kind: "dashboard" },
@@ -55,13 +59,20 @@ export const DASHBOARD_ROUTES: AuditRoute[] = [
   { path: "/settings/sync/reconcile", name: "Settings Sync Reconcile", kind: "dashboard" },
   { path: "/settings/reconcile", name: "Settings Reconcile", kind: "dashboard" },
   { path: "/identity", name: "Identity", kind: "dashboard", viewport: "both" },
+  { path: "/identity/test-agent", name: "Identity Detail", kind: "dashboard", dynamic: true },
   { path: "/identity/contracts", name: "Identity Contracts", kind: "dashboard" },
   { path: "/identity/teams", name: "Identity Teams", kind: "dashboard" },
   { path: "/identity/trust", name: "Identity Trust", kind: "dashboard" },
   { path: "/identity/recall", name: "Identity Recall", kind: "dashboard" },
   { path: "/identity/export", name: "Identity Export", kind: "dashboard" },
   { path: "/identity/challenges", name: "Identity Challenges", kind: "dashboard" },
+  { path: "/identity/tasks", name: "Identity Tasks", kind: "dashboard" },
+  { path: "/identity/profiles", name: "Entity Profiles", kind: "dashboard" },
+  { path: "/identity/profiles/test-profile", name: "Entity Profile Detail", kind: "dashboard", dynamic: true },
   { path: "/agents", name: "Agents", kind: "dashboard" },
+  { path: "/agents/test-agent", name: "Agent Detail", kind: "dashboard", dynamic: true },
+  { path: "/agents/test-agent/trust", name: "Agent Trust", kind: "dashboard", dynamic: true },
+  { path: "/agents/test-agent/export", name: "Agent Export", kind: "dashboard", dynamic: true },
   { path: "/delegation", name: "Delegation", kind: "dashboard" },
   { path: "/delegation/recall", name: "Delegation Recall", kind: "dashboard" },
   { path: "/teams", name: "Teams", kind: "dashboard" },
@@ -70,6 +81,8 @@ export const DASHBOARD_ROUTES: AuditRoute[] = [
   { path: "/insights/notifications", name: "Insights Notifications", kind: "dashboard" },
   { path: "/code", name: "Code", kind: "dashboard" },
   { path: "/code/projects", name: "Code Projects", kind: "dashboard" },
+  { path: "/code/chunks/test-chunk", name: "Code Chunk Detail", kind: "dashboard", dynamic: true },
+  { path: "/emails", name: "Emails", kind: "dashboard" },
   { path: "/ensemble", name: "Ensemble", kind: "dashboard" },
   { path: "/ensemble/drift", name: "Ensemble Drift", kind: "dashboard" },
   { path: "/billing", name: "Billing", kind: "dashboard" },
@@ -78,6 +91,7 @@ export const DASHBOARD_ROUTES: AuditRoute[] = [
   { path: "/onboarding", name: "Onboarding", kind: "dashboard" },
   { path: "/status", name: "Status", kind: "dashboard" },
   { path: "/users", name: "Users", kind: "dashboard" },
+  { path: "/users/test-user", name: "User Detail", kind: "dashboard", dynamic: true },
   { path: "/admin/users", name: "Admin Users", kind: "dashboard" },
 ];
 
