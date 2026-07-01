@@ -205,7 +205,20 @@ function routeBody(method: string, pathWithQuery: string): unknown {
   if (path === "/v1/memories") return { memories: [memory], total: 1 };
   if (path === "/v1/users") return { users: [user], total: 1 };
 
-  if (path === "/v1/agent-sessions") return { sessions: [sessionSnake], total: 1 };
+  if (path === "/v1/agent-sessions") return {
+    sessions: [
+      sessionSnake,
+      {
+        ...sessionSnake,
+        id: "session-missing-date",
+        session_key: "missing-date-session",
+        started_at: null,
+        created_at: null,
+        updated_at: null,
+      },
+    ],
+    total: 2,
+  };
   if (path === "/v1/agent-sessions/test-session/summary") {
     return {
       sessionKey: "test-session",
