@@ -8,7 +8,7 @@ Engram supports two deployment modes with fundamentally different architectures.
 
 | Aspect | Cloud (SaaS) | Self-Hosted |
 |--------|-------------|-------------|
-| **URL** | `api.openengram.ai` | `localhost:3000` |
+| **URL** | `api.openengram.ai` | `localhost:3001` |
 | **Cost** | Coming soon (join waitlist at openengram.ai) | Free |
 | **Auth** | Required (API key or JWT) | Optional (LAN bypass) |
 | **Accounts** | Full account system | Not needed |

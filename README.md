@@ -6,7 +6,7 @@
     <a href="https://github.com/heybeaux/engram/actions/workflows/ci-local.yml"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci-local.yml?branch=staging&label=local%20ci&style=flat-square" alt="Local CI"></a>
     <a href="https://github.com/heybeaux/engram/actions/workflows/ci-cloud.yml"><img src="https://img.shields.io/github/actions/workflow/status/heybeaux/engram/ci-cloud.yml?branch=staging&label=cloud%20ci&style=flat-square" alt="Cloud CI"></a>
     <a href="https://github.com/heybeaux/engram/blob/staging/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
-    <a href="https://www.npmjs.com/package/@engram/api"><img src="https://img.shields.io/npm/v/@engram/api?style=flat-square&label=npm" alt="npm"></a>
+    <a href="https://www.npmjs.com/package/@openengram/mcp"><img src="https://img.shields.io/npm/v/@openengram/mcp?style=flat-square&label=mcp%20npm" alt="MCP npm package"></a>
     <a href="https://github.com/heybeaux/engram"><img src="https://img.shields.io/github/stars/heybeaux/engram?style=flat-square" alt="Stars"></a>
   </p>
   <p align="center">
@@ -76,7 +76,7 @@ See the [Getting Started Guide](./docs/getting-started.md) for detailed walkthro
 ```bash
 curl -X POST http://localhost:3001/v1/memories \
   -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: eg_sk_your_key_here" \
+  -H "X-AM-API-Key: <api-key-from-register-response>" \
   -H "X-AM-User-ID: user_123" \
   -d '{"raw": "The user prefers dark mode and is allergic to peanuts"}'
 ```
@@ -84,9 +84,9 @@ curl -X POST http://localhost:3001/v1/memories \
 **Search memories:**
 
 ```bash
-curl -X POST http://localhost:3001/v1/memories/search \
+curl -X POST http://localhost:3001/v1/memories/query \
   -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: eg_sk_your_key_here" \
+  -H "X-AM-API-Key: <api-key-from-register-response>" \
   -H "X-AM-User-ID: user_123" \
   -d '{"query": "What are the user preferences?", "limit": 5}'
 ```
@@ -136,8 +136,10 @@ See the [Architecture Documentation](./docs/ARCHITECTURE.md) for the full techni
 ### MCP (Claude Desktop, Cursor, etc.)
 
 ```bash
-npm install -g @engram/mcp-server
+npm install -g @openengram/mcp
 ```
+
+This installs the `engram-mcp` binary. Source: [heybeaux/engram-mcp](https://github.com/heybeaux/engram-mcp).
 
 6 tools: `engram_remember`, `engram_recall`, `engram_search`, `engram_context`, `engram_observe`, `engram_forget`
 
@@ -147,9 +149,13 @@ Point any AI agent at the API. Works with OpenAI, Anthropic, Ollama, LM Studio â
 
 ### TypeScript SDK
 
+The TypeScript client lives in [heybeaux/engram-client](https://github.com/heybeaux/engram-client). It is not published to npm yet â€” install from source until the package ships:
+
 ```bash
-npm install @engram/client
+git clone https://github.com/heybeaux/engram-client.git
 ```
+
+Until it is published, you can also call the [REST API](#api-example) directly from any language.
 
 ## Comparison
 

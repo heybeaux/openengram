@@ -62,7 +62,7 @@ In the meantime, self-host with full features (see above). When cloud launches, 
 ```bash
 curl -X POST https://api.openengram.ai/v1/memories \
   -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: eg_sk_your_key" \
+  -H "X-AM-API-Key: eng_your_key" \
   -H "X-AM-User-ID: user_123" \
   -d '{"raw": "User prefers dark mode"}'
 ```

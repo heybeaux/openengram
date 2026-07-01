@@ -10,13 +10,13 @@ All API requests require two headers:
 
 | Header | Description |
 |--------|-------------|
-| `X-AM-API-Key` | Your API key (starts with `eg_sk_`) |
+| `X-AM-API-Key` | Your API key (starts with `eng_`) |
 | `X-AM-User-ID` | The end-user's identifier |
 
 ```bash
 curl -X POST https://your-engram-server/v1/memories \
   -H "Content-Type: application/json" \
-  -H "X-AM-API-Key: eg_sk_your_key_here" \
+  -H "X-AM-API-Key: eng_your_key_here" \
   -H "X-AM-User-ID: user_123" \
   -d '{"raw": "User prefers dark mode"}'
 ```
@@ -567,7 +567,7 @@ POST /v1/cloud/link
 **Example:**
 
 ```json
-{ "apiKey": "eg_sk_cloud_abc123" }
+{ "apiKey": "eng_cloud_abc123" }
 ```
 
 **Response (200):**

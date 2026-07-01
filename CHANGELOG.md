@@ -2,6 +2,16 @@
 
 All notable changes to the Engram project will be documented in this file.
 
+## [1.5.0] — 2026-02-16
+
+### Release notes draft
+
+A draft release-note packet is available at [`docs/RELEASE_NOTES_v1.5.0_DRAFT.md`](./docs/RELEASE_NOTES_v1.5.0_DRAFT.md). It summarizes the local/cloud edition split, first-run setup, cloud backup/sync foundations, instance keys, RLS hardening, dashboard/API reliability fixes, and CI/test coverage work since v1.0.0.
+
+> Publishing a GitHub Release, creating or moving tags, and publishing npm packages still require explicit release approval.
+
+---
+
 ## [1.0.0] — 2026-02-12
 
 ### 🎉 First Public Release

@@ -47,7 +47,7 @@ New Session → agent:bootstrap → engram /v1/context (load memory context)
           "enabled": true,
           "env": {
             "ENGRAM_API_URL": "http://localhost:3001",
-            "ENGRAM_API_KEY": "eg_sk_test_key_12345",
+            "ENGRAM_API_KEY": "eng_test_key_12345",
             "ENGRAM_USER_ID": "user_beaux",
             "ENGRAM_AGENT_ID": "rook",
             "ENGRAM_MAX_TOKENS": "2000",
