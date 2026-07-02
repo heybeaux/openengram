@@ -24,8 +24,10 @@ const statusColors: Record<AgentSessionStatus, string> = {
   TERMINATED: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return "—";
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "—";
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

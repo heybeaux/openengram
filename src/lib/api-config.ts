@@ -114,6 +114,32 @@ export function buildAuthHeaders(options?: {
   return headers;
 }
 
+
+function getErrorDetail(errorBody: unknown): string | null {
+  if (typeof errorBody === 'string') return errorBody.trim() || null;
+  if (!errorBody || typeof errorBody !== 'object') return null;
+
+  const body = errorBody as Record<string, unknown>;
+  const message = body.message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  if (Array.isArray(message)) {
+    const parts = message.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()));
+    if (parts.length) return parts.join('; ');
+  }
+
+  const error = body.error;
+  if (typeof error === 'string' && error.trim()) return error.trim();
+  return null;
+}
+
+function buildApiErrorMessage(response: Response, errorBody: unknown): string {
+  const statusText = response.statusText ? ` ${response.statusText}` : '';
+  const detail = getErrorDetail(errorBody);
+  return detail
+    ? `Request failed (${response.status}${statusText}): ${detail}`
+    : `Request failed (${response.status}${statusText})`;
+}
+
 /**
  * Lightweight authenticated fetch against the Engram API.
  *
@@ -149,7 +175,7 @@ export async function apiFetch<T>(
     }
     throw new EngramApiError(
       response.status,
-      `API Error: ${response.statusText}`,
+      buildApiErrorMessage(response, errorBody),
       errorBody,
     );
   }
