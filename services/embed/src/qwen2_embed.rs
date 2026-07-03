@@ -37,10 +37,18 @@ pub struct Qwen2EmbedConfig {
     pub hidden_act: Activation,
 }
 
-fn default_max_position_embeddings() -> usize { 32768 }
-fn default_rope_theta() -> f64 { 1000000.0 }
-fn default_rms_norm_eps() -> f64 { 1e-6 }
-fn default_hidden_act() -> Activation { Activation::Silu }
+fn default_max_position_embeddings() -> usize {
+    32768
+}
+fn default_rope_theta() -> f64 {
+    1000000.0
+}
+fn default_rms_norm_eps() -> f64 {
+    1e-6
+}
+fn default_hidden_act() -> Activation {
+    Activation::Silu
+}
 
 impl Qwen2EmbedConfig {
     pub fn head_dim(&self) -> usize {
@@ -109,11 +117,7 @@ impl RotaryEmbedding {
         })
     }
 
-    fn apply_rotary_emb(
-        &self,
-        q: &Tensor,
-        k: &Tensor,
-    ) -> candle_core::Result<(Tensor, Tensor)> {
+    fn apply_rotary_emb(&self, q: &Tensor, k: &Tensor) -> candle_core::Result<(Tensor, Tensor)> {
         let (_b_sz, _h, seq_len, _n_embd) = q.dims4()?;
         let cos = self.cos.narrow(0, 0, seq_len)?;
         let sin = self.sin.narrow(0, 0, seq_len)?;
@@ -209,11 +213,7 @@ impl BidirectionalAttention {
         })
     }
 
-    fn forward(
-        &self,
-        xs: &Tensor,
-        attention_mask: Option<&Tensor>,
-    ) -> candle_core::Result<Tensor> {
+    fn forward(&self, xs: &Tensor, attention_mask: Option<&Tensor>) -> candle_core::Result<Tensor> {
         let (b_sz, seq_len, _) = xs.dims3()?;
 
         let q = self.q_proj.forward(xs)?;
@@ -309,19 +309,13 @@ impl Qwen2EmbedLayer {
         })
     }
 
-    fn forward(
-        &self,
-        xs: &Tensor,
-        attention_mask: Option<&Tensor>,
-    ) -> candle_core::Result<Tensor> {
+    fn forward(&self, xs: &Tensor, attention_mask: Option<&Tensor>) -> candle_core::Result<Tensor> {
         let residual = xs;
         let xs = self.input_layernorm.forward(xs)?;
         let xs = self.self_attn.forward(&xs, attention_mask)?;
         let xs = (xs + residual)?;
         let residual = &xs;
-        let xs = xs
-            .apply(&self.post_attention_layernorm)?
-            .apply(&self.mlp)?;
+        let xs = xs.apply(&self.post_attention_layernorm)?.apply(&self.mlp)?;
         residual + xs
     }
 }

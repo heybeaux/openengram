@@ -64,15 +64,25 @@ struct NomicBertConfigRaw {
 impl<'de> Deserialize<'de> for NomicBertConfig {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let raw = NomicBertConfigRaw::deserialize(deserializer)?;
-        let hidden_size = raw.hidden_size.or(raw.n_embd)
+        let hidden_size = raw
+            .hidden_size
+            .or(raw.n_embd)
             .ok_or_else(|| serde::de::Error::missing_field("hidden_size"))?;
-        let num_hidden_layers = raw.num_hidden_layers.or(raw.n_layer)
+        let num_hidden_layers = raw
+            .num_hidden_layers
+            .or(raw.n_layer)
             .ok_or_else(|| serde::de::Error::missing_field("num_hidden_layers"))?;
-        let num_attention_heads = raw.num_attention_heads.or(raw.n_head)
+        let num_attention_heads = raw
+            .num_attention_heads
+            .or(raw.n_head)
             .ok_or_else(|| serde::de::Error::missing_field("num_attention_heads"))?;
-        let intermediate_size = raw.intermediate_size.or(raw.n_inner)
+        let intermediate_size = raw
+            .intermediate_size
+            .or(raw.n_inner)
             .ok_or_else(|| serde::de::Error::missing_field("intermediate_size"))?;
-        let max_position_embeddings = raw.max_position_embeddings.or(raw.n_positions)
+        let max_position_embeddings = raw
+            .max_position_embeddings
+            .or(raw.n_positions)
             .ok_or_else(|| serde::de::Error::missing_field("max_position_embeddings"))?;
         Ok(NomicBertConfig {
             vocab_size: raw.vocab_size,
@@ -89,17 +99,27 @@ impl<'de> Deserialize<'de> for NomicBertConfig {
     }
 }
 
-fn default_vocab_size() -> usize { 30528 }
-fn default_type_vocab_size() -> usize { 2 }
-fn default_layer_norm_eps() -> f64 { 1e-12 }
-fn default_rotary_emb_base() -> f32 { 1000.0 }
-fn default_rotary_emb_fraction() -> f32 { 1.0 }
+fn default_vocab_size() -> usize {
+    30528
+}
+fn default_type_vocab_size() -> usize {
+    2
+}
+fn default_layer_norm_eps() -> f64 {
+    1e-12
+}
+fn default_rotary_emb_base() -> f32 {
+    1000.0
+}
+fn default_rotary_emb_fraction() -> f32 {
+    1.0
+}
 
 impl NomicBertConfig {
     pub fn head_dim(&self) -> usize {
         self.hidden_size / self.num_attention_heads
     }
-    
+
     pub fn rotary_dim(&self) -> usize {
         (self.head_dim() as f32 * self.rotary_emb_fraction) as usize
     }
@@ -117,33 +137,33 @@ impl RotaryEmbedding {
         let dim = cfg.rotary_dim();
         let max_seq_len = cfg.max_position_embeddings;
         let base = cfg.rotary_emb_base;
-        
+
         // Compute inverse frequencies
         let inv_freq: Vec<f32> = (0..dim)
             .step_by(2)
             .map(|i| 1.0 / base.powf(i as f32 / dim as f32))
             .collect();
         let inv_freq = Tensor::from_vec(inv_freq, (dim / 2,), device)?;
-        
+
         // Compute position indices
         let positions: Vec<f32> = (0..max_seq_len).map(|i| i as f32).collect();
         let positions = Tensor::from_vec(positions, (max_seq_len,), device)?;
-        
+
         // Outer product: positions x inv_freq
         let freqs = positions.unsqueeze(1)?.matmul(&inv_freq.unsqueeze(0)?)?;
-        
+
         // Duplicate for complex rotation
         let freqs = Tensor::cat(&[&freqs, &freqs], 1)?;
-        
+
         let cos = freqs.cos()?;
         let sin = freqs.sin()?;
-        
+
         Ok(Self { cos, sin, dim })
     }
-    
+
     fn apply(&self, x: &Tensor, seq_len: usize) -> Result<Tensor> {
         let (_, _, _, head_dim) = x.dims4()?;
-        
+
         // Only apply to first `dim` dimensions
         if self.dim < head_dim {
             let x_rot = x.narrow(D::Minus1, 0, self.dim)?;
@@ -154,22 +174,24 @@ impl RotaryEmbedding {
             self.apply_rotary(x, seq_len)
         }
     }
-    
+
     fn apply_rotary(&self, x: &Tensor, seq_len: usize) -> Result<Tensor> {
         let cos = self.cos.i(..seq_len)?;
         let sin = self.sin.i(..seq_len)?;
-        
+
         // Reshape cos/sin for broadcasting: (seq, dim) -> (1, 1, seq, dim)
         let cos = cos.unsqueeze(0)?.unsqueeze(0)?;
         let sin = sin.unsqueeze(0)?.unsqueeze(0)?;
-        
+
         // Rotate: x * cos + rotate_half(x) * sin
         let x_rotated = self.rotate_half(x)?;
-        let result = x.broadcast_mul(&cos)?.broadcast_add(&x_rotated.broadcast_mul(&sin)?)?;
-        
+        let result = x
+            .broadcast_mul(&cos)?
+            .broadcast_add(&x_rotated.broadcast_mul(&sin)?)?;
+
         Ok(result)
     }
-    
+
     fn rotate_half(&self, x: &Tensor) -> Result<Tensor> {
         let dim = x.dim(D::Minus1)?;
         let half = dim / 2;
@@ -181,9 +203,9 @@ impl RotaryEmbedding {
 
 /// SwiGLU MLP
 struct SwiGluMlp {
-    fc11: Tensor,  // Gate projection
-    fc12: Tensor,  // Value projection
-    fc2: Tensor,   // Output projection
+    fc11: Tensor, // Gate projection
+    fc12: Tensor, // Value projection
+    fc2: Tensor,  // Output projection
 }
 
 impl SwiGluMlp {
@@ -193,20 +215,21 @@ impl SwiGluMlp {
         let fc2 = vb.get((cfg.hidden_size, cfg.intermediate_size), "fc2.weight")?;
         Ok(Self { fc11, fc12, fc2 })
     }
-    
+
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
         // SwiGLU: fc2(fc11(x) * SiLU(fc12(x)))
         // fc11 = value projection (no activation), fc12 = gate projection (with SiLU)
         let (batch_size, seq_len, hidden_size) = x.dims3()?;
         let x_2d = x.reshape((batch_size * seq_len, hidden_size))?;
-        
+
         let value = x_2d.matmul(&self.fc11.t()?)?;
         let gate = x_2d.matmul(&self.fc12.t()?)?;
         let gate = candle_nn::ops::silu(&gate)?;
         let hidden = value.mul(&gate)?;
         let out = hidden.matmul(&self.fc2.t()?)?;
-        
-        out.reshape((batch_size, seq_len, hidden_size)).map_err(Into::into)
+
+        out.reshape((batch_size, seq_len, hidden_size))
+            .map_err(Into::into)
     }
 }
 
@@ -224,7 +247,7 @@ impl NomicAttention {
         let hidden_size = cfg.hidden_size;
         let wqkv = vb.get((3 * hidden_size, hidden_size), "Wqkv.weight")?;
         let out_proj = vb.get((hidden_size, hidden_size), "out_proj.weight")?;
-        
+
         Ok(Self {
             wqkv,
             out_proj,
@@ -233,32 +256,32 @@ impl NomicAttention {
             rotary,
         })
     }
-    
+
     fn forward(&self, x: &Tensor, attention_mask: Option<&Tensor>) -> Result<Tensor> {
         let (batch_size, seq_len, hidden) = x.dims3()?;
-        
+
         // Compute Q, K, V: reshape to 2D, matmul, reshape back
         let x_2d = x.reshape((batch_size * seq_len, hidden))?;
         let qkv = x_2d.matmul(&self.wqkv.t()?)?;
         let qkv = qkv.reshape((batch_size, seq_len, 3 * self.num_heads * self.head_dim))?;
         let qkv = qkv.reshape((batch_size, seq_len, 3, self.num_heads, self.head_dim))?;
-        let qkv = qkv.permute((2, 0, 3, 1, 4))?;  // (3, batch, heads, seq, head_dim)
-        
+        let qkv = qkv.permute((2, 0, 3, 1, 4))?; // (3, batch, heads, seq, head_dim)
+
         let q = qkv.i(0)?;
         let k = qkv.i(1)?;
         let v = qkv.i(2)?;
-        
+
         // Apply rotary embeddings
         let q = self.rotary.apply(&q, seq_len)?;
         let k = self.rotary.apply(&k, seq_len)?;
-        
+
         // Scaled dot-product attention
         // Make tensors contiguous to avoid striding issues in matmul
         let scale = 1.0 / (self.head_dim as f64).sqrt();
         let k_t = k.transpose(D::Minus2, D::Minus1)?.contiguous()?;
         let scores = q.contiguous()?.matmul(&k_t)?;
         let scores = (scores * scale)?;
-        
+
         // Apply attention mask if provided
         let scores = match attention_mask {
             Some(mask) => {
@@ -269,28 +292,31 @@ impl NomicAttention {
                 // mask=1 for real tokens, mask=0 for padding
                 // We want to add 0 for real tokens, -inf for padding
                 let ones = Tensor::ones_like(&mask)?;
-                let inv_mask = ones.sub(&mask)?;  // 0 for real, 1 for padding
+                let inv_mask = ones.sub(&mask)?; // 0 for real, 1 for padding
                 let neg_inf = Tensor::new(&[-1e9f32], mask.device())?;
                 let mask = inv_mask.broadcast_mul(&neg_inf)?;
                 scores.broadcast_add(&mask)?
             }
             None => scores,
         };
-        
+
         let attn_weights = candle_nn::ops::softmax(&scores, D::Minus1)?;
         // Make v contiguous to avoid striding issues
         let attn_output = attn_weights.matmul(&v.contiguous()?)?;
-        
+
         // Reshape back — contiguous() required before reshape because permute
         // produces a non-contiguous view; reshape on non-contiguous strides is
         // either an error or a silent copy with wrong memory layout.
-        let attn_output = attn_output.permute((0, 2, 1, 3))?.contiguous()?;  // (batch, seq, heads, head_dim)
-        let attn_output = attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))?;
+        let attn_output = attn_output.permute((0, 2, 1, 3))?.contiguous()?; // (batch, seq, heads, head_dim)
+        let attn_output =
+            attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))?;
 
         // Output projection: reshape to 2D, matmul, reshape back
-        let attn_2d = attn_output.reshape((batch_size * seq_len, self.num_heads * self.head_dim))?;
+        let attn_2d =
+            attn_output.reshape((batch_size * seq_len, self.num_heads * self.head_dim))?;
         let out = attn_2d.matmul(&self.out_proj.t()?)?;
-        out.reshape((batch_size, seq_len, self.num_heads * self.head_dim)).map_err(Into::into)
+        out.reshape((batch_size, seq_len, self.num_heads * self.head_dim))
+            .map_err(Into::into)
     }
 }
 
@@ -308,15 +334,20 @@ impl NomicBertLayer {
         let attn = NomicAttention::new(vb.pp("attn"), cfg, rotary)?;
         let norm2 = metal_safe_layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("norm2"))?;
         let mlp = SwiGluMlp::new(vb.pp("mlp"), cfg)?;
-        
-        Ok(Self { norm1, attn, norm2, mlp })
+
+        Ok(Self {
+            norm1,
+            attn,
+            norm2,
+            mlp,
+        })
     }
-    
+
     fn forward(&self, x: &Tensor, attention_mask: Option<&Tensor>) -> Result<Tensor> {
         // Post-norm: norm AFTER residual add (nomic config has prenorm=false)
         let attn_out = self.attn.forward(x, attention_mask)?;
         let x = self.norm1.forward(&(x + attn_out)?)?;
-        
+
         let mlp_out = self.mlp.forward(&x)?;
         let x = self.norm2.forward(&(x + mlp_out)?)?;
         Ok(x)
@@ -342,15 +373,16 @@ impl NomicBertEmbeddings {
             cfg.hidden_size,
             vb.pp("embeddings.token_type_embeddings"),
         )?;
-        let layer_norm = metal_safe_layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("emb_ln"))?;
-        
+        let layer_norm =
+            metal_safe_layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("emb_ln"))?;
+
         Ok(Self {
             word_embeddings,
             token_type_embeddings,
             layer_norm,
         })
     }
-    
+
     fn forward(&self, input_ids: &Tensor, token_type_ids: &Tensor) -> Result<Tensor> {
         let word_emb = self.word_embeddings.forward(input_ids)?;
         let type_emb = self.token_type_embeddings.forward(token_type_ids)?;
@@ -368,17 +400,17 @@ pub struct NomicBertModel {
 impl NomicBertModel {
     pub fn load(vb: VarBuilder, cfg: &NomicBertConfig) -> Result<Self> {
         let embeddings = NomicBertEmbeddings::new(vb.clone(), cfg)?;
-        
+
         let mut layers = Vec::with_capacity(cfg.num_hidden_layers);
         for i in 0..cfg.num_hidden_layers {
             let rotary = RotaryEmbedding::new(cfg, vb.device())?;
             let layer = NomicBertLayer::new(vb.pp(format!("encoder.layers.{}", i)), cfg, rotary)?;
             layers.push(layer);
         }
-        
+
         Ok(Self { embeddings, layers })
     }
-    
+
     pub fn forward(
         &self,
         input_ids: &Tensor,
@@ -386,11 +418,11 @@ impl NomicBertModel {
         attention_mask: Option<&Tensor>,
     ) -> Result<Tensor> {
         let mut hidden = self.embeddings.forward(input_ids, token_type_ids)?;
-        
+
         for layer in &self.layers {
             hidden = layer.forward(&hidden, attention_mask)?;
         }
-        
+
         Ok(hidden)
     }
 }

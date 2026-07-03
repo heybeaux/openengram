@@ -45,19 +45,23 @@ impl LatencyTracker {
     pub fn record(&self, latency_us: u64) {
         self.total_us.fetch_add(latency_us, Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
-        
+
         // Update min (CAS loop) - start with u64::MAX so first value always wins
         loop {
             let current_min = self.min_us.load(Ordering::Relaxed);
             if latency_us >= current_min {
                 break;
             }
-            if self.min_us.compare_exchange_weak(
-                current_min,
-                latency_us,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ).is_ok() {
+            if self
+                .min_us
+                .compare_exchange_weak(
+                    current_min,
+                    latency_us,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                )
+                .is_ok()
+            {
                 break;
             }
         }
@@ -68,12 +72,16 @@ impl LatencyTracker {
             if latency_us <= current_max {
                 break;
             }
-            if self.max_us.compare_exchange_weak(
-                current_max,
-                latency_us,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ).is_ok() {
+            if self
+                .max_us
+                .compare_exchange_weak(
+                    current_max,
+                    latency_us,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                )
+                .is_ok()
+            {
                 break;
             }
         }
@@ -166,7 +174,8 @@ impl Metrics {
     pub fn record_embedding(&self, model: &str, text_count: usize, latency_us: u64) {
         // Update totals
         self.total_requests.fetch_add(1, Ordering::Relaxed);
-        self.total_texts.fetch_add(text_count as u64, Ordering::Relaxed);
+        self.total_texts
+            .fetch_add(text_count as u64, Ordering::Relaxed);
 
         // Update last embedding time
         let now = std::time::SystemTime::now()
@@ -180,7 +189,8 @@ impl Metrics {
             let models = self.per_model.read().unwrap();
             if let Some(m) = models.get(model) {
                 m.embeddings_count.fetch_add(1, Ordering::Relaxed);
-                m.texts_count.fetch_add(text_count as u64, Ordering::Relaxed);
+                m.texts_count
+                    .fetch_add(text_count as u64, Ordering::Relaxed);
                 m.latency.record(latency_us);
                 return;
             }
@@ -188,9 +198,12 @@ impl Metrics {
 
         // Model not found, need to insert
         let mut models = self.per_model.write().unwrap();
-        let m = models.entry(model.to_string()).or_insert_with(ModelMetrics::new);
+        let m = models
+            .entry(model.to_string())
+            .or_insert_with(ModelMetrics::new);
         m.embeddings_count.fetch_add(1, Ordering::Relaxed);
-        m.texts_count.fetch_add(text_count as u64, Ordering::Relaxed);
+        m.texts_count
+            .fetch_add(text_count as u64, Ordering::Relaxed);
         m.latency.record(latency_us);
     }
 
@@ -299,7 +312,7 @@ pub struct ModelStats {
 #[cfg(target_os = "macos")]
 fn get_memory_usage() -> u64 {
     use std::mem::MaybeUninit;
-    
+
     // Use mach APIs for accurate RSS on macOS
     unsafe {
         let mut info: MaybeUninit<libc::rusage> = MaybeUninit::uninit();
@@ -340,11 +353,11 @@ mod tests {
     #[test]
     fn test_latency_tracker() {
         let tracker = LatencyTracker::new();
-        
+
         tracker.record(1000); // 1ms
         tracker.record(2000); // 2ms
         tracker.record(3000); // 3ms
-        
+
         assert_eq!(tracker.count(), 3);
         assert!((tracker.avg_ms() - 2.0).abs() < 0.01);
         assert_eq!(tracker.min_ms(), Some(1.0));
@@ -354,14 +367,14 @@ mod tests {
     #[test]
     fn test_metrics_recording() {
         let metrics = Metrics::new();
-        
+
         metrics.record_embedding("bge-base", 2, 5000);
         metrics.record_embedding("bge-base", 1, 3000);
         metrics.record_embedding("minilm", 1, 2000);
-        
+
         assert_eq!(metrics.total_requests(), 3);
         assert_eq!(metrics.total_texts(), 4);
-        
+
         let snapshot = metrics.snapshot();
         assert_eq!(snapshot.per_model.len(), 2);
         assert_eq!(snapshot.per_model["bge-base"].requests, 2);
@@ -372,17 +385,17 @@ mod tests {
     #[test]
     fn test_in_flight_guard() {
         let metrics = Metrics::new();
-        
+
         assert_eq!(metrics.in_flight_count(), 0);
-        
+
         {
             let _guard = metrics.request_start();
             assert_eq!(metrics.in_flight_count(), 1);
-            
+
             let _guard2 = metrics.request_start();
             assert_eq!(metrics.in_flight_count(), 2);
         }
-        
+
         assert_eq!(metrics.in_flight_count(), 0);
     }
 }

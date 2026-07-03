@@ -1,0 +1,28 @@
+name: embed
+
+on:
+  pull_request:
+    paths:
+      - "services/embed/**"
+      - ".github/workflows/embed.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "services/embed/**"
+      - ".github/workflows/embed.yml"
+
+jobs:
+  embed:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: services/embed
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/embed -> target
+      - run: cargo fmt --check
+      - run: cargo test --locked

@@ -19,7 +19,7 @@ use tokio::sync::Semaphore;
 async fn semaphore_caps_peak_concurrency() {
     const PERMITS: usize = 4;
     const WORKERS: usize = PERMITS + 1; // one extra must wait
-    // Simulated "inference" duration per worker
+                                        // Simulated "inference" duration per worker
     const WORK_MS: u64 = 50;
 
     let sem = Arc::new(Semaphore::new(PERMITS));
@@ -65,7 +65,11 @@ async fn semaphore_caps_peak_concurrency() {
         observed_peak <= PERMITS,
         "Peak concurrency {observed_peak} exceeded permit count {PERMITS}"
     );
-    assert_eq!(in_flight.load(Ordering::Relaxed), 0, "in_flight counter leaked");
+    assert_eq!(
+        in_flight.load(Ordering::Relaxed),
+        0,
+        "in_flight counter leaked"
+    );
 }
 
 /// Verify that with cap=N, N+1 concurrent requests still all complete
