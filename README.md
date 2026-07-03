@@ -25,3 +25,8 @@ Later scope:
 - Import commits must avoid product changes.
 - Existing repos stay intact until parity and cutover are proven.
 - Source repo, branch, SHA, and import mode must be recorded in `docs/migration/source-manifest.md`.
+
+## Workspace status
+
+- `apps/dashboard` is wired into the root pnpm workspace and validated with Turbo lint/test/build.
+- `apps/api` is imported but not yet wired into the root workspace; API integration is a separate follow-up.

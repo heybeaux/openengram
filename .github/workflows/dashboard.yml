@@ -1,0 +1,38 @@
+name: dashboard
+
+on:
+  pull_request:
+    paths:
+      - "apps/dashboard/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/dashboard.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/dashboard/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/dashboard.yml"
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint --filter=engram-dashboard
+      - run: pnpm turbo run test --filter=engram-dashboard
+      - run: pnpm turbo run build --filter=engram-dashboard
