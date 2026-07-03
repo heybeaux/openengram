@@ -149,7 +149,7 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
     let enabled = state.registry.enabled_models();
     let loaded = state.registry.loaded_models();
     let default_model = enabled.first().copied().unwrap_or(ModelId::MiniLM);
-    
+
     let memory_bytes = state.metrics.memory_bytes();
     let last_time = state.metrics.last_embedding_time();
 
@@ -232,8 +232,10 @@ async fn embed(
         // Record metrics for each model
         for r in &results {
             let latency_us = r.latency_ms * 1000;
-            state.metrics.record_embedding(r.model.display_name(), text_count, latency_us);
-            
+            state
+                .metrics
+                .record_embedding(r.model.display_name(), text_count, latency_us);
+
             info!(
                 model = r.model.display_name(),
                 text_count = text_count,
@@ -280,12 +282,14 @@ async fn embed(
         .registry
         .embed(&texts, Some(&request.model))
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-    
+
     let latency_us = start.elapsed().as_micros() as u64;
     let latency_ms = latency_us / 1000;
 
     // Record metrics
-    state.metrics.record_embedding(result.model.display_name(), text_count, latency_us);
+    state
+        .metrics
+        .record_embedding(result.model.display_name(), text_count, latency_us);
 
     // Structured logging
     info!(
@@ -386,8 +390,7 @@ async fn main() -> Result<()> {
     // Initialize structured logging
     // Use JSON format if EMBED_LOG_FORMAT=json, otherwise use pretty format
     let log_format = std::env::var("EMBED_LOG_FORMAT").unwrap_or_default();
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     if log_format == "json" {
         tracing_subscriber::registry()
@@ -455,7 +458,10 @@ async fn main() -> Result<()> {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(4);
-    info!(max_concurrent = max_concurrent, "Inference concurrency cap set (EMBED_MAX_CONCURRENT)");
+    info!(
+        max_concurrent = max_concurrent,
+        "Inference concurrency cap set (EMBED_MAX_CONCURRENT)"
+    );
 
     // Create shutdown channel
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
@@ -479,7 +485,7 @@ async fn main() -> Result<()> {
     // Start server
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("127.0.0.1:{}", port);
-    
+
     info!(address = %addr, "Server listening");
     info!("Endpoints:");
     info!("  POST /v1/embeddings - OpenAI-compatible embedding endpoint");
@@ -503,15 +509,15 @@ async fn main() -> Result<()> {
     info!("Models loaded lazily on first request");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    
+
     // Use axum's graceful shutdown
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             shutdown_signal().await;
-            
+
             // Signal shutdown to any listeners
             let _ = shutdown_tx.send(true);
-            
+
             // Wait for in-flight requests to complete (with timeout)
             let deadline = Instant::now() + std::time::Duration::from_secs(30);
             loop {
@@ -520,16 +526,19 @@ async fn main() -> Result<()> {
                     info!("All in-flight requests completed");
                     break;
                 }
-                
+
                 if Instant::now() > deadline {
                     warn!(in_flight = in_flight, "Shutdown timeout, forcing exit");
                     break;
                 }
-                
-                info!(in_flight = in_flight, "Waiting for in-flight requests to complete...");
+
+                info!(
+                    in_flight = in_flight,
+                    "Waiting for in-flight requests to complete..."
+                );
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
-            
+
             info!("Graceful shutdown complete");
         })
         .await?;

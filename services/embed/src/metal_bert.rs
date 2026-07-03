@@ -65,11 +65,8 @@ struct MetalBertEmbeddings {
 
 impl MetalBertEmbeddings {
     fn new(vb: VarBuilder, cfg: &MetalBertConfig) -> Result<Self> {
-        let word_embeddings = candle_nn::embedding(
-            cfg.vocab_size,
-            cfg.hidden_size,
-            vb.pp("word_embeddings"),
-        )?;
+        let word_embeddings =
+            candle_nn::embedding(cfg.vocab_size, cfg.hidden_size, vb.pp("word_embeddings"))?;
         let position_embeddings = candle_nn::embedding(
             cfg.max_position_embeddings,
             cfg.hidden_size,
@@ -80,11 +77,8 @@ impl MetalBertEmbeddings {
             cfg.hidden_size,
             vb.pp("token_type_embeddings"),
         )?;
-        let layer_norm = metal_safe_layer_norm(
-            cfg.hidden_size,
-            cfg.layer_norm_eps,
-            vb.pp("LayerNorm"),
-        )?;
+        let layer_norm =
+            metal_safe_layer_norm(cfg.hidden_size, cfg.layer_norm_eps, vb.pp("LayerNorm"))?;
 
         Ok(Self {
             word_embeddings,
@@ -502,7 +496,8 @@ mod tests {
         let intermediate = MetalBertIntermediate::new(vb.pp("intermediate"), &cfg).unwrap();
 
         // Input: (batch=1, seq=4, hidden=768)
-        let input = Tensor::zeros((1usize, 4usize, 768usize), candle_core::DType::F32, &device).unwrap();
+        let input =
+            Tensor::zeros((1usize, 4usize, 768usize), candle_core::DType::F32, &device).unwrap();
         let output = intermediate.forward(&input).unwrap();
 
         // Output must be (1, 4, 3072) — not (1, 4, 768) or a bogus shape

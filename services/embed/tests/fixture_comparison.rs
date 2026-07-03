@@ -41,9 +41,21 @@ fn load_fixture(model_name: &str) -> Fixture {
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
     assert_eq!(a.len(), b.len(), "dimension mismatch in cosine similarity");
-    let dot: f64 = a.iter().zip(b.iter()).map(|(&x, &y)| x as f64 * y as f64).sum();
-    let norm_a: f64 = a.iter().map(|&x| (x as f64) * (x as f64)).sum::<f64>().sqrt();
-    let norm_b: f64 = b.iter().map(|&x| (x as f64) * (x as f64)).sum::<f64>().sqrt();
+    let dot: f64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| x as f64 * y as f64)
+        .sum();
+    let norm_a: f64 = a
+        .iter()
+        .map(|&x| (x as f64) * (x as f64))
+        .sum::<f64>()
+        .sqrt();
+    let norm_b: f64 = b
+        .iter()
+        .map(|&x| (x as f64) * (x as f64))
+        .sum::<f64>()
+        .sqrt();
     if norm_a == 0.0 || norm_b == 0.0 {
         return 0.0;
     }
@@ -55,12 +67,12 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
 fn compare_model(model_id: ModelId, fixture_model_name: &str) -> (f64, f64) {
     let fixture = load_fixture(fixture_model_name);
 
+    println!("\n=== {} ({}) ===", fixture_model_name, model_id.to_hf_id());
     println!(
-        "\n=== {} ({}) ===",
-        fixture_model_name,
-        model_id.to_hf_id()
+        "  {} texts, {} reference dims",
+        fixture.texts.len(),
+        fixture.embeddings[0].len()
     );
-    println!("  {} texts, {} reference dims", fixture.texts.len(), fixture.embeddings[0].len());
 
     let embedder = Embedder::new(model_id)
         .unwrap_or_else(|e| panic!("Failed to load model {}: {}", fixture_model_name, e));
@@ -179,7 +191,10 @@ fn test_all_models_fixture_comparison_report() {
     }
 
     println!("\n=== SUMMARY ===");
-    println!("{:<12} {:>12} {:>12} {:>6}", "model", "min_cosine", "avg_cosine", "pass");
+    println!(
+        "{:<12} {:>12} {:>12} {:>6}",
+        "model", "min_cosine", "avg_cosine", "pass"
+    );
     for (name, min_cos, avg_cos, pass) in &results {
         println!(
             "{:<12} {:>12.6} {:>12.6} {:>6}",
@@ -196,4 +211,3 @@ fn test_all_models_fixture_comparison_report() {
         "One or more models failed cosine threshold — Phase 2 is blocked until fixed."
     );
 }
-

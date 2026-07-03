@@ -8,7 +8,7 @@ use candle_core::{DType, Device, Module, Result, Tensor, D};
 use candle_nn::VarBuilder;
 
 /// A Metal-compatible LayerNorm that always uses the "slow path" implementation.
-/// 
+///
 /// The standard candle_nn::LayerNorm tries a CustomOp fast path first, which fails on Metal.
 /// This implementation uses only basic tensor operations (sum, broadcast, sqrt, etc.)
 /// that are fully supported on Metal.
@@ -55,18 +55,18 @@ impl Module for MetalSafeLayerNorm {
             DType::F16 | DType::BF16 => DType::F32,
             d => d,
         };
-        
+
         let hidden_size = x.dim(D::Minus1)?;
         let x = x.to_dtype(internal_dtype)?;
-        
+
         // Compute mean and center
         let mean_x = (x.sum_keepdim(D::Minus1)? / hidden_size as f64)?;
         let x_centered = x.broadcast_sub(&mean_x)?;
-        
+
         // Compute variance and normalize
         let var_x = (x_centered.sqr()?.sum_keepdim(D::Minus1)? / hidden_size as f64)?;
         let x_normed = x_centered.broadcast_div(&(var_x + self.eps)?.sqrt()?)?;
-        
+
         // Apply scale and shift
         let x = x_normed.to_dtype(x_dtype)?.broadcast_mul(&self.weight)?;
         match &self.bias {
@@ -87,7 +87,7 @@ pub fn is_metal_device(device: &Device) -> bool {
 }
 
 /// Select the best available device with Metal support
-/// 
+///
 /// Returns Metal device if available and EMBED_DEVICE env var is not set to "cpu".
 /// Falls back to CPU if Metal is not available or explicitly disabled.
 pub fn select_device_with_metal() -> Result<Device> {
@@ -95,12 +95,12 @@ pub fn select_device_with_metal() -> Result<Device> {
     let force_cpu = std::env::var("EMBED_DEVICE")
         .map(|v| v.to_lowercase() == "cpu")
         .unwrap_or(false);
-    
+
     if force_cpu {
         tracing::info!("EMBED_DEVICE=cpu, using CPU");
         return Ok(Device::Cpu);
     }
-    
+
     // Try Metal first on macOS
     #[cfg(target_os = "macos")]
     {
@@ -114,7 +114,7 @@ pub fn select_device_with_metal() -> Result<Device> {
             }
         }
     }
-    
+
     Ok(Device::Cpu)
 }
 
@@ -127,14 +127,14 @@ mod tests {
     fn test_metal_safe_layer_norm_cpu() -> Result<()> {
         let device = Device::Cpu;
         let hidden_size = 768;
-        
+
         let weight = Tensor::ones((hidden_size,), DType::F32, &device)?;
         let bias = Tensor::zeros((hidden_size,), DType::F32, &device)?;
         let layer_norm = MetalSafeLayerNorm::new(weight, bias, 1e-5);
-        
+
         let x = Tensor::randn(0f32, 1.0, (2, 4, hidden_size), &device)?;
         let output = layer_norm.forward(&x)?;
-        
+
         assert_eq!(output.dims(), &[2, 4, hidden_size]);
         Ok(())
     }
@@ -142,26 +142,28 @@ mod tests {
     #[test]
     fn test_metal_safe_layer_norm_values() -> Result<()> {
         let device = Device::Cpu;
-        
+
         // Simple test case: [1, 2, 3] normalized should have mean=0, var=1
         let weight = Tensor::ones((3,), DType::F32, &device)?;
         let bias = Tensor::zeros((3,), DType::F32, &device)?;
         let layer_norm = MetalSafeLayerNorm::new(weight, bias, 1e-5);
-        
+
         let x = Tensor::new(&[[1f32, 2., 3.]], &device)?;
         let output = layer_norm.forward(&x)?;
         let output_vec = output.to_vec2::<f32>()?;
-        
+
         // Expected: approximately [-1.2247, 0, 1.2247]
         let expected = [-1.2247, 0.0, 1.2247];
         for (i, (got, exp)) in output_vec[0].iter().zip(expected.iter()).enumerate() {
             assert!(
                 (got - exp).abs() < 0.01,
                 "Mismatch at {}: got {}, expected {}",
-                i, got, exp
+                i,
+                got,
+                exp
             );
         }
-        
+
         Ok(())
     }
 }
