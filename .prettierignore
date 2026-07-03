@@ -12,3 +12,6 @@ coverage/
 playwright-report/
 test-results/
 .turbo/
+
+# Imported package tree kept byte-for-byte until its integration PR.
+packages/client-js/**
