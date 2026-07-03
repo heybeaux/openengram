@@ -1,4 +1,5 @@
 # App/service workspace membership is enabled incrementally.
 packages:
   - "apps/dashboard"
+  - "apps/api"
   - "packages/*"

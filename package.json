@@ -15,5 +15,12 @@
   "devDependencies": {
     "prettier": "^3.6.2",
     "turbo": "^2.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@prisma/client": "7.5.0",
+      "@prisma/adapter-pg": "7.5.0",
+      "prisma": "7.5.0"
+    }
   }
 }
