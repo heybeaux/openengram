@@ -4,4 +4,4 @@ Every import into this monorepo must record the source repository, branch, sourc
 
 | Destination | Source repo | Source branch | Source SHA | Import mode | Imported in | Notes     |
 | ----------- | ----------- | ------------: | ---------: | ----------- | ----------: | --------- |
-| _pending_   | _pending_   |     _pending_ |  _pending_ | _pending_   |   _pending_ | _pending_ |
+| apps/dashboard | `heybeaux/engram-dashboard` | `main` | `09a91ab73f7d` | subtree | pending PR | Imported as first app surface. |
