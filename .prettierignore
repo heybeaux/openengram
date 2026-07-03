@@ -15,3 +15,6 @@ test-results/
 
 # Imported package tree kept byte-for-byte until its integration PR.
 packages/client-js/**
+
+# Imported MCP package kept byte-for-byte until its integration PR.
+packages/mcp/**
