@@ -1,0 +1,14 @@
+# Imported application/service trees are kept byte-for-byte during import-only PRs.
+# Each app/service gets a later integration PR that decides whether/how to wire
+# root formatting, linting, and workspace scripts without massive formatting noise.
+apps/**
+services/**
+
+node_modules/
+dist/
+build/
+.next/
+coverage/
+playwright-report/
+test-results/
+.turbo/
