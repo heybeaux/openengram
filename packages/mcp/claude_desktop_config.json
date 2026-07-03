@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["/Users/clawdbot/projects/agent-memory/engram-mcp/dist/index.js"],
+      "env": {
+        "ENGRAM_API_URL": "http://localhost:3002",
+        "ENGRAM_API_KEY": "engram_gv9r6c4vesomlekojvkne",
+        "ENGRAM_USER_ID": "Beaux"
+      }
+    }
+  }
+}
