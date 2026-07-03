@@ -25,4 +25,5 @@ jobs:
         with:
           workspaces: services/embed -> target
       - run: cargo fmt --check
+      - run: cargo check --locked --all-targets
       - run: cargo test --locked
