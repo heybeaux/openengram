@@ -1,0 +1,46 @@
+# Dashboard CI (EC-30g) — typecheck, build, and unit-test the Next.js
+# dashboard whenever a PR touches apps/dashboard/** or the workspace lockfile.
+
+name: dashboard-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/dashboard/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/dashboard-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/dashboard/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/dashboard-ci.yml'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter dashboard typecheck
+
+      - name: Test
+        run: pnpm --filter dashboard test
+
+      - name: Build
+        run: pnpm --filter dashboard build
