@@ -44,8 +44,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: apps/code-api/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            apps/code-api/pnpm-lock.yaml
+      - name: Install root workspace
+        working-directory: .
+        run: pnpm install --frozen-lockfile
       - name: Generate Prisma client
         run: pnpm exec prisma generate
       - name: Run migrations
@@ -54,6 +58,8 @@ jobs:
         run: pnpm build
       - name: Test API
         run: pnpm exec jest --forceExit --runInBand --ci
+      - name: Install nested code dashboard
+        run: pnpm install --frozen-lockfile
       - name: Build nested dashboard
         run: pnpm --dir apps/dashboard build
       - name: Test nested dashboard
