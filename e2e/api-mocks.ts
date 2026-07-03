@@ -174,7 +174,7 @@ function routeBody(method: string, pathWithQuery: string): unknown {
   const path = pathWithQuery.split("?")[0];
 
   if (path === "/v1/health") return { status: "ok", uptime: 1 };
-  if (path === "/v1/instance/info") return { edition: "cloud", version: "test", apiUrl: "mocked" };
+  if (path === "/v1/instance/info") return { mode: "cloud", edition: "cloud", version: "test", cloudLinked: true, apiUrl: "mocked", features: { localEmbeddings: false, cloudEnsemble: true, codeSearch: false, cloudBackup: true, crossDeviceSync: true, billing: true } };
   if (path === "/v1/auth/setup-status") return { configured: true, setupRequired: false };
   if (path.startsWith("/v1/auth/")) return { ok: true, token: "mock-token", user };
   if (path === "/v1/stats") {
@@ -226,9 +226,9 @@ function routeBody(method: string, pathWithQuery: string): unknown {
       status: "COMPLETED",
       memoriesCreated: 1,
       memoriesAccessed: 0,
-      uniqueMemories: 1,
+      // Production can return this backend field and omit topTopics.
+      uniqueMemoriesAccessed: 1,
       duration: 60000,
-      topTopics: ["qa"],
     };
   }
 
@@ -283,7 +283,10 @@ function routeBody(method: string, pathWithQuery: string): unknown {
   if (path === "/v1/agents/test-agent/trust/history") return { history: [] };
   if (path === "/v1/agents/test-agent/trust/narrative") return { narrative: "Stable test trust profile." };
   if (path === "/v1/identity/agents") return { agents: [agent] };
-  if (path === "/v1/identity/agents/test-agent") return agent;
+  if (path === "/v1/identity/agents/test-agent") {
+    const { capabilities: _capabilities, ...agentWithoutCapabilities } = agent;
+    return agentWithoutCapabilities;
+  }
   if (path === "/v1/identity/agents/test-agent/export") return { agent, memories: [memory] };
   if (path === "/v1/identity/agents/test-agent/trust-profile") return { agentId: "test-agent", overallTrust: 0.8, domains: [], history: [] };
   if (path === "/v1/identity/trust/test-agent") return trustProfile;
@@ -330,7 +333,7 @@ function routeBody(method: string, pathWithQuery: string): unknown {
   }
   if (path === "/v1/cloud/sync/history") return [];
   if (path.startsWith("/v1/cloud/")) return { status: "idle", linked: false, history: [], conflicts: [], instances: [] };
-  if (path === "/v1/sync/instances") return { instances: [] };
+  if (path === "/v1/sync/instances") return [];
   if (path === "/v1/awareness/sources") return { sources: [] };
   if (path === "/v1/awareness/insights") return { insights: [] };
   if (path === "/v1/awareness/cycle/status") return { phase: "idle", lastRun: null, nextRun: null, insightsGenerated: 0 };
