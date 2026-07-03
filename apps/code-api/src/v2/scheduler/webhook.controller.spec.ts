@@ -209,7 +209,7 @@ describe('WebhookController.github', () => {
         undefined,
         'push',
         'd',
-        {} as never,
+        {},
       ),
     ).rejects.toBeInstanceOf(HttpException);
   });

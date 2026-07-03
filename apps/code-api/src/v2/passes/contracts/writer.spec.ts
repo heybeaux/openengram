@@ -45,7 +45,7 @@ describe('writeContractsArtifacts', () => {
           writes.push({ path: p, contents: c });
         },
         mkdir: async (p) => {
-          dirs.push(p as string);
+          dirs.push(p);
           return undefined;
         },
       },

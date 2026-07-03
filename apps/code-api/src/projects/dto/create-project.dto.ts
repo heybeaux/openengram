@@ -9,7 +9,7 @@ export class CreateProjectDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(4096)
-  @Matches(/^\/[a-zA-Z0-9_\-\/\.]+$/, {
+  @Matches(/^\/[a-zA-Z0-9_\-/.]+$/, {
     message: 'rootPath must be an absolute path with valid characters (no .. traversal)',
   })
   rootPath: string;

@@ -43,7 +43,7 @@ type TsNode = Parser.SyntaxNode;
  * so we lazily build one per process and reuse it. tree-sitter parsers are
  * not thread-safe, but Node is single-threaded for this code path.
  */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const Go = require('tree-sitter-go');
 
 function parseSource(source: string): Parser.Tree {

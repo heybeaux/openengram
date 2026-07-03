@@ -17,7 +17,7 @@ import { join, relative, sep } from 'node:path';
 
 import type { Ignore } from 'ignore';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const ignoreFactory: () => Ignore = require('ignore');
 
 /**

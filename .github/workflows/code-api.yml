@@ -54,10 +54,18 @@ jobs:
         run: pnpm exec prisma generate
       - name: Run migrations
         run: pnpm exec prisma migrate deploy
+      - name: Lint API
+        working-directory: .
+        run: pnpm turbo run lint --filter=engram-code
+      - name: Typecheck API
+        working-directory: .
+        run: pnpm turbo run typecheck --filter=engram-code
       - name: Build API
-        run: pnpm build
+        working-directory: .
+        run: pnpm turbo run build --filter=engram-code
       - name: Test API
-        run: pnpm exec jest --forceExit --runInBand --ci
+        working-directory: .
+        run: pnpm turbo run test --filter=engram-code
       - name: Install nested code dashboard
         run: pnpm install --frozen-lockfile
       - name: Build nested dashboard

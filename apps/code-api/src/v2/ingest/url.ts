@@ -52,7 +52,7 @@ export function parseGitHubUrl(raw: string): ParsedGitHubUrl | null {
   let ref: string | undefined;
   if (segments.length >= 4 && segments[2] === 'tree') {
     const candidate = segments[3];
-    if (candidate && /^[A-Za-z0-9._\/-]+$/.test(candidate)) {
+    if (candidate && /^[A-Za-z0-9._/-]+$/.test(candidate)) {
       ref = candidate;
     }
   }

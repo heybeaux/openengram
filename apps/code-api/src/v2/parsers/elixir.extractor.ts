@@ -51,7 +51,7 @@ import {
 
 type TsNode = Parser.SyntaxNode;
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const Elixir = require('tree-sitter-elixir');
 
 function parseSource(source: string): Parser.Tree {
