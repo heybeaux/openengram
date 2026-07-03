@@ -1,0 +1,240 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model Project {
+  id             String      @id @default(uuid())
+  name           String      @unique
+  rootPath       String
+  languages      String[]    // stored as array of language strings
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  lastIngestedAt DateTime?
+
+  chunks         CodeChunk[]
+  cards          Card[]
+  graphEdges     GraphEdge[]
+  subsystems     Subsystem[]
+  passRuns       PassRun[]
+
+  @@map("projects")
+}
+
+// ----- v2 multi-pass codebase understanding -----
+
+enum Lod {
+  INDEX
+  SUMMARY
+  STANDARD
+  DEEP
+}
+
+enum CardLevel {
+  REPOSITORY
+  SUBSYSTEM
+  MODULE
+  CAPABILITY
+}
+
+enum EdgeType {
+  CONTAINS
+  IMPORTS
+  CALLS
+  EXTENDS
+}
+
+enum PassRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+/// LoD synthesis output for v2 multi-pass pipeline.
+/// One row per (repo, conceptPath, lod) — a card at a specific level of detail.
+model Card {
+  id           String                        @id @default(uuid())
+  repoId       String
+  project      Project                       @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  /// Hierarchical concept path, e.g. "engram-code/src/ingestion/parsers/typescript-parser"
+  conceptPath  String
+  lod          Lod
+
+  /// Hierarchical level — repository|subsystem|module|capability.
+  /// Phase 2 introduces this so callers can filter `GET /v1/map?level=subsystem`.
+  level        CardLevel                     @default(MODULE)
+
+  content      String                        // markdown body
+
+  /// Which pass produced this card (e.g. "intent", "synthesis", "contracts").
+  /// Used by the conductor to invalidate downstream cards when an upstream
+  /// pass re-runs.
+  sourcePass   String?
+
+  /// Approximate token count for budget accounting + LoD validation.
+  tokenCount   Int?
+
+  /// Optional embedding for semantic search over cards (pgvector).
+  embedding    Unsupported("vector(768)")?
+
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+
+  @@unique([repoId, conceptPath, lod])
+  @@index([conceptPath])
+  @@index([repoId, level])
+  @@map("cards")
+}
+
+/// Discovered subsystems — clusters of modules grouped by import topology +
+/// intent similarity (Pass 2). Named by LLM via subsystem detector (EC-25).
+model Subsystem {
+  id                  String   @id @default(uuid())
+  repoId              String
+  project             Project  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  /// Human-facing name (e.g. "Auth", "Ingestion Pipeline"). Set by EC-25 namer.
+  name                String
+
+  /// URL/path-safe slug derived from name. Used in cards.conceptPath
+  /// (e.g. "engram-code/subsystems/auth"). Unique within a repo.
+  slug                String
+
+  /// One-line description (~120 chars). Long-form lives in the subsystem card.
+  description         String?
+
+  /// Concept paths of member modules (e.g. "engram-code/src/v2/passes/intent").
+  /// Kept denormalized for fast lookup; source of truth is the clustering
+  /// algorithm output snapshotted at detection time.
+  memberModulePaths   String[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([repoId, slug])
+  @@index([repoId])
+  @@map("subsystems")
+}
+
+/// Observability + budget ledger. One row per pass invocation (per repo, per
+/// run). The conductor writes a row when a pass starts and updates it on
+/// completion. Enables: cost dashboards, retry decisions, drift detection.
+model PassRun {
+  id              String         @id @default(uuid())
+  repoId          String
+  project         Project        @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  /// Pass identifier — "structure", "intent", "contracts", "gotchas",
+  /// "subsystem", "synthesis-module", "synthesis-subsystem",
+  /// "synthesis-repository". Free-form string to allow new passes without
+  /// migration.
+  passName        String
+
+  status          PassRunStatus  @default(PENDING)
+
+  /// Hash of the pass inputs (e.g. structure graph + source SHA). Lets us
+  /// skip re-runs when nothing changed.
+  inputHash       String?
+
+  /// Hash of the pass output for change-detection downstream.
+  outputHash      String?
+
+  /// Model identifier (e.g. "claude-sonnet-4-6", "gemini-flash"). NULL for
+  /// mechanical passes (structure).
+  model           String?
+
+  /// Token spend for this run. Mechanical passes report 0.
+  tokenCost       Int?
+
+  /// Wall-clock duration in milliseconds (EC-47). Computed from
+  /// `finishedAt - startedAt` at persistence time so the stats endpoint can
+  /// do `AVG(durationMs)` / percentile aggregates without a per-row subtraction.
+  durationMs      Int?
+
+  /// Free-form per-pass extras (EC-47) — e.g. fallback counts, per-LoD
+  /// breakdown, retry count. Keeps the schema additive while passes evolve
+  /// their bookkeeping.
+  metadata        Json?
+
+  /// Error string when status=FAILED.
+  errorMessage    String?
+
+  startedAt       DateTime       @default(now())
+  finishedAt      DateTime?
+
+  @@index([repoId, passName, startedAt])
+  @@index([repoId, status])
+  @@map("pass_runs")
+}
+
+/// Typed edges between concept paths — the structure graph.
+/// fromPath/toPath reference concept paths (not card ids) because edges may
+/// be discovered during the structure pass before any cards exist.
+model GraphEdge {
+  id         String   @id @default(uuid())
+  repoId     String
+  project    Project  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  fromPath   String
+  toPath     String
+  edgeType   EdgeType
+
+  /// Parser-specific extra info (e.g. named vs default import, call site).
+  metadata   Json?
+
+  createdAt  DateTime @default(now())
+
+  @@index([repoId, fromPath])
+  @@index([repoId, toPath])
+  @@index([repoId, edgeType])
+  @@map("graph_edges")
+}
+
+model CodeChunk {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Location
+  filePath     String   // relative to project root
+  lineStart    Int
+  lineEnd      Int
+  
+  // Content
+  content      String
+  language     String   // apex, lwc, javascript, typescript, python, html, css, xml
+  chunkType    String   // class, method, function, component, trigger, test, interface, file_header
+  
+  // Structure  
+  name         String   // class/function/component name
+  parentName   String?  // containing class for methods
+  dependencies String[] // imports, extends, implements
+  
+  // Embedding - using Unsupported for pgvector
+  embedding        Unsupported("vector(768)")?
+  
+  // Multi-model embeddings for ensemble search
+  embedding_bge    Unsupported("vector(768)")?
+  embedding_nomic  Unsupported("vector(768)")?
+  embedding_gte    Unsupported("vector(768)")?
+  embedding_minilm Unsupported("vector(384)")?
+  
+  // Meta
+  createdAt    DateTime @default(now())
+  checksum     String   // detect changes on re-ingest
+  
+  @@index([projectId])
+  @@index([filePath])
+  @@index([language])
+  @@index([chunkType])
+  @@map("code_chunks")
+}

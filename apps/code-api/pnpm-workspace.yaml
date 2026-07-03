@@ -1,0 +1,16 @@
+packages:
+  - '.'
+  - 'apps/*'
+ignoreScripts: false
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/engines'
+  - prisma
+  - tree-sitter
+  - tree-sitter-go
+  - tree-sitter-javascript
+  - tree-sitter-python
+  - tree-sitter-rust
+  - tree-sitter-swift
+  - tree-sitter-typescript
+  - unrs-resolver
