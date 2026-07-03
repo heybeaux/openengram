@@ -82,7 +82,7 @@ For `packages/client-js`, `packages/mcp`, and `packages/channel-intelligence`:
 
 ## Known deferred cleanup
 
-- `apps/api` still has mutating `lint` and does not yet have a clean app-level lint/typecheck lane in monorepo CI.
+- `apps/api` lint/typecheck is now explicit in CI, but imported strict typed-lint debt remains warning-level and formatting cleanup is deferred.
 - `apps/code-api` lint allows imported unsafe-any debt as warnings to avoid a noisy fake cleanup PR.
 - `apps/code-api/apps/dashboard` remains nested and separately installed/tested.
 - `services/embed` has warning-only Rust cleanup and ignored model/server tests in default CI.
@@ -91,6 +91,5 @@ For `packages/client-js`, `packages/mcp`, and `packages/channel-intelligence`:
 ## Recommended next PRs
 
 1. Add deployment notes/manifests for each app/service, starting with the current production platform and subdirectory build command.
-2. Normalize `apps/api` scripts the same way `apps/code-api` was normalized: non-mutating lint, explicit typecheck, and warning/debt policy if needed.
-3. Add package publish dry-run CI for changed packages.
-4. Add a production-safe dashboard/API smoke script that can run after monorepo-backed deployments.
+2. Add package publish dry-run CI for changed packages.
+3. Add a production-safe dashboard/API smoke script that can run after monorepo-backed deployments.
