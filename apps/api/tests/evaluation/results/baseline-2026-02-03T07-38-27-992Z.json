@@ -1,0 +1,451 @@
+{
+  "timestamp": "2026-02-03T07:38:27.992Z",
+  "runLabel": "post-improvement",
+  "metrics": {
+    "totalMemories": 232,
+    "totalExtractions": 231,
+    "extractionsWithData": 226,
+    "totalEntities": 95,
+    "totalLinks": 81,
+    "fiveW1HCompletionRate": 0.35281385281385286,
+    "avgEntitiesPerMemory": 0.40948275862068967,
+    "avgLinksPerMemory": 0.34913793103448276,
+    "fiveW1HBreakdown": {
+      "who": 0.8787878787878788,
+      "what": 0.9783549783549783,
+      "when": 0.047619047619047616,
+      "where": 0.05627705627705628,
+      "why": 0.047619047619047616,
+      "how": 0.10822510822510822
+    },
+    "sampleSize": 20,
+    "sampleScores": [
+      {
+        "memoryId": "cml5g1648003fc9rylwmxrgok",
+        "raw": "User noted a double header bug in the CreateCrew header for the UltraEdge project.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux noted a double header bug in the CreateCrew header for the UltraEdge project.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "UltraEdge"
+        ]
+      },
+      {
+        "memoryId": "cml3ym3di0009c9rpmvy4pnph",
+        "raw": "User has completed building the Engram auto-capture system using a two-track approach: PR #6384 to OpenClaw for message hooks, plus a self-capture hook.",
+        "fiveW1HScore": 3,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has completed building the Engram auto-capture system using a two-track approach.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": "using a two-track approach: PR #6384 to OpenClaw for message hooks, plus a self-capture hook.",
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "Engram",
+          "OpenClaw",
+          "PR #6384"
+        ]
+      },
+      {
+        "memoryId": "cml5eaz77002hc9ryl6potdh6",
+        "raw": "User's workspace backup is stored in a private repo at github.com/heybeaux/clawd.",
+        "fiveW1HScore": 4,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's workspace backup is stored in a private repo at github.com/heybeaux/clawd.",
+          "when": null,
+          "where": "github.com/heybeaux/clawd",
+          "why": null,
+          "how": "stored in a private repo",
+          "topics": [
+            "work"
+          ]
+        },
+        "linkedEntities": [
+          "github.com",
+          "clawd"
+        ]
+      },
+      {
+        "memoryId": "cml5c82wt0017c9rysly9o609",
+        "raw": "`ENGRAM_API_KEY` needs to have the `NEXT_PUBLIC_` prefix for browser availability.",
+        "fiveW1HScore": 1,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "`ENGRAM_API_KEY` needs to have the `NEXT_PUBLIC_` prefix for browser availability.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml4jr7lv0003c9yjbzvpywvv",
+        "raw": "test memory with raw field",
+        "fiveW1HScore": 1,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "test memory with raw field.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5cuf2y001nc9ryzf1k6k7i",
+        "raw": "The Users page is currently using mock data (hardcoded 847).",
+        "fiveW1HScore": 1,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "The Users page is currently using mock data (hardcoded 847).",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5id9ce0051c9rydkqqqp5x",
+        "raw": "User has set up CI/CD workflows that include linting, testing, and code review by Claude.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has set up CI/CD workflows that include linting, testing, and code review by Claude.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "Claude"
+        ]
+      },
+      {
+        "memoryId": "cml5hx5zi0043c9ryfezk47b9",
+        "raw": "User is working on a project involving a mobile app with features like gear management and event tracking.",
+        "fiveW1HScore": 2,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux is working on a project involving a mobile app with features like gear management and event tracking.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5hx60j0049c9ry5lfk92i6",
+        "raw": "User is using Expo to test the app.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux is using Expo to test the app.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "Expo"
+        ]
+      },
+      {
+        "memoryId": "cml3x5d8b0001c9rpozywgzfb",
+        "raw": "Beaux cannot start the day without coffee. He absolutely must have coffee otherwise he will be in a bad mood.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux cannot start the day without coffee.",
+          "when": null,
+          "where": null,
+          "why": "beaux absolutely must have coffee otherwise he will be in a bad mood.",
+          "how": null,
+          "topics": [
+            "preferences"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5c4s2g000fc9ryprxmhwdl",
+        "raw": "User finds the format failure in PR #6384 easy to fix.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux finds the format failure in PR #6384 easy to fix.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "PR #6384"
+        ]
+      },
+      {
+        "memoryId": "cml5cv9i10023c9ryh16ptg73",
+        "raw": "User's dashboard now displays real dates on the chart instead of 'Invalid Date'.",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's dashboard now displays real dates on the chart instead of 'Invalid Date'.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5lvgq9008fc9ry0v98kymg",
+        "raw": "User utilizes a multi-system approach, including Salesforce, Apsona, Pardot, Shopify, FormAssembly, and New/Mode.",
+        "fiveW1HScore": 3,
+        "entityScore": 0.6666666666666666,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux utilizes a multi-system approach, including Salesforce, Apsona, Pardot, Shopify, FormAssembly, and New/Mode.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": "by using multiple systems",
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "Salesforce",
+          "Apsona",
+          "Pardot",
+          "Shopify",
+          "FormAssembly",
+          "New/Mode"
+        ]
+      },
+      {
+        "memoryId": "cml5c4s20000dc9ryvsc7ppy1",
+        "raw": "User has 3 checks still queued for macOS lint/build/test related to PR #6384.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has 3 checks still queued for macOS lint/build/test related to PR #6384.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "macOS",
+          "PR #6384"
+        ]
+      },
+      {
+        "memoryId": "cml5lvgqt008jc9rytzi9your",
+        "raw": "User employs Excel and OpenRefine for data cleaning tasks.",
+        "fiveW1HScore": 2,
+        "entityScore": 0.6666666666666666,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux employs Excel and OpenRefine for data cleaning tasks.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "Excel",
+          "OpenRefine"
+        ]
+      },
+      {
+        "memoryId": "cml5ifpi1005pc9ryki2k5b3h",
+        "raw": "User's second LinkedIn post titled 'What It's Actually Like Running a Personal AI Assistant' is scheduled for February 5, 2023.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's second LinkedIn post titled 'What It's Actually Like Running a Personal AI Assistant' is scheduled for February 5, 2023.",
+          "when": "2023-02-05T00:00:00.000Z",
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "LinkedIn",
+          "What It's Actually Like Running a Personal AI Assistant"
+        ]
+      },
+      {
+        "memoryId": "cml5ma2aa0093c9ry4dmxackf",
+        "raw": "User has specific spikes in payment processing on the 1st and 15th of each month.",
+        "fiveW1HScore": 2,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has specific spikes in payment processing on the 1st and 15th of each month.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5eaz7j002jc9ry63oic5ax",
+        "raw": "User's Engram API key and user ID are stored as environment variables: NEXT_PUBLIC_ENGRAM_API_KEY and NEXT_PUBLIC_ENGRAM_USER_ID.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's Engram API key and user ID are stored as environment variables.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": "as environment variables: NEXT_PUBLIC_ENGRAM_API_KEY and NEXT_PUBLIC_ENGRAM_USER_ID.",
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5g163v003dc9ry3ntiy7oo",
+        "raw": "User identified an icon fix needed for 'backpack-outline' in 4 locations as part of the UltraEdge project.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux identified an icon fix needed for 'backpack-outline' in 4 locations as part of the UltraEdge project.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "technical"
+          ]
+        },
+        "linkedEntities": [
+          "UltraEdge"
+        ]
+      },
+      {
+        "memoryId": "cml5k9uam0085c9rymhzo5p3l",
+        "raw": "User has around 30 hours per week available for actual work.",
+        "fiveW1HScore": 2,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has around 30 hours per week available for actual work.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work"
+          ]
+        },
+        "linkedEntities": []
+      }
+    ],
+    "memoryLayerDistribution": {
+      "PROJECT": 30,
+      "SESSION": 197,
+      "IDENTITY": 5
+    },
+    "memorySourceDistribution": {
+      "EXPLICIT_STATEMENT": 232
+    },
+    "entityTypeDistribution": {
+      "product": 30,
+      "project": 31,
+      "organization": 20,
+      "person": 4,
+      "location": 1,
+      "other": 9
+    },
+    "linkTypeDistribution": {
+      "RELATED": 81
+    }
+  }
+}

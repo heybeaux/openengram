@@ -1,0 +1,417 @@
+{
+  "timestamp": "2026-02-03T07:26:46.628Z",
+  "runLabel": "pre-improvement-baseline",
+  "metrics": {
+    "totalMemories": 231,
+    "totalExtractions": 231,
+    "extractionsWithData": 74,
+    "totalEntities": 36,
+    "totalLinks": 81,
+    "fiveW1HCompletionRate": 0.11832611832611835,
+    "avgEntitiesPerMemory": 0.15584415584415584,
+    "avgLinksPerMemory": 0.35064935064935066,
+    "fiveW1HBreakdown": {
+      "who": 0.2683982683982684,
+      "what": 0.3203463203463203,
+      "when": 0.025974025974025976,
+      "where": 0.025974025974025976,
+      "why": 0.021645021645021644,
+      "how": 0.047619047619047616
+    },
+    "sampleSize": 20,
+    "sampleScores": [
+      {
+        "memoryId": "cml5ijb4t006zc9ryuphppry1",
+        "raw": "User has published a blog post titled '48 Hours of ADHD'.",
+        "fiveW1HScore": 0,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": null,
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml3w55mb0001c9j34qcgb5ue",
+        "raw": "Beaux loves building developer tools",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux loves building developer tools.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "preferences"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml3vqd5v0007c95e0ln0nixm",
+        "raw": "Never deploy on Fridays - learned this the hard way",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux learned the hard way that one should never deploy on Fridays.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5cuf2y001nc9ryzf1k6k7i",
+        "raw": "The Users page is currently using mock data (hardcoded 847).",
+        "fiveW1HScore": 1,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "The Users page is currently using mock data (hardcoded 847).",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5cv9i10023c9ryh16ptg73",
+        "raw": "User's dashboard now displays real dates on the chart instead of 'Invalid Date'.",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's dashboard now displays real dates on the chart instead of 'Invalid Date'.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5hv68z003zc9ryeqi7gzz1",
+        "raw": "User wants to replace the 'Nutrition' quick action with 'Drop Bags'.",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux wants to replace the 'Nutrition' quick action with 'Drop Bags'.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "preferences"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml3yxp5r0001c9eq6txrz8q1",
+        "raw": "Never deploy on Fridays - learned this the hard way. Production incidents always seem to happen on Friday afternoons.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux learned that deploying on Fridays often leads to production incidents.",
+          "when": null,
+          "where": null,
+          "why": "Production incidents always seem to happen on Friday afternoons.",
+          "how": null,
+          "topics": [
+            "work"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5cv9ia0025c9ryb0l65bra",
+        "raw": "User's Users page now shows accurate user data: 34 memories instead of 847.",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's Users page now shows accurate user data: 34 memories instead of 847.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml3vq8440003c95ez73jdkin",
+        "raw": "Beaux prefers tabs over spaces",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux prefers tabs over spaces.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "preferences"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5ect6c0031c9ry46nkwgxe",
+        "raw": "User has training sessions scheduled with Niran for the WC Handover.",
+        "fiveW1HScore": 2,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux has training sessions scheduled with Niran for the WC Handover.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "Niran",
+          "WC Handover"
+        ]
+      },
+      {
+        "memoryId": "cml5i99zb004lc9ry5t7loirs",
+        "raw": "User is interested in the repository `beaux-riel`.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux is interested in the repository `beaux-riel`.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "beaux-riel"
+        ]
+      },
+      {
+        "memoryId": "cml5g163f003bc9rys1pu63ox",
+        "raw": "User is working on the UltraEdge project and is preparing for its launch.",
+        "fiveW1HScore": 2,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux is working on the UltraEdge project and is preparing for its launch.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work",
+            "projects"
+          ]
+        },
+        "linkedEntities": [
+          "UltraEdge"
+        ]
+      },
+      {
+        "memoryId": "cml5ifpi6005rc9ry9sszruyl",
+        "raw": "User's third LinkedIn post titled 'My Brain Doesn't Hold State' is scheduled for February 7, 2023.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's third LinkedIn post titled 'My Brain Doesn't Hold State' is scheduled for February 7, 2023.",
+          "when": "2023-02-07T00:00:00.000Z",
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "LinkedIn"
+        ]
+      },
+      {
+        "memoryId": "cml5hswjl003rc9rym0psnr5h",
+        "raw": "The same parameter issue exists with the delete function in the application.",
+        "fiveW1HScore": 1,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "The same parameter issue exists with the delete function in the application.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5ma29l008zc9ryhfe00axj",
+        "raw": "User spends approximately 13 hours per week on Business As Usual (BAU) tasks.",
+        "fiveW1HScore": 0,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": null,
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5eaz7r002lc9ryksrhbwup",
+        "raw": "User is involved in the development of the Engram Auto-Capture feature.",
+        "fiveW1HScore": 2,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux is involved in the development of the Engram Auto-Capture feature.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "work"
+          ]
+        },
+        "linkedEntities": [
+          "Engram Auto-Capture"
+        ]
+      },
+      {
+        "memoryId": "cml5hswja003pc9ry9gjnsl6y",
+        "raw": "The `updateGearItem` function is expected to use parameters `id` and `updates` instead of `index` and `updatedItem`.",
+        "fiveW1HScore": 1,
+        "entityScore": 0.5,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": null,
+          "what": "The `updateGearItem` function is expected to use parameters `id` and `updates` instead of `index` and `updatedItem`.",
+          "when": null,
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": [
+            "technical"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5ifpi1005pc9ryki2k5b3h",
+        "raw": "User's second LinkedIn post titled 'What It's Actually Like Running a Personal AI Assistant' is scheduled for February 5, 2023.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux's second LinkedIn post titled 'What It's Actually Like Running a Personal AI Assistant' is scheduled for February 5, 2023.",
+          "when": "2023-02-05T00:00:00.000Z",
+          "where": null,
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "LinkedIn",
+          "What It's Actually Like Running a Personal AI Assistant"
+        ]
+      },
+      {
+        "memoryId": "cml3x5d8b0001c9rpozywgzfb",
+        "raw": "Beaux cannot start the day without coffee. He absolutely must have coffee otherwise he will be in a bad mood.",
+        "fiveW1HScore": 3,
+        "entityScore": 0,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux cannot start the day without coffee.",
+          "when": null,
+          "where": null,
+          "why": "beaux absolutely must have coffee otherwise he will be in a bad mood.",
+          "how": null,
+          "topics": [
+            "preferences"
+          ]
+        },
+        "linkedEntities": []
+      },
+      {
+        "memoryId": "cml5ih3ls006dc9ry69ifnhpr",
+        "raw": "User trained their replacement at a nonprofit.",
+        "fiveW1HScore": 3,
+        "entityScore": 1,
+        "hasExtraction": true,
+        "extractionData": {
+          "who": "beaux",
+          "what": "beaux trained their replacement at a nonprofit.",
+          "when": null,
+          "where": "a nonprofit",
+          "why": null,
+          "how": null,
+          "topics": []
+        },
+        "linkedEntities": [
+          "nonprofit"
+        ]
+      }
+    ],
+    "memoryLayerDistribution": {
+      "PROJECT": 30,
+      "SESSION": 196,
+      "IDENTITY": 5
+    },
+    "memorySourceDistribution": {
+      "EXPLICIT_STATEMENT": 231
+    },
+    "entityTypeDistribution": {
+      "project": 15,
+      "person": 2,
+      "product": 9,
+      "organization": 8,
+      "other": 2
+    },
+    "linkTypeDistribution": {
+      "RELATED": 81
+    }
+  }
+}

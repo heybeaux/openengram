@@ -1,0 +1,364 @@
+name: CI (Cloud Edition)
+
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: ci-cloud-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared env
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+  REDIS_URL: redis://localhost:6379
+  EDITION: cloud
+  ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
+  NODE_ENV: test
+
+jobs:
+  # ── 1. Install & cache ───────────────────────────────────────────────────
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+  # ── 2. Static checks ─────────────────────────────────────────────────────
+  static:
+    name: Typecheck & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Check for local workspace files
+        run: ./scripts/check-no-workspace-files.sh
+      - name: Check for hardcoded secrets
+        run: ./scripts/check-no-hardcoded-secrets.sh
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: pnpm run lint
+
+  # ── 3. Build ─────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Build
+        run: pnpm run build
+
+  # ── 4a. Test shard — memory (large module, needs own slot) ───────────────
+  test-memory:
+    name: Test / memory
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test — memory module
+        run: |
+          pnpm test -- --no-coverage --forceExit --ci \
+            --testPathPatterns='src/memory'
+
+  # ── 4b. Test shard — core (identity, account, common) ────────────────────
+  test-core:
+    name: Test / core
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test — core modules
+        run: |
+          pnpm test -- --no-coverage --forceExit --ci \
+            --testPathPatterns='src/(identity|account|common|app\.controller)'
+
+  # ── 4b. Test shard — intelligence ────────────────────────────────────────
+  test-intelligence:
+    name: Test / intelligence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test — intelligence modules
+        run: |
+          pnpm test -- --no-coverage --forceExit --ci \
+            --testPathPatterns='src/(deduplication|awareness|multi-query|consolidation|prefetch|retrieval-signals|graph|clustering|hierarchy|ensemble)'
+
+  # ── 4c. Test shard — cloud-edition features ───────────────────────────────
+  test-cloud:
+    name: Test / cloud features
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test — cloud-edition modules
+        run: |
+          pnpm test -- --no-coverage --forceExit --ci \
+            --testPathPatterns='src/(cloud-link|cloud-sync|instance|webhooks|analytics|monitoring|stripe|reembedding)'
+
+  # ── 4d. Test shard — remaining features ──────────────────────────────────
+  test-features:
+    name: Test / features
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test — remaining feature modules
+        run: |
+          pnpm test -- --no-coverage --forceExit --ci \
+            --testPathPatterns='src/(llm|import|import-v2|inbound-email|agent|agent-recall|agent-session|anticipatory|auto|correction|entity-profile|events|feedback|fog-index|health|memory-access-log|memory-pool|queue|scoped-context|scripts|session-indexing|storage|summarization|teams|utils|eval|dashboard)'
+
+  # ── 5. Gate ───────────────────────────────────────────────────────────────
+  tests-passed:
+    name: All tests passed
+    runs-on: ubuntu-latest
+    needs: [static, build, test-memory, test-core, test-intelligence, test-cloud, test-features]
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.static.result }}" != "success" || \
+                "${{ needs.build.result }}" != "success" || \
+                "${{ needs.test-memory.result }}" != "success" || \
+                "${{ needs.test-core.result }}" != "success" || \
+                "${{ needs.test-intelligence.result }}" != "success" || \
+                "${{ needs.test-cloud.result }}" != "success" || \
+                "${{ needs.test-features.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            echo "static=${{ needs.static.result }}"
+            echo "build=${{ needs.build.result }}"
+            echo "test-memory=${{ needs.test-memory.result }}"
+            echo "test-core=${{ needs.test-core.result }}"
+            echo "test-intelligence=${{ needs.test-intelligence.result }}"
+            echo "test-cloud=${{ needs.test-cloud.result }}"
+            echo "test-features=${{ needs.test-features.result }}"
+            exit 1
+          fi
+          echo "All jobs passed ✅"
+
+  # ── Notify on failure ─────────────────────────────────────────────────────
+  notify-discord:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [tests-passed]
+    if: failure()
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          PAYLOAD=$(jq -n \
+            --arg content "🔴 **CI (Cloud) Failed** | **${REPO}** | Branch: \`${BRANCH}\` | Commit: \`${SHORT_SHA}\`\nRun: ${RUN_URL}" \
+            '{content: $content}')
+          curl -s -X POST \
+            -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/1474067664207872156/messages"

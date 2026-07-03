@@ -1,0 +1,26 @@
+# Development overrides
+# Copy to docker-compose.override.yml to use:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+
+version: "3.8"
+
+services:
+  engram:
+    build:
+      target: base
+    command: >
+      sh -c "pnpm install && npx prisma migrate deploy && npx prisma generate && pnpm start:dev"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+
+  dashboard:
+    command: pnpm dev
+    volumes:
+      - ../engram-dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development

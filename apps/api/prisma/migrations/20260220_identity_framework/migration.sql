@@ -1,0 +1,22 @@
+-- ============================================================================
+-- HEY-319: Consolidated Identity Framework Migration
+-- ============================================================================
+-- This migration consolidates all tables required for the Identity Framework.
+--
+-- Tables created by this migration: NONE (all already exist)
+--
+-- Identity Framework tables and their existing migrations:
+--   - task_completions    → 20260220_add_task_completions
+--   - agent_sessions      → 20260210_add_agent_sessions_and_pools
+--   - memory_pools        → 20260210_add_agent_sessions_and_pools
+--   - memory_pool_memberships → 20260210_add_agent_sessions_and_pools
+--   - pool_grants         → 20260210_add_agent_sessions_and_pools
+--   - memory_access_logs  → 20260210_add_agent_sessions_and_pools
+--
+-- This file exists as documentation. All identity framework tables have
+-- already been created by their individual migrations listed above.
+-- No additional SQL needs to be executed.
+-- ============================================================================
+
+-- No-op: all identity framework tables already have migrations.
+-- This consolidated migration exists for traceability (HEY-319).

@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: Engram Memory API
+  description: Persistent memory for AI agents. Store, search, and recall memories across conversations.
+  version: "1.0.0"
+servers:
+  - url: https://api.openengram.ai
+    description: Production
+security:
+  - apiKey: []
+paths:
+  /v1/memories:
+    post:
+      operationId: createMemory
+      summary: Create a memory
+      description: Store a memory with automatic extraction and embedding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemoryRequest"
+      responses:
+        "201":
+          description: Memory created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+  /v1/memories/search:
+    post:
+      operationId: searchMemories
+      summary: Semantic search across memories
+      description: Search memories using natural language queries. Returns ranked results with relevance scores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchMemoriesRequest"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+  /v1/memories/{id}:
+    get:
+      operationId: getMemory
+      summary: Get a memory by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memory found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+    delete:
+      operationId: deleteMemory
+      summary: Delete a memory
+      description: Soft-delete a memory by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Memory deleted
+  /v1/context:
+    post:
+      operationId: loadContext
+      summary: Load memory context for session start
+      description: Returns a compiled context string from the user's most relevant memories.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoadContextRequest"
+      responses:
+        "200":
+          description: Context loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResult"
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-AM-API-Key
+      description: Your Engram API key
+  schemas:
+    CreateMemoryRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: The memory content text.
+        layer:
+          type: string
+          enum: [SESSION, PROJECT, IDENTITY, TASK]
+          description: Memory layer.
+        importance:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Importance score (0-1).
+    SearchMemoriesRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Natural language search query.
+        limit:
+          type: integer
+          default: 10
+          description: Maximum number of results.
+    LoadContextRequest:
+      type: object
+      properties:
+        maxTokens:
+          type: integer
+          default: 4000
+          description: Maximum token budget for context.
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+        raw:
+          type: string
+          description: Memory content text.
+        layer:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    SearchResult:
+      type: object
+      properties:
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+    ContextResult:
+      type: object
+      properties:
+        context:
+          type: string
+          description: Compiled context string.
+        memoriesIncluded:
+          type: integer

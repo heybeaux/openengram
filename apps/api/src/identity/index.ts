@@ -1,0 +1,11 @@
+export { IdentityModule } from './identity.module';
+export { TaskCompletionService } from './task-completion.service';
+export { DelegationTemplateService } from './delegation-template.service';
+export { TrustProfileService } from './trust-profile.service';
+export { DelegationContractService } from './delegation-contract.service';
+export { ChallengeService } from './challenge.service';
+export { FailurePatternService } from './failure-pattern.service';
+export { TeamProfileService } from './team-profile.service';
+export { DelegationRecallService } from './delegation-recall.service';
+export { PortableIdentityService } from './portable-identity.service';
+export { IdentityController } from './identity.controller';

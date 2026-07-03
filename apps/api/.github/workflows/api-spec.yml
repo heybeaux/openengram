@@ -1,0 +1,108 @@
+name: API Spec
+
+on:
+  push:
+    branches: [staging]
+
+permissions:
+  contents: write
+
+jobs:
+  api-spec:
+    runs-on: ubuntu-latest
+    # Spec generation requires a live database connection (PrismaService.$connect).
+    # Don't block deploys if this fails — the spec is a nice-to-have CI artifact.
+    continue-on-error: true
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: engram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Enable pgvector extension
+        run: psql -h localhost -U test -d engram_test -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+        env:
+          PGPASSWORD: test
+
+      - name: Push schema to test database
+        run: pnpm prisma db push
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
+
+      - name: Save previous spec
+        run: |
+          if [ -f api-spec.json ]; then
+            cp api-spec.json api-spec.old.json
+          else
+            echo '{"paths":{}}' > api-spec.old.json
+          fi
+
+      - name: Build project
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
+
+      - name: List dist structure
+        run: ls -la dist/ | head -20
+
+      - name: Generate API spec
+        run: node scripts/generate-api-spec.mjs
+        env:
+          NODE_ENV: test
+          EDITION: selfhosted
+          DATABASE_URL: postgresql://test:test@localhost:5432/engram_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/engram_test
+          SKIP_DB_CONNECT: "true"
+
+      - name: Generate route constants
+        run: pnpm api:routes
+
+      - name: Check for breaking changes (removed routes)
+        run: |
+          OLD_ROUTES=$(jq -r '.paths | keys[]' api-spec.old.json 2>/dev/null | sort)
+          NEW_ROUTES=$(jq -r '.paths | keys[]' api-spec.json | sort)
+          OLD_COUNT=$(echo "$OLD_ROUTES" | grep -c . || true)
+          NEW_COUNT=$(echo "$NEW_ROUTES" | grep -c . || true)
+          echo "Old spec: $OLD_COUNT routes, New spec: $NEW_COUNT routes"
+          REMOVED=$(comm -23 <(echo "$OLD_ROUTES") <(echo "$NEW_ROUTES"))
+          if [ -n "$REMOVED" ]; then
+            REMOVED_COUNT=$(echo "$REMOVED" | grep -c . || true)
+            echo "::warning::$REMOVED_COUNT routes removed (may be expected after build system change):"
+            echo "$REMOVED"
+          fi
+          echo "No blocking changes."
+
+      - name: Commit updated spec if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add api-spec.json shared/api-routes.ts
+          if git diff --cached --quiet; then
+            echo "No spec changes."
+          else
+            git commit -m "chore: update API spec [skip ci]"
+            git push || echo 'Push skipped (protected branch)'
+          fi

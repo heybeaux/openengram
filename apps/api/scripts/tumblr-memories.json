@@ -1,0 +1,442 @@
+[
+  {
+    "raw": "Beaux's Tumblr blog is called 'Spanners to Storytelling' \u2014 the name reflects his transition from mechanic to traveler/storyteller.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 5,
+    "importanceScore": 0.9,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Blog description: 'This blog started off as the story of my quarter-life crisis. I packed in a job as a mechanic that I found no satisfaction in and decided to travel to China to study Kung Fu. Along the way I got side-tracked. I started enjoy living like a local. Now, I want to explore the world. I want to travel and be your storyteller.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 5,
+    "importanceScore": 0.95,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux hadn't left Australia in nearly 20 years when he departed for China in December 2012. The first and only time he'd left the country before was at age 7.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux flew from Brisbane, Australia to China via Singapore on December 24, 2012 to begin studying martial arts.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux was approximately 25-27 years old when he started the blog (quarter-life crisis, plus his sister was 22 in August 2013).",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux is from Brisbane, Queensland, Australia.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 5,
+    "importanceScore": 0.95,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux worked as a mechanic before traveling \u2014 he found no satisfaction in the job and quit.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 5,
+    "importanceScore": 0.95,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux described his decision to go to China as a 'quarter-life crisis' \u2014 he couldn't think of anyone else who'd packed up everything to study martial arts under a Shaolin monk.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux studied Wing Chun and Baji fist at a martial arts academy in Yantai, in the Muping district of China. His Wing Chun master was Sifu Liu Ping, and his senior instructor was Sifu Guo.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 5,
+    "importanceScore": 0.9,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux trained at the Yantai academy for approximately 5 months (Dec 2012 - May 2013), enduring extreme cold (-5\u00b0C), intense physical conditioning, power stretching, and sparring.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux passed his Wing Chun basics in 7 days of lessons. He was told the first form takes two months. He graded 3 forms after about 3 months.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Conditioning training included hitting trees 200+ times per hand, headbutting wooden bricks 300 times, and punching bricks. Beaux had busted knuckles from this.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's Sifu's approach to injury: when Beaux cracked his neck during stretching, his Sifu said 'Just focus on your kicks.' He noted 'the only way to get out of training in China is to die.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.75,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux had been interested in Wing Chun for over 10 years before going to China to study it.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux was made a disciple by his Wing Chun master \u2014 this was emotionally significant to him. He cried about it when he learned about it after leaving China for Thailand.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux practiced painting Ens\u014d circles at the academy, finding it therapeutic. He also studied Qigong and acupuncture.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "After 5 months in China, Beaux moved to Thailand (May 2013) to train Muay Thai at Tiger Muay Thai in Phuket.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "In Thailand, Beaux also did CrossFit training and maintained his fitness obsessively \u2014 he couldn't sit still for more than 5 minutes.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux experienced food poisoning in Thailand after deliberately eating at dodgy places \u2014 'part of me just wants to experience food poisoning... food poisoning sucks.'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux got a bamboo tattoo in Thailand (his first tattoo, after nearly a decade of deliberation). He has/had a sister with more ink than 'most Hells Angels'.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "By January 2014, Beaux mentions having 27 tattoos.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Key friends from China: Will (American, 'slightly unstable', evil sense of humor like Beaux's sister), Sebastian (hyperactive Colombian), Adam (British, ghost story teller), Ryan (roommate), Brandan, Kaylene, Tyler, Joe.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.75,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux compares Will to his sister \u2014 evil humor, teases people to tears, ADD-like conversation, biggest prick if he thinks you're an idiot but a great mate if he likes you.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.6,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Prince Ocean was a 7-year-old at or near the academy. Beaux said goodbye to him and 'Mamma Bear' in May 2013, calling them family.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.6,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's sister was 22 years old in August 2013 and visited him in Thailand. He let her shoot guns (live rounds) for her birthday and called it 'scariest birthday ever.'",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux has a mother who worries about him ('worry wart'). He posted 'proof of life' photos for her.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.6,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's friends in Thailand included Jess and Sean, who he photographed at the BBQ Beatdown at Tiger Muay Thai.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux co-founded or contributed to 'Lost Feet' (lostfeet.com), a travel blog collaboration 'for travelers, by travelers', with a social network component.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.75,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's personal quote: 'Travel stories are way more interesting when you make bad decisions.'",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's personal quote: 'It's painful how amazing life is.'",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux wrote a letter to himself on January 27, 2013: 'There are no safety nets. There are no second chances. There is no one to hold your hand. Every lesson you've learnt has prepared you for where you are now. Stand tall and be proud of who you are.'",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 5,
+    "importanceScore": 0.9,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's self-description of his thoughts: 'My thoughts have always been like a runaway train. Powerful, unstoppable, but with no one in control.'",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux identifies as a storyteller, not a writer: 'I like to have people hanging on my every word as I take them on a journey. I love the reactions.' He says he'd rather eat an apple than describe one.",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux values being pushed and challenged: 'I enjoy being pushed. I enjoy being broken down and then being built back up.' He was scared of returning to 'Easy Town' (Australia).",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "After 4 weeks training, Beaux felt he'd emptied 90% of useless thoughts from his head and was 'settling into my own skin' \u2014 starting to know what he wants and who he is.",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 4,
+    "importanceScore": 0.8,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux has self-diagnosed ADD tendencies \u2014 references walking away from his laptop multiple times while writing, runaway train thoughts, and a talking monkey named Jeeves.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.65,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux values dedication and criticizes laziness in martial arts training. He noticed students who'd been training a year but were 'shabby' because they didn't listen, didn't train hard, and took days off.",
+    "layer": "IDENTITY",
+    "memoryType": "VALUE",
+    "priority": 3,
+    "importanceScore": 0.7,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux celebrated Australia Day in China with friends, drinking cheap Chinese alcohol (52% paint stripper for AUD$1.40), karaoke, and general chaos.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's writing style: humorous, self-deprecating, conversational, uses parenthetical asides, breaks the fourth wall, references his mother reading. Loves dramatic setups with punchline reveals.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.8,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux wrote about 'Writer's Block' as an imagined physical place \u2014 an indie/hipster alley with coffee shops and dusty bookshops where writers gather to inspire each other.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.6,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux calls shopping centers 'stupid-markets' \u2014 used this term for both Chinese and Thai malls.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux witnessed a man die outside the academy in China. Tyler and Joe performed CPR. Beaux arrived thinking it was an overreaction, carrying his phone for photos, only to find it was serious.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 3,
+    "importanceScore": 0.75,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's journey from China to Thailand involved a 9-hour flight delay, being forced off the plane in Guangzhou to redo immigration, and general chaos. He compared himself to Steve McQueen.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.55,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux took a 19-hour train ride from Yantai to Dengfeng (near the Shaolin Temple), sitting upright elbow-to-elbow with Chinese passengers. They visited the Shaolin Temple grounds.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.55,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux participated in Friday mountain runs at the academy \u2014 thousands of stairs, often in sub-zero temperatures. He was consistently a top-two finisher.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.6,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux motivated a last-place student during a mountain run by skipping and dancing up the stairs. The student claimed his 'lung caved in' but Beaux wouldn't let him quit.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.55,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's first culture shock was a squat toilet in Singapore airport \u2014 'No effing way am I ready for this shit yet!!'",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "When Beaux returned to Australia briefly (March 2013), people hung on his every word and said 'I wish I was doing that.' He felt like a celebrity.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.55,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux trained with a close friend in Australia who was prepping for Special Forces selection.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Blog timeline: Dec 2012 - left Brisbane for China. Dec 2012-May 2013 - trained Wing Chun/Baji at Yantai academy. March 2013 - brief trip to Australia. May 2013 - moved to Thailand (Phuket). May-Jul 2013 - trained Muay Thai/CrossFit at Tiger Muay Thai. Jan 2014 - still in Thailand. Total: 320 posts.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 4,
+    "importanceScore": 0.85,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux went to Qantas Gold Frequent Flyer status and used Malaysia Airlines business lounge during his layover in Kuala Lumpur.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.3,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux's Austrian roommate was named Sascha. They left China together, dealing with taxi drivers who wouldn't quote prices.",
+    "layer": "SOCIAL",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.4,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux loved Chinese street food: 50c tofu burgers, $1 spicy chicken, street pizza with no meat or cheese ('best pizza ever'), mango crepes, mini-muffins. Prices fascinated him.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.55,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Academy food in China: hard boiled eggs, sweet dough, stale bread rolls, milky water mixed with milk powder \u2014 'Breakfast of Chinese champions'.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 2,
+    "importanceScore": 0.5,
+    "source": "tumblr-blog"
+  },
+  {
+    "raw": "Beaux described Thai weather as incredibly hot and humid \u2014 his underwear lasted 'about 20 minutes' before needing to change.",
+    "layer": "IDENTITY",
+    "memoryType": "FACT",
+    "priority": 1,
+    "importanceScore": 0.3,
+    "source": "tumblr-blog"
+  }
+]

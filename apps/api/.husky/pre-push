@@ -1,0 +1,30 @@
+#!/bin/sh
+
+echo "🔍 Pre-push checks..."
+
+# Run type check and tests in parallel
+npx tsc --noEmit &
+TSC_PID=$!
+
+npm test -- --forceExit &
+TEST_PID=$!
+
+# Wait for type check
+wait $TSC_PID
+TSC_EXIT=$?
+
+# Wait for tests
+wait $TEST_PID
+TEST_EXIT=$?
+
+if [ $TSC_EXIT -ne 0 ]; then
+  echo "❌ Type check failed. Push blocked."
+  exit 1
+fi
+
+if [ $TEST_EXIT -ne 0 ]; then
+  echo "❌ Tests failed. Push blocked."
+  exit 1
+fi
+
+echo "✅ All checks passed."

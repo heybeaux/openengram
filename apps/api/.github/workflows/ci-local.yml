@@ -1,0 +1,183 @@
+name: CI (Local Edition)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [staging]
+  pull_request:
+    branches: [staging]
+
+concurrency:
+  group: ci-local-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+  REDIS_URL: redis://localhost:6379
+  EDITION: local
+  NODE_ENV: test
+
+jobs:
+  # ── 1. Install & cache ───────────────────────────────────────────────────
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+  # ── 2. Static checks (typecheck + lint) — no DB needed ──────────────────
+  static:
+    name: Typecheck & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Check for local workspace files
+        run: ./scripts/check-no-workspace-files.sh
+      - name: Check for hardcoded secrets
+        run: ./scripts/check-no-hardcoded-secrets.sh
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: pnpm run lint
+
+  # ── 3. Build ─────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Build
+        run: pnpm run build
+      - name: Cache dist
+        uses: actions/cache/save@v4
+        with:
+          path: dist
+          key: dist-local-${{ github.sha }}
+
+  # ── 4. Tests (all in one job — avoids per-shard open-handle leaks) ───────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: install
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        run: npx prisma migrate deploy
+      - name: Test
+        run: pnpm test -- --no-coverage --forceExit --ci
+            --testPathIgnorePattern='cloud-link|cloud-sync|instance/instance.controller.spec|ensemble|stripe|analytics|monitoring|eval|reembedding|webhook'
+
+  # ── 5. Gate — all checks must pass ───────────────────────────────────────
+  tests-passed:
+    name: All tests passed
+    runs-on: ubuntu-latest
+    needs: [static, build, test]
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.static.result }}" != "success" || \
+                "${{ needs.build.result }}" != "success" || \
+                "${{ needs.test.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            echo "static=${{ needs.static.result }}"
+            echo "build=${{ needs.build.result }}"
+            echo "test=${{ needs.test.result }}"
+            exit 1
+          fi
+          echo "All jobs passed ✅"
+
+  # ── Notify on failure ────────────────────────────────────────────────────
+  notify-discord:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [tests-passed]
+    if: failure()
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          PAYLOAD=$(jq -n \
+            --arg content "🔴 **CI (Local) Failed** | **${REPO}** | Branch: \`${BRANCH}\` | Commit: \`${SHORT_SHA}\`\nRun: ${RUN_URL}" \
+            '{content: $content}')
+          curl -s -X POST \
+            -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/1474067664207872156/messages"

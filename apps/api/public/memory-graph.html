@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Engram Memory Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+      color: #c9d1d9;
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh; /* Dynamic viewport height for mobile */
+      touch-action: none; /* Prevent default touch behaviors */
+    }
+
+    /* Main container */
+    .container {
+      display: flex;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 350px;
+      background: rgba(22, 27, 34, 0.95);
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #30363d;
+      background: linear-gradient(180deg, rgba(88, 166, 255, 0.1) 0%, transparent 100%);
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-header h1::before {
+      content: '🧠';
+      font-size: 1.3rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-top: 15px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f0f6fc;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Search */
+    .search-container {
+      padding: 15px 20px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-size: 16px; /* Prevent iOS zoom on focus */
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+    }
+
+    .search-input::placeholder {
+      color: #6e7681;
+    }
+
+    /* Filters */
+    .filters {
+      padding: 15px 20px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .filter-title {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .filter-chip.active {
+      border-color: currentColor;
+    }
+
+    .filter-chip .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .filter-chip.person { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+    .filter-chip.person .dot { background: #58a6ff; }
+
+    .filter-chip.project { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+    .filter-chip.project .dot { background: #3fb950; }
+
+    .filter-chip.product { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
+    .filter-chip.product .dot { background: #ffa657; }
+
+    .filter-chip.organization { background: rgba(188, 140, 255, 0.15); color: #bc8cff; }
+    .filter-chip.organization .dot { background: #bc8cff; }
+
+    .filter-chip.other { background: rgba(139, 148, 158, 0.15); color: #8b949e; }
+    .filter-chip.other .dot { background: #8b949e; }
+
+    /* Time slider */
+    .time-slider-container {
+      padding: 15px 20px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .time-slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .time-range {
+      font-size: 0.8rem;
+      color: #58a6ff;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .time-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #21262d;
+      border-radius: 3px;
+      outline: none;
+      touch-action: none;
+    }
+
+    .time-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #58a6ff, #1f6feb);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(88, 166, 255, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .time-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .time-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #58a6ff, #1f6feb);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(88, 166, 255, 0.4);
+      border: none;
+    }
+
+    /* Memory details panel */
+    .memory-details {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .memory-details::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .memory-details::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .memory-details::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 3px;
+    }
+
+    .detail-placeholder {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6e7681;
+    }
+
+    .detail-placeholder svg {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .memory-card {
+      background: #21262d;
+      border-radius: 12px;
+      padding: 20px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .memory-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+    }
+
+    .memory-layer {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .memory-layer.IDENTITY { background: rgba(255, 123, 114, 0.15); color: #ff7b72; }
+    .memory-layer.PROJECT { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+    .memory-layer.SESSION { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+    .memory-layer.TASK { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
+
+    .memory-importance {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+
+    .importance-bar {
+      width: 50px;
+      height: 4px;
+      background: #30363d;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .importance-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #238636, #3fb950);
+      border-radius: 2px;
+    }
+
+    .safety-badge {
+      padding: 4px 8px;
+      background: rgba(248, 81, 73, 0.15);
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+
+    .safety-warning {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      color: #f85149;
+      margin-bottom: 15px;
+      transition: width 0.3s ease;
+    }
+
+    .memory-raw {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #f0f6fc;
+      margin-bottom: 15px;
+    }
+
+    .memory-extraction {
+      background: #161b22;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .extraction-title {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .extraction-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .extraction-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .extraction-label {
+      font-size: 0.7rem;
+      color: #6e7681;
+      text-transform: uppercase;
+    }
+
+    .extraction-value {
+      font-size: 0.85rem;
+      color: #c9d1d9;
+    }
+
+    .memory-entities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+
+    .entity-tag {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      background: rgba(88, 166, 255, 0.1);
+      color: #58a6ff;
+    }
+
+    .entity-tag.project { background: rgba(63, 185, 80, 0.1); color: #3fb950; }
+    .entity-tag.product { background: rgba(255, 166, 87, 0.1); color: #ffa657; }
+    .entity-tag.organization { background: rgba(188, 140, 255, 0.1); color: #bc8cff; }
+
+    .memory-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #6e7681;
+      padding-top: 15px;
+      border-top: 1px solid #30363d;
+    }
+
+    /* Graph container */
+    .graph-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #graph {
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      padding: 12px 16px;
+      background: rgba(22, 27, 34, 0.95);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #c9d1d9;
+      max-width: 300px;
+      pointer-events: none;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .tooltip-meta {
+      font-size: 0.75rem;
+      color: #8b949e;
+    }
+
+    /* Controls overlay */
+    .controls-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+      z-index: 5;
+    }
+
+    .control-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: rgba(22, 27, 34, 0.9);
+      color: #c9d1d9;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .control-btn:hover,
+    .control-btn:active {
+      background: #30363d;
+      border-color: #58a6ff;
+      color: #58a6ff;
+    }
+
+    .control-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Legend */
+    .legend {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 15px;
+      backdrop-filter: blur(10px);
+      z-index: 5;
+    }
+
+    .legend-title {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+
+    .legend-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .legend-line {
+      width: 30px;
+      height: 2px;
+    }
+
+    .legend-line.solid { background: #58a6ff; }
+    .legend-line.dashed { 
+      background: repeating-linear-gradient(90deg, #3fb950, #3fb950 4px, transparent 4px, transparent 8px);
+    }
+    .legend-line.dotted {
+      background: repeating-linear-gradient(90deg, #ffa657, #ffa657 2px, transparent 2px, transparent 6px);
+    }
+
+    /* Loading state */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error state */
+    .error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #ff7b72;
+    }
+
+    .error svg {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 15px;
+    }
+
+    /* Mobile bottom sheet handle */
+    .bottom-sheet-handle {
+      display: none;
+      width: 40px;
+      height: 4px;
+      background: #6e7681;
+      border-radius: 2px;
+      margin: 8px auto 0;
+    }
+
+    /* Mobile toggle button */
+    .mobile-panel-toggle {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid #30363d;
+      background: rgba(22, 27, 34, 0.95);
+      color: #58a6ff;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-panel-toggle svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Touch hint for mobile */
+    .touch-hint {
+      display: none;
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      color: #8b949e;
+      white-space: nowrap;
+      z-index: 5;
+      animation: fadeOut 3s ease forwards;
+      animation-delay: 2s;
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+
+    /* Node glow effect */
+    .node-glow {
+      filter: url(#glow);
+    }
+
+    /* Animation for new nodes */
+    @keyframes nodeAppear {
+      from {
+        r: 0;
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* ============================================
+       RESPONSIVE STYLES - TABLET (768px)
+       ============================================ */
+    @media (max-width: 900px) {
+      .sidebar {
+        width: 300px;
+      }
+
+      .stats {
+        gap: 15px;
+      }
+
+      .stat-value {
+        font-size: 1.3rem;
+      }
+
+      .legend {
+        padding: 12px;
+      }
+
+      .legend-item {
+        font-size: 0.75rem;
+      }
+    }
+
+    /* ============================================
+       RESPONSIVE STYLES - MOBILE (< 768px)
+       Sidebar becomes bottom sheet
+       ============================================ */
+    @media (max-width: 767px) {
+      .container {
+        flex-direction: column-reverse;
+      }
+
+      /* Bottom sheet styles */
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+        min-height: 180px;
+        border-right: none;
+        border-top: 1px solid #30363d;
+        border-radius: 20px 20px 0 0;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transform: translateY(calc(100% - 180px));
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .sidebar.expanded {
+        transform: translateY(0);
+      }
+
+      .sidebar.hidden {
+        transform: translateY(100%);
+      }
+
+      .bottom-sheet-handle {
+        display: block;
+      }
+
+      /* Graph takes full space */
+      .graph-container {
+        flex: 1;
+        height: 100vh;
+        height: 100dvh;
+      }
+
+      /* Compact header */
+      .sidebar-header {
+        padding: 12px 16px;
+      }
+
+      .sidebar-header h1 {
+        font-size: 1.2rem;
+      }
+
+      .sidebar-header h1::before {
+        font-size: 1.1rem;
+      }
+
+      /* Stats row - compact */
+      .stats {
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .stat-value {
+        font-size: 1.1rem;
+      }
+
+      .stat-label {
+        font-size: 0.65rem;
+      }
+
+      /* Search */
+      .search-container {
+        padding: 10px 16px;
+      }
+
+      .search-input {
+        padding: 12px 15px;
+        font-size: 16px;
+      }
+
+      /* Filters - horizontal scroll */
+      .filters {
+        padding: 10px 16px;
+      }
+
+      .filter-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 5px;
+        margin: 0 -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .filter-chips::-webkit-scrollbar {
+        display: none;
+      }
+
+      .filter-chip {
+        flex-shrink: 0;
+        padding: 8px 14px;
+        font-size: 0.75rem;
+      }
+
+      /* Time slider - larger touch target */
+      .time-slider-container {
+        padding: 10px 16px;
+      }
+
+      .time-slider {
+        height: 8px;
+      }
+
+      .time-slider::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+      }
+
+      .time-slider::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+      }
+
+      /* Memory details */
+      .memory-details {
+        padding: 12px 16px;
+        max-height: 40vh;
+      }
+
+      .memory-card {
+        padding: 15px;
+      }
+
+      .memory-raw {
+        font-size: 0.9rem;
+      }
+
+      .extraction-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .memory-meta {
+        flex-direction: column;
+        gap: 5px;
+        align-items: flex-start;
+      }
+
+      /* Hide desktop legend */
+      .legend {
+        display: none;
+      }
+
+      /* Mobile toggle button */
+      .mobile-panel-toggle {
+        display: flex;
+      }
+
+      /* Controls - move to avoid conflict */
+      .controls-overlay {
+        bottom: 200px;
+        right: 16px;
+      }
+
+      .control-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .control-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Touch hint */
+      .touch-hint {
+        display: block;
+        bottom: 200px;
+      }
+
+      /* Tooltip adjustments */
+      .tooltip {
+        max-width: calc(100vw - 40px);
+        font-size: 0.8rem;
+      }
+    }
+
+    /* ============================================
+       RESPONSIVE STYLES - SMALL PHONES (< 375px)
+       ============================================ */
+    @media (max-width: 374px) {
+      .sidebar-header h1 {
+        font-size: 1rem;
+      }
+
+      .stats {
+        justify-content: space-between;
+      }
+
+      .stat-value {
+        font-size: 1rem;
+      }
+
+      .stat-label {
+        font-size: 0.6rem;
+      }
+
+      .filter-chip {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+      }
+
+      .search-input {
+        padding: 10px 12px;
+      }
+
+      .memory-card {
+        padding: 12px;
+      }
+
+      .memory-raw {
+        font-size: 0.85rem;
+      }
+    }
+
+    /* ============================================
+       LANDSCAPE PHONE
+       ============================================ */
+    @media (max-width: 767px) and (orientation: landscape) {
+      .sidebar {
+        max-height: 50vh;
+        transform: translateY(calc(100% - 120px));
+      }
+
+      .sidebar.expanded {
+        transform: translateY(0);
+      }
+
+      .sidebar-header {
+        padding: 8px 16px;
+      }
+
+      .stats {
+        margin-top: 6px;
+      }
+
+      .search-container,
+      .filters,
+      .time-slider-container {
+        padding: 6px 16px;
+      }
+
+      .memory-details {
+        max-height: 30vh;
+      }
+
+      .controls-overlay {
+        bottom: 140px;
+      }
+
+      .touch-hint {
+        bottom: 140px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar (becomes bottom sheet on mobile) -->
+    <div class="sidebar" id="sidebar">
+      <div class="bottom-sheet-handle" id="bottomSheetHandle"></div>
+      
+      <div class="sidebar-header">
+        <h1>Engram Memory</h1>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="nodeCount">0</div>
+            <div class="stat-label">Memories</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="edgeCount">0</div>
+            <div class="stat-label">Links</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="entityCount">0</div>
+            <div class="stat-label">Entities</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="search-container">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search memories...">
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-title">Filter by Entity Type</div>
+        <div class="filter-chips" id="filterChips">
+          <div class="filter-chip person active" data-type="person">
+            <span class="dot"></span>Person
+          </div>
+          <div class="filter-chip project active" data-type="project">
+            <span class="dot"></span>Project
+          </div>
+          <div class="filter-chip product active" data-type="product">
+            <span class="dot"></span>Product
+          </div>
+          <div class="filter-chip organization active" data-type="organization">
+            <span class="dot"></span>Organization
+          </div>
+          <div class="filter-chip other active" data-type="other">
+            <span class="dot"></span>Other
+          </div>
+        </div>
+        <!-- Agent memories toggle -->
+        <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: #c9d1d9;">
+            <input type="checkbox" id="agentToggle" checked style="width: 16px; height: 16px; accent-color: #22d3ee;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; border: 2px dashed #22d3ee; border-radius: 50%;"></span>
+              Agent Memories
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Time Slider -->
+      <div class="time-slider-container">
+        <div class="time-slider-header">
+          <span class="filter-title">Time Range</span>
+          <span class="time-range" id="timeRange">All time</span>
+        </div>
+        <input type="range" class="time-slider" id="timeSlider" min="0" max="100" value="100">
+      </div>
+
+      <!-- Memory Details -->
+      <div class="memory-details" id="memoryDetails">
+        <div class="detail-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <p>Tap a memory node to see details</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graph -->
+    <div class="graph-container">
+      <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading memory graph...</p>
+      </div>
+
+      <div class="error" id="error" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M15 9l-6 6M9 9l6 6"/>
+        </svg>
+        <p>Failed to load graph data</p>
+        <p style="font-size: 0.85rem; margin-top: 10px; color: #8b949e;">
+          Make sure Engram server is running at 10.0.0.108:3001
+        </p>
+      </div>
+
+      <svg id="graph"></svg>
+
+      <!-- Legend (hidden on mobile) -->
+      <div class="legend">
+        <div class="legend-title">Memory Sources</div>
+        <div class="legend-item">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: #8b949e;"></div>
+          <span>Human Memory</span>
+        </div>
+        <div class="legend-item">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: #8b949e; border: 2px dashed #22d3ee;"></div>
+          <span>Agent Memory</span>
+        </div>
+        <div class="legend-title" style="margin-top: 12px;">Link Types</div>
+        <div class="legend-item">
+          <div class="legend-line solid"></div>
+          <span>Related</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line dashed"></div>
+          <span>Updates / Supports</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line dotted"></div>
+          <span>Led To / Contradicts</span>
+        </div>
+      </div>
+
+      <!-- Touch hint for mobile -->
+      <div class="touch-hint" id="touchHint">
+        Pinch to zoom • Drag to pan • Tap nodes
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-overlay">
+        <button class="control-btn" id="zoomIn" title="Zoom In">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
+          </svg>
+        </button>
+        <button class="control-btn" id="zoomOut" title="Zoom Out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35M8 11h6"/>
+          </svg>
+        </button>
+        <button class="control-btn" id="resetZoom" title="Reset View">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mobile panel toggle -->
+      <button class="mobile-panel-toggle" id="mobilePanelToggle" title="Toggle Panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    <div class="tooltip-title"></div>
+    <div class="tooltip-meta"></div>
+  </div>
+
+  <script>
+    // Configuration - get from URL params or use defaults
+    const urlParams = new URLSearchParams(window.location.search);
+    const API_BASE = urlParams.get('apiUrl') || `${window.location.protocol}//${window.location.host}/v1`;
+    const API_KEY = urlParams.get('apiKey') || 'eg_sk_test_key_12345';
+    const USER_ID = urlParams.get('userId') || 'Beaux';
+
+    // State
+    let graphData = { nodes: [], edges: [], entities: [], stats: null };
+    let filteredNodes = [];
+    let filteredEdges = [];
+    let activeFilters = new Set(['person', 'project', 'product', 'organization', 'other']);
+    let showAgentMemories = true; // Toggle for agent memories in merged view
+    let searchQuery = '';
+    let timeThreshold = 100;
+    let simulation = null;
+    let selectedNode = null;
+    let isMobile = window.innerWidth < 768;
+
+    // Color scheme
+    const entityColors = {
+      person: '#58a6ff',
+      project: '#3fb950',
+      product: '#ffa657',
+      organization: '#bc8cff',
+      other: '#8b949e'
+    };
+
+    const linkStyles = {
+      RELATED: { stroke: '#58a6ff', dasharray: null },
+      UPDATES: { stroke: '#3fb950', dasharray: '8,4' },
+      SUPPORTS: { stroke: '#3fb950', dasharray: '8,4' },
+      LED_TO: { stroke: '#ffa657', dasharray: '4,4' },
+      CONTRADICTS: { stroke: '#ff7b72', dasharray: '4,4' }
+    };
+
+    // DOM elements
+    const svg = d3.select('#graph');
+    const tooltip = document.getElementById('tooltip');
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const sidebar = document.getElementById('sidebar');
+
+    // Initialize
+    async function init() {
+      try {
+        await fetchGraphData();
+        setupGraph();
+        setupEventListeners();
+        setupMobileInteractions();
+        hideLoading();
+      } catch (err) {
+        console.error('Failed to initialize:', err);
+        showError();
+      }
+    }
+
+    async function fetchGraphData() {
+      // Always fetch with includeAgent=true for merged view
+      const response = await fetch(`${API_BASE}/memories/graph?limit=500&includeAgent=true`, {
+        headers: {
+          'X-AM-API-Key': API_KEY,
+          'X-AM-User-ID': USER_ID
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      graphData = await response.json();
+      
+      // Update stats - show breakdown if merged view
+      const nodeCount = document.getElementById('nodeCount');
+      if (graphData.stats) {
+        nodeCount.innerHTML = `${graphData.nodes.length}<span style="font-size:0.6rem;color:#8b949e;display:block;">${graphData.stats.human}+${graphData.stats.agent}</span>`;
+      } else {
+        nodeCount.textContent = graphData.nodes.length;
+      }
+      document.getElementById('edgeCount').textContent = graphData.edges.length;
+      document.getElementById('entityCount').textContent = graphData.entities.length;
+
+      filterData();
+    }
+
+    function filterData() {
+      // Filter by entity type and memory source
+      filteredNodes = graphData.nodes.filter(node => {
+        const type = node.primaryEntityType || 'other';
+        if (!activeFilters.has(type)) return false;
+
+        // Filter by memory source (human vs agent)
+        if (!showAgentMemories && node.memorySource === 'agent') return false;
+
+        // Filter by search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchRaw = node.raw.toLowerCase().includes(query);
+          const matchEntities = node.entities.some(e => 
+            e.name.toLowerCase().includes(query)
+          );
+          if (!matchRaw && !matchEntities) return false;
+        }
+
+        // Filter by time
+        if (timeThreshold < 100) {
+          const nodeTime = new Date(node.createdAt).getTime();
+          const minTime = getMinTime();
+          const maxTime = getMaxTime();
+          const threshold = minTime + (maxTime - minTime) * (timeThreshold / 100);
+          if (nodeTime > threshold) return false;
+        }
+
+        return true;
+      });
+
+      const nodeIds = new Set(filteredNodes.map(n => n.id));
+      filteredEdges = graphData.edges.filter(
+        e => nodeIds.has(e.source.id || e.source) && nodeIds.has(e.target.id || e.target)
+      );
+    }
+
+    function getMinTime() {
+      if (graphData.nodes.length === 0) return Date.now();
+      return Math.min(...graphData.nodes.map(n => new Date(n.createdAt).getTime()));
+    }
+
+    function getMaxTime() {
+      if (graphData.nodes.length === 0) return Date.now();
+      return Math.max(...graphData.nodes.map(n => new Date(n.createdAt).getTime()));
+    }
+
+    function setupGraph() {
+      const width = document.querySelector('.graph-container').clientWidth;
+      const height = document.querySelector('.graph-container').clientHeight;
+
+      svg.attr('width', width).attr('height', height);
+
+      // Add defs for glow effect
+      const defs = svg.append('defs');
+      
+      const glow = defs.append('filter')
+        .attr('id', 'glow')
+        .attr('x', '-50%')
+        .attr('y', '-50%')
+        .attr('width', '200%')
+        .attr('height', '200%');
+
+      glow.append('feGaussianBlur')
+        .attr('stdDeviation', '3')
+        .attr('result', 'coloredBlur');
+
+      const feMerge = glow.append('feMerge');
+      feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+      feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+      // Arrow markers for directed edges
+      defs.selectAll('marker')
+        .data(Object.keys(linkStyles))
+        .join('marker')
+        .attr('id', d => `arrow-${d}`)
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 20)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('fill', d => linkStyles[d].stroke)
+        .attr('d', 'M0,-5L10,0L0,5');
+
+      // Container for zoom/pan
+      const container = svg.append('g').attr('class', 'container');
+
+      // Links layer
+      container.append('g').attr('class', 'links');
+      
+      // Nodes layer
+      container.append('g').attr('class', 'nodes');
+
+      // Setup zoom with touch support
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on('zoom', (event) => {
+          container.attr('transform', event.transform);
+        });
+
+      // Enable touch gestures
+      svg.call(zoom)
+        .on('dblclick.zoom', null); // Disable double-click zoom (use tap instead)
+
+      // Store zoom for controls
+      window.zoomBehavior = zoom;
+
+      // Setup simulation
+      simulation = d3.forceSimulation()
+        .force('link', d3.forceLink().id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => getNodeRadius(d) + 5));
+
+      updateGraph();
+    }
+
+    function getNodeRadius(node) {
+      // Size based on effectiveScore (Memory Intelligence v2)
+      // Falls back to importanceScore for older data
+      const baseRadius = isMobile ? 10 : 6;
+      const maxRadius = isMobile ? 28 : 20;
+      const score = node.effectiveScore ?? node.importanceScore ?? 0.5;
+      return baseRadius + score * (maxRadius - baseRadius);
+    }
+
+    function isSafetyCritical(node) {
+      return node.safetyCritical === true;
+    }
+
+    function getNodeColor(node) {
+      return entityColors[node.primaryEntityType] || entityColors.other;
+    }
+
+    function updateGraph() {
+      filterData();
+
+      const container = svg.select('.container');
+      const linksGroup = container.select('.links');
+      const nodesGroup = container.select('.nodes');
+
+      // Update links
+      const links = linksGroup.selectAll('line')
+        .data(filteredEdges, d => d.id);
+
+      links.exit().remove();
+
+      const linksEnter = links.enter()
+        .append('line')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0)
+        .transition()
+        .duration(300)
+        .attr('opacity', d => 0.3 + (d.confidence || 0.5) * 0.4);
+
+      linksGroup.selectAll('line')
+        .attr('stroke', d => linkStyles[d.linkType]?.stroke || '#58a6ff')
+        .attr('stroke-dasharray', d => linkStyles[d.linkType]?.dasharray)
+        .attr('marker-end', d => `url(#arrow-${d.linkType})`);
+
+      // Update nodes
+      const nodes = nodesGroup.selectAll('g')
+        .data(filteredNodes, d => d.id);
+
+      nodes.exit()
+        .transition()
+        .duration(200)
+        .attr('opacity', 0)
+        .remove();
+
+      const nodesEnter = nodes.enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('cursor', 'pointer')
+        .call(d3.drag()
+          .on('start', dragStarted)
+          .on('drag', dragged)
+          .on('end', dragEnded)
+        );
+
+      // Agent memory ring (cyan outer ring for agent-sourced memories)
+      nodesEnter.append('circle')
+        .attr('r', 0)
+        .attr('fill', 'none')
+        .attr('stroke', d => d.memorySource === 'agent' ? '#22d3ee' : 'none')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', d => d.memorySource === 'agent' ? '4,2' : null)
+        .attr('class', 'agent-ring')
+        .transition()
+        .duration(300)
+        .attr('r', d => d.memorySource === 'agent' ? getNodeRadius(d) + 6 : 0);
+
+      // Safety-critical ring (red outer ring for allergies, medications, etc.)
+      nodesEnter.append('circle')
+        .attr('r', 0)
+        .attr('fill', 'none')
+        .attr('stroke', d => isSafetyCritical(d) ? '#f85149' : 'none')
+        .attr('stroke-width', 3)
+        .attr('class', 'safety-ring')
+        .transition()
+        .duration(300)
+        .attr('r', d => isSafetyCritical(d) ? getNodeRadius(d) + 4 : 0);
+
+      nodesEnter.append('circle')
+        .attr('r', 0)
+        .attr('fill', d => getNodeColor(d))
+        .attr('stroke', '#0d1117')
+        .attr('stroke-width', 2)
+        .attr('class', 'node-glow')
+        .transition()
+        .duration(300)
+        .attr('r', d => getNodeRadius(d));
+
+      // Larger invisible hit area for touch
+      nodesEnter.append('circle')
+        .attr('r', 0)
+        .attr('fill', 'transparent')
+        .attr('class', 'node-hitarea')
+        .transition()
+        .duration(300)
+        .attr('r', d => getNodeRadius(d) + (isMobile ? 15 : 5));
+
+      // Events - handle both mouse and touch
+      nodesGroup.selectAll('g')
+        .on('mouseenter', (event, d) => {
+          if (!isMobile) showTooltip(event, d);
+        })
+        .on('mousemove', (event) => {
+          if (!isMobile) moveTooltip(event);
+        })
+        .on('mouseleave', () => {
+          if (!isMobile) hideTooltip();
+        })
+        .on('click', (event, d) => selectNode(d))
+        .on('touchstart', handleNodeTouch, { passive: true });
+
+      // Highlight selected node
+      nodesGroup.selectAll('circle.node-glow')
+        .attr('stroke', d => d.id === selectedNode?.id ? '#fff' : '#0d1117')
+        .attr('stroke-width', d => d.id === selectedNode?.id ? 3 : 2);
+
+      // Update simulation
+      simulation.nodes(filteredNodes)
+        .on('tick', ticked);
+
+      simulation.force('link').links(filteredEdges);
+      simulation.alpha(0.3).restart();
+
+      function ticked() {
+        linksGroup.selectAll('line')
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+
+        nodesGroup.selectAll('g')
+          .attr('transform', d => `translate(${d.x},${d.y})`);
+      }
+    }
+
+    // Touch handler for nodes
+    let touchTimeout;
+    function handleNodeTouch(event, d) {
+      event.stopPropagation();
+      
+      // Detect tap vs drag
+      const touch = event.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      
+      clearTimeout(touchTimeout);
+      touchTimeout = setTimeout(() => {
+        // Short tap - select node
+        selectNode(d);
+        // Show brief tooltip on mobile
+        showMobileTooltip(event, d);
+      }, 100);
+    }
+
+    function showMobileTooltip(event, d) {
+      const truncated = d.raw.length > 60 ? d.raw.substring(0, 60) + '...' : d.raw;
+      tooltip.querySelector('.tooltip-title').textContent = truncated;
+      tooltip.querySelector('.tooltip-meta').textContent = 
+        `${d.layer} • ${d.entities.length} entities`;
+      
+      // Position tooltip at top center of screen
+      tooltip.style.left = '50%';
+      tooltip.style.top = '20px';
+      tooltip.style.transform = 'translateX(-50%)';
+      tooltip.classList.add('visible');
+      
+      // Auto-hide after 2s
+      setTimeout(hideTooltip, 2000);
+    }
+
+    function dragStarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+      clearTimeout(touchTimeout); // Cancel tap if dragging
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragEnded(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    function showTooltip(event, d) {
+      const truncated = d.raw.length > 100 ? d.raw.substring(0, 100) + '...' : d.raw;
+      tooltip.querySelector('.tooltip-title').textContent = truncated;
+      tooltip.querySelector('.tooltip-meta').textContent = 
+        `${d.layer} • ${formatDate(d.createdAt)} • ${d.entities.length} entities`;
+      tooltip.style.transform = 'none';
+      tooltip.classList.add('visible');
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const x = event.pageX + 15;
+      const y = event.pageY + 15;
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+    }
+
+    function selectNode(node) {
+      selectedNode = node;
+      updateGraph();
+      showMemoryDetails(node);
+      
+      // On mobile, expand the sidebar to show details
+      if (isMobile) {
+        sidebar.classList.add('expanded');
+      }
+    }
+
+    function showMemoryDetails(node) {
+      const details = document.getElementById('memoryDetails');
+      
+      const extractionHtml = node.extraction ? `
+        <div class="memory-extraction">
+          <div class="extraction-title">Extracted Structure (5W1H)</div>
+          <div class="extraction-grid">
+            ${node.extraction.who ? `
+              <div class="extraction-item">
+                <span class="extraction-label">Who</span>
+                <span class="extraction-value">${escapeHtml(node.extraction.who)}</span>
+              </div>
+            ` : ''}
+            ${node.extraction.what ? `
+              <div class="extraction-item">
+                <span class="extraction-label">What</span>
+                <span class="extraction-value">${escapeHtml(node.extraction.what)}</span>
+              </div>
+            ` : ''}
+            ${node.extraction.when ? `
+              <div class="extraction-item">
+                <span class="extraction-label">When</span>
+                <span class="extraction-value">${formatDate(node.extraction.when)}</span>
+              </div>
+            ` : ''}
+            ${node.extraction.where ? `
+              <div class="extraction-item">
+                <span class="extraction-label">Where</span>
+                <span class="extraction-value">${escapeHtml(node.extraction.where)}</span>
+              </div>
+            ` : ''}
+            ${node.extraction.why ? `
+              <div class="extraction-item">
+                <span class="extraction-label">Why</span>
+                <span class="extraction-value">${escapeHtml(node.extraction.why)}</span>
+              </div>
+            ` : ''}
+            ${node.extraction.how ? `
+              <div class="extraction-item">
+                <span class="extraction-label">How</span>
+                <span class="extraction-value">${escapeHtml(node.extraction.how)}</span>
+              </div>
+            ` : ''}
+          </div>
+          ${node.extraction.topics?.length ? `
+            <div style="margin-top: 10px;">
+              <span class="extraction-label">Topics</span>
+              <div style="margin-top: 5px;">
+                ${node.extraction.topics.map(t => 
+                  `<span class="entity-tag">${escapeHtml(t)}</span>`
+                ).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      ` : '';
+
+      const entitiesHtml = node.entities.length ? `
+        <div class="memory-entities">
+          ${node.entities.map(e => {
+            const typeClass = e.type.toLowerCase();
+            return `<span class="entity-tag ${typeClass}">${escapeHtml(e.name)}</span>`;
+          }).join('')}
+        </div>
+      ` : '';
+
+      details.innerHTML = `
+        <div class="memory-card">
+          <div class="memory-card-header">
+            <span class="memory-layer ${node.layer}">${node.layer}</span>
+            ${node.memorySource === 'agent' ? '<span style="padding: 4px 8px; background: rgba(34, 211, 238, 0.15); border-radius: 12px; font-size: 0.7rem; color: #22d3ee; margin-left: 6px;" title="Agent self-reflection">🤖 Agent</span>' : ''}
+            ${node.safetyCritical ? '<span class="safety-badge" title="Safety-critical memory">🏥</span>' : ''}
+            <div class="memory-importance">
+              <span>${Math.round((node.effectiveScore ?? node.importanceScore) * 100)}%</span>
+              <div class="importance-bar">
+                <div class="importance-fill" style="width: ${(node.effectiveScore ?? node.importanceScore) * 100}%; background: ${node.safetyCritical ? '#f85149' : ''};"></div>
+              </div>
+            </div>
+          </div>
+          ${node.safetyCritical ? '<div class="safety-warning">⚠️ Safety-critical: This memory is protected and will never be evicted</div>' : ''}
+          <div class="memory-raw">${escapeHtml(node.raw)}</div>
+          ${extractionHtml}
+          ${entitiesHtml}
+          <div class="memory-meta">
+            <span>ID: ${node.id.substring(0, 8)}...</span>
+            <span>${formatDate(node.createdAt)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupEventListeners() {
+      // Filter chips
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const type = chip.dataset.type;
+          if (activeFilters.has(type)) {
+            activeFilters.delete(type);
+            chip.classList.remove('active');
+          } else {
+            activeFilters.add(type);
+            chip.classList.add('active');
+          }
+          updateGraph();
+        });
+      });
+
+      // Search
+      const searchInput = document.getElementById('searchInput');
+      let searchTimeout;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchQuery = searchInput.value;
+          updateGraph();
+        }, 300);
+      });
+
+      // Agent memories toggle
+      const agentToggle = document.getElementById('agentToggle');
+      agentToggle.addEventListener('change', () => {
+        showAgentMemories = agentToggle.checked;
+        updateGraph();
+      });
+
+      // Time slider
+      const timeSlider = document.getElementById('timeSlider');
+      const timeRange = document.getElementById('timeRange');
+      timeSlider.addEventListener('input', () => {
+        timeThreshold = parseInt(timeSlider.value);
+        if (timeThreshold >= 100) {
+          timeRange.textContent = 'All time';
+        } else {
+          const minTime = getMinTime();
+          const maxTime = getMaxTime();
+          const threshold = new Date(minTime + (maxTime - minTime) * (timeThreshold / 100));
+          timeRange.textContent = `Up to ${formatDate(threshold.toISOString())}`;
+        }
+        updateGraph();
+      });
+
+      // Zoom controls
+      document.getElementById('zoomIn').addEventListener('click', () => {
+        svg.transition().duration(300).call(
+          window.zoomBehavior.scaleBy, 1.5
+        );
+      });
+
+      document.getElementById('zoomOut').addEventListener('click', () => {
+        svg.transition().duration(300).call(
+          window.zoomBehavior.scaleBy, 0.67
+        );
+      });
+
+      document.getElementById('resetZoom').addEventListener('click', () => {
+        svg.transition().duration(300).call(
+          window.zoomBehavior.transform, d3.zoomIdentity
+        );
+      });
+
+      // Window resize
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          const wasM = isMobile;
+          isMobile = window.innerWidth < 768;
+          
+          const width = document.querySelector('.graph-container').clientWidth;
+          const height = document.querySelector('.graph-container').clientHeight;
+          svg.attr('width', width).attr('height', height);
+          simulation.force('center', d3.forceCenter(width / 2, height / 2));
+          
+          // If transitioning between mobile/desktop, update node sizes
+          if (wasM !== isMobile) {
+            updateGraph();
+          }
+          
+          simulation.alpha(0.3).restart();
+        }, 100);
+      });
+    }
+
+    function setupMobileInteractions() {
+      // Mobile panel toggle
+      const toggleBtn = document.getElementById('mobilePanelToggle');
+      toggleBtn.addEventListener('click', () => {
+        if (sidebar.classList.contains('hidden')) {
+          sidebar.classList.remove('hidden');
+          sidebar.classList.add('expanded');
+        } else if (sidebar.classList.contains('expanded')) {
+          sidebar.classList.remove('expanded');
+        } else {
+          sidebar.classList.add('expanded');
+        }
+      });
+
+      // Bottom sheet drag handle
+      const handle = document.getElementById('bottomSheetHandle');
+      let startY, startTransform;
+
+      handle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        const transform = getComputedStyle(sidebar).transform;
+        const matrix = new DOMMatrix(transform);
+        startTransform = matrix.m42; // translateY value
+        sidebar.style.transition = 'none';
+      }, { passive: true });
+
+      handle.addEventListener('touchmove', (e) => {
+        const deltaY = e.touches[0].clientY - startY;
+        const newY = startTransform + deltaY;
+        
+        // Clamp to valid range
+        const maxY = sidebar.offsetHeight - 180; // Collapsed state
+        const clampedY = Math.max(0, Math.min(maxY, newY));
+        
+        sidebar.style.transform = `translateY(${clampedY}px)`;
+      }, { passive: true });
+
+      handle.addEventListener('touchend', () => {
+        sidebar.style.transition = '';
+        const transform = getComputedStyle(sidebar).transform;
+        const matrix = new DOMMatrix(transform);
+        const currentY = matrix.m42;
+        
+        const maxY = sidebar.offsetHeight - 180;
+        const threshold = maxY * 0.4;
+        
+        // Snap to expanded or collapsed
+        if (currentY < threshold) {
+          sidebar.classList.add('expanded');
+        } else {
+          sidebar.classList.remove('expanded');
+        }
+        
+        sidebar.style.transform = '';
+      });
+
+      // Tap on graph area to collapse sidebar on mobile
+      document.querySelector('.graph-container').addEventListener('click', (e) => {
+        if (isMobile && !e.target.closest('.control-btn') && !e.target.closest('.node')) {
+          sidebar.classList.remove('expanded');
+        }
+      });
+    }
+
+    function hideLoading() {
+      loading.style.display = 'none';
+    }
+
+    function showError() {
+      loading.style.display = 'none';
+      error.style.display = 'block';
+    }
+
+    function formatDate(isoString) {
+      if (!isoString) return 'Unknown';
+      const date = new Date(isoString);
+      
+      // Shorter format for mobile
+      if (isMobile) {
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+      
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

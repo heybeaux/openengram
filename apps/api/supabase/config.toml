@@ -1,0 +1,2 @@
+[functions.webhook-relay]
+verify_jwt = false

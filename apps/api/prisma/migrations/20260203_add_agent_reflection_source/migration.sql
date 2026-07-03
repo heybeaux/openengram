@@ -1,0 +1,2 @@
+-- Add AGENT_REFLECTION to MemorySource enum
+ALTER TYPE "MemorySource" ADD VALUE 'AGENT_REFLECTION';
