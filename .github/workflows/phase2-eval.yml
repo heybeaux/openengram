@@ -1,0 +1,60 @@
+# Phase 2 exit-gate eval (EC-29).
+#
+# Runs the harness against the committed fixtures using the deterministic
+# mock LLM — no API keys required. This validates wiring (loop, budgets,
+# scorer) on every PR.
+#
+# The canonical pass/fail evaluation against real Sonnet is committed at
+# `docs/eval/phase2-results.md`; regenerate it locally with
+# `pnpm exec ts-node scripts/eval/phase2-eval.ts --llm=anthropic`.
+
+name: phase2-eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/eval/**'
+      - 'docs/eval/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/phase2-eval.yml'
+
+jobs:
+  mock-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Run harness unit + integration tests
+        run: pnpm test -- --selectProjects eval
+
+      - name: Run mock-LLM eval (validates wiring; not a semantic pass/fail)
+        run: |
+          pnpm exec ts-node scripts/eval/phase2-eval.ts \
+            --out=phase2-mock-results.md \
+            --llm=mock \
+            --pass-threshold=1
+
+      - name: Upload mock-LLM report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-mock-results
+          path: phase2-mock-results.md
+
+      - name: Check committed Sonnet report exists
+        run: test -f docs/eval/phase2-results.md
