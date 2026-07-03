@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+build/
+
+# Environment — never commit secrets
+.env
+.env.*
+!.env.example
+!.env.docker
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Prisma
+prisma/migrations/**/migration_lock.toml
+
+# Misc
+*.tgz
+.cache/
+reports/
+node_modules
+worktrees/
+.env.cloud
+prisma/engram.db
+backups/
+package-lock.json
+data/
+
+# Factory transient files
+.factory-prompt.md
+.factory-debugger-prompt.md
+tsconfig.tsbuildinfo
+test/benchmark/results/benchmark-*.json
+
+# Local OpenClaw / agent workspace files — never commit to product repos
+.openclaw/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+MEMORY_CONTEXT.md
+MEMORY_INSTRUCTIONS.md
+SOUL.md
+TOOLS.md
+USER.md
+BOOTSTRAP.md

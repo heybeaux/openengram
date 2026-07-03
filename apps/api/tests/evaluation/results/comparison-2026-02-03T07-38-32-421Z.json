@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-02-03T07:38:32.421Z",
+  "before": {
+    "file": "baseline-2026-02-03T07-26-46-628Z.json",
+    "timestamp": "2026-02-03T07:26:46.628Z",
+    "label": "pre-improvement-baseline"
+  },
+  "after": {
+    "file": "baseline-2026-02-03T07-38-27-992Z.json",
+    "timestamp": "2026-02-03T07:38:27.992Z",
+    "label": "post-improvement"
+  },
+  "changes": [
+    {
+      "metric": "Total Memories",
+      "before": 231,
+      "after": 232,
+      "change": 1,
+      "changePercent": 0.004329004329004329,
+      "improved": false,
+      "significant": false
+    },
+    {
+      "metric": "Total Extractions",
+      "before": 231,
+      "after": 231,
+      "change": 0,
+      "changePercent": 0,
+      "improved": false,
+      "significant": false
+    },
+    {
+      "metric": "Extractions With Data",
+      "before": 74,
+      "after": 226,
+      "change": 152,
+      "changePercent": 2.054054054054054,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "Total Entities",
+      "before": 36,
+      "after": 95,
+      "change": 59,
+      "changePercent": 1.6388888888888888,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "Total Links",
+      "before": 81,
+      "after": 81,
+      "change": 0,
+      "changePercent": 0,
+      "improved": false,
+      "significant": false
+    },
+    {
+      "metric": "5W1H Completion Rate",
+      "before": 0.11832611832611835,
+      "after": 0.35281385281385286,
+      "change": 0.23448773448773452,
+      "changePercent": 1.9817073170731707,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "Avg Entities/Memory",
+      "before": 0.15584415584415584,
+      "after": 0.40948275862068967,
+      "change": 0.25363860277653383,
+      "changePercent": 1.6275143678160922,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "Avg Links/Memory",
+      "before": 0.35064935064935066,
+      "after": 0.34913793103448276,
+      "change": -0.0015114196148678927,
+      "changePercent": -0.004310344827586212,
+      "improved": false,
+      "significant": false
+    },
+    {
+      "metric": "WHO completion",
+      "before": 0.2683982683982684,
+      "after": 0.8787878787878788,
+      "change": 0.6103896103896104,
+      "changePercent": 2.2741935483870965,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "WHAT completion",
+      "before": 0.3203463203463203,
+      "after": 0.9783549783549783,
+      "change": 0.6580086580086579,
+      "changePercent": 2.054054054054054,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "WHEN completion",
+      "before": 0.025974025974025976,
+      "after": 0.047619047619047616,
+      "change": 0.02164502164502164,
+      "changePercent": 0.8333333333333331,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "WHERE completion",
+      "before": 0.025974025974025976,
+      "after": 0.05627705627705628,
+      "change": 0.030303030303030304,
+      "changePercent": 1.1666666666666665,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "WHY completion",
+      "before": 0.021645021645021644,
+      "after": 0.047619047619047616,
+      "change": 0.025974025974025972,
+      "changePercent": 1.2,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "HOW completion",
+      "before": 0.047619047619047616,
+      "after": 0.10822510822510822,
+      "change": 0.06060606060606061,
+      "changePercent": 1.272727272727273,
+      "improved": true,
+      "significant": true
+    },
+    {
+      "metric": "Sample Avg 5W1H Score",
+      "before": 1.9,
+      "after": 2.2,
+      "change": 0.30000000000000027,
+      "changePercent": 0.15789473684210542,
+      "improved": true,
+      "significant": true
+    }
+  ],
+  "summary": {
+    "totalImproved": 11,
+    "totalRegressed": 0,
+    "totalUnchanged": 4,
+    "overallVerdict": "improved"
+  },
+  "markdown": "# Engram Evaluation Comparison Report\n\n**Generated:** 2026-02-03T07:38:32.420Z\n\n## Overview\n\n| | Before | After |\n|---|---|---|\n| **Run Label** | pre-improvement-baseline | post-improvement |\n| **Timestamp** | 2026-02-03T07:26:46.628Z | 2026-02-03T07:38:27.992Z |\n\n### Verdict: 🎉 IMPROVED\n\n- ✅ Improved: 11 metrics\n- ❌ Regressed: 0 metrics\n- ➖ Unchanged: 4 metrics\n\n## Detailed Comparison\n\n| Metric | Before | After | Change | Status |\n|--------|--------|-------|--------|--------|\n| Total Memories | 231.00 | 232.00 | +1.00 | ➖ |\n| Total Extractions | 231.00 | 231.00 | 0.00 | ➖ |\n| Extractions With Data | 74.00 | 226.00 | +152.00 | ✅ |\n| Total Entities | 36.00 | 95.00 | +59.00 | ✅ |\n| Total Links | 81.00 | 81.00 | 0.00 | ➖ |\n| 5W1H Completion Rate | 11.8% | 35.3% | +23.4% | ✅ |\n| Avg Entities/Memory | 0.16 | 0.41 | +0.25 | ✅ |\n| Avg Links/Memory | 0.35 | 0.35 | -0.00 | ➖ |\n| WHO completion | 26.8% | 87.9% | +61.0% | ✅ |\n| WHAT completion | 32.0% | 97.8% | +65.8% | ✅ |\n| WHEN completion | 2.6% | 4.8% | +2.2% | ✅ |\n| WHERE completion | 2.6% | 5.6% | +3.0% | ✅ |\n| WHY completion | 2.2% | 4.8% | +2.6% | ✅ |\n| HOW completion | 4.8% | 10.8% | +6.1% | ✅ |\n| Sample Avg 5W1H Score | 1.90 | 2.20 | +0.30 | ✅ |\n\n## Key Insights\n\n### 🎯 Big Wins\n\n- **Extractions With Data**: +205.4% improvement\n- **Total Entities**: +163.9% improvement\n- **5W1H Completion Rate**: +198.2% improvement\n- **Avg Entities/Memory**: +162.8% improvement\n- **WHO completion**: +227.4% improvement\n- **WHAT completion**: +205.4% improvement\n- **WHEN completion**: +83.3% improvement\n- **WHERE completion**: +116.7% improvement\n- **WHY completion**: +120.0% improvement\n- **HOW completion**: +127.3% improvement\n\n---\n*Report generated by Engram Evaluation System*\n"
+}
