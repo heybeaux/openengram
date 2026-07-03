@@ -1,4 +1,8 @@
+# App/service globs are intentionally deferred.
+# Imported apps under apps/* and services under services/* are brought in as-is
+# and are NOT yet wired into the root pnpm workspace/lockfile. Each app/service
+# gets a dedicated integration PR that adds it to the workspace, reconciles the
+# lockfile, and enables path-filtered CI. This keeps import-only PRs additive and
+# keeps the root frozen install green.
 packages:
-  - "apps/*"
-  - "services/*"
   - "packages/*"
