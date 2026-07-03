@@ -19,13 +19,15 @@
   },
   "pnpm": {
     "overrides": {
-      "@prisma/client": "7.5.0",
-      "@prisma/adapter-pg": "7.5.0",
-      "prisma": "7.5.0",
       "jest": "30.4.2",
       "@jest/globals": "30.4.1",
       "@types/jest": "30.0.0",
-      "ts-jest": "29.4.11"
+      "ts-jest": "29.4.11",
+      "@openengram/engram>@prisma/client": "7.5.0",
+      "@openengram/engram>@prisma/adapter-pg": "7.5.0",
+      "@openengram/engram>prisma": "7.5.0",
+      "engram-code>@prisma/client": "6.19.3",
+      "engram-code>prisma": "6.19.3"
     }
   }
 }
