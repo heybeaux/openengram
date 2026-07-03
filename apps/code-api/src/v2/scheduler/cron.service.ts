@@ -102,7 +102,7 @@ export class CronScheduler {
    * Exposed so tests (and a future `POST /v1/scheduler/fire` admin
    * endpoint) can trigger a job without waiting for the timer.
    */
-  // eslint-disable-next-line @typescript-eslint/require-await
+   
   async fire(job: CronJob): Promise<void> {
     const result = this.ingest.submit({
       url: job.url,

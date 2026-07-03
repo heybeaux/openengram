@@ -67,7 +67,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
     });
 
@@ -96,7 +96,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       batchSize: 2,
       retryDelaysMs: [0, 0, 0],
     });
@@ -123,7 +123,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
       logger: { error: (m) => errs.push(m) },
     });
@@ -142,7 +142,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
       logger: { warn: (m) => warns.push(m) },
     });
@@ -160,7 +160,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       batchSize: 100,
       // Long interval so the timer never fires before shutdown.
       batchIntervalMs: 60_000,
@@ -188,7 +188,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
     });
 
@@ -208,7 +208,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
       logger: { error: (m) => errs.push(m) },
     });
@@ -228,7 +228,7 @@ describe('EngramEmitter', () => {
     const emitter = new EngramEmitter({
       endpoint: 'https://api.openengram.ai',
       apiKey: 'k',
-      fetch: fetchMock as unknown as typeof fetch,
+      fetch: fetchMock,
       retryDelaysMs: [0, 0, 0],
     });
     const create = jest.fn().mockResolvedValue({});

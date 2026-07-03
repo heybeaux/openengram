@@ -171,7 +171,7 @@ function detectLanguageFromContext(
   const isInLwc = parentDir.includes('/lwc/') || parentDir.includes('\\lwc\\');
 
   switch (ext) {
-    case '.js':
+    case '.js': {
       // JavaScript in LWC folder = LWC component
       if (isInLwc) {
         return Language.LWC;
@@ -182,6 +182,7 @@ function detectLanguageFromContext(
         return null;
       }
       return Language.JAVASCRIPT;
+    }
 
     case '.html':
       // HTML only relevant in LWC context

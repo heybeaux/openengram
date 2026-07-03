@@ -21,7 +21,7 @@
 import Parser = require('tree-sitter');
 // tree-sitter-typescript's published types use `export =` with an object
 // literal, which `nodenext` resolution exposes via a default-only import.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const TreeSitterTypeScript: typeof import('tree-sitter-typescript') = require('tree-sitter-typescript');
 
 import { register } from './registry';

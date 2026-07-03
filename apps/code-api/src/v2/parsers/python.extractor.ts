@@ -24,7 +24,7 @@ import {
 // state across extractors — caching parsers leaks `setLanguage` between
 // extractors in the same Jest worker and produces `undefined` rootNodes.
 // Parser construction is cheap relative to actual parsing.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const Python = require('tree-sitter-python');
 
 function parseSource(source: string): Parser.Tree {

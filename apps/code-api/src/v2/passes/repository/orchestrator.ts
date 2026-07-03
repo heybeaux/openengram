@@ -321,7 +321,7 @@ function cardFor(
 }
 
 function defaultWarn(message: string, context?: Record<string, unknown>): void {
-  // eslint-disable-next-line no-console
+   
   console.warn(message, context ?? {});
 }
 

@@ -190,7 +190,9 @@ describe('IngestService (EC-39a integration)', () => {
       let actual: string[] = [];
       try {
         actual = readdirSync(join(root, 'artifacts'), { recursive: true }) as string[];
-      } catch {}
+      } catch {
+        // Best-effort debug listing only.
+      }
       throw new Error(
         `Repository card not at ${cardPath}\nArtifacts tree: ${JSON.stringify(actual, null, 2)}`,
       );

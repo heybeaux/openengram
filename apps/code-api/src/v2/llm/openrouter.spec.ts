@@ -45,7 +45,7 @@ describe('callOpenRouter', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     });
-    global.fetch = fetchSpy as unknown as typeof fetch;
+    global.fetch = fetchSpy;
 
     const out = await callOpenRouter({
       model: 'google/gemini-2.5-flash',
@@ -77,7 +77,7 @@ describe('callOpenRouter', () => {
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
-    }) as unknown as typeof fetch;
+    });
 
     const out = await callOpenRouter({
       model: 'google/gemini-2.5-flash',
@@ -94,7 +94,7 @@ describe('callOpenRouter', () => {
     process.env.OPENROUTER_API_KEY = 'sk-test';
     global.fetch = jest.fn(
       async () => new Response('bad request', { status: 400 }),
-    ) as unknown as typeof fetch;
+    );
 
     await expect(
       callOpenRouter({
@@ -116,7 +116,7 @@ describe('callOpenRouter', () => {
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         ),
-    ) as unknown as typeof fetch;
+    );
 
     const out = await callOpenRouter({ model: 'x', prompt: 'p' });
     expect(out.totalTokens).toBe(14);

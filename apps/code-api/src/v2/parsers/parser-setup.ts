@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
+ 
 // Pre-load tree-sitter native binding before any parser spec runs.
 //
 // Root cause this guards against:
@@ -78,14 +78,14 @@ const binding = loadNativeBinding();
 // getters, and stash on the shared binding object (which is identity-
 // shared across Jest sandboxes because Node caches native addons by
 // path). Subsequent sandboxes see the bag and skip the snapshot step.
-if (!(binding as any)[NATIVE_BAG]) {
+if (!(binding)[NATIVE_BAG]) {
   const bag: NativeBag = {
     treeRootNode: readNativeFn(binding.Tree.prototype, 'rootNode'),
     cursorCurrentNode: readNativeFn(binding.TreeCursor.prototype, 'currentNode'),
     cursorStartPosition: readNativeFn(binding.TreeCursor.prototype, 'startPosition'),
     cursorEndPosition: readNativeFn(binding.TreeCursor.prototype, 'endPosition'),
   };
-  (binding as any)[NATIVE_BAG] = bag;
+  (binding)[NATIVE_BAG] = bag;
 }
 
 // Every sandbox (including the first): make sure the shared prototypes
@@ -94,7 +94,7 @@ if (!(binding as any)[NATIVE_BAG]) {
 // natives are already there); on later sandboxes it undoes the prior
 // sandbox's getter replacement.
 {
-  const bag: NativeBag = (binding as any)[NATIVE_BAG];
+  const bag: NativeBag = (binding)[NATIVE_BAG];
   installDataProp(binding.Tree.prototype, 'rootNode', bag.treeRootNode);
   installDataProp(binding.TreeCursor.prototype, 'currentNode', bag.cursorCurrentNode);
   installDataProp(binding.TreeCursor.prototype, 'startPosition', bag.cursorStartPosition);

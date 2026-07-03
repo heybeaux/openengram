@@ -52,7 +52,7 @@ export async function ingest(options: IngestOptions): Promise<IngestResult> {
   let filesSkipped = 0;
   let chunksCreated = 0;
   let chunksUpdated = 0;
-  let chunksDeleted = 0;
+  const chunksDeleted = 0;
 
   // Phase 1: Discovery
   onProgress?.('discovery', 0, 1);
