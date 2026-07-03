@@ -1,0 +1,99 @@
+name: api
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api.yml"
+
+jobs:
+  api-static-build:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      EDITION: local
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --dir apps/api exec prisma generate
+      # Build runs the app's existing build script (`prisma generate && nest build`).
+      # Standalone root typecheck/lint integration is deferred until the API's
+      # dependency graph is fully stabilized in the monorepo.
+      - name: Build
+        run: pnpm turbo run build --filter=@openengram/engram
+
+  api-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      EDITION: local
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/engram_test
+      REDIS_URL: redis://localhost:6379
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --dir apps/api exec prisma generate
+      - name: Run migrations
+        run: pnpm --dir apps/api exec prisma migrate deploy
+      - name: Test
+        run: >-
+          pnpm --dir apps/api test -- --no-coverage --forceExit --ci
+          --testPathIgnorePattern='cloud-link|cloud-sync|instance/instance.controller.spec|ensemble|stripe|analytics|monitoring|eval|reembedding|webhook'

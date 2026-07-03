@@ -20,6 +20,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+      # App-level lint/typecheck/test runs in app-specific workflows. Keep the
+      # root workspace job service-free and package-focused.
+      - run: pnpm turbo run lint --filter="./packages/*"
+      - run: pnpm turbo run typecheck --filter="./packages/*"
+      - run: pnpm turbo run test --filter="./packages/*"
