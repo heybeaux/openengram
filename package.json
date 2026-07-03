@@ -10,7 +10,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "format": "prettier --check .",
-    "format:write": "prettier --write ."
+    "format:write": "prettier --write .",
+    "test:contracts": "pnpm --filter @openengram/contracts build && node --test e2e/contract/*.test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

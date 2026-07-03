@@ -140,7 +140,7 @@ export class EngramAPI {
 
   async observe(body: { content: string; source?: string; metadata?: Record<string, unknown> }) {
     return this.request<{ memories: Array<{ id: string; raw: string }> }>(
-      'POST', '/v1/auto/observe', body,
+      'POST', '/v1/observe', body,
     );
   }
 
@@ -152,7 +152,7 @@ export class EngramAPI {
 
   async stats() {
     return this.request<{ total: number; byLayer: Record<string, number>; bySource: Record<string, number> }>(
-      'GET', '/v1/memories/stats',
+      'GET', '/v1/stats',
     );
   }
 
