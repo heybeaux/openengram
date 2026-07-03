@@ -10,3 +10,4 @@ Every import into this monorepo must record the source repository, branch, sourc
 | packages/mcp                  | `heybeaux/engram-mcp`                  |        `main` | `f36f6648b3b6` | subtree     |       PR #6 | MCP server package import.                                         |
 | packages/channel-intelligence | `heybeaux/engram-channel-intelligence` |      `master` | `62416ecf2125` | subtree     |       PR #7 | Channel intelligence package import.                               |
 | apps/code-api                 | `heybeaux/engram-code`                 |        `main` | `6d5b72317cea` | subtree     |       PR #9 | Code-intel NestJS app. Import-only; not yet wired to workspace/CI. |
+| services/embed                | `heybeaux/engram-embed`                |        `main` | `2d917adeb796` | subtree     |      PR #10 | Rust embedding service. Import-only; outside JS workspace/CI.      |
