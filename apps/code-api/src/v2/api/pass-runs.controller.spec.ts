@@ -93,7 +93,7 @@ describe('PassRunsController (supertest)', () => {
   });
 
   function seed(): void {
-    const base = new Date('2026-05-26T00:00:00Z').getTime();
+    const base = Date.now() - 60_000;
     for (let i = 0; i < 6; i++) {
       fake.rows.push({
         id: `pr-${i}`,

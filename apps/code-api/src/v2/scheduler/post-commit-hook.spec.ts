@@ -70,6 +70,7 @@ function captureOnce(): Promise<{
 function makeGitRepo(): { dir: string; sha: string } {
   const dir = mkdtempSync(join(tmpdir(), 'ec49-hook-'));
   execSync('git init -q', { cwd: dir });
+  execSync('git branch -M main', { cwd: dir });
   execSync('git config user.email test@example.com', { cwd: dir });
   execSync('git config user.name test', { cwd: dir });
   execSync('git config commit.gpgsign false', { cwd: dir });
