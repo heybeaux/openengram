@@ -1,0 +1,19 @@
+{
+  "name": "openengram",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenEngram platform monorepo",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --check .",
+    "format:write": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.4"
+  }
+}

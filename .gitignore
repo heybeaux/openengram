@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+build/
+.next/
+coverage/
+playwright-report/
+test-results/
+.turbo/
+
+# env/secrets
+.env
+.env.*
+!.env.example
+
+# local/editor
+.DS_Store
+.idea/
+.vscode/
+
+# OpenClaw/local agent artifacts
+.openclaw/
+.receipts/
+AGENTS.md
+SOUL.md
+USER.md
+IDENTITY.md
+TOOLS.md
+HEARTBEAT.md
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
