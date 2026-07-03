@@ -18,3 +18,6 @@ packages/client-js/**
 
 # Imported MCP package kept byte-for-byte until its integration PR.
 packages/mcp/**
+
+# Imported channel-intelligence package kept byte-for-byte except explicit workspace harness fixes.
+packages/channel-intelligence/**

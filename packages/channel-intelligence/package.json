@@ -11,7 +11,8 @@
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
-    "test": "tsx src/test.ts"
+    "test": "tsx tests/smoke.ts",
+    "lint": "tsc --noEmit"
   },
   "keywords": [
     "engram",
