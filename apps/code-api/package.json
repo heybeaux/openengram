@@ -1,0 +1,143 @@
+{
+  "name": "engram-code",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "bin": {
+    "engram-code": "dist/bin/engram-code.js"
+  },
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node --max-old-space-size=4096 dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest --forceExit",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "smoke": "jest --config ./test/jest-e2e.json --testRegex cards-api.smoke.e2e-spec.ts --runInBand"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/client": "^6.19.3",
+    "@types/uuid": "^11.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "dotenv": "^17.2.4",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "ignore": "^7.0.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-elixir": "^0.3.5",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-rust": "^0.24.0",
+    "tree-sitter-swift": "^0.7.1",
+    "tree-sitter-typescript": "^0.23.2",
+    "uuid": "^13.0.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.7",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^6.19.3",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "projects": [
+      {
+        "displayName": "parsers",
+        "rootDir": "src",
+        "testMatch": [
+          "<rootDir>/v2/parsers/**/*.spec.ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": "ts-jest"
+        },
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "testEnvironment": "node",
+        "setupFiles": [
+          "<rootDir>/v2/parsers/parser-setup.ts"
+        ]
+      },
+      {
+        "displayName": "unit",
+        "rootDir": "src",
+        "testMatch": [
+          "<rootDir>/**/*.spec.ts"
+        ],
+        "testPathIgnorePatterns": [
+          "<rootDir>/v2/parsers/"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": "ts-jest"
+        },
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "collectCoverageFrom": [
+          "**/*.(t|j)s"
+        ],
+        "coverageDirectory": "../coverage",
+        "testEnvironment": "node",
+        "setupFiles": [
+          "<rootDir>/v2/parsers/parser-setup.ts"
+        ]
+      },
+      {
+        "displayName": "eval",
+        "rootDir": "scripts/eval",
+        "testMatch": [
+          "<rootDir>/**/*.spec.ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": "ts-jest"
+        },
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "testEnvironment": "node"
+      }
+    ]
+  }
+}
