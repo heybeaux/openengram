@@ -1,0 +1,60 @@
+name: code-api
+
+on:
+  pull_request:
+    paths:
+      - "apps/code-api/**"
+      - ".github/workflows/code-api.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/code-api/**"
+      - ".github/workflows/code-api.yml"
+
+jobs:
+  code-api:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/engram_code_test
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: engram_code_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: apps/code-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/code-api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+      - name: Run migrations
+        run: pnpm exec prisma migrate deploy
+      - name: Build API
+        run: pnpm build
+      - name: Test API
+        run: pnpm exec jest --forceExit --runInBand --ci
+      - name: Build nested dashboard
+        run: pnpm --dir apps/dashboard build
+      - name: Test nested dashboard
+        run: pnpm --dir apps/dashboard test
