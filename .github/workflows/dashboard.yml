@@ -35,4 +35,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run lint --filter=engram-dashboard
       - run: pnpm turbo run test --filter=engram-dashboard
+      - name: Install Chromium for Playwright smoke
+        run: pnpm --dir apps/dashboard exec playwright install --with-deps chromium
+      - name: Dashboard mocked route/API smoke
+        run: pnpm --dir apps/dashboard test:e2e:smoke
       - run: pnpm turbo run build --filter=engram-dashboard
