@@ -311,12 +311,12 @@ function routeBody(method: string, pathWithQuery: string): unknown {
     return {
       metrics: [
         { key: "layer_distribution", value: { SESSION: 1 }, status: "ok" },
-        { key: "embedding_coverage_pct", value: 1, status: "ok" },
+        { key: "embedding_coverage_pct", value: 71.86, status: "ok" },
         { key: "dedup_pending_clusters", value: 0, status: "ok" },
         { key: "avg_recall_latency_ms", value: 42, status: "ok" },
         { key: "dream_cycle_status", value: "completed", status: "ok" },
         { key: "dream_cycle_last_run", value: now, status: "ok" },
-        { key: "stale_memories_pct", value: 0.05, status: "ok" },
+        { key: "stale_memories_pct", value: 26.14, status: "ok" },
       ],
     };
   }

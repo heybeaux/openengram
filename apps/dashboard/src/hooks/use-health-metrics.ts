@@ -4,8 +4,17 @@ import { useState, useEffect, useCallback } from "react";
 import { engram } from "@/lib/engram-client";
 import type { HealthMetrics } from "@/lib/types";
 
-// The API returns metrics as an array of { key, value, status, description }
-// Transform into the flat HealthMetrics shape the dashboard expects.
+// The API returns metrics as an array of { key, value, status, description }.
+// Backend percentage metrics use 0-100 values with unit "%"; the dashboard
+// cards expect ratios (0-1) before rendering them as percentages.
+function percentMetricToRatio(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+
+  // Preserve compatibility with older mocked/dev responses that already used
+  // ratios, while normalizing production API percent values like 71.86.
+  return value > 1 ? value / 100 : value;
+}
+
 function transformMetrics(raw: unknown): HealthMetrics {
   const arr = Array.isArray(raw) ? raw : [];
   const map = new Map<string, unknown>();
@@ -20,16 +29,17 @@ function transformMetrics(raw: unknown): HealthMetrics {
     layerDist && typeof layerDist === "object"
       ? Object.values(layerDist as Record<string, number>).reduce((a, b) => a + b, 0)
       : 0;
+  const staleRatio = percentMetricToRatio(map.get("stale_memories_pct"));
 
   return {
     memoryCount: totalMemories,
-    embeddingCoverage: (map.get("embedding_coverage_pct") as number) ?? 0,
+    embeddingCoverage: percentMetricToRatio(map.get("embedding_coverage_pct")),
     dedupPendingClusters: (map.get("dedup_pending_clusters") as number) ?? 0,
     avgRecallLatencyMs: (map.get("avg_recall_latency_ms") as number) ?? 0,
     dreamCycleStatus: (map.get("dream_cycle_status") as string) ?? "unknown",
     dreamCycleLastRun: (map.get("dream_cycle_last_run") as string) ?? "",
-    decayPercentage: (map.get("stale_memories_pct") as number) ?? 0,
-    freshnessPercentage: 100 - ((map.get("stale_memories_pct") as number) ?? 0),
+    decayPercentage: staleRatio,
+    freshnessPercentage: Math.max(0, 1 - staleRatio),
   };
 }
 
