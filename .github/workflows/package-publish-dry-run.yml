@@ -1,0 +1,50 @@
+name: package-publish-dry-run
+
+on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/package-publish-dry-run.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/package-publish-dry-run.yml"
+
+jobs:
+  package-publish-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint --filter="./packages/*"
+      - run: pnpm turbo run typecheck --filter="./packages/*"
+      - run: pnpm turbo run test --filter="./packages/*"
+      - run: pnpm test:contracts
+      - run: pnpm turbo run build --filter="./packages/*"
+      - name: npm pack dry-run
+        run: |
+          set -euo pipefail
+          for dir in \
+            packages/contracts \
+            packages/client-js \
+            packages/mcp \
+            packages/channel-intelligence
+          do
+            echo "== npm pack --dry-run $dir =="
+            (cd "$dir" && npm pack --dry-run --json)
+          done
