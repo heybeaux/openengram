@@ -15,7 +15,7 @@ describe('MemoryEdgesController', () => {
   let controller: MemoryEdgesController;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     controller = new MemoryEdgesController(
       mockMemoryEdgesService as unknown as MemoryEdgesService,
     );
