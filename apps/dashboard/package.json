@@ -14,7 +14,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test:e2e:visual": "PLAYWRIGHT_VISUAL_AUDIT=1 playwright test --config=playwright.visual.config.ts --project=chromium",
-    "test:e2e:visual:update": "PLAYWRIGHT_VISUAL_AUDIT=1 playwright test --config=playwright.visual.config.ts --project=chromium --update-snapshots"
+    "test:e2e:visual:update": "PLAYWRIGHT_VISUAL_AUDIT=1 playwright test --config=playwright.visual.config.ts --project=chromium --update-snapshots",
+    "test:e2e:smoke": "playwright test e2e/pages.spec.ts --project=chromium --grep \"route inventory|reported regressions\""
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
