@@ -12,10 +12,15 @@ function makeTestToken(): string {
 
 async function authenticate(context: BrowserContext, page: Page) {
   const token = makeTestToken();
+  const user = { id: "test_user", email: "test@example.com", name: "Test User" };
   await context.addCookies([{ name: "engram_token", value: token, domain: "localhost", path: "/" }]);
-  await page.addInitScript((value) => {
-    window.localStorage.setItem("engram_token", value);
-  }, token);
+  await page.addInitScript(
+    ({ token, user }) => {
+      window.localStorage.setItem("engram_token", token);
+      window.localStorage.setItem("engram_user", JSON.stringify(user));
+    },
+    { token, user },
+  );
 }
 
 async function installFailureWatch(page: Page) {
@@ -97,6 +102,13 @@ test.describe("reported regressions", () => {
   test.beforeEach(async ({ page, context }) => {
     await authenticate(context, page);
     await mockEngramApi(page);
+  });
+
+  test("/dashboard normalizes API percent metrics without double multiplying", async ({ page }) => {
+    await page.goto("/dashboard", { waitUntil: "networkidle" });
+    await expect(page.locator("body")).toContainText("71.9% embedded");
+    await expect(page.locator("body")).toContainText(/99\.1%\s*fresh\s*·\s*0\.9% archived/);
+    await expect(page.locator("body")).not.toContainText(/7186\.0%|86\.0% archived/);
   });
 
   test("/sessions renders snake_case API dates without Invalid Date", async ({ page }) => {
