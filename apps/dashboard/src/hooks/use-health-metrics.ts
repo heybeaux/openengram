@@ -4,15 +4,36 @@ import { useState, useEffect, useCallback } from "react";
 import { engram } from "@/lib/engram-client";
 import type { HealthMetrics } from "@/lib/types";
 
-// The API returns metrics as an array of { key, value, status, description }.
+// The API returns metrics as an array of { key, value, unit, status, description }.
 // Backend percentage metrics use 0-100 values with unit "%"; the dashboard
 // cards expect ratios (0-1) before rendering them as percentages.
-function percentMetricToRatio(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+type ApiMetric = { value?: unknown; unit?: unknown };
+
+function metricValue(metric: unknown): unknown {
+  if (metric && typeof metric === "object" && "value" in metric) {
+    return (metric as ApiMetric).value;
+  }
+  return metric;
+}
+
+function numberMetric(metric: unknown, fallback = 0): number {
+  const value = metricValue(metric);
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function clampRatio(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function percentMetricToRatio(metric: unknown): number {
+  const value = numberMetric(metric);
+  const unit = metric && typeof metric === "object" ? (metric as ApiMetric).unit : undefined;
+
+  if (unit === "%") return clampRatio(value / 100);
 
   // Preserve compatibility with older mocked/dev responses that already used
-  // ratios, while normalizing production API percent values like 71.86.
-  return value > 1 ? value / 100 : value;
+  // ratios, while normalizing legacy percent payloads where unit was absent.
+  return clampRatio(value > 1 ? value / 100 : value);
 }
 
 function transformMetrics(raw: unknown): HealthMetrics {
@@ -20,11 +41,11 @@ function transformMetrics(raw: unknown): HealthMetrics {
   const map = new Map<string, unknown>();
   for (const m of arr) {
     if (m && typeof m === "object" && "key" in m && "value" in m) {
-      map.set(m.key as string, m.value);
+      map.set(m.key as string, m);
     }
   }
 
-  const layerDist = map.get("layer_distribution");
+  const layerDist = metricValue(map.get("layer_distribution"));
   const totalMemories =
     layerDist && typeof layerDist === "object"
       ? Object.values(layerDist as Record<string, number>).reduce((a, b) => a + b, 0)
@@ -34,10 +55,10 @@ function transformMetrics(raw: unknown): HealthMetrics {
   return {
     memoryCount: totalMemories,
     embeddingCoverage: percentMetricToRatio(map.get("embedding_coverage_pct")),
-    dedupPendingClusters: (map.get("dedup_pending_clusters") as number) ?? 0,
-    avgRecallLatencyMs: (map.get("avg_recall_latency_ms") as number) ?? 0,
-    dreamCycleStatus: (map.get("dream_cycle_status") as string) ?? "unknown",
-    dreamCycleLastRun: (map.get("dream_cycle_last_run") as string) ?? "",
+    dedupPendingClusters: numberMetric(map.get("dedup_pending_clusters")),
+    avgRecallLatencyMs: numberMetric(map.get("avg_recall_latency_ms")),
+    dreamCycleStatus: (metricValue(map.get("dream_cycle_status")) as string) ?? "unknown",
+    dreamCycleLastRun: (metricValue(map.get("dream_cycle_last_run")) as string) ?? "",
     decayPercentage: staleRatio,
     freshnessPercentage: Math.max(0, 1 - staleRatio),
   };

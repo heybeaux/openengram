@@ -107,8 +107,8 @@ test.describe("reported regressions", () => {
   test("/dashboard normalizes API percent metrics without double multiplying", async ({ page }) => {
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     await expect(page.locator("body")).toContainText("71.9% embedded");
-    await expect(page.locator("body")).toContainText(/73\.9%\s*fresh\s*·\s*26\.1% archived/);
-    await expect(page.locator("body")).not.toContainText(/7186\.0%|7386\.0%/);
+    await expect(page.locator("body")).toContainText(/99\.1%\s*fresh\s*·\s*0\.9% archived/);
+    await expect(page.locator("body")).not.toContainText(/7186\.0%|86\.0% archived/);
   });
 
   test("/sessions renders snake_case API dates without Invalid Date", async ({ page }) => {
