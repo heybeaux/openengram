@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { forceCollide } from 'd3';
 import { engram as engramClient } from '@/lib/engram-client';
 import type { GraphData } from '@/lib/types';
 
@@ -315,8 +316,9 @@ export default function GraphPage() {
         const fg = graphRef.current;
         const nodeCount = graphData.nodes.length;
 
-        const charge = -200 - nodeCount * 0.5;
-        fg.d3Force('charge')?.strength(charge).distanceMax(600);
+        // Stronger repulsion for denser graphs to reduce center clustering.
+        const charge = -260 - nodeCount * 0.8;
+        fg.d3Force('charge')?.strength(charge).distanceMax(700);
 
         fg.d3Force('link')
           ?.distance((link: any) => {
@@ -331,6 +333,16 @@ export default function GraphPage() {
               : false;
             return isEntityHub ? 0.3 : 0.15 + (link.confidence || 0) * 0.15;
           });
+
+        // Collision force keeps node discs from overlapping so dense
+        // clusters spread out instead of piling on top of each other.
+        fg.d3Force(
+          'collide',
+          forceCollide()
+            .radius((node: any) => ((node?.radius as number) ?? 3) + 4)
+            .strength(0.9)
+            .iterations(2),
+        );
 
         fg.d3Force('center')?.strength(0.05);
         fg.d3ReheatSimulation();
