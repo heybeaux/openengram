@@ -67,8 +67,11 @@ describe('embedding-validation.util', () => {
     });
 
     it('should reject sparse-array holes that array every/some would skip', () => {
-      const sparse = [0, 1, 2];
-      delete sparse[1];
+      const sparse = Array.from({ length: 3 }, (_value, index) =>
+        index === 1 ? undefined : index,
+      );
+      sparse.length = 3;
+      Reflect.deleteProperty(sparse, '1');
 
       expect(1 in sparse).toBe(false);
       expect(() => assertValidEmbedding(sparse)).toThrow(
