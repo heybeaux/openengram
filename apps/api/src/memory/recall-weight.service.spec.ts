@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { RecallWeightService, RankedMemory } from './recall-weight.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { Memory } from '@prisma/client';
+import { Memory, MemoryLayer } from '@prisma/client';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -53,7 +53,10 @@ describe('RecallWeightService', () => {
   let service: RecallWeightService;
   let mockPrismaService: any;
 
-  const createService = async (envValue = 'true') => {
+  const createService = async (
+    envValue = 'true',
+    configOverrides: Record<string, string> = {},
+  ) => {
     mockPrismaService = {
       memory: {
         findMany: jest.fn(),
@@ -66,8 +69,12 @@ describe('RecallWeightService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: (key: string, defaultValue: string) =>
-              key === 'RECALL_TIER_WEIGHT_ENABLED' ? envValue : defaultValue,
+            get: (key: string, defaultValue: string) => {
+              if (key in configOverrides) return configOverrides[key];
+              return key === 'RECALL_TIER_WEIGHT_ENABLED'
+                ? envValue
+                : defaultValue;
+            },
           },
         },
         {
@@ -202,6 +209,97 @@ describe('RecallWeightService', () => {
         retrievalCount: 0,
       });
       expect(enabled.recallWeight(cold)).toBe(0.6);
+    });
+  });
+
+  describe('layerMultiplier', () => {
+    it('is neutral by default to preserve existing recall ranking', () => {
+      const identity = makeMemory({ layer: MemoryLayer.IDENTITY });
+      const session = makeMemory({ layer: MemoryLayer.SESSION });
+
+      expect(service.layerMultiplier(identity)).toBe(1.0);
+      expect(service.layerMultiplier(session)).toBe(1.0);
+      expect(service.recallWeight(identity)).toBe(
+        service.recallWeight(session),
+      );
+    });
+
+    it('boosts IDENTITY above SESSION when opt-in layer multipliers are enabled', async () => {
+      const enabled = await createService('true', {
+        RECALL_LAYER_MULTIPLIERS_ENABLED: 'true',
+      });
+      const identity = makeMemory({ layer: MemoryLayer.IDENTITY });
+      const session = makeMemory({ layer: MemoryLayer.SESSION });
+
+      expect(enabled.layerMultiplier(identity)).toBeGreaterThan(
+        enabled.layerMultiplier(session),
+      );
+      expect(enabled.recallWeight(identity)).toBeGreaterThan(
+        enabled.recallWeight(session),
+      );
+    });
+
+    it('supports explicit JSON multiplier overrides', async () => {
+      const enabled = await createService('true', {
+        RECALL_LAYER_MULTIPLIERS_ENABLED: 'true',
+        RECALL_LAYER_MULTIPLIERS: JSON.stringify({
+          IDENTITY: 1.4,
+          SESSION: 1.0,
+          NOT_A_LAYER: 9,
+        }),
+      });
+
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBe(1.4);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.SESSION })),
+      ).toBe(1.0);
+    });
+
+    it('supports comma-separated multiplier overrides', async () => {
+      const enabled = await createService('true', {
+        RECALL_LAYER_MULTIPLIERS_ENABLED: 'true',
+        RECALL_LAYER_MULTIPLIERS: 'IDENTITY=1.25, SESSION=1, TASK=1.1',
+      });
+
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBe(1.25);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.TASK })),
+      ).toBe(1.1);
+    });
+
+    it('ignores unknown, non-finite, and non-positive override values', async () => {
+      const enabled = await createService('true', {
+        RECALL_LAYER_MULTIPLIERS_ENABLED: 'true',
+        RECALL_LAYER_MULTIPLIERS: JSON.stringify({
+          IDENTITY: 1.3,
+          SESSION: -1,
+          TASK: 'abc',
+          PREFERENCE: null,
+          NOT_A_LAYER: 9,
+        }),
+      });
+
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBe(1.3);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.SESSION })),
+      ).toBe(1.0);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.TASK })),
+      ).toBe(1.05);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.PREFERENCE })),
+      ).toBe(1.0);
+      expect(
+        enabled.recallWeight(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBeGreaterThan(
+        enabled.recallWeight(makeMemory({ layer: MemoryLayer.SESSION })),
+      );
     });
   });
 
