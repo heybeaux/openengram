@@ -167,7 +167,11 @@ export class RecallWeightService {
       if (!Object.values(MemoryLayer).includes(layer as MemoryLayer)) return;
 
       const parsed =
-        typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+        typeof value === 'number'
+          ? value
+          : typeof value === 'string'
+            ? parseFloat(value)
+            : NaN;
       if (!Number.isFinite(parsed) || parsed <= 0) return;
 
       multipliers[layer as MemoryLayer] = parsed;

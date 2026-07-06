@@ -270,6 +270,37 @@ describe('RecallWeightService', () => {
         enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.TASK })),
       ).toBe(1.1);
     });
+
+    it('ignores unknown, non-finite, and non-positive override values', async () => {
+      const enabled = await createService('true', {
+        RECALL_LAYER_MULTIPLIERS_ENABLED: 'true',
+        RECALL_LAYER_MULTIPLIERS: JSON.stringify({
+          IDENTITY: 1.3,
+          SESSION: -1,
+          TASK: 'abc',
+          PREFERENCE: null,
+          NOT_A_LAYER: 9,
+        }),
+      });
+
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBe(1.3);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.SESSION })),
+      ).toBe(1.0);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.TASK })),
+      ).toBe(1.05);
+      expect(
+        enabled.layerMultiplier(makeMemory({ layer: MemoryLayer.PREFERENCE })),
+      ).toBe(1.0);
+      expect(
+        enabled.recallWeight(makeMemory({ layer: MemoryLayer.IDENTITY })),
+      ).toBeGreaterThan(
+        enabled.recallWeight(makeMemory({ layer: MemoryLayer.SESSION })),
+      );
+    });
   });
 
   describe('resolveDerivatives', () => {
