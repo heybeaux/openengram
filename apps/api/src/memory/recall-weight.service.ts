@@ -1,9 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Memory, MemoryDurability } from '@prisma/client';
+import { Memory, MemoryDurability, MemoryLayer } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const DEFAULT_LAYER_MULTIPLIERS: Record<MemoryLayer, number> = {
+  [MemoryLayer.IDENTITY]: 1.15,
+  [MemoryLayer.PROJECT]: 1.05,
+  [MemoryLayer.SESSION]: 1.0,
+  [MemoryLayer.TASK]: 1.05,
+  [MemoryLayer.INSIGHT]: 1.1,
+};
 
 export interface RankedMemory {
   memory: Memory;
@@ -37,6 +45,10 @@ export class RecallWeightService {
   private readonly durableBoost: number;
   private readonly ephemeralPenalty: number;
 
+  // ENG-84: Optional layer multiplier configuration. Default off to protect recall benchmarks.
+  private readonly layerMultiplierEnabled: boolean;
+  private readonly layerMultipliers: Record<MemoryLayer, number>;
+
   constructor(
     private config: ConfigService,
     private prisma: PrismaService,
@@ -52,6 +64,15 @@ export class RecallWeightService {
     );
     this.ephemeralPenalty = parseFloat(
       this.config.get('EPHEMERAL_PENALTY_MULTIPLIER', '0.6'),
+    );
+
+    // ENG-84: Layer-based score multiplier. Kept opt-in so production recall and
+    // LongMemEval behavior are unchanged until explicitly enabled.
+    this.layerMultiplierEnabled =
+      this.config.get<string>('RECALL_LAYER_MULTIPLIERS_ENABLED', 'false') ===
+      'true';
+    this.layerMultipliers = this.parseLayerMultipliers(
+      this.config.get<string>('RECALL_LAYER_MULTIPLIERS', ''),
     );
 
     // ENG-27: Usage-weighted retrieval configuration
@@ -83,7 +104,11 @@ export class RecallWeightService {
    *  - COLD:     0.6
    */
   recallWeight(memory: Memory): number {
-    if (!this.enabled) return 1.0 * this.durabilityMultiplier(memory);
+    if (!this.enabled) {
+      return (
+        1.0 * this.durabilityMultiplier(memory) * this.layerMultiplier(memory)
+      );
+    }
 
     let weight: number;
 
@@ -111,7 +136,59 @@ export class RecallWeightService {
       }
     }
 
-    return weight * this.durabilityMultiplier(memory);
+    return (
+      weight * this.durabilityMultiplier(memory) * this.layerMultiplier(memory)
+    );
+  }
+
+  /**
+   * ENG-84: Return a score multiplier based on memory layer.
+   *
+   * This is intentionally opt-in via RECALL_LAYER_MULTIPLIERS_ENABLED=false by
+   * default because layer boosts change recall ranking and therefore need
+   * benchmark evidence before production rollout. RECALL_LAYER_MULTIPLIERS may be
+   * JSON, e.g. {"IDENTITY":1.2,"SESSION":1}, or comma-separated pairs,
+   * e.g. IDENTITY=1.2,SESSION=1. Invalid/unknown entries are ignored.
+   */
+  layerMultiplier(memory: Memory): number {
+    if (!this.layerMultiplierEnabled) return 1.0;
+
+    const layer = (memory as any).layer as MemoryLayer | undefined;
+    if (!layer) return 1.0;
+
+    return this.layerMultipliers[layer] ?? 1.0;
+  }
+
+  private parseLayerMultipliers(raw: string): Record<MemoryLayer, number> {
+    const multipliers = { ...DEFAULT_LAYER_MULTIPLIERS };
+    if (!raw.trim()) return multipliers;
+
+    const assignMultiplier = (layer: string, value: unknown) => {
+      if (!Object.values(MemoryLayer).includes(layer as MemoryLayer)) return;
+
+      const parsed =
+        typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+      multipliers[layer as MemoryLayer] = parsed;
+    };
+
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      for (const [layer, value] of Object.entries(parsed)) {
+        assignMultiplier(layer, value);
+      }
+      return multipliers;
+    } catch {
+      // Fall through to KEY=value parsing.
+    }
+
+    for (const entry of raw.split(',')) {
+      const [layer, value] = entry.split('=').map((part) => part.trim());
+      if (layer && value) assignMultiplier(layer, value);
+    }
+
+    return multipliers;
   }
 
   /**
@@ -123,8 +200,7 @@ export class RecallWeightService {
     if (!this.durabilityBoostEnabled) return 1.0;
 
     const durability = (memory as any).durability as
-      | MemoryDurability
-      | undefined;
+      MemoryDurability | undefined;
     if (durability === MemoryDurability.DURABLE) return this.durableBoost;
     if (durability === MemoryDurability.EPHEMERAL) return this.ephemeralPenalty;
     return 1.0;
